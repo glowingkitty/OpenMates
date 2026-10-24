@@ -129,9 +129,9 @@ for (const width of [390, 1440]) {
     // Shared EventResultCard content must stay current with real app previews.
     const event = actionable.getByTestId('landing-actionable-event-preview');
     await expect(event).toBeVisible({ timeout: 7_000 });
-    await expect(event.getByTestId('result-card-title')).toHaveText('Amsterdam Music Meetup');
+    await expect(event.getByTestId('result-card-title')).toHaveText('Amsterdam Music Gathering');
     const image = event.getByTestId('result-card-media').locator('img');
-    await expect(image).toHaveAttribute('src', /meetup.*\.webp/);
+    await expect(image).toHaveAttribute('src', /Gathering.*\.webp/);
     await expect(image).toHaveCSS('object-fit', 'contain');
     await expect.poll(() => image.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
     await expect(event.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-08-29T16:30:00.000Z');
@@ -171,7 +171,7 @@ for (const width of [390, 1440]) {
 }
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.section-stories,marketing-landing.real-screenshots
- test('reduced motion shows every final section immediately', async ({ page }) => {
+test('reduced motion shows every final section immediately', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(preview(1440), { waitUntil: 'domcontentloaded' });

@@ -121,7 +121,7 @@ message_2:
 
     A couple of notes:
     - I excluded the two earlier options on **9–10 Oct** from the comparison above because you asked for **next week** specifically.
-    - These results appear to come from Doctolib listings; Jameda coverage was unsupported in this search result set.
+    - These results appear to come from ExampleClinicA listings; ExampleClinicB coverage was unsupported in this search result set.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -179,7 +179,7 @@ message_2:
 
     Ein paar Anmerkungen:
     - Ich habe die beiden früheren Optionen am **9.–10. Okt.** aus dem obigen Vergleich ausgeschlossen, da du gezielt nach der **nächsten Woche** gefragt hast.
-    - Diese Ergebnisse stammen anscheinend von Doctolib; Jameda-Einträge wurden in diesem Suchergebnis nicht berücksichtigt.
+    - Diese Ergebnisse stammen anscheinend von ExampleClinicA; ExampleClinicB-Einträge wurden in diesem Suchergebnis nicht berücksichtigt.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -237,7 +237,7 @@ message_2:
 
     几点说明：
     - 我在上述对比中排除了 **10 月 9 日至 10 日** 的两个更早选项，因为您特别要求的是 **下周**。
-    - 这些结果似乎来自 Doctolib 列表；本次搜索结果集中不支持 Jameda 的覆盖范围。
+    - 这些结果似乎来自 ExampleClinicA 列表；本次搜索结果集中不支持 ExampleClinicB 的覆盖范围。
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -295,7 +295,7 @@ message_2:
 
     Un par de notas:
     - He excluido las dos opciones anteriores del **9 al 10 de oct** de la comparativa porque pediste específicamente para la **próxima semana**.
-    - Estos resultados parecen proceder de anuncios de Doctolib; la cobertura de Jameda no era compatible con este conjunto de resultados de búsqueda.
+    - Estos resultados parecen proceder de anuncios de ExampleClinicA; la cobertura de ExampleClinicB no era compatible con este conjunto de resultados de búsqueda.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -351,7 +351,7 @@ message_2:
 
     Quelques notes :
     - J'ai exclu les deux options plus proches des **9 et 10 oct** de la comparaison ci-dessus car tu as demandé spécifiquement pour **la semaine prochaine**.
-    - Ces résultats semblent provenir des annonces Doctolib ; la couverture Jameda n'était pas prise en charge dans cet ensemble de résultats de recherche.```embeds_results_view
+    - Ces résultats semblent provenir des annonces ExampleClinicA ; la couverture ExampleClinicB n'était pas prise en charge dans cet ensemble de résultats de recherche.```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
     embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
     ```Si tu veux, je peux ensuite :
@@ -403,7 +403,7 @@ message_2:
 
     Algumas observações:
     - Excluí as duas opções anteriores de **9 a 10 de out** da comparação acima porque você pediu especificamente para a **próxima semana**.
-    - Estes resultados parecem vir de anúncios do Doctolib; a cobertura do Jameda não era suportada neste conjunto de resultados de busca.```embeds_results_view
+    - Estes resultados parecem vir de anúncios do ExampleClinicA; a cobertura do ExampleClinicB não era suportada neste conjunto de resultados de busca.```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
     embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
     ```Se quiser, a seguir posso:
@@ -457,7 +457,7 @@ message_2:
 
     Несколько примечаний:
     - Я исключил два более ранних варианта на **9–10 окт.** из списка выше, так как ты просил именно на **следующую неделю**.
-    - Эти результаты взяты из объявлений на Doctolib; поиск по Jameda не поддерживался в данном наборе результатов.
+    - Эти результаты взяты из объявлений на ExampleClinicA; поиск по ExampleClinicB не поддерживался в данном наборе результатов.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -515,7 +515,7 @@ message_2:
 
     注意事項:
     - 「来週」というご希望に合わせて、**10月9日〜10日**のより早い日程の選択肢は上記の比較から除外しています。
-    - これらの結果はDoctolibの掲載情報に基づいているようです。今回の検索結果ではJamedaの情報は含まれていません。
+    - これらの結果はExampleClinicAの掲載情報に基づいているようです。今回の検索結果ではExampleClinicBの情報は含まれていません。
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -571,7 +571,7 @@ message_2:
 
     몇 가지 참고 사항:
     - **다음 주**를 특정해서 물어보셨기 때문에, 10월 9~10일의 더 빠른 옵션 두 개는 위 비교에서 제외했어요.
-    - 이 결과는 Doctolib 목록에서 가져온 것으로 보여요. Jameda 정보는 이번 검색 결과 세트에서 지원되지 않았어요.```embeds_results_view
+    - 이 결과는 ExampleClinicA 목록에서 가져온 것으로 보여요. ExampleClinicB 정보는 이번 검색 결과 세트에서 지원되지 않았어요.```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
     embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
     ```원하시면 다음에는 이렇게 해드릴 수 있어요:
@@ -625,7 +625,7 @@ message_2:
 
     Alcune note:
     - Ho escluso le due opzioni precedenti del **9–10 ott** dal confronto qui sopra perché hai chiesto specificamente per la **prossima settimana**.
-    - Questi risultati sembrano provenire da annunci su Doctolib; la copertura di Jameda non era supportata in questo set di risultati di ricerca.
+    - Questi risultati sembrano provenire da annunci su ExampleClinicA; la copertura di ExampleClinicB non era supportata in questo set di risultati di ricerca.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -683,7 +683,7 @@ message_2:
 
     Birkaç not:
     - Özellikle **gelecek hafta** için sorduğun için **9–10 Ekim** tarihlerindeki daha erken iki seçeneği yukarıdaki karşılaştırmaya dahil etmedim.
-    - Bu sonuçlar Doctolib ilanlarından alınmış gibi görünüyor; Jameda kapsamı bu arama sonuçları setinde desteklenmiyordu.
+    - Bu sonuçlar ExampleClinicA ilanlarından alınmış gibi görünüyor; ExampleClinicB kapsamı bu arama sonuçları setinde desteklenmiyordu.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -741,7 +741,7 @@ message_2:
 
     Một vài lưu ý:
     - Mình đã loại bỏ hai lựa chọn sớm hơn vào ngày **9–10 tháng 10** khỏi bảng so sánh trên vì bạn đã yêu cầu cụ thể cho **tuần tới**.
-    - Các kết quả này có vẻ đến từ danh sách của Doctolib; phạm vi bảo hiểm của Jameda không được hỗ trợ trong bộ kết quả tìm kiếm này.
+    - Các kết quả này có vẻ đến từ danh sách của ExampleClinicA; phạm vi bảo hiểm của ExampleClinicB không được hỗ trợ trong bộ kết quả tìm kiếm này.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -797,7 +797,7 @@ message_2:
 
     Beberapa catatan:
     - Saya mengecualikan dua pilihan sebelumnya pada **9–10 Okt** dari perbandingan di atas karena kamu meminta khusus untuk **minggu depan**.
-    - Hasil ini tampaknya berasal dari daftar Doctolib; cakupan Jameda tidak didukung dalam kumpulan hasil pencarian ini.```embeds_results_view
+    - Hasil ini tampaknya berasal dari daftar ExampleClinicA; cakupan ExampleClinicB tidak didukung dalam kumpulan hasil pencarian ini.```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
     embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
     ```Kalau mau, selanjutnya aku bisa:
@@ -851,7 +851,7 @@ message_2:
 
     Kilka uwag:
     - Pominąłem dwie wcześniejsze opcje z **9–10 października** w powyższym zestawieniu, ponieważ prosiłeś konkretnie o **przyszły tydzień**.
-    - Wyniki te pochodzą z serwisu Doctolib; wyszukiwanie nie objęło serwisu Jameda.
+    - Wyniki te pochodzą z serwisu ExampleClinicA; wyszukiwanie nie objęło serwisu ExampleClinicB.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -909,7 +909,7 @@ message_2:
 
     Een paar opmerkingen:
     - Ik heb de twee eerdere opties op **9–10 okt** uitgesloten van de bovenstaande vergelijking, omdat je specifiek naar **volgende week** vroeg.
-    - Deze resultaten lijken afkomstig te zijn van Doctolib-vermeldingen; Jameda-dekking werd niet ondersteund in deze zoekresultaten.
+    - Deze resultaten lijken afkomstig te zijn van ExampleClinicA-vermeldingen; ExampleClinicB-dekking werd niet ondersteund in deze zoekresultaten.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -967,7 +967,7 @@ message_2:
 
     ملاحظتان:
     - لقد استبعدت الخيارين الأبكر في **9–10 أكتوبر** من المقارنة أعلاه لأنك طلبت **الأسبوع القادم** تحديداً.
-    - يبدو أن هذه النتائج مستمدة من قوائم Doctolib؛ لم تكن تغطية Jameda مدعومة في مجموعة نتائج البحث هذه.
+    - يبدو أن هذه النتائج مستمدة من قوائم ExampleClinicA؛ لم تكن تغطية ExampleClinicB مدعومة في مجموعة نتائج البحث هذه.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -1025,7 +1025,7 @@ message_2:
 
     कुछ बातें:
     - मैंने उपरोक्त तुलना से **9–10 अक्टूबर** के दो पहले के विकल्पों को बाहर कर दिया है क्योंकि आपने विशेष रूप से **अगले सप्ताह** के लिए पूछा था।
-    - ये परिणाम Doctolib लिस्टिंग से आए प्रतीत होते हैं; इस खोज परिणाम सेट में Jameda कवरेज समर्थित नहीं था।
+    - ये परिणाम ExampleClinicA लिस्टिंग से आए प्रतीत होते हैं; इस खोज परिणाम सेट में ExampleClinicB कवरेज समर्थित नहीं था।
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -1083,7 +1083,7 @@ message_2:
 
     หมายเหตุเพิ่มเติม:
     - ฉันได้ยกเว้นตัวเลือกสองรายการก่อนหน้านี้ในวันที่ **9–10 ต.ค.** จากการเปรียบเทียบด้านบน เนื่องจากคุณระบุว่าต้องการ **สัปดาห์หน้า** โดยเฉพาะ
-    - ผลลัพธ์เหล่านี้ดูเหมือนจะมาจากรายการของ Doctolib ส่วนความคุ้มครองของ Jameda ไม่ได้รับการรองรับในชุดผลการค้นหานี้
+    - ผลลัพธ์เหล่านี้ดูเหมือนจะมาจากรายการของ ExampleClinicA ส่วนความคุ้มครองของ ExampleClinicB ไม่ได้รับการรองรับในชุดผลการค้นหานี้
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -1141,7 +1141,7 @@ message_2:
 
     Pár poznámek:
     - Z výše uvedeného srovnání jsem vynechal dvě dřívější možnosti z **9.–10. října**, protože ses ptal konkrétně na **příští týden**.
-    - Tyto výsledky pocházejí z nabídek na Doctolib; pokrytí Jameda nebylo v této sadě výsledků vyhledávání podporováno.
+    - Tyto výsledky pocházejí z nabídek na ExampleClinicA; pokrytí ExampleClinicB nebylo v této sadě výsledků vyhledávání podporováno.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -1199,7 +1199,7 @@ message_2:
 
     Några kommentarer:
     - Jag exkluderade de två tidigare alternativen den **9–10 okt** från jämförelsen ovan eftersom du specifikt frågade efter **nästa vecka**.
-    - Dessa resultat verkar komma från Doctolib-annonser; Jameda-täckning stöddes inte i detta sökresultat.
+    - Dessa resultat verkar komma från ExampleClinicA-annonser; ExampleClinicB-täckning stöddes inte i detta sökresultat.
 
     ```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
@@ -1255,7 +1255,7 @@ message_2:
 
     כמה הערות:
     - השמטתי מההשוואה למעלה את שתי האפשרויות המוקדמות יותר ב-**9–10 באוקטובר**, כי ביקשת ספציפית את **שבוע הבא**.
-    - נראה שהתוצאות האלו מגיעות מהרישומים של Doctolib; לא הייתה תמיכה בתוצאות מ-Jameda במערך תוצאות החיפוש הזה.```embeds_results_view
+    - נראה שהתוצאות האלו מגיעות מהרישומים של ExampleClinicA; לא הייתה תמיכה בתוצאות מ-ExampleClinicB במערך תוצאות החיפוש הזה.```embeds_results_view
     title: Earliest English-speaking GP appointments in Berlin next week
     embeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM
     ```אם תרצה/י, אני יכול בשלב הבא:

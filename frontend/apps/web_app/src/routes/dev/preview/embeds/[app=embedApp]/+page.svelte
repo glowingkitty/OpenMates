@@ -312,8 +312,8 @@
 				appId: 'events',
 				previewPath: 'embeds/events/EventEmbedPreview',
 				fullscreenPath: 'embeds/events/EventEmbedFullscreen',
-				inlineLinkText: 'AI & ML Berlin Meetup',
-				quoteText: 'AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin.'
+				inlineLinkText: 'AI & ML Berlin Gathering',
+				quoteText: 'AI & Machine Learning Berlin Gathering. March 15, 19:00 at Factory Berlin.'
 			},
 			{
 				skillLabel: 'Search',
@@ -491,7 +491,7 @@
 				previewPath: 'embeds/hosting/HostingDomainEmbedPreview',
 				fullscreenPath: 'embeds/hosting/HostingDomainEmbedFullscreen',
 				inlineLinkText: 'cedarcomet.com',
-				quoteText: 'cedarcomet.com is available via Gandi.'
+				quoteText: 'cedarcomet.com is available via ExampleRegistrar.'
 			}
 		],
 		fitness: [
@@ -501,7 +501,7 @@
 				previewPath: 'embeds/fitness/FitnessSearchEmbedPreview',
 				fullscreenPath: 'embeds/fitness/FitnessSearchEmbedFullscreen',
 				inlineLinkText: 'Yoga classes near Sorauer Str. 12',
-				quoteText: 'Found 3 Urban Sports classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg.',
+				quoteText: 'Found 3 fitness source classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg.',
 				isAppSkill: true
 			}
 		],
@@ -512,7 +512,7 @@
 				previewPath: 'embeds/electronics/ElectronicsSearchEmbedPreview',
 				fullscreenPath: 'embeds/electronics/ElectronicsSearchEmbedFullscreen',
 				inlineLinkText: '12V to 3.3V buck converter',
-				quoteText: 'Found 10 TI WEBENCH buck converter designs. Top pick: TPS564257DRLR.',
+				quoteText: 'Found 10 ExampleComponents buck converter designs. Top pick: TPS564257DRLR.',
 				isAppSkill: true
 			},
 			{

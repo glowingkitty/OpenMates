@@ -121,7 +121,7 @@ export const healthMetadata: AppsSkillDetails = {
       requests: { type: 'array', 'x-ui': { basic: true }, items: { type: 'object', required: ['speciality', 'city'], properties: {
         speciality: { type: 'string', 'x-ui': { basic: true } },
         city: { type: 'string', 'x-ui': { basic: true, control: 'location', location_mode: 'city' } },
-        provider_platform: { type: 'string', enum: ['both', 'doctolib_de', 'jameda'], default: 'both', 'x-ui': { basic: false } },
+        provider_platform: { type: 'string', enum: ['both', 'ExampleClinicA_de', 'ExampleClinicB'], default: 'both', 'x-ui': { basic: false } },
         insurance_sector: { type: 'string', enum: ['public', 'private'], 'x-ui': { basic: true } },
         telehealth: { type: 'boolean', default: false, 'x-ui': { basic: false } },
         language: { type: 'string', 'x-ui': { basic: false } },

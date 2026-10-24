@@ -35,9 +35,9 @@ embedStore.registerStaticEmbed({
 	appId: 'events',
 	content: JSON.stringify({
 		type: 'event_result',
-		title: 'Local founders meetup',
-		provider: 'eventbrite',
-		url: 'https://example.org/meetup',
+		title: 'Local founders Gathering',
+		provider: 'ExampleTickets',
+		url: 'https://example.com/fixture',
 		date_start: '2026-10-06T18:30:00+02:00',
 		date_end: '2026-10-06T20:00:00+02:00',
 		timezone: 'Europe/Berlin',

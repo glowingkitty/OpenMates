@@ -206,7 +206,7 @@ test('online event and coordinate-free map remain readable without invented loca
   await expect(page.getByTestId('map-location-fullscreen')).toContainText('Schellingstraße');
 });
 
-// contract-test: supporting surface=gui.web assertions=travel-search.realtime.source-faithful,travel-search.optimization.additive-provenance,travel-search.surface-parity
+// contract-test: supporting surface=gui.web assertions=travel-search.realtime.source-faithful,travel-search.surface-parity
 test('connection previews retain both journey legs and rail realtime provenance', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto(preview('travel/TravelConnectionEmbedPreview', 900, 'roundTripItinerary'));
@@ -225,7 +225,7 @@ test('connection previews retain both journey legs and rail realtime provenance'
   await waitForComponentPreview(page);
   await expect(page.getByTestId('connection-realtime-status')).toHaveText('+12 min arrival');
   await expect(page.getByTestId('connection-optimization-badge')).toHaveText('Optimized by OpenMates');
-  await expect(page.getByTestId('airline-logos').locator('img')).toHaveAttribute('alt', 'Deutsche Bahn');
+  await expect(page.getByTestId('airline-logos').locator('img')).toHaveAttribute('alt', 'Example Rail');
   await expect(page.locator('.journey-arrival')).toBeHidden();
   await expect(page.getByTestId('result-map-preview')).toBeHidden();
 });
@@ -390,8 +390,8 @@ test('event description preserves provider HTML structure safely and dates use t
   await page.goto(preview('events/EventEmbedFullscreen', 1280, 'formattedHtml'));
   await waitForComponentPreview(page);
   const description = page.getByTestId('event-description');
-  await expect(description.locator('p').first()).toHaveText('Join our Book Lovers Social meetup!');
-  await expect(description.locator('strong')).toHaveText('Book Lovers Social meetup!');
+  await expect(description.locator('p').first()).toHaveText('Join our Book Lovers Social Gathering!');
+  await expect(description.locator('strong')).toHaveText('Book Lovers Social Gathering!');
   await expect(description.locator('em')).toHaveText('Matt Damon');
   await expect(description.locator('ol li')).toHaveCount(2);
   const guide = description.getByRole('link', { name: 'reading guide' });

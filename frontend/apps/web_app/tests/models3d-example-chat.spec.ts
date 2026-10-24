@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Public-page coverage for the Printables Models3D example chat.
+ * Public-page coverage for the ExampleModels Models3D example chat.
  *
  * This spec intentionally avoids authenticated flows so the public example can
  * be verified independently of test-account OTP availability.
@@ -10,12 +10,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
 
-test.describe('Example chat: Models3D Printables', () => {
+test.describe('Example chat: Models3D ExampleModels', () => {
 	async function expectModels3dExampleVisible(page: any) {
 		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
 
 		await expect(page.getByTestId('user-message-content').filter({
-			hasText: 'Find 3D-printable Benchy and phone stand models on Printables'
+			hasText: 'Find 3D-printable Benchy and phone stand models on ExampleModels'
 		})).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'The 3DBenchy Collection' })).toBeVisible({ timeout: 15000 });
 	}
@@ -31,6 +31,8 @@ test.describe('Example chat: Models3D Printables', () => {
 		expect(imageBox, 'Models3D result card image should be measurable').not.toBeNull();
 		expect(imageBox!.x, 'Models3D result preview image must render to the right of text').toBeGreaterThan(bodyBox!.x);
 	}
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 
 	test('renders messages, result embeds, fullscreen, and reloads', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -67,8 +69,8 @@ test.describe('Example chat: Models3D Printables', () => {
 		await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
 		const cta = page.getByTestId('models3d-open-provider-cta');
 		await expect(cta).toBeVisible({ timeout: 15000 });
-		await expect(cta).toContainText('Open on Printables');
-		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?printables\.com\//);
+		await expect(cta).toContainText('Open on ExampleModels');
+		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?ExampleModels\.com\//);
 		const resultOverlay = resultFullscreen.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]');
 		await closeFullscreen(page, resultOverlay);
 
@@ -83,6 +85,8 @@ test.describe('Example chat: Models3D Printables', () => {
 		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
 		await expect(parentSearchEmbeds.first()).toBeVisible({ timeout: 15000 });
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 
 	test('keeps the static example chat open when logout cleanup runs', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);

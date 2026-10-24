@@ -5,7 +5,7 @@
  * Access at: /dev/preview/embeds/health/HealthAppointmentEmbedPreview
  */
 
-/** Default props — Doctolib ophthalmologist appointment slot */
+/** Default props — ExampleClinicA ophthalmologist appointment slot */
 const defaultProps = {
   id: "preview-health-appointment-1",
   slotDatetime: "2026-04-03T10:30:00",
@@ -15,8 +15,8 @@ const defaultProps = {
   insurance: "private",
   rating: 4.8,
   price: 120,
-  providerPlatform: "Doctolib",
-  bookingUrl: "https://www.doctolib.de/ophtalmologe/munich/sophie-mueller",
+  providerPlatform: "ExampleClinicA",
+  bookingUrl: "https://example.com/fixture",
   gpsCoordinates: {latitude: 48.1397, longitude: 11.5784},
   telehealth: false,
   status: "finished" as const,
@@ -29,7 +29,7 @@ export default defaultProps;
 /** Named variants for different component states */
 export const variants = {
   chat: {...defaultProps, resultContext: "chat" as const},
-  /** Telehealth appointment slot (Doctolib) */
+  /** Telehealth appointment slot (ExampleClinicA) */
   telehealth: {
     ...defaultProps,
     id: "preview-health-appointment-telehealth",
@@ -39,13 +39,13 @@ export const variants = {
     address: "Leopoldstraße 45\n80802 Munich",
     insurance: "private",
     telehealth: true,
-    providerPlatform: "Doctolib",
+    providerPlatform: "ExampleClinicA",
   },
 
-  /** Jameda appointment with rating + price */
-  jameda: {
+  /** ExampleClinicB appointment with rating + price */
+  ExampleClinicB: {
     ...defaultProps,
-    id: "preview-health-appointment-jameda",
+    id: "preview-health-appointment-ExampleClinicB",
     slotDatetime: "2026-04-03T08:00:00",
     name: "Dr. Markus Reinholz",
     speciality: "Hautarzt / Dermatologe",
@@ -54,19 +54,19 @@ export const variants = {
     telehealth: false,
     rating: 5.0,
     price: 120,
-    providerPlatform: "Jameda",
+    providerPlatform: "ExampleClinicB",
   },
 
-  /** Jameda appointment without price */
-  jamedaNoPrice: {
+  /** ExampleClinicB appointment without price */
+  ExampleClinicBNoPrice: {
     ...defaultProps,
-    id: "preview-health-appointment-jameda-no-price",
+    id: "preview-health-appointment-ExampleClinicB-no-price",
     slotDatetime: "2026-04-03T09:30:00",
     name: "Konrad Witkowski",
     speciality: "Zahnarzt",
     address: "Hoheluftchaussee 2, 20253 Hamburg",
     rating: 4.8,
-    providerPlatform: "Jameda",
+    providerPlatform: "ExampleClinicB",
   },
 
   /** Mobile layout */
@@ -76,16 +76,16 @@ export const variants = {
     isMobile: true,
   },
 
-  /** Mobile Jameda */
-  mobileJameda: {
+  /** Mobile ExampleClinicB */
+  mobileExampleClinicB: {
     ...defaultProps,
-    id: "preview-health-appointment-mobile-jameda",
+    id: "preview-health-appointment-mobile-ExampleClinicB",
     isMobile: true,
     name: "Beatrice Kochanek",
     speciality: "Frauenärztin / Gynäkologin",
     address: "Aachener Str. 56, 50674 Köln",
     rating: 5.0,
     price: 80,
-    providerPlatform: "Jameda",
+    providerPlatform: "ExampleClinicB",
   },
 };

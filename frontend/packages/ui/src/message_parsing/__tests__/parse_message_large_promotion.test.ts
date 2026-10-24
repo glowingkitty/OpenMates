@@ -41,6 +41,8 @@ describe("parse_message assistant large promotion", () => {
     embedStore.clearEmbedRefIndex();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("promotes a single sheet embed to embedPreviewLarge", () => {
     const doc = parseAssistant(
       '```json\n{"type":"sheet","embed_id":"sheet-1"}\n```',
@@ -50,6 +52,8 @@ describe("parse_message assistant large promotion", () => {
     expect(doc.content?.[0]?.attrs?.embedRef).toBe("sheet-1");
     expect(doc.content?.[0]?.attrs?.carouselTotal).toBe(1);
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("expands multiple non-code embeds into large slideshow nodes", () => {
     const markdown = [
@@ -73,6 +77,8 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[0].attrs.carouselTotal).toBe(2);
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("groups [!](embed:ref) links separated by blank line into carousel", () => {
     // When the LLM writes two [!](embed:ref) on separate lines with a blank
@@ -102,6 +108,8 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[1].attrs.runRef).toBe("ref-alpha");
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("groups [!](embed:ref) links on consecutive lines (no blank) into carousel", () => {
     // Single newlines — markdown-it keeps them in one paragraph with breaks.
     // Phase A must filter out hardBreak/softBreak nodes to hoist properly.
@@ -119,6 +127,8 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[0].attrs.carouselTotal).toBe(2);
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("hoists consecutive image preview links before trailing punctuation into one carousel", () => {
     const markdown = [
@@ -148,6 +158,8 @@ describe("parse_message assistant large promotion", () => {
       content: [{ type: "text", text: "!" }],
     });
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("hoists trailing [!](embed:ref) from list items with text and groups into carousel", () => {
     // Real-world pattern: LLM writes a bullet list where each item has text
@@ -179,6 +191,8 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("keeps multi code blocks as horizontal grouped embeds", () => {
     const markdown = [
       "```ts",
@@ -203,6 +217,8 @@ describe("parse_message assistant large promotion", () => {
     ).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("does not promote app-skill-use embeds", () => {
     const doc = parseAssistant(
       '```json\n{"type":"app_skill_use","embed_id":"skill-1","app_id":"web","skill_id":"search"}\n```',
@@ -213,6 +229,8 @@ describe("parse_message assistant large promotion", () => {
     expect(firstNode?.content?.[0]?.type).toBe("embed");
     expect(firstNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("keeps registered app-skill refs compact even when [!] large syntax is used", () => {
     embedStore.registerStaticEmbed({
@@ -249,6 +267,8 @@ describe("parse_message assistant large promotion", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("keeps direct app-skill embed IDs compact when [!] large syntax is used", () => {
     embedStore.registerStaticEmbed({
       embedId: "events-search-parent-id",
@@ -280,6 +300,8 @@ describe("parse_message assistant large promotion", () => {
       skill_id: "search",
     });
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("keeps multiple registered app-skill [!] refs compact and grouped", () => {
     embedStore.registerStaticEmbed({
@@ -337,6 +359,8 @@ describe("parse_message assistant large promotion", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("renders focus mode activation before app skill previews", () => {
     const markdown = [
       '```json\n{"type":"app_skill_use","embed_id":"skill-1","app_id":"videos","skill_id":"transcript"}\n```',
@@ -356,6 +380,8 @@ describe("parse_message assistant large promotion", () => {
     expect(secondNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+
   it("marks read-mode focus activation embeds as finished", () => {
     const doc = parseAssistant(
       '```json\n{"type":"focus_mode_activation","embed_id":"focus-1","focus_id":"videos-analyze_video","app_id":"videos","focus_mode_name":"Analyze video"}\n```',
@@ -365,6 +391,8 @@ describe("parse_message assistant large promotion", () => {
     expect(firstNode?.content?.[0]?.attrs?.type).toBe("focus-mode-activation");
     expect(firstNode?.content?.[0]?.attrs?.status).toBe("finished");
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("promotes a sheet embed surrounded by markdown headings", () => {
     const markdown = [
@@ -386,6 +414,8 @@ describe("parse_message assistant large promotion", () => {
       "b7654dc1-07e7-4703-bb58-a135e36bf3ec",
     );
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 
   it("promotes a code embed inside numbered list context", () => {
     const markdown = [
@@ -413,6 +443,8 @@ describe("parse_message assistant large promotion", () => {
       "d1acb994-29fd-48d8-9920-c6a8e990d6d3",
     );
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 
   it("keeps legal markdown SVG images as inline image embeds", () => {
     const markdown = [
@@ -447,6 +479,8 @@ describe("parse_message assistant large promotion", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+
   it("does not expose non-domain embed refs as inline display text", () => {
     const doc = parseAssistant("Best option: [ice-0800-PsB](embed:ice-0800-PsB)");
     const inline = findInlineEmbeds(doc.content || [])[0];
@@ -455,13 +489,17 @@ describe("parse_message assistant large promotion", () => {
     expect(inline?.attrs?.displayText).toBe("ICE 08:00");
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+
   it("derives a safe label for empty non-domain inline embed links", () => {
-    const doc = parseAssistant("Best option: [](embed:flixtrain-1423-3VT)");
+    const doc = parseAssistant("Best option: [](embed:ExampleCoach-1423-3VT)");
     const inline = findInlineEmbeds(doc.content || [])[0];
 
-    expect(inline?.attrs?.embedRef).toBe("flixtrain-1423-3VT");
-    expect(inline?.attrs?.displayText).toBe("FlixTrain 14:23");
+    expect(inline?.attrs?.embedRef).toBe("ExampleCoach-1423-3VT");
+    expect(inline?.attrs?.displayText).toBe("ExampleCoach 14:23");
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 
   it("renders backticked inline embed links as embedInline nodes", () => {
     const doc = parseAssistant(

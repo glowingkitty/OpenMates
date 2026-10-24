@@ -240,8 +240,8 @@ landing_actionable_event_assistant_message:
   verified_by_human: []
 landing_actionable_event_source:
   context: Source label for the lightweight Actionable landing slide event demo
-  en: Luma event
-  de: Luma-Event
+  en: event website event
+  de: event website-Event
   zh: Event preview
   es: Event preview
   fr: Event preview
@@ -312,51 +312,51 @@ landing_actionable_event_meta:
   verified_by_human: []
 landing_actionable_event_detail:
   context: Fullscreen detail description for the lightweight Actionable landing slide event demo
-  en: A Berlin Luma event about decentralized compute and DePIN research, found from a real event search.
-  de: Ein Berliner Luma-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
-  zh: 在柏林举办的 Luma 活动，探讨去中心化计算和 DePIN 研究。
-  es: Un evento de Luma en Berlín sobre computación descentralizada e investigación DePIN.
-  fr: Un événement Luma à Berlin sur le calcul décentralisé et la recherche DePIN.
-  pt: Um evento da Luma em Berlim sobre computação descentralizada e pesquisa DePIN.
-  ru: Мероприятие Luma в Берлине о децентрализованных вычислениях и исследованиях DePIN.
-  ja: 分散型コンピューティングと DePIN 研究を扱うベルリンの Luma イベントです。
-  ko: 탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 Luma 이벤트입니다.
-  it: Un evento Luma a Berlino su calcolo decentralizzato e ricerca DePIN.
-  tr: Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir Luma etkinliği.
-  vi: Một sự kiện Luma tại Berlin về điện toán phi tập trung và nghiên cứu DePIN.
-  id: Acara Luma di Berlin tentang komputasi terdesentralisasi dan riset DePIN.
-  pl: Wydarzenie Luma w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN.
-  nl: Een Luma-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek.
-  ar: فعالية على Luma في برلين حول الحوسبة اللامركزية وأبحاث DePIN.
-  hi: विकेंद्रीकृत कंप्यूटिंग और DePIN शोध पर बर्लिन में एक Luma कार्यक्रम।
-  th: งาน Luma ในเบอร์ลินเกี่ยวกับการประมวลผลแบบกระจายศูนย์และงานวิจัย DePIN
-  cs: Akce Luma v Berlíně o decentralizovaných výpočtech a výzkumu DePIN.
-  sv: Ett Luma-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning.
-  he: אירוע Luma בברלין על מחשוב מבוזר ומחקר DePIN.
+  en: A Berlin event website event about decentralized compute and DePIN research, found from a real event search.
+  de: Ein Berliner event website-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
+  zh: 在柏林举办的 event website 活动，探讨去中心化计算和 DePIN 研究。
+  es: Un evento de event website en Berlín sobre computación descentralizada e investigación DePIN.
+  fr: Un événement event website à Berlin sur le calcul décentralisé et la recherche DePIN.
+  pt: Um evento da event website em Berlim sobre computação descentralizada e pesquisa DePIN.
+  ru: Мероприятие event website в Берлине о децентрализованных вычислениях и исследованиях DePIN.
+  ja: 分散型コンピューティングと DePIN 研究を扱うベルリンの event website イベントです。
+  ko: 탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 event website 이벤트입니다.
+  it: Un evento event website a Berlino su calcolo decentralizzato e ricerca DePIN.
+  tr: Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir event website etkinliği.
+  vi: Một sự kiện event website tại Berlin về điện toán phi tập trung và nghiên cứu DePIN.
+  id: Acara event website di Berlin tentang komputasi terdesentralisasi dan riset DePIN.
+  pl: Wydarzenie event website w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN.
+  nl: Een event website-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek.
+  ar: فعالية على event website في برلين حول الحوسبة اللامركزية وأبحاث DePIN.
+  hi: विकेंद्रीकृत कंप्यूटिंग और DePIN शोध पर बर्लिन में एक event website कार्यक्रम।
+  th: งาน event website ในเบอร์ลินเกี่ยวกับการประมวลผลแบบกระจายศูนย์และงานวิจัย DePIN
+  cs: Akce event website v Berlíně o decentralizovaných výpočtech a výzkumu DePIN.
+  sv: Ett event website-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning.
+  he: אירוע event website בברלין על מחשוב מבוזר ומחקר DePIN.
   verified_by_human: []
-landing_actionable_event_open_luma:
+landing_actionable_event_open_provider:
   context: CTA clicked by the animated pointer in the Actionable landing slide
-  en: Open on Luma
-  de: Auf Luma öffnen
-  zh: 在 Luma 中打开
-  es: Abrir en Luma
-  fr: Ouvrir sur Luma
-  pt: Abrir no Luma
-  ru: Открыть в Luma
-  ja: Luma で開く
-  ko: Luma에서 열기
-  it: Apri su Luma
-  tr: Luma'da aç
-  vi: Mở trên Luma
-  id: Buka di Luma
-  pl: Otwórz w Luma
-  nl: Openen op Luma
-  ar: فتح على Luma
-  hi: Luma पर खोलें
-  th: เปิดบน Luma
-  cs: Otevřít na Luma
-  sv: Öppna på Luma
-  he: פתיחה ב-Luma
+  en: Open on event website
+  de: Auf event website öffnen
+  zh: 在 event website 中打开
+  es: Abrir en event website
+  fr: Ouvrir sur event website
+  pt: Abrir no event website
+  ru: Открыть в event website
+  ja: event website で開く
+  ko: event website에서 열기
+  it: Apri su event website
+  tr: event website'da aç
+  vi: Mở trên event website
+  id: Buka di event website
+  pl: Otwórz w event website
+  nl: Openen op event website
+  ar: فتح على event website
+  hi: event website पर खोलें
+  th: เปิดบน event website
+  cs: Otevřít na event website
+  sv: Öppna på event website
+  he: פתיחה ב-event website
   verified_by_human: []
 landing_actionable_event_venue:
   context: Venue name in the Actionable landing slide event preview

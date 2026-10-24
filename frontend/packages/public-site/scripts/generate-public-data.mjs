@@ -67,7 +67,7 @@ const releases = importFiles.map((name) => {
   return { id: `news-${slug}`, slug, kind: 'release', publishedAt, updatedAt: publishedAt, author: 'OpenMates', locales: localized, media: video };
 }).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 writeFileSync(resolve(output, 'newsReleases.generated.json'), `${JSON.stringify(releases, null, 2)}\n`);
-const sharedIcons = ['search', 'task', 'coding', 'chat', 'app', 'workflow', 'github', 'language', 'settings', 'ai', 'recordaudio', 'bluesky', 'mastodon', 'discord', 'instagram', 'pixelfed', 'meetup', 'signal', 'openmates'];
+const sharedIcons = ['search', 'task', 'coding', 'chat', 'app', 'workflow', 'github', 'language', 'settings', 'ai', 'recordaudio', 'bluesky', 'mastodon', 'discord', 'instagram', 'pixelfed', 'event', 'signal', 'openmates'];
 const aliases = { security: 'lock', devices: 'desktop' };
 for (const icon of [...sharedIcons, ...Object.keys(aliases)]) {
   const source = resolve(root, 'frontend/packages/ui/static/icons', `${aliases[icon] ?? icon}.svg`);

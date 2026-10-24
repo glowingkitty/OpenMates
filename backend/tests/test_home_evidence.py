@@ -15,7 +15,8 @@ def response(values, confidence=.95):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.relevance.natural-language,home-search.filters.explicit-and-unknown
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_preferences_preserve_prefer_and_explicit_lists(monkeypatch):
     client = AsyncMock()
     monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
@@ -32,7 +33,8 @@ async def test_preferences_preserve_prefer_and_explicit_lists(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.relevance.natural-language,home-search.filters.explicit-and-unknown
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_preference_jev_and_low_confidence_fallback(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "preferred"})
@@ -46,7 +48,8 @@ async def test_preference_jev_and_low_confidence_fallback(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts,home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_neutral_search_skips_all_inference(monkeypatch):
     factory = AsyncMock()
     monkeypatch.setattr(evidence, "JevDecisionClient", factory)
@@ -57,7 +60,8 @@ async def test_neutral_search_skips_all_inference(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_description_confirms_without_photos_and_structured_fact_survives_outage(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
@@ -76,7 +80,8 @@ async def test_description_confirms_without_photos_and_structured_fact_survives_
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("text,seen,expected", [("absent", "visible", "conflicting"), ("unknown", "visible", "possible"), ("unknown", "not_visible", "unknown")])
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_photo_visibility_never_proves_apartment_ownership(monkeypatch, text, seen, expected):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": text})
@@ -94,7 +99,8 @@ async def test_photo_visibility_never_proves_apartment_ownership(monkeypatch, te
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_failure_does_not_fake_visual_confirmation(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "unknown"})
@@ -109,7 +115,8 @@ async def test_failure_does_not_fake_visual_confirmation(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts,home-search.enrichment.bounded-and-reusable,home-search.images.transient-analysis
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_bounded_spaced_photos_all_candidates_and_no_file_writes(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "unknown"})
@@ -136,7 +143,8 @@ async def test_bounded_spaced_photos_all_candidates_and_no_file_writes(monkeypat
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts,home-search.enrichment.bounded-and-reusable,home-search.images.transient-analysis
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_global_timeout_and_cancellation_join_download_tasks(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
@@ -165,7 +173,8 @@ async def test_global_timeout_and_cancellation_join_download_tasks(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts,home-search.images.transient-analysis
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_disabled_visual_assessment_keeps_text_and_skips_images(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
@@ -184,7 +193,8 @@ async def test_disabled_visual_assessment_keeps_text_and_skips_images(monkeypatc
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_provider_conflicts_override_text_and_minimize_state(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
@@ -201,7 +211,8 @@ async def test_provider_conflicts_override_text_and_minimize_state(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("advertised,text,expected", [(False, "absent", "confirmed"), (None, "absent", "confirmed"), (True, "present", "conflicting"), (None, "unknown", "unconfirmed")])
-# contract-test: supporting surface=rest_api assertions=home-search.vision.evidence-and-conflicts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_exclusions_require_supported_absence(monkeypatch, advertised, text, expected):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": text})

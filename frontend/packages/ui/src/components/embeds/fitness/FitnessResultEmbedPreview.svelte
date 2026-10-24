@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
 
-  Child preview card for a single Urban Sports Club location or class result.
+  Child preview card for a single fitness location or class result.
   Used by FitnessSearchEmbedFullscreen inside SearchResultsTemplate so Fitness
   search behaves like Events search: parent grid, child cards, drill-down.
 -->

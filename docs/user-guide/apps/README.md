@@ -41,7 +41,7 @@ Apps give your digital team mates special abilities. They let your mates search 
 
 - [Web](./web.md) -- Search the web and read website content
 - [News](./news.md) -- Search for current news articles
-- [Videos](./videos.md) -- Search for videos and get YouTube transcripts
+- [Videos](./videos.md) -- Search for videos and retrieve supported captions
 - [Study](./study.md) -- Track learning goals and save educational preferences
 - [Books](./books.md) -- Track your reading with book lists and favourites
 
@@ -51,11 +51,11 @@ Apps give your digital team mates special abilities. They let your mates search 
 
 ### Lifestyle
 
-- [Travel](./travel.md) -- Search flights, hotels, and track past flights
-- [Shopping](./shopping.md) -- Search products on REWE and Amazon with live prices
+- [Travel](./travel.md) -- Look up completed flights
+- [Shopping](./shopping.md) -- Product information
 - [Nutrition](./nutrition.md) -- Search Edamam recipes by query, dietary filters, ingredients, and meal type
-- [Health](./health.md) -- Find doctor appointments and track medical history
-- [Events](./events.md) -- Search for local meetups, conferences, and events
+- [Health](./health.md) -- Health information
+- [Events](./events.md) -- Search for conferences
 - [Maps](./maps.md) -- Search for places, restaurants, and businesses
 
 ### Professional

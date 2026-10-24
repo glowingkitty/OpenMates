@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.apps.base_skill import BaseSkill
-from backend.shared.providers.jobs import arbeitnow, arbeitsagentur, eighty_thousand_hours, hard_problems, jobtech
+from backend.shared.providers.jobs import jobtech
 from backend.shared.providers.jobs.common import ProviderError, normalize_employment_type, safe_url
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
@@ -26,31 +26,10 @@ MAX_REQUESTS = 5
 MAX_LIMIT = 50
 DEFAULT_LIMIT = 10
 RANKING_UNAVAILABLE_MESSAGE = "Relevance criteria could not be applied; results remain in provider order."
-PROVIDER_SEARCH = {
-    "arbeitnow": arbeitnow.search_jobs,
-    "arbeitsagentur": arbeitsagentur.search_jobs,
-    "jobtech": jobtech.search_jobs,
-    "eighty_thousand_hours": eighty_thousand_hours.search_jobs,
-    "hard_problems": hard_problems.search_jobs,
-}
-PROVIDER_COUNTRIES = {
-    "arbeitnow": frozenset({"DE"}),
-    "arbeitsagentur": frozenset({"DE"}),
-    "jobtech": frozenset({"SE"}),
-    "eighty_thousand_hours": frozenset({"DE", "SE"}),
-    "hard_problems": frozenset({"DE", "SE"}),
-}
+PROVIDER_SEARCH = {"jobtech": jobtech.search_jobs}
+PROVIDER_COUNTRIES = {"jobtech": frozenset({"SE"})}
 PROVIDER_ALIASES = {
-    "arbeitnow": "arbeitnow", "arbeit now": "arbeitnow",
-    "arbeitsagentur": "arbeitsagentur", "bundesagentur für arbeit": "arbeitsagentur",
-    "bundesagentur fuer arbeit": "arbeitsagentur", "federal employment agency": "arbeitsagentur",
-    "ba": "arbeitsagentur", "jobtech": "jobtech", "jobtechdev": "jobtech",
-    "jobtech dev": "jobtech", "80,000 hours": "eighty_thousand_hours",
-    "80000 hours": "eighty_thousand_hours", "eighty_thousand_hours": "eighty_thousand_hours",
-    "80.000 hours": "eighty_thousand_hours", "80000hours": "eighty_thousand_hours",
-    "80k": "eighty_thousand_hours", "hard problems": "hard_problems",
-    "hardproblems": "hard_problems", "hard_problems": "hard_problems",
-    "auto": "auto",
+    "jobtech": "jobtech", "jobtechdev": "jobtech", "jobtech dev": "jobtech", "auto": "auto",
 }
 JOB_FIELDS = (
     "id", "title", "company", "url", "apply_url", "location", "country",
@@ -143,7 +122,7 @@ def _provider_names(item: JobsSearchRequestItem, countries: list[str]) -> list[s
     for raw in requested:
         name = PROVIDER_ALIASES.get(raw.strip().lower())
         if name is None:
-            raise ValueError("Unsupported jobs provider. Choose Arbeitnow, Arbeitsagentur, JobTech, 80,000 Hours, or Hard Problems.")
+            raise ValueError("Unsupported jobs provider. Choose JobTech.")
         if name not in normalized:
             normalized.append(name)
     if "auto" in normalized:
@@ -151,15 +130,8 @@ def _provider_names(item: JobsSearchRequestItem, countries: list[str]) -> list[s
             raise ValueError("Do not combine auto with explicit providers.")
         normalized = []
         for country in countries:
-            if country == "DE":
-                normalized.extend(["arbeitsagentur"] if item.radius_km is not None else ["arbeitsagentur", "arbeitnow"])
-            elif normalized_type in {None, "full_time", "part_time"}:
+            if country == "SE" and normalized_type in {None, "full_time", "part_time"}:
                 normalized.append("jobtech")
-            if (item.radius_km is None and item.remote is None
-                    and normalized_type in {None, "full_time", "part_time", "internship"}):
-                normalized.append("eighty_thousand_hours")
-            if item.radius_km is None and item.remote is not False and normalized_type is None:
-                normalized.append("hard_problems")
     else:
         irrelevant = [name for name in normalized if not PROVIDER_COUNTRIES[name].intersection(countries)]
         if irrelevant:
@@ -171,24 +143,9 @@ def _provider_names(item: JobsSearchRequestItem, countries: list[str]) -> list[s
     if uncovered:
         raise ValueError(f"No requested jobs provider covers {', '.join(uncovered)}.")
     if item.radius_km is not None:
-        if not item.location:
-            raise ValueError("radius_km requires a location.")
-        if countries != ["DE"]:
-            raise ValueError("Radius search is currently supported only for Germany (DE).")
-        unsupported_radius = [name for name in normalized if name != "arbeitsagentur"]
-        if unsupported_radius:
-            raise ValueError(f"Radius search is not supported by {', '.join(unsupported_radius)}.")
-    if normalized_type:
-        if "jobtech" in normalized and normalized_type not in {"full_time", "part_time"}:
-            raise ValueError("JobTech supports only full_time and part_time employment filters.")
-        if "eighty_thousand_hours" in normalized and normalized_type not in {"full_time", "part_time", "internship"}:
-            raise ValueError("80,000 Hours supports only full_time, part_time, and internship employment filters.")
-        if "hard_problems" in normalized:
-            raise ValueError("Hard Problems does not provide verified employment types.")
-    if "eighty_thousand_hours" in normalized and item.remote is not None:
-        raise ValueError("80,000 Hours cannot verify remote or on-site eligibility.")
-    if "hard_problems" in normalized and item.remote is False:
-        raise ValueError("Hard Problems cannot verify on-site eligibility.")
+        raise ValueError("Radius search is unavailable from the permitted jobs providers.")
+    if normalized_type and "jobtech" in normalized and normalized_type not in {"full_time", "part_time"}:
+        raise ValueError("JobTech supports only full_time and part_time employment filters.")
     return normalized
 
 
@@ -347,8 +304,6 @@ class SearchSkill(BaseSkill):
                 "remote": item.remote, "employment_type": item.employment_type,
                 "max_days_old": item.max_days_old, "limit": candidate_limit, "impact_area": None,
             }
-            if provider == "arbeitsagentur" and item.radius_km is not None:
-                arguments["radius_km"] = item.radius_km
             calls.append(PROVIDER_SEARCH[provider](**arguments))
         responses = await asyncio.gather(*calls, return_exceptions=True)
         jobs: list[dict[str, Any]] = []

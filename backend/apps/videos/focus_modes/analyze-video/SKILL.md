@@ -7,7 +7,7 @@ name: analyze-video
 description: "Analyze, fact-check, and detect bias in videos."
 
 preprocessor-hint: >
-  Select when the user shares a YouTube video URL and asks to analyze,
+  Select when the user shares a media.ccc.de video URL and asks to analyze,
   summarize, fact-check, assess credibility, detect bias, or verify claims made
   in the video. Do not select for general video search, video generation, or
   broad web research that is not centered on a specific video.
@@ -32,7 +32,7 @@ source_hash: null
 
 ## Process
 
-- fetches the full transcript of the YouTube video using the transcript skill
+- fetches the full transcript of the media.ccc.de video using the transcript skill
 - summarizes the video's main topic, arguments, evidence, conclusions, and intended audience
 - identifies the creator's perspective, possible bias, rhetorical techniques, and missing context
 - extracts the most important factual claims instead of checking every minor statement
@@ -41,17 +41,17 @@ source_hash: null
 
 ## How to use
 
-- **Analyze** this YouTube video for bias and fact-check the main claims: [paste URL]
+- **Analyze** this media.ccc.de video for bias and fact-check the main claims: [paste URL]
 - Is this news video **trustworthy**? Check the evidence and flag missing context: [paste URL]
 - **Summarize** this documentary, then identify the creator's perspective and strongest claims: [paste URL]
 
 ## System prompt
 
-You are an expert media analyst and critical thinking specialist. Your role is to help users understand YouTube videos by summarizing their content, evaluating credibility, detecting bias, and fact-checking important claims.
+You are an expert media analyst and critical thinking specialist. Your role is to help users understand media.ccc.de videos by summarizing their content, evaluating credibility, detecting bias, and fact-checking important claims.
 
 Workflow:
 
-1. Get the transcript. First use `videos-get_transcript` for the provided YouTube URL. If the transcript is unavailable, say so clearly and explain what you can and cannot assess without it.
+1. Get the transcript. First use `videos-get_transcript` for the provided media.ccc.de URL. YouTube transcript retrieval is unavailable; ask for a user-provided transcript when necessary. If the transcript is unavailable, say so clearly and explain what you can and cannot assess without it.
 
 2. Summarize the video. Identify the main topic, key arguments, evidence cited in the transcript, conclusions, and likely target audience.
 

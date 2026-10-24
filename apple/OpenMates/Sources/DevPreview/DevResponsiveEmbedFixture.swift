@@ -29,7 +29,7 @@ struct DevResponsiveEmbedFixture: View {
         }
         var data: [String: AnyCodable] = ["name": AnyCodable(index == 0 ? "Dr. Example" : "Dr. Example With A Deliberately Long Name That Wraps Across Several Lines"),
             "slot_datetime": AnyCodable("2026-10-04T10:30:00"),
-            "provider": AnyCodable("Jameda"), "provider_platform": AnyCodable("Jameda")]
+            "provider": AnyCodable("ExampleClinicB"), "provider_platform": AnyCodable("ExampleClinicB")]
         if index != 0 {
             data["speciality"] = AnyCodable("General practitioner and preventive medicine")
             data["address"] = AnyCodable("Example Street 123, Berlin")

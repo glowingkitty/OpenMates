@@ -24,12 +24,12 @@
   ];
   const rows = ids.map((embed_id, index) => ({ embed_id, title: titles[index],
     price_label: `${1250 + index * 100} EUR warm / month`, size_sqm: 65 + index,
-    provider: 'WG-Gesucht', address: 'Kreuzberg, Berlin',
+    provider: 'ExampleHousingC', address: 'Kreuzberg, Berlin',
     image_url: `/store-examples/home-${index + 1}.webp`,
-    url: `https://www.wg-gesucht.de/wohnungen-in-Berlin.${index + 1}.html`,
+    url: `https://example.com/fixture + 1}.html`,
     date_start: '2026-12-15T18:00:00Z', event_type: 'PHYSICAL',
     ...(app === 'events' ? {
-      provider: 'meetup', timezone: 'Europe/Berlin',
+      provider: 'Gathering', timezone: 'Europe/Berlin',
       organizer_name: `Berlin Event Community ${index + 1}`, organizer_id: `organizer-${index + 1}`,
       venue_name: 'Berlin community space', venue_city: 'Berlin', venue_address: 'Example Street 1',
       venue_lat: 52.52, venue_lon: 13.405, fee_amount: 0, fee_currency: 'EUR', is_paid: false, rsvp_count: 80 + index,

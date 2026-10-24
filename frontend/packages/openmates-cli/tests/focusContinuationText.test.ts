@@ -25,8 +25,8 @@ test('focus activation followed by a shorter intake keeps the visible question e
 
 // contract-test: supporting surface=cli assertions=brand-naming.flow
 test('final source-link cleanup does not duplicate a finalist comparison', () => {
-  const streamed = 'A preliminary [USPTO search](https://tmsearch.uspto.gov/) returned similar marks.\nA [USPTO trademark query](https://tmsearch.uspto.gov/) was truncated.';
-  const finalized = 'A preliminary USPTO search returned similar marks.\nA USPTO trademark query was truncated.';
+  const streamed = 'A preliminary [ExampleTrademarks search](https://example.com/fixture) returned similar marks.\nA [ExampleTrademarks trademark query](https://example.com/fixture) was truncated.';
+  const finalized = 'A preliminary ExampleTrademarks search returned similar marks.\nA ExampleTrademarks trademark query was truncated.';
   assert.equal(streamingTextDelta(streamed, finalized), '');
   assert.equal(streamingTextDelta(finalized, streamed), '');
 });

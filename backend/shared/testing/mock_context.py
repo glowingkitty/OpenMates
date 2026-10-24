@@ -436,13 +436,12 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
         and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
     )
     native_fixture = (
-        group in {"native_cache_tools_v1", "diagram_html_web", "shopping_images_web", "mercury_auto_low",
+        group in {"native_cache_tools_v1", "diagram_html_web", "mercury_auto_low",
                   "web_search_web", "web_search_zero_results"}
         and os.getenv("CI") == "true"
         and os.getenv("OPENMATES_CI_AI_FIXTURES") == "1"
         and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") is None
-        and (os.getenv("S3_ENDPOINT_URL") is None
-             or group == "shopping_images_web" and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000")
+        and os.getenv("S3_ENDPOINT_URL") is None
         and os.getenv("HTTPS_PROXY") is None
     )
     if not (capacity_fixture or native_fixture):
@@ -457,18 +456,6 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
         return True
     if url.netloc == "vault:8200" and url.path.startswith("/v1/"):
         return True
-    if (native_fixture and group == "shopping_images_web"
-            and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
-            and os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") == "http://api:8000"
-            and url.netloc == "api:8000"):
-        if str(method).upper() == "POST" and url.path == "/internal/s3/upload-temp-image" and not url.query:
-            return True
-        if str(method).upper() == "DELETE" and url.path == "/internal/s3/temp-image":
-            from urllib.parse import parse_qs
-            import re
-            params = parse_qs(url.query)
-            return (set(params) == {"s3_key"} and len(params["s3_key"]) == 1
-                    and bool(re.fullmatch(r"reverse_search/[0-9a-f]{16}_[0-9a-f]{16}\.(?:png|jpg|webp)", params["s3_key"][0])))
     return (
         os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") == "http://api:8000"
         and url.netloc == "api:8000"
@@ -478,8 +465,6 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
                 _ISOLATED_NATIVE_BILLING_POST_PATHS if native_fixture
                 else _ISOLATED_CAPACITY_BILLING_POST_PATHS
             )
-            or (native_fixture and group == "shopping_images_web"
-                and url.path == "/internal/uploads/resolve-image")
         )
         and not url.query
     )
@@ -497,12 +482,6 @@ def _install_httpx_transport_guard() -> None:
     original_sync = httpx.HTTPTransport.handle_request
 
     async def guarded_async(transport: Any, request: Any) -> Any:
-        if is_mock_active():
-            from backend.apps.ai.testing.shopping_images_fixture import synthetic_http_response
-            replay = synthetic_http_response(request)
-            if replay is not None:
-                record_cache_hit()
-                return replay
         if is_mock_active() and not _allow_isolated_capacity_internal(request.url, request.method):
             record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))

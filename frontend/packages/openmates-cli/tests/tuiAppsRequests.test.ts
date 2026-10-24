@@ -100,7 +100,7 @@ test('first saved search offers OK and Turn off and later saves preserve disable
 });
 
 // contract-test: supporting surface=cli assertions=apps.execution.direct-shared-contract
- test('Apps navigation during interpretation discards the plan before skill dispatch',async()=>{
+test('Apps navigation during interpretation discards the plan before skill dispatch',async()=>{
   let resolve:(value:unknown)=>void=()=>{},dispatches=0,started!:()=>void;
   const admitted=new Promise<void>(done=>{started=done;});
   const {state,context}=fixture({interpretAppsWorkspaceRequest:(request:Record<string,unknown>)=>new Promise(done=>{resolve=value=>done({...value as object,request_id:request.request_id});started();}),

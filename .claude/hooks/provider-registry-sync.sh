@@ -7,8 +7,8 @@
 # Triggers on:
 #   - Writes under backend/shared/providers/<new_dir>/
 #   - Edits that add a new SDK import (openai, anthropic, stripe, brave,
-#     firecrawl, groq, together, mistral, recraft, fal, sightengine,
-#     meetup, luma, discord, cerebras, serpapi, google-maps, googlemaps)
+#     groq, together, mistral, recraft, fal, sightengine,
+#     discord, cerebras, google-maps, googlemaps)
 #
 # Strictness: WARN ONLY (exit 0 + stderr + additionalContext). Flip to
 # exit 2 once the regex is proven accurate.
@@ -47,18 +47,14 @@ PROVIDERS_MAP=(
   "anthropic:anthropic"
   "stripe:stripe"
   "brave[_-]search:brave"
-  "firecrawl:firecrawl"
   "groq:groq"
   "together:together"
   "mistralai:mistral"
   "recraft:recraft"
   "fal[_-]client:fal"
   "sightengine:sightengine"
-  "meetup:meetup"
-  "luma:luma"
   "discord:discord"
   "cerebras:cerebras"
-  "serpapi:serpapi"
   "googlemaps:google_maps"
   "google[_.-]maps:google_maps"
   "posthog:posthog"

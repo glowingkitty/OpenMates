@@ -27,7 +27,7 @@ function fixture() {
 const tick = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('optional metadata queues until required persistence, then persists and renders independently with exact turn/version fences', async () => {
+test('optional metadata queues until required persistence, then persists and renders independently with exact turn/version fences', async () => {
   const f = fixture();
   f.emit('post_processing_completed', { ...f.metadata, turn_id: 'different-turn' });
   f.emit('post_processing_completed', { ...f.metadata, user_message_id: 'different-user' });
@@ -47,7 +47,7 @@ const tick = async () => { await Promise.resolve(); await Promise.resolve(); awa
  });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('owned metadata subscriptions release on timeout, disconnect, cancellation and scope changes', async () => {
+test('owned metadata subscriptions release on timeout, disconnect, cancellation and scope changes', async () => {
   for (const reason of ['timeout', 'disconnect', 'cancel', 'scope'] as const) {
     const f = fixture(); f.observer.handOff();
     if (reason === 'disconnect') f.disconnect();
@@ -60,7 +60,7 @@ const tick = async () => { await Promise.resolve(); await Promise.resolve(); awa
  });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('legacy chat-only metadata releases after required handoff without retaining an unusable socket or painting another turn', async () => {
+test('legacy chat-only metadata releases after required handoff without retaining an unusable socket or painting another turn', async () => {
   const f = fixture();
   f.emit('post_processing_completed', { chat_id: 'chat', updated_chat_title: 'Unfenced title' });
   assert.equal(f.released(), 0, 'required reply still owns the transport');

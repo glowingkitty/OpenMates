@@ -46,7 +46,7 @@ export const variants = {
     ], route_points: [{lat: 48.3537, lon: 11.775}, {lat: 51.47, lon: -0.4543}] },
   },
   trainRealtime: {
-    ...defaultProps, transportMethod: 'train', bookingProvider: 'Deutsche Bahn',
+    ...defaultProps, transportMethod: 'train', bookingProvider: 'Example Rail', airlineLogo: '/icons/server.svg',
     origin: 'Berlin Central Station', destination: 'Hamburg Central Station',
     departure: '2026-03-15T09:04:00+01:00', arrival: '2026-03-15T10:46:00+01:00', duration: '1h 42m',
     connection: { legs: [{
@@ -54,7 +54,7 @@ export const variants = {
       departure: '2026-03-15T09:04:00+01:00', arrival: '2026-03-15T10:46:00+01:00',
       segments: [{ departure_latitude: 52.525, departure_longitude: 13.369, arrival_latitude: 53.553, arrival_longitude: 10.007 }],
     }] },
-    carriers: ['Deutsche Bahn'], carrierCodes: [], arrivalDelayMinutes: 12,
+    carriers: ['Example Rail'], carrierCodes: [], arrivalDelayMinutes: 12,
     optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
   },
   baggageExcluded: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: false } },
@@ -109,8 +109,8 @@ export const variants = {
 		isMobile: true
 	},
 
-	/** Train connection with provider favicon and explicit times */
-	deutscheBahn: {
+	/** Train connection with stored source icon and explicit times */
+	exampleRail: {
 		...defaultProps,
 		connection: undefined,
 		id: 'preview-travel-connection-db',
@@ -120,16 +120,17 @@ export const variants = {
 		departure: '2026-03-15T09:04:00+01:00',
 		arrival: '2026-03-15T10:46:00+01:00',
 		duration: '1h 42m',
-		carriers: ['Deutsche Bahn'],
-		bookingProvider: 'Deutsche Bahn',
+		carriers: ['Example Rail'],
+		bookingProvider: 'Example Rail',
+		airlineLogo: '/icons/server.svg',
 		carrierCodes: []
 	},
 
-	/** Flix connection with provider favicon and explicit times */
-	flixTrain: {
+	/** ExampleCoach connection with stored source icon and explicit times */
+	ExampleCoach: {
 		...defaultProps,
 		connection: undefined,
-		id: 'preview-travel-connection-flix',
+		id: 'preview-travel-connection-ExampleCoach',
 		transportMethod: 'train',
 		origin: 'Berlin Central Station',
 		destination: 'Stuttgart Flughafen/Messe',
@@ -137,8 +138,8 @@ export const variants = {
 		arrival: '2026-03-15T14:22:00+01:00',
 		duration: '6h 45m',
 		stops: 1,
-		carriers: ['FlixTrain', 'FlixBus'],
-		bookingProvider: 'FlixBus / FlixTrain',
+		carriers: ['ExampleCoach', 'ExampleCoach'],
+		bookingProvider: 'ExampleCoach / ExampleCoach',
 		carrierCodes: []
 	}
 };

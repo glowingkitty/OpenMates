@@ -138,7 +138,7 @@ struct SearchResultsRenderer: View {
 
 /// The electronics parent uses the same compact result-card grid as the web
 /// SearchResultsTemplate. Persisted parents can carry hydrated child records
-/// or just inline WEBENCH rows while child sync is pending.
+/// or just inline component rows while child sync is pending.
 struct ElectronicsSearchParentRenderer: View {
     let embed: EmbedRecord
     let allEmbedRecords: [String: EmbedRecord]
@@ -147,7 +147,7 @@ struct ElectronicsSearchParentRenderer: View {
 
     private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
     private var query: String { AppSkillInputPreviewModel(embed: embed).text ?? "" }
-    private var provider: String { EmbedFieldReader.string(raw, keys: ["provider"]) ?? "TI WEBENCH" }
+    private var provider: String { EmbedFieldReader.string(raw, keys: ["provider"]) ?? "" }
     private var inlineRows: [[String: Any]] {
         let results = EmbedFieldReader.dictionaryArray(raw, key: "results")
         return results.isEmpty ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results") : results

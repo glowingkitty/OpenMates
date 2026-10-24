@@ -58,10 +58,6 @@ export function jobProviderLabel(value: unknown): string | undefined {
   if (!provider) return undefined;
   switch (provider.toLowerCase()) {
     case 'jobtech': return 'JobTech';
-    case 'arbeitnow': return 'Arbeitnow';
-    case 'arbeitsagentur': return 'Arbeitsagentur';
-    case 'eighty_thousand_hours': return '80,000 Hours';
-    case 'hard_problems': return 'Hard Problems';
     default: return provider;
   }
 }

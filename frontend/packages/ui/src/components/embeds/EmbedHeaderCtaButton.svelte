@@ -11,7 +11,7 @@
 <script lang="ts">
   import { resolveIconName } from '../../utils/iconNameResolver';
   interface Props {
-    /** Button label text, e.g. "Open on Doctolib" */
+    /** Button label text, e.g. "Open on ExampleClinicA" */
     label: string;
     /** If set, renders as an <a> tag with target="_blank" */
     href?: string;

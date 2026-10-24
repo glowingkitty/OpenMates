@@ -1901,7 +1901,7 @@ themes:
     user_facing: true
     related_features: []
   - date: '2026-07-23'
-    title: 'fix: refine landing intro and Luma CTA'
+    title: 'fix: refine landing intro and event registration CTA'
     commits:
     - 0d0a6b5fe
     section: bug_fixes
@@ -5809,7 +5809,7 @@ themes:
     user_facing: false
     related_features: []
   - date: '2026-07-23'
-    title: 'docs: record landing Luma CTA evidence'
+    title: 'docs: record landing event registration CTA evidence'
     commits:
     - c771c9ab6
     section: docs
@@ -8058,7 +8058,7 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-07-23'
-    title: 'fix: refine landing intro and Luma CTA'
+    title: 'fix: refine landing intro and event registration CTA'
     commits:
     - 0d0a6b5fe
     section: bug_fixes
@@ -12462,7 +12462,7 @@ unreleased_progress:
     user_facing: false
     related_features: []
   - date: '2026-07-23'
-    title: 'docs: record landing Luma CTA evidence'
+    title: 'docs: record landing event registration CTA evidence'
     commits:
     - c771c9ab6
     section: docs
@@ -12760,7 +12760,7 @@ unreleased_progress:
     user_facing: true
     related_features: []
   - date: '2026-07-23'
-    title: 'fix: refine landing intro and Luma CTA'
+    title: 'fix: refine landing intro and event registration CTA'
     commits:
     - 0d0a6b5fe
     section: bug_fixes

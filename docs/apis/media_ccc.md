@@ -5,13 +5,12 @@ and live API. The [site documentation](https://media.ccc.de/about.html) confirms
 
 ## Scope and contract
 
-`videos.get_transcript` accepts HTTPS `media.ccc.de/v/<slug>` URLs alongside
-YouTube watch/youtu.be URLs. Retrieve published captions only, preserving grouped
+`videos.get_transcript` retrieves published captions from HTTPS `media.ccc.de/v/<slug>` URLs, preserving grouped
 request IDs, language preferences, timestamps, word/character counts and the
 existing output safety pipeline. Missing captions produce a visible error;
 neither the page description nor downloaded audio substitutes for a transcript.
 No new REST route, authentication, pricing or audio transcription is introduced.
-YouTube creator-income tracking applies only to YouTube results.
+YouTube captions are unavailable; official metadata and video search are separate capabilities.
 
 | Method | Endpoint | Input | Output |
 | --- | --- | --- | --- |

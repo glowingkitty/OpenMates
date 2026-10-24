@@ -19,7 +19,7 @@ import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
 import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
 import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
 import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
-import { airFryersAmazonGermanyChat } from "./data/example_chats/air-fryers-amazon-germany";
+import { airFryersRetailGermanyChat } from "./data/example_chats/air-fryers-retail-germany";
 import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
 import { vegetarianRecipesFromFridgeVegetablesChat } from "./data/example_chats/vegetarian-recipes-from-fridge-vegetables";
 import { searchParentPreviewStressTestChat } from "./data/example_chats/search-parent-preview-stress-test";
@@ -63,7 +63,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   tedTalkTranscriptSummaryChat,
   balconyPlantReminderChat,
   buckConverters24v5vChat,
-  airFryersAmazonGermanyChat,
+  airFryersRetailGermanyChat,
   furnishedApartmentsBerlinChat,
   vegetarianRecipesFromFridgeVegetablesChat,
   housingPolicyDinnerDiscussionChat,

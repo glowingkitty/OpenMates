@@ -70,7 +70,7 @@ def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
     apps.py and apps_api.py — both now import from here.
 
     Args:
-        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl")
+        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "YouTube")
         app_id: App ID for context (e.g., "maps" for Google Maps)
 
     Returns:
@@ -84,9 +84,4 @@ def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
     elif provider_name == "Brave" or provider_name == "Brave Search":
         return "brave"
     normalized = provider_name.lower().strip()
-    aliases = {
-        "urban sports club": "urban_sports_club",
-        "deutsche bahn": "deutsche_bahn",
-        "stoffe.de": "stoffe",
-    }
-    return aliases.get(normalized, normalized)
+    return normalized

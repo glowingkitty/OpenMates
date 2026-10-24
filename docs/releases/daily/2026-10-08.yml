@@ -5,7 +5,6 @@ generated_at: '2026-10-12T00:47:38+00:00'
 range:
   since: '2026-10-08T00:00:00+00:00'
   until: '2026-10-09T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -225,7 +201,6 @@ sections:
     - frontend/apps/web_app/static/icons/maps.svg
     - frontend/apps/web_app/static/icons/mastodon.svg
     - frontend/apps/web_app/static/icons/math.svg
-    - frontend/apps/web_app/static/icons/meetup.svg
     - frontend/apps/web_app/static/icons/music.svg
     - frontend/apps/web_app/static/icons/news.svg
     - frontend/apps/web_app/static/icons/nutrition.svg
@@ -302,8 +277,6 @@ sections:
     - frontend/apps/website/static/event-assets/openmates/cli-sdk-webinar-2026-11-11.jpg
     - frontend/apps/website/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
     - frontend/apps/website/static/event-assets/openmates/everyday-workflows-webinar-2026-09-30.jpg
-    - frontend/apps/website/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
-    - frontend/apps/website/static/event-assets/openmates/openmates-berlin-meetup-2026-09-26.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-09-29.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-10-27.jpg
@@ -345,7 +318,6 @@ sections:
     - frontend/apps/website/static/icons/maps.svg
     - frontend/apps/website/static/icons/mastodon.svg
     - frontend/apps/website/static/icons/math.svg
-    - frontend/apps/website/static/icons/meetup.svg
     - frontend/apps/website/static/icons/music.svg
     - frontend/apps/website/static/icons/news.svg
     - frontend/apps/website/static/icons/nutrition.svg
@@ -419,7 +391,6 @@ sections:
     - frontend/apps/website/static/publications/previews/privacy-as-a-product-feature-de.jpg
     - frontend/apps/website/static/publications/previews/privacy-as-a-product-feature-en.jpg
     - frontend/apps/website/static/publications/social/agentic-coding-ai-builders-berlin.jpg
-    - frontend/apps/website/static/publications/social/openmates-berlin-meetup-august.jpg
     - frontend/apps/website/static/publications/social/september-openmates-events.jpg
     - frontend/apps/website/static/publications/social/workflow-automation-webinar.jpg
     - frontend/apps/website/svelte.config.js
@@ -520,8 +491,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -602,8 +571,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -736,8 +703,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -774,22 +739,16 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -817,7 +776,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -845,7 +803,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -943,8 +900,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1003,91 +958,75 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: app:tasks
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/tasks/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:tasks:create
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:tasks:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:projects:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: skill:tasks:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:tasks:search
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     feature_metadata_changed: false
@@ -1209,7 +1148,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1419,36 +1357,29 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1506,8 +1437,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1593,8 +1522,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1624,7 +1551,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1655,8 +1581,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1686,8 +1610,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1714,8 +1636,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1797,8 +1717,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1847,8 +1765,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1872,15 +1788,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1906,15 +1818,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2128,22 +2036,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2233,28 +2135,23 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: embed:projects:read
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: embed:projects:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: platform:projects
@@ -2262,13 +2159,11 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
@@ -2582,8 +2477,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -2606,7 +2499,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: bind consistent Team AI preflight history'
     commits:
@@ -2620,7 +2512,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: retain Team context through web startup'
     commits:
@@ -2647,8 +2538,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: record standalone website verification'
     commits:
@@ -2675,91 +2564,75 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: app:tasks
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/tasks/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:tasks:create
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:tasks:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:projects:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: skill:tasks:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:tasks:search
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - title: 'feat: add standalone website and refine landing UI'
@@ -2773,8 +2646,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: restore scoped chat sync across team context switches'
     commits:
@@ -2844,7 +2715,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: keep terminal settings values relevant and private'
     commits:
@@ -2899,8 +2769,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: record held-frame video call verification'
     commits:
@@ -2941,36 +2809,29 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: support private Workflow scheduling with isolated SMTP capture'
     commits:
@@ -2997,8 +2858,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: apply reasoning profiles and preserve Project references'
     commits:
@@ -3011,8 +2870,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: admit candidate Workflow runtime dependencies in isolated CI'
     commits:
@@ -3053,8 +2910,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: expose safe native-cache failure stages'
     commits:
@@ -3082,7 +2937,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: recover guarded model answers from clean context'
     commits:
@@ -3095,8 +2949,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: clarify v2 admin debugging key replacement'
     commits:
@@ -3116,28 +2968,23 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: embed:projects:read
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: embed:projects:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: platform:projects
@@ -3145,13 +2992,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'test: activate encrypted preflight for native cache scenario'
@@ -3172,8 +3017,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: register selected-tool cache replay pipeline'
     commits:
@@ -3193,8 +3036,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: honor durable pending session verification'
     commits:
@@ -3228,8 +3069,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: refresh Claude and OpenAI model lineup'
     commits:
@@ -3242,8 +3081,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: enable gated provider replay on isolated AI workers'
     commits:
@@ -3270,8 +3107,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: snapshot Mac window notification state before actor isolation'
     commits:
@@ -3284,15 +3119,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'feat: activate verified cache-aware chat pricing'
     commits:
@@ -3305,22 +3136,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: preserve Mac window actor isolation and strict arm64 packaging'
     commits:
@@ -3333,15 +3158,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'docs: plan seamless offline Apple speech and privacy'
     commits:
@@ -3368,22 +3189,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   unknown_release_status: []
   feature_metadata_changed:
@@ -3398,8 +3213,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'feat: retain recent Claude and OpenAI models in collapsed sections'
     commits:
@@ -3412,8 +3225,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: streamline app routing and Project file retrieval'
     commits:
@@ -3426,28 +3237,23 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: embed:projects:read
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: embed:projects:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: platform:projects
@@ -3455,13 +3261,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'feat: refresh Claude and OpenAI model lineup'
@@ -3475,8 +3279,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: activate verified cache-aware chat pricing'
     commits:
@@ -3489,22 +3291,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 marketing_candidates:
   newsletter: []
@@ -3521,7 +3317,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: retain Team context through web startup'
@@ -3551,8 +3346,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: preserve team context through AI resource tools'
@@ -3566,91 +3359,75 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: app:tasks
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/tasks/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:tasks:create
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:tasks:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:projects:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: skill:tasks:create
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:tasks:search
       kind: skill
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:tasks
       source: backend/apps/tasks/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     newsletter_ready: false
@@ -3665,8 +3442,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: restore scoped chat sync across team context switches'
@@ -3713,7 +3488,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep terminal settings values relevant and private'
@@ -3759,8 +3533,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: continue voice calls across held-frame visual requests'
@@ -3782,36 +3554,29 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: apply reasoning profiles and preserve Project references'
@@ -3825,8 +3590,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'feat: align terminal fullscreen controls settings and composer'
@@ -3856,8 +3619,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: handle empty Project progress before chat activation'
@@ -3872,7 +3633,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: recover guarded model answers from clean context'
@@ -3886,8 +3646,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'perf: streamline app routing and Project file retrieval'
@@ -3901,28 +3659,23 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:projects
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/projects/app.yml
     - id: embed:projects:read
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: embed:projects:search
       kind: embed
       default_enabled: true
       effective_enabled: false
-      override: null
       parent_id: app:projects
       source: backend/apps/projects/app.yml
     - id: platform:projects
@@ -3930,13 +3683,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -3951,8 +3702,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: settle isolated capacity replay reservations'
@@ -3966,8 +3715,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: honor durable pending session verification'
@@ -3997,8 +3744,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'feat: refresh Claude and OpenAI model lineup'
@@ -4012,8 +3757,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: preserve OpenAI cache prefix boundaries'
@@ -4027,8 +3770,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: snapshot Mac window notification state before actor isolation'
@@ -4042,15 +3783,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: activate verified cache-aware chat pricing'
@@ -4064,22 +3801,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: preserve Mac window actor isolation and strict arm64 packaging'
@@ -4093,15 +3824,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: complete Apple stability and scoped privacy repairs'
@@ -4115,22 +3842,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
 risks:
@@ -4358,7 +4079,6 @@ sources:
     - frontend/apps/web_app/static/icons/maps.svg
     - frontend/apps/web_app/static/icons/mastodon.svg
     - frontend/apps/web_app/static/icons/math.svg
-    - frontend/apps/web_app/static/icons/meetup.svg
     - frontend/apps/web_app/static/icons/music.svg
     - frontend/apps/web_app/static/icons/news.svg
     - frontend/apps/web_app/static/icons/nutrition.svg
@@ -4435,8 +4155,6 @@ sources:
     - frontend/apps/website/static/event-assets/openmates/cli-sdk-webinar-2026-11-11.jpg
     - frontend/apps/website/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
     - frontend/apps/website/static/event-assets/openmates/everyday-workflows-webinar-2026-09-30.jpg
-    - frontend/apps/website/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
-    - frontend/apps/website/static/event-assets/openmates/openmates-berlin-meetup-2026-09-26.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-09-29.jpg
     - frontend/apps/website/static/event-assets/openmates/openmates-community-hour-2026-10-27.jpg
@@ -4478,7 +4196,6 @@ sources:
     - frontend/apps/website/static/icons/maps.svg
     - frontend/apps/website/static/icons/mastodon.svg
     - frontend/apps/website/static/icons/math.svg
-    - frontend/apps/website/static/icons/meetup.svg
     - frontend/apps/website/static/icons/music.svg
     - frontend/apps/website/static/icons/news.svg
     - frontend/apps/website/static/icons/nutrition.svg
@@ -4552,7 +4269,6 @@ sources:
     - frontend/apps/website/static/publications/previews/privacy-as-a-product-feature-de.jpg
     - frontend/apps/website/static/publications/previews/privacy-as-a-product-feature-en.jpg
     - frontend/apps/website/static/publications/social/agentic-coding-ai-builders-berlin.jpg
-    - frontend/apps/website/static/publications/social/openmates-berlin-meetup-august.jpg
     - frontend/apps/website/static/publications/social/september-openmates-events.jpg
     - frontend/apps/website/static/publications/social/workflow-automation-webinar.jpg
     - frontend/apps/website/svelte.config.js

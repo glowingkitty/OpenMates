@@ -108,7 +108,7 @@ function renderGenericAppSkill(content: Record<string, unknown>): string {
 
 function renderModel3DSearch(content: Record<string, unknown>): string {
 	const query = str(content.query) ?? '3D model search';
-	const provider = str(content.provider) ?? 'Printables';
+	const provider = str(content.provider) ?? '';
 	const count = resolveResultCount(content);
 	const lines = [`**3D Models | Search**`, `query: ${query}`, `provider: ${provider}`];
 	if (count !== null) lines.push(`results: ${count}`);

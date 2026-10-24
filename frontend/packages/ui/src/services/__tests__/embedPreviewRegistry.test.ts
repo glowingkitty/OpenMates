@@ -51,8 +51,8 @@ describe('embedPreviewRegistry parent preview metadata', () => {
   });
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
   it('keeps flat and nested one-way preview journeys consistent across flight and rail examples', () => {
-    for (const fixture of [connectionFixture, connectionVariants.multiStop, connectionVariants.deutscheBahn,
-      connectionVariants.flixTrain, connectionVariants.trainRealtime]) {
+    for (const fixture of [connectionFixture, connectionVariants.multiStop, connectionVariants.exampleRail,
+      connectionVariants.ExampleCoach, connectionVariants.trainRealtime]) {
       const legs = fixture.connection?.legs;
       if (!legs?.length) continue; // Legacy flat payloads must not inherit another journey's nested data.
       expect(legs).toHaveLength(1);

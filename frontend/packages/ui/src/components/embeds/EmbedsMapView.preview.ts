@@ -45,7 +45,7 @@ const HOME_REFS = ['preview-home-district', 'preview-home-description', 'preview
 for (const [index, embedId] of HOME_REFS.entries()) {
   const content = index === 0 ? {...homeListing, title: 'District home', price: 1200}
     : index === 1 ? {...homeListing, title: 'Description home', price: 1400, location: {area: {...homeListing.location.area, radius_m: 650, basis: 'description'}}}
-    : index === 2 ? {...homeListing, title: 'Published exact home', provider: 'ImmoScout24', price: 1600, address: 'Example Street 12, Berlin', location: {exact_address: true}, location_precision: 'building', location_approximate: false}
+    : index === 2 ? {...homeListing, title: 'Published exact home', provider: 'ExampleHousingA', price: 1600, address: 'Example Street 12, Berlin', location: {exact_address: true}, location_precision: 'building', location_approximate: false}
     : {...homeListing, title: 'Legacy approximate center', location: {}};
   embedStore.registerStaticEmbed({embedId, type: 'home-listing', appId: 'home', content: JSON.stringify(content)});
 }
@@ -65,7 +65,7 @@ export default previewProps;
 // copies also verifies that duplicates cannot hide later unique results.
 const DUPLICATE_EVENT_IDS = Array.from({ length: 42 }, (_, index) => `preview-repeat-event-${index}`);
 const duplicateEvent = {
-  app_id: 'events', provider: 'Meetup', title: 'Community AI evening',
+  app_id: 'events', provider: 'Gathering', title: 'Community AI evening',
   description: 'Meet local builders and share what you are working on.',
   url: 'https://events.example.org/ai-evening', date_start: '2026-10-22T17:00:00Z',
   venue: { name: 'Community space', city: 'Berlin', lat: 52.52, lon: 13.405 },

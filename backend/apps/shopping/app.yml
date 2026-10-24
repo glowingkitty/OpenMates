@@ -1,23 +1,3 @@
-landing:
-  order: 13
-  capability:
-    type: skill
-    id: search_products
-  caption:
-    en: Find products online
-    de: Finde Produkte online
-  example_chat_id: example-air-fryers-amazon-germany
-
-# Shopping app — product search across groceries, marketplaces, and fabrics
-#
-# Searches REWE, Amazon, and Stoffe.de for products with live prices.
-# REWE uses a Playwright-harvested cookie pool stored in Vault and a matching
-# residential proxy. Amazon uses SerpAPI. Stoffe.de uses the public
-# plentymarkets storefront API and does not require auth or proxy.
-#
-# Providers: REWE (shop.rewe.de), Amazon (SerpAPI), Stoffe.de (plentymarkets)
-# REWE pricing data: market-specific, scoped to Berlin (PLZ 10115) by default
-
 name_translation_key: shopping
 description_translation_key: shopping.description
 icon_image: |
@@ -56,63 +36,17 @@ embed_types:
     i18n_namespace: embeds.shopping.search_products
 skills:
   # -----------------------------------------------------------------------
-  # Search Products — search REWE online shop for products with live prices
   # -----------------------------------------------------------------------
   - id: search_products
     anonymous_access: inline
     name_translation_key: app_skills.shopping.search_products
     description_translation_key: app_skills.shopping.search_products.description
     icon_image: shopping.svg
-    preprocessor_hint: >
-      Search products on REWE, Amazon, or Stoffe.de with real-time prices.
-      Use category to route groceries, marketplace products, fabrics, sewing supplies,
-      and patterns to compatible providers. Invalid provider/category combinations are rejected.
-      Keep query focused on the product type. Whenever the user states an intended use, audience,
-      compatibility need, desired quality, or preference that should change ordering, put it in
-      relevance_criteria even if related words could also be added to query. Example: query "wireless
-      mouse" with relevance_criteria "Good for travel, with explicit quiet-click, long-battery, and
-      multi-device evidence." Keep provider, category, country, department, price, fulfilment, and
-      sort constraints structured. Omit relevance_criteria only for a neutral product search fully
-      expressed by query and structured fields; never invent preferences. Amazon min_price and
-      max_price use the selected marketplace's currency, with no conversion. When the user states
-      a currency but no country, select a supported marketplace using that currency (for example,
-      country de for euros) rather than relying on a locale fallback. Preserve an explicitly
-      requested destination; do not guess a conversion for an unsupported currency.
-      Set max_results to the user's requested final cap (for example, 5 for "at most five").
-      Discovery already retrieves up to 40 candidates before relevance filtering; do not set
-      max_results to 20 to enlarge that pool. For one visual requirement, issue one request
-      with sort=relevance; returned products already include available prices. Do not add
-      parallel price-sorted requests with the same query,
-      criteria and references unless the user explicitly requests separate sorted searches.
-      When the user supplies image references, put up to three exact uploaded or generated
-      image embed_refs in reference_images. When a product query is already known, forward
-      these references directly without an extra images.view call unless the user explicitly
-      asks to inspect the images or inspection is needed to identify the query. Describe the requested visual qualities in
-      relevance_criteria. Product descriptions and up to three supplied product photos are
-      compared together. Do not call images.search to supplement shopping results. Read
-      visual_evaluation and each product's visual_match status: unavailable or partial
-      comparison must never be presented as visually verified; similarity does not prove
-      exact product identity or unseen quality. Report visual scores on their explicit 0–4 scale,
-      never /5. filtered_count counts completed comparisons below the threshold; unavailable
-      comparisons are retained, not filtered.
-      Describe supported similarity as a strong visual match. Do not say exact match, confirmed
-      identical, or the same product without independent matching identifiers or provenance;
-      photos, titles, queries and scores alone are insufficient. Omit product-specific care,
-      needle and numerical shrinkage claims unless explicitly returned.
-      Use only explicit returned product facts for material
-      composition and percentages: a cotton/poplin name alone does not prove 100% cotton.
-      If composition is absent, say it was not supplied. Preserve source quantities, units, and
-      attribute meanings; fabric weight is not width. No extra marketplace detail requests are made for images.
+    preprocessor_hint: 'Currently unavailable: no authorized provider is configured. Do not promise live
+      search results.'
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
-    pricing:
-      per_unit:
-        credits: 10
-    providers:
-      - name: REWE
-        no_api_key: true
-      - Amazon
-      - name: Stoffe.de
-        no_api_key: true
+    providers: []
+    provider_required: true
     exclude_fields_for_llm:
       - type
       - product_id
@@ -121,11 +55,6 @@ skills:
       - category_ids
       - order_limit
       - search_rank
-    suggestions_follow_up_requests:
-      - Filter for organic products only
-      - Show the cheapest option
-      - Find similar products at a lower price
-      - Add to shopping list
     tool_schema:
       type: object
       properties:
@@ -146,27 +75,11 @@ skills:
                 type: string
                 description: >
                   Search query, e.g. "bio joghurt", "coffee grinder", "wireless mouse".
-              provider:
-                x-ui:
-                  basic: false
-                type: string
-                description: >
-                  Product provider. If omitted, inferred from category: grocery routes
-                  to REWE, fabrics/sewing_supplies/patterns route to Stoffe.de, and
-                  marketplace categories route to Amazon. Invalid explicit
-                  provider/category combinations are rejected.
-                enum:
-                  - REWE
-                  - Amazon
-                  - Stoffe.de
               category:
                 x-ui:
                   basic: true
                 type: string
-                description: >
-                  Product category used for routing and provider compatibility.
-                  Fabrics can be searched on Stoffe.de or Amazon. Groceries can be
-                  searched on REWE or Amazon. Marketplace categories are Amazon-only.
+                description: Optional product category.
                 enum:
                   - grocery
                   - fabrics
@@ -231,13 +144,7 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: >
-                  Provider discovery order. For one visual requirement use relevance; do not
-                  create redundant parallel price-sort searches unless explicitly requested.
-                  REWE supports: relevance, price_asc, price_desc, new.
-                  Amazon supports: relevance, price_asc, price_desc, review_rank,
-                  newest, best_sellers.
-                  Stoffe.de supports: relevance, price_asc, price_desc, new.
+                description: Requested result ordering when product search becomes available.
                 enum:
                   - relevance
                   - price_asc
@@ -247,86 +154,22 @@ skills:
                   - newest
                   - best_sellers
                 default: relevance
-              service_type:
-                x-ui:
-                  basic: false
-                type: string
-                description: >
-                  REWE-only fulfilment type. "DELIVERY" for home delivery (default).
-                  "CLICK_AND_COLLECT" for store pickup. Ignored for Amazon and Stoffe.de.
-                enum:
-                  - DELIVERY
-                  - CLICK_AND_COLLECT
-                default: DELIVERY
               country:
                 x-ui:
                   basic: false
                 type: string
-                description: >
-                  Amazon-only marketplace country code. Price amounts use this marketplace's
-                  currency; no currency conversion is performed. Euro marketplaces include
-                  de, fr, it, es, and nl. For a euro price limit with no destination specified,
-                  use de as the default euro marketplace. Other examples: us (USD), uk (GBP),
-                  jp (JPY), ca, au, in, br, mx, sg, se, pl. If the user specifies a destination,
-                  preserve that destination; do not silently reinterpret a stated currency.
-                  If omitted, country is inferred from user language/locale with fallback to us.
-              department:
-                x-ui:
-                  basic: false
-                type: string
-                description: >
-                  Amazon-only category filter. Example: electronics, computers,
-                  fashion, home, books, sports, toys, beauty, grocery, automotive,
-                  health, music, movies, tools, office, pet_supplies, video_games, baby.
-                enum:
-                  - electronics
-                  - computers
-                  - fashion
-                  - home
-                  - books
-                  - sports
-                  - toys
-                  - beauty
-                  - grocery
-                  - automotive
-                  - health
-                  - music
-                  - movies
-                  - tools
-                  - office
-                  - pet_supplies
-                  - video_games
-                  - baby
+                description: Optional destination country code.
               min_price:
                 x-ui:
                   basic: false
                 type: number
-                description: >
-                  Amazon-only minimum price filter (client-side after fetch), in the selected
-                  marketplace's currency; no conversion is performed. Set country when the user
-                  states a currency.
+                description: Optional minimum price in the requested currency.
               max_price:
                 x-ui:
                   basic: false
                 type: number
-                description: >
-                  Amazon-only maximum price filter (client-side after fetch), in the selected
-                  marketplace's currency; no conversion is performed. Set country when the user
-                  states a currency, for example de with max_price 150 for a 150-euro ceiling.
+                description: Optional maximum price in the requested currency.
             required:
               - query
       required:
         - requests
-
-marketing_discovery:
-  skills:
-    search_products:
-      enabled: true
-      keywords:
-        - product search AI assistant
-        - compare products online
-        - shopping research chatbot
-      pain_points:
-        - shopping search is ad-heavy
-      demo_angles:
-        - show product search result

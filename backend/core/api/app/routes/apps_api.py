@@ -29,7 +29,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, skill_has_provider_support
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 from backend.shared.python_utils.app_skill_output_safety import (
@@ -223,7 +223,7 @@ class SkillResponse(BaseModel):
 
 class ProviderPricing(BaseModel):
     """Pricing information for a provider"""
-    provider: str  # Provider ID (e.g., "brave", "firecrawl")
+    provider: str  # Provider ID (e.g., "brave", "youtube")
     name: str  # Provider display name from provider YAML (e.g., "Brave Search")
     description: str  # Provider description from provider YAML
     pricing: Dict[str, Any]  # Pricing configuration for this provider
@@ -586,7 +586,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     This function centralizes the mapping of providers to their API key requirements.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         List of environment variable names to check (in order of preference)
@@ -598,11 +598,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "mistral": ["SECRET__MISTRAL_AI__API_KEY", "SECRET__MISTRAL__API_KEY"],
         "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
         "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
-        "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
-        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -624,7 +622,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     This is used to determine if a skill should be shown as available.
 
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         secrets_manager: SecretsManager instance for checking Vault
         config_manager: Optional ConfigManager for reading provider YAML flags
 
@@ -702,7 +700,7 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
 
     A skill is considered available if at least one of its providers has a configured API key,
     or if a provider declares no_api_key: true (no key required).
-    If a skill has no providers, it's considered available (no API key required).
+    Local-only skills need no providers; provider-backed skills require a source.
 
     Args:
         skill: The skill definition
@@ -713,7 +711,9 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
     Returns:
         True if the skill is available (at least one provider is accessible), False otherwise
     """
-    # If skill has no providers, it's available (no API key required)
+    if not skill_has_provider_support(skill):
+        return False
+    # Local-only skills do not need a provider.
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
@@ -813,7 +813,7 @@ async def fetch_provider_pricing(provider_id: str) -> Optional[Dict[str, Any]]:
     Fetch provider-level pricing from internal API.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         Provider pricing dict or None if not found
@@ -1974,41 +1974,6 @@ async def list_apps(
 # Travel app custom routes (non-skill endpoints)
 # ---------------------------------------------------------------------------
 
-class BookingLinkRequest(BaseModel):
-    """Request for on-demand booking URL lookup via SerpAPI."""
-    booking_token: str = Field(
-        ...,
-        description="The booking_token from a flight search result (from search_connections skill output)."
-    )
-    booking_context: Optional[Dict[str, str]] = Field(
-        None,
-        description="Original SerpAPI search parameters needed for booking_token lookup. "
-        "Keys: departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class."
-    )
-    hashed_chat_id: Optional[str] = Field(
-        None,
-        description="SHA-256 hashed chat ID to link the usage entry to the chat where the booking was initiated."
-    )
-
-
-class BookingLinkResponse(BaseModel):
-    """Response containing the resolved booking URL and provider name."""
-    success: bool
-    booking_url: Optional[str] = Field(
-        None,
-        description="Direct clickable booking URL (e.g., airline website or OTA). None if no booking link found."
-    )
-    booking_provider: Optional[str] = Field(
-        None,
-        description="Name of the booking provider (e.g., 'Lufthansa', 'Kayak'). None if no booking link found."
-    )
-    credits_charged: Optional[int] = Field(
-        None,
-        description="Credits charged for this lookup (25 credits = 1 SerpAPI credit)."
-    )
-    error: Optional[str] = Field(None, description="Error message if lookup failed.")
-
-
 # ---------------------------------------------------------------------------
 # Travel app: Flight Details models (for flight-details endpoint)
 # ---------------------------------------------------------------------------
@@ -2063,138 +2028,8 @@ class FlightDetailsResponse(BaseModel):
 
 
 def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
-    """
-    Register travel-specific REST endpoints that are not standard skills.
-
-    Currently registers:
-    - POST /v1/apps/travel/booking-link — On-demand booking URL lookup using
-      a booking_token from a previous flight search. Costs 25 credits (1 SerpAPI credit).
-
-    Supports both session auth (web app) and API key auth (external clients).
-    """
-    from backend.apps.travel.providers.serpapi_provider import lookup_booking_url
+    """Register supported flight-detail routes with session or API-key auth."""
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
-
-    async def booking_link_handler(
-        request_body: BookingLinkRequest,
-        request: Request = None,
-        user=Depends(get_current_user_or_api_key),
-        cache_service: CacheService = Depends(get_cache_service),
-        directus_service: DirectusService = Depends(get_directus_service),
-    ) -> BookingLinkResponse:
-        """
-        Look up a booking URL for a flight using the booking_token from search results.
-
-        When a user searches for flights via the search_connections skill, each result
-        includes a `booking_token`. This endpoint uses that token to fetch a direct
-        booking URL from SerpAPI (costs 1 SerpAPI credit = 25 OpenMates credits).
-
-        This avoids spending credits on booking lookups during the initial search,
-        only charging when the user actually wants to book a specific flight.
-
-        Supports both session authentication (web app) and API key authentication.
-        """
-        user_info = _custom_route_user_info(request, user)
-        _require_api_key_app_skill_scope(user_info, "travel", "booking_link")
-        await require_api_key_budget_for_charge(
-            directus_service,
-            user_info=user_info,
-            requested_credits=25,
-        )
-        user_id = user_info["user_id"]
-
-        try:
-            logger.info(
-                f"Travel booking-link: User {user_id} requesting "
-                f"booking URL (token: {request_body.booking_token[:20]}...)"
-            )
-
-            # Create SecretsManager to load the SerpAPI key from Vault
-            sm = SecretsManager()
-            await sm.initialize()
-            try:
-                result = await lookup_booking_url(
-                    request_body.booking_token,
-                    booking_context=request_body.booking_context,
-                    secrets_manager=sm,
-                )
-            finally:
-                await sm.aclose()
-
-            # Only charge credits if we successfully got a booking URL
-            credits_charged = 0
-            if result.get("booking_url"):
-                credits_charged = 25
-                user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
-                usage_details = {
-                    "external_request": False,
-                    "units_processed": 1,
-                    "server_provider": "SerpAPI",  # Travel booking uses SerpAPI/Google Flights
-                    "server_region": "US",  # SerpAPI is US-based
-                }
-                # Link the usage entry to the chat where the booking was initiated
-                # so it appears in the user's per-chat usage breakdown.
-                if request_body.hashed_chat_id:
-                    usage_details["chat_id"] = request_body.hashed_chat_id
-                await charge_credits_via_internal_api(
-                    user_id=user_id,
-                    user_id_hash=user_id_hash,
-                    credits=credits_charged,
-                    app_id="travel",
-                    skill_id="booking_link",
-                    usage_details=usage_details,
-                    api_key_hash=user_info.get("api_key_hash"),
-                    device_hash=user_info.get("device_hash"),
-                )
-
-            return BookingLinkResponse(
-                success=True,
-                booking_url=result.get("booking_url"),
-                booking_provider=result.get("booking_provider"),
-                credits_charged=credits_charged,
-            )
-
-        except ValueError as e:
-            logger.error(f"Travel booking-link config error: {e}")
-            return BookingLinkResponse(
-                success=False,
-                error="Booking service not configured",
-            )
-        except Exception as e:
-            logger.error(
-                f"Travel booking-link error for user {user_id}: {e}",
-                exc_info=True,
-            )
-            return BookingLinkResponse(
-                success=False,
-                error=f"Booking lookup failed: {str(e)}",
-            )
-
-    # Register the endpoint — no SessionOrApiKeyAuth dependency since we use
-    # get_current_user_or_api_key which handles both auth methods
-    app.add_api_route(
-        path="/v1/apps/travel/booking-link",
-        endpoint=limiter.limit("30/minute")(booking_link_handler),
-        methods=["POST"],
-        response_model=BookingLinkResponse,
-        tags=[f"Apps | {app_name.capitalize()}"],
-        name="travel_booking_link",
-        summary="Look up booking URL for a flight",
-        description=(
-            "Look up a direct booking URL for a flight using the booking_token "
-            "from a previous search_connections result. Costs 25 credits per "
-            "successful lookup (1 SerpAPI credit). Returns the best booking "
-            "option (preferring direct airline over OTA). "
-            "Supports both session and API key authentication."
-        ),
-    )
-    logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
-
-    # -----------------------------------------------------------------------
-    # POST /v1/apps/travel/flight-details
-    # Fetches real GPS track + enrichment for a completed flight from FR24.
-    # Charges 7 credits on success (covers ~46 FR24 API credits).
-    # -----------------------------------------------------------------------
 
     from backend.apps.travel.providers.flightradar24_provider import (
         FR24Provider,

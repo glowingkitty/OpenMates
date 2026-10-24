@@ -29,8 +29,8 @@ examples:
     supply recovery, market concentration, retailer margins, regulation, and counterarguments.
     State confirmed vs inferred evidence.
 - app: shopping
-  chat_id: example-air-fryers-amazon-germany
-  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-amazon-germany.ts
+  chat_id: example-air-fryers-retail-germany
+  fixture: frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-retail-germany.ts
   source_chat_id: ec38150c-eb3b-4cfe-a03b-4a00f6893a75
   original_request: Find air fryers I can buy online in Germany, including Amazon
     listings. Compare current prices, capacities, and review ratings, then
@@ -76,14 +76,12 @@ examples:
   chat_id: example-buck-converters-24v-5v
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
   source_chat_id: d5f4b1a7-8f43-4ffd-913f-fba84171816c
-  original_request: Find matching Texas Instruments buck converters for 24 volts input
+  original_request: Find matching buck converters for 24 volts input
     to 5 volts output at 3 amps.
 - app: models3d
   chat_id: example-printable-benchy-phone-stand
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/printable-benchy-phone-stand-models.ts
   source_chat_id: b8fabd35-2a4e-4ca5-a7a7-90927f4bc0c5
-  original_request: Find 3D-printable Benchy and phone stand models on Printables.
-    Show the best options with preview cards and source links.
 - app: music
   chat_id: example-community-garden-welcome-melody
   fixture: frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-welcome-melody.ts

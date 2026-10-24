@@ -411,8 +411,8 @@ for (const width of [390, 1440]) {
     await expect(story.getByTestId('landing-actionable-event-preview')).toContainText('DEPIN DAY BERLIN');
     await expect(story).toHaveAttribute('data-interaction-state', 'preview-targeted', { timeout: 2500 });
     await expect(story).toHaveAttribute('data-interaction-state', 'preview-clicked', { timeout: 2000 });
-    await expect(story).toHaveAttribute('data-active-stage', 'luma-cta', { timeout: 2500 });
-    await expect(story.getByTestId('landing-actionable-luma-button')).toHaveText('Open on Luma');
+    await expect(story).toHaveAttribute('data-active-stage', 'ExampleEvents-cta', { timeout: 2500 });
+    await expect(story.getByTestId('landing-actionable-ExampleEvents-button')).toHaveText('Open on ExampleEvents');
     await expect(story).toHaveAttribute('data-interaction-state', 'cta-clicked', { timeout: 2200 });
     await expect(actionable).toHaveAttribute('data-story-state', 'complete', { timeout: 2500 });
     await expect(actionable.locator('.story-copy p')).toBeVisible();

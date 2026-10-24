@@ -40,7 +40,7 @@ def test_group_summaries_keep_request_identity_and_exclude_unrelated_metadata():
     assert len(shopping_result_parent_metadata(groups[:1])["visual_evaluations"]) == 1
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable,shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("wire_format", ["toon", "json"])
 def test_forty_candidate_counts_survive_history_projection(wire_format):
     import json
@@ -153,7 +153,7 @@ def test_history_retention_uses_only_safe_shopping_metadata():
     assert "PRIVATE" not in str(retained)
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable,shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("operation", ["create", "update"])
 @pytest.mark.parametrize("product_count", [0, 1])
 @pytest.mark.asyncio
@@ -213,7 +213,7 @@ async def test_actual_parent_and_child_construction_preserves_visual_evidence(op
         assert len(sent) == 1
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
+# contract-test: supporting surface=rest_api assertions=app-skills.history.renderable,shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("composition", [None, "100% Baumwolle", "80% cotton, 20% polyester"])
 @pytest.mark.parametrize("wire_format", ["toon", "json"])
 @pytest.mark.parametrize("legacy_single", [False, True])

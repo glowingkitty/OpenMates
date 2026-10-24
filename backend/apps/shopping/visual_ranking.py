@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from dataclasses import dataclass
-from io import BytesIO
 import logging
 import math
 import time
@@ -17,7 +16,6 @@ from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
 import httpx
-from PIL import Image
 
 from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.shared.providers.typesafe.models import ScoreAnswer
@@ -62,14 +60,7 @@ def validate_reference_images(value: Any) -> list[str]:
 
 
 async def download_public_product_image(url: str) -> bytes:
-    """Use the shared memory-only downloader, preserving signed shopping replay."""
-    from backend.apps.ai.testing.shopping_images_fixture import active as fixture_active, DIRECT_REFERENCE_IMAGE
-    if fixture_active():
-        if url != DIRECT_REFERENCE_IMAGE:
-            raise ValueError("Signed shopping replay has no product image fixture")
-        output = BytesIO()
-        Image.new("RGB", (336, 336), "yellow").save(output, format="JPEG")
-        return output.getvalue()
+    """Download through the shared bounded memory-only image client."""
     return await download_public_image(url)
 
 

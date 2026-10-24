@@ -48,7 +48,7 @@ from backend.core.api.app.services.feature_availability_service import (
     skill_feature_id,
 )
 from backend.core.api.app.utils.config_manager import ConfigManager
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, skill_has_provider_support
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,7 @@ def filter_app_components_by_availability(
             s for s in skills_data
             if isinstance(s, dict)
             and s.get("class_path")
+            and skill_has_provider_support(s)
             and availability.is_enabled(skill_feature_id(app_id, str(s.get("id") or "")))
         ]
     else:
@@ -299,7 +300,10 @@ class SkillRegistry:
     def is_skill_available(self, app_id: str, skill_id: str) -> bool:
         """True if the app exists in the registry AND the skill class resolved at startup."""
         app = self.apps.get(app_id)
-        return app is not None and skill_id in app.skill_classes
+        if app is None or skill_id not in app.skill_classes:
+            return False
+        definition = app.get_skill_by_id(skill_id)
+        return definition is not None and skill_has_provider_support(definition)
 
     def get_metadata(self, app_id: str) -> Optional[AppYAML]:
         app = self.apps.get(app_id)

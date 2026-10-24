@@ -5,7 +5,7 @@ Worktree: `.openmates-agent-worktrees/agent-4f00`, distinct from coordinator `ag
 
 ## Implemented removal patch
 
-- Removed both urban sports examples, dermatology, PDF encryption, product-launch mindmap, old career, OpenMates get-docs, private-workspace demo video: eight fixtures, translations, registry entries and interest references.
+- Removed three lifestyle examples, PDF encryption, product-launch mindmap, old career, OpenMates get-docs, private-workspace demo video: eight fixtures, translations, registry entries and interest references.
 - Removed those landing references and missing learning ID. Local-AI compression and Svelte remain in the catalog outside landing.
 - Existing workshops remains mapped. Other slide arrays await approved candidates. No replacements registered and no candidate approval inferred.
 - `backend/apps/openmates/app.yml`: sparse `default_enabled: false` for `openmates.get-docs`. Separate `code.get_docs` remains enabled.

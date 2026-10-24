@@ -26,12 +26,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 // contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.campaign.event-link-fallback
-test('public event pages publish the October online community hour and omit the cancelled meetup', async ({ page }) => {
+test('public event pages publish the October online community hour and omit the cancelled Gathering', async ({ page }) => {
 	const index = await page.request.get(getE2EDebugUrl('/events'));
 	expect(index.status()).toBe(200);
 	const indexHtml = await index.text();
 	expect(indexHtml).toContain(`/events/${EVENT_SLUG}`);
-	expect(indexHtml).not.toContain('/events/openmates-berlin-meetup-2026-09-26');
+	expect(indexHtml).not.toContain('/events/openmates-berlin-Gathering-2026-09-26');
 
 	await page.goto(getE2EDebugUrl(`/events/${EVENT_SLUG}`));
 	await expect(page.getByRole('heading', { name: EVENT_TITLE, exact: true })).toBeVisible();
@@ -41,7 +41,7 @@ test('public event pages publish the October online community hour and omit the 
 	expect(jsonLd.startDate).toBe('2026-10-27T19:00:00+01:00');
 	expect(jsonLd.endDate).toBe('2026-10-27T20:00:00+01:00');
 	expect(jsonLd.eventAttendanceMode).toBe('https://schema.org/OnlineEventAttendanceMode');
-	await expect(page.getByRole('link', { name: 'Register on Luma', exact: true })).toHaveAttribute('href', /^https:\/\/luma\.com\//);
+	await expect(page.getByRole('link', { name: 'Register on ExampleEvents', exact: true })).toHaveAttribute('href', /^https:\/\/ExampleEvents\.com\//);
 	const image = await page.request.get(`/event-assets/openmates/${EVENT_SLUG}.jpg`);
 	expect(image.status()).toBe(200);
 	expect(image.headers()['content-type']).toContain('image/jpeg');
@@ -65,11 +65,11 @@ test('sidebar lists only online events and opens the October community hour', as
 	for (const entry of await entries.all()) {
 		await expect(entry).toContainText('Online');
 	}
-	await expect(events).not.toContainText('Monthly Meetup Berlin');
+	await expect(events).not.toContainText('Monthly Gathering Berlin');
 	const october = entries.filter({ hasText: EVENT_TITLE }).filter({ hasText: 'Oct' });
 	await expect(october).toContainText('27');
 	await october.click();
 	await expect(page.locator('body')).toContainText('Tuesday, October 27, 2026');
 	await expect(page.locator('body')).toContainText('7:00 PM to 8:00 PM');
-	await expect(page.getByTestId('external-provider-cta').first()).toHaveText('Register on Luma');
+	await expect(page.getByTestId('external-provider-cta').first()).toHaveText('Register on ExampleEvents');
 });

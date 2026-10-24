@@ -34,15 +34,7 @@
   /** Map backend provider slugs to human-readable display names. */
   function getProviderLabel(slug: string): string {
     switch (slug?.toLowerCase()) {
-      case 'meetup':              return 'Meetup';
-      case 'luma':                return 'Luma';
-      case 'eventbrite':          return 'Eventbrite';
       case 'google_events':       return 'Google';
-      case 'resident_advisor':    return 'Resident Advisor';
-      case 'siegessaeule':        return 'Siegessäule';
-      case 'classictic':          return 'Classictic';
-      case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':           return 'Bachtrack';
       default:                    return slug || '';
     }
   }

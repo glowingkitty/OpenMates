@@ -99,17 +99,6 @@ def format_embed_carrier(value: str) -> str:
     text = value.strip()
     if not text:
         return ""
-    known = {
-        "db": "DB",
-        "ice": "ICE",
-        "ic": "IC",
-        "ec": "EC",
-        "flixtrain": "FlixTrain",
-        "flixzug": "FlixTrain",
-    }
-    lower = text.lower()
-    if lower in known:
-        return known[lower]
     if len(text) <= 4:
         return text.upper()
     return " ".join(part.capitalize() for part in re.split(r"[-_\s]+", text) if part)

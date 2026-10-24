@@ -10,7 +10,7 @@ import {handleWorkspaceKey,handleWorkspaceCommand,type WorkspaceContext} from '.
 import type {DecryptedEmbed} from '../src/client.js';
 
 const reference=(id:string,app='fitness',skill='search_classes')=>'```json_embed\n'+JSON.stringify({embed_id:id,app_id:app,skill_id:skill})+'\n```';
-const embed:DecryptedEmbed={id:'root',embedId:'root',type:'app_skill_use',appId:'fitness',skillId:'search_classes',textPreview:null,createdAt:null,content:{status:'finished',results:[{provider:'Urban Sports Club',result_count:2,filters:{city:'Berlin',radius_km:5,plan:'M'},summary:'Dance classes nearby',results:[{name:'Modern Dance',venue_name:'Studio One',date:'2026-10-12',time_range:'18:00–19:00',distance_km:1.2,plans_required:'M|L'},{name:'Techno Dance',venue_name:'Studio Two',date:'2026-10-13',time_range:'19:00–20:00',spots_display:'3 spots'}]}]}};
+const embed:DecryptedEmbed={id:'root',embedId:'root',type:'app_skill_use',appId:'fitness',skillId:'search_classes',textPreview:null,createdAt:null,content:{status:'finished',results:[{provider:'ExampleFitness',result_count:2,filters:{city:'Berlin',radius_km:5,plan:'M'},summary:'Dance classes nearby',results:[{name:'Modern Dance',venue_name:'Studio One',date:'2026-10-12',time_range:'18:00–19:00',distance_km:1.2,plans_required:'M|L'},{name:'Techno Dance',venue_name:'Studio Two',date:'2026-10-13',time_range:'19:00–20:00',spots_display:'3 spots'}]}]}};
 function context(state:ReturnType<typeof createInitialTuiState>,client:Record<string,unknown>={}):WorkspaceContext{return {state,client,terminal:{width:160,height:32},render:()=>{},command:async()=>{},send:async()=>{}} as unknown as WorkspaceContext;}
 
 test('chat-local shortcuts remain stable during hydration and older-history arrival, including prefix collisions',()=>{
@@ -51,7 +51,7 @@ test('hydration promotes a placeholder alias and keeps the old command as a hidd
 });
 test('fitness preview shares web normalization, statuses and bounded result fields',()=>{
   const rows=renderFitnessPreview(embed,62,'fit-s_c-1').map(lineText).join('\n');
-  for(const text of ['Urban Sports Club','Search classes','Berlin','2 classes','Modern Dance','Techno Dance','Plan: M','/embed fit-s_c-1'])assert.ok(rows.includes(text),text);
+  for(const text of ['ExampleFitness','Search classes','Berlin','2 classes','Modern Dance','Techno Dance','Plan: M','/embed fit-s_c-1'])assert.ok(rows.includes(text),text);
   assert.ok(renderFitnessPreview(embed,32,'fit-s_c-1').every(line=>cells(lineText(line))<=32));
   for(const [status,text] of [['error','Search failed'],['processing','Searching'],['cancelled','Search cancelled']])assert.match(renderFitnessPreview({...embed,content:{status}},62,'fit-s_c-1').map(lineText).join('\n'),new RegExp(text));
   assert.match(fitnessResultDetail({name:'Dance',distance_km:1.2,plans_required:'M|L',venue_address:'Studio street',detail_url:'https://example.org/class'}).join('\n'),/1.20 km\nPlans: M, L\nStudio street\nhttps:\/\/example.org\/class/);

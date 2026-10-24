@@ -37,7 +37,7 @@ import AppKit
         if title.range(of: "weather|rain|forecast|wetter", options: .regularExpression) != nil {
             return "lucide-cloud-rain"
         }
-        if title.range(of: "event|meetup", options: .regularExpression) != nil {
+        if title.range(of: "event|Gathering", options: .regularExpression) != nil {
             return "lucide-calendar-days"
         }
         if title.range(of: "news|brief", options: .regularExpression) != nil {

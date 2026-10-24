@@ -705,7 +705,6 @@ async def lifespan(app: FastAPI):
 
     # --- Preload leaderboard data into cache ---
     # This ensures model rankings are available before first AI request
-    # If no leaderboard data exists, trigger generation asynchronously
     logger.info("Preloading leaderboard data into cache...")
     if hasattr(app.state, 'cache_service'):
         try:
@@ -715,17 +714,7 @@ async def lifespan(app: FastAPI):
                 ranked_count = len(leaderboard_data.get("rankings", []))
                 logger.info(f"Successfully preloaded leaderboard data with {ranked_count} ranked models.")
             else:
-                # No leaderboard data exists - trigger generation asynchronously
-                logger.warning("No leaderboard data available. Triggering initial leaderboard generation...")
-                try:
-                    task_result = celery_app.send_task(
-                        "leaderboard.update_daily",
-                        queue="leaderboard",
-                        kwargs={"category": "text"}
-                    )
-                    logger.info(f"Initial leaderboard generation task queued. Task ID: {task_result.id}")
-                except Exception as e_task:
-                    logger.warning(f"Failed to queue leaderboard generation task: {e_task}")
+                logger.info("No saved leaderboard data available; model selection will use configured defaults.")
         except Exception as e_leaderboard:
             logger.warning(f"Failed to preload leaderboard data during startup: {e_leaderboard}")
             # Don't fail startup - leaderboard is optional for model selection

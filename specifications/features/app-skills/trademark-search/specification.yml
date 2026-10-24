@@ -3,39 +3,59 @@ id: feature.app-skill.trademark-search
 version: 1
 status: draft
 title: Regional Trademark Search and Brand Naming
-summary: Bounded free trademark searches with explicit regional coverage, followed by concise assisted brand naming.
+summary: Trademark and domain checks are unavailable; saved preliminary evidence and concise brand brainstorming
+  remain usable.
+
 inherits: [architecture.app-skill-execution@1, architecture.platform-parity@1, feature.focus-modes@3]
 scope:
   includes:
-    - Business trademark name search with explicit regions and optional Nice classes.
-    - Free no-key USPTO website JSON reads and transparent unsupported-region results.
-    - Authenticated REST, CLI, npm and pip SDKs, and web preview and fullscreen.
-    - A concise Business Find a brand name focus mode and a real natural-language CLI conversation.
+  - Explicit unavailable trademark checks without any regional substitute or replacement source.
+  - Generic saved trademark evidence and coverage rendering.
+  - Concise brand-name brainstorming with honest limits on external verification.
   excludes:
-    - Paid providers, access-challenge bypass, bulk crawling and legal clearance.
-    - Automated EU, German or worldwide searches before a permitted provider is verified.
+  - Paid providers, access-challenge bypass, bulk crawling and legal clearance.
+  - Automated EU, German or worldwide searches before a permitted provider is verified.
+
 assertions:
-  - id: trademarks.request
-    type: validation
-    must: Accept one to three nonblank candidate names of at most 120 characters, explicit regions US/EU/DE/WORLDWIDE, up to ten integer Nice classes 1–45, active/all status, exact/similar matching, and one to twenty records per name and region. Reject invalid input without provider calls.
-  - id: trademarks.coverage
-    type: invariant
-    must: Route each requested region to its configured source. US uses USPTO; unconfigured regions return unsupported with a manual official source. Never silently substitute US for another region. Preserve query, region, search time, count, truncation and partial/error status. A failed or unsupported search is distinct from a completed search with no matches.
-  - id: trademarks.evidence
-    type: security
-    must: Return only provider-backed names, application and registration numbers, owners, classes, goods/services, status, dates and fixed-origin source links. Unknown facts remain unknown. Use inherited external-output safety. Display that results are preliminary and neither no matches nor spelling similarity proves legal availability.
-  - id: trademarks.provider
-    type: failure
-    must: Use a free no-key HTTPS USPTO website endpoint with bounded pages, one request per second per worker and no retries or proxy fallback. Preserve readable records from partial responses, and report access restrictions, rate limits, invalid responses and outages safely. Send only submitted names and filters; do not log raw queries, records or owner addresses.
-  - id: trademarks.parity
-    type: behavior
-    must: Authenticated REST, CLI and npm/pip SDKs preserve the same evidence and coverage. Build and verify these before web embed components; build preview and fullscreen before the naming focus mode. Web surfaces show saved matches, sources and region coverage, including zero results, partial and error states.
-  - id: brand-naming.activation
-    type: behavior
-    must: Help me find a name for my new product activates Business Find a brand name through the shared focus lifecycle. Use concise instructions and reuse facts already supplied; ask a compact intake for missing product, audience, target markets, language and naming preferences without an extended questionnaire.
-  - id: brand-naming.flow
-    type: behavior
-    must: Offer a small varied shortlist with brief rationale before external checks. Let the user choose two or three finalists, then check domain availability with Hosting, search relevant web conflicts and regional trademark records. Keep brainstorming and checked evidence distinguishable; compare finalists with evidence and coverage limits. Do not assert legal clearance, equate free domains with trademark availability, or run exhaustive checks on every brainstormed name.
+- id: trademarks.request
+  type: validation
+  must: Preserve the typed candidate-name, region, Nice-class, status, matching and limit request schema. Current
+    trademark requests return explicit unavailable errors without provider calls or claims of completed checks.
+  depends_on:
+  - examples.boundary_and_history
+- id: trademarks.coverage
+  type: invariant
+  must: All current trademark regions are unavailable. Distinguish this from completed zero-match searches and preserve
+    saved query, region, count, partial and error evidence without inventing regional coverage.
+  depends_on:
+  - examples.boundary_and_history
+- id: trademarks.evidence
+  type: security
+  must: Saved names, numbers, owners, classes, goods, status, dates and source links remain tied to their original
+    evidence. Unknown facts stay unknown and preliminary results or no matches never establish legal availability.
+  depends_on:
+  - examples.boundary_and_history
+- id: trademarks.parity
+  type: behavior
+  must: REST, CLI, npm/pip SDKs and web preserve explicit unavailable checks and the generic saved matches, regional
+    coverage, zero-result, partial and error schemas.
+  depends_on:
+  - examples.boundary_and_history
+- id: brand-naming.activation
+  type: behavior
+  must: A request for help naming a product activates Business Find a brand name through the shared focus lifecycle.
+    Reuse supplied facts and ask concise questions only for missing product, audience, market, language or naming
+    preferences.
+  depends_on:
+  - examples.boundary_and_history
+- id: brand-naming.flow
+  type: behavior
+  must: Offer a small varied shortlist and rationale, then let the user select finalists. Clearly disclose unavailable
+    trademark and domain checks; permitted web search may supply sourced conflicts but cannot imply legal clearance
+    or checked domain availability. Keep brainstorming separate from verified evidence.
+  depends_on:
+  - examples.boundary_and_history
+
 applies_to:
   rest_api: {required: true}
   cli: {required: true}
@@ -53,6 +73,10 @@ applies_to:
       apple: {required: false, reason: Native specialized trademark renderer is outside this requested CLI SDK and web slice.}
 examples:
   file: examples.yml
-  required_groups: [request, coverage, evidence, provider, parity, naming]
+  required_groups:
+  - boundary_and_history
+
 approval_source:
-  instruction: Direct user implementation request on 2026-10-11 authorizes these outcomes and ordering. No separate fingerprint approval is claimed.
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

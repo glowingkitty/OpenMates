@@ -12,7 +12,7 @@ enum HostingString: String {
     case taxIncluded = "tax_included", taxExcluded = "tax_excluded", taxUnknown = "tax_unknown", taxCountry = "tax_country"
     case currency, checkedAt = "checked_at", registration, renewal, quoteDetails = "quote_details", minimumTerm = "minimum_term"
     case domainASCII = "domain_ascii", domainUnicode = "domain_unicode", otherTermPrices = "other_term_prices"
-    case openOnGandi = "open_on_gandi", availabilityMayChange = "availability_may_change", year, years
+    case availabilityMayChange = "availability_may_change", year, years
     case registrationRequirements = "registration_requirements", noDomainsInView = "no_domains_in_view", firstYear = "first_year"
     case tax, yes, term, price
 }

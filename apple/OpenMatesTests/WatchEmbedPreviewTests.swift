@@ -494,10 +494,10 @@ final class WatchEmbedPreviewTests: XCTestCase {
         )
         XCTAssertEqual(
             WatchMessageContentSanitizer.displayText(
-                content: "[](embed:flixtrain-1423-3VT)",
+                content: "[](embed:ExampleCoach-1423-3VT)",
                 embedRefs: nil
             ),
-            "FlixTrain 14:23"
+            "ExampleCoach 14:23"
         )
     }
 
@@ -576,11 +576,11 @@ final class WatchEmbedPreviewTests: XCTestCase {
 extension WatchEmbedPreviewTests {
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchMarkdownKeepsHeadingListsQuoteAndCodeSemantics() throws {
-        let blocks = WatchMarkdownParser.blocks("# Berlin **Meetup**\n\nA *public* [link](https://example.com).\n\n- First\n2. Second\n> Quoted\n```swift\nlet value = 1\n```")
+        let blocks = WatchMarkdownParser.blocks("# Berlin **Gathering**\n\nA *public* [link](https://example.com).\n\n- First\n2. Second\n> Quoted\n```swift\nlet value = 1\n```")
         XCTAssertEqual(blocks.map(\.kind), [.heading(1), .paragraph, .list("•"), .list("2."), .quote, .code("swift")])
         XCTAssertEqual(blocks.last?.text, "let value = 1")
         let inline = try AttributedString(markdown: blocks[0].text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
-        XCTAssertEqual(String(inline.characters), "Berlin Meetup")
+        XCTAssertEqual(String(inline.characters), "Berlin Gathering")
         XCTAssertTrue(inline.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
     }
 
@@ -665,9 +665,9 @@ extension WatchEmbedPreviewTests {
     func testWatchLiveEmbedStorageQueuesOnlyCiphertextAndBoundMasterChatWrappers() throws {
         let masterKey = SymmetricKey(size: .bits256)
         let chatKey = SymmetricKey(size: .bits256)
-        let content = #"{"app_id":"events","skill_id":"search","query":"Berlin public meetup","result_count":3}"#
+        let content = #"{"app_id":"events","skill_id":"search","query":"Berlin public Gathering","result_count":3}"#
         let live: [String: Any] = ["embed_id": "public-embed", "user_id": "public-owner", "chat_id": "public-chat",
-            "type": "app_skill_use", "content": content, "status": "finished", "text_preview": "Public meetup",
+            "type": "app_skill_use", "content": content, "status": "finished", "text_preview": "Public Gathering",
             "embed_ids": ["public-child"], "is_private": false, "is_shared": false]
         let wire = try WatchEmbedHydration.prepareStorage(payload: live, embedID: "public-embed", chatID: "public-chat",
             messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey, now: 123)
@@ -705,8 +705,8 @@ extension WatchEmbedPreviewTests {
             WatchPendingCompletion(id: embedID, chatId: "public-chat", eventType: "store_embed", encryptedPayload: try JSONSerialization.data(withJSONObject: wire.embed))
         ]
         let durableJSON = String(decoding: try JSONEncoder().encode(queued), as: UTF8.self)
-        XCTAssertFalse(durableJSON.contains("Berlin public meetup"))
-        XCTAssertFalse(durableJSON.contains("Public meetup"))
+        XCTAssertFalse(durableJSON.contains("Berlin public Gathering"))
+        XCTAssertFalse(durableJSON.contains("Public Gathering"))
         XCTAssertNil(wire.embed["content"])
         XCTAssertNil(wire.embed["type"])
         XCTAssertThrowsError(try WatchEmbedHydration.prepareStorage(payload: live, embedID: "public-embed", chatID: "other-chat",

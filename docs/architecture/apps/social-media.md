@@ -6,14 +6,6 @@ topic discovery across supported platforms.
 
 ## Current Providers
 
-- `reddit_json` fetches subreddit JSON listings, search results, and optional
-  post comments through provider-managed Webshare residential proxies.
-- `reddit_rss` remains as a low-volume fallback when JSON access fails.
-- It is read-only and does not post, vote, message users, or automate account
-  actions.
-- It returns normalized posts and comments for manual review workflows.
-- Callers should fetch comments only for relevant posts and respect Reddit's
-  `x-ratelimit-*` headers.
 - `bluesky_public` fetches profile feeds and post search results through the
   official Bluesky AppView APIs.
 - Bluesky profile feeds use `app.bsky.feed.getAuthorFeed` and require no API key.
@@ -54,21 +46,4 @@ topic discovery across supported platforms.
   configure the Vault/env credentials above when unauthenticated search returns
   `403`.
 
-## Reddit Sorting and Filters
-
-- `get-posts` supports Reddit listing sorts: `new`, `hot`, `rising`, `top`, and
-  `comments`. `comments` uses subreddit-restricted JSON search with
-  `sort=comments` and defaults to `time_range=week` when no time range is set.
-- `search` supports Reddit search sorts: `relevance`, `hot`, `top`, `new`,
-  `comments`, and `latest` (`latest` maps to Reddit `new`).
-- Reddit time filters are enum-backed: `hour`, `day`, `week`, `month`, `year`,
-  and `all`.
-- Reddit comment sorts are enum-backed: `confidence`, `top`, `new`,
-  `controversial`, and `old`. The default is `top`, and returned comments are
-  locally ordered by public upvotes/score before being capped.
-- Client-side filters include `min_score`, `min_comments`, `exclude_stickied`,
-  `exclude_nsfw`, `include_self_posts`, and `include_link_posts`.
-- Reddit comments are capped to at most 5 per post embed.
-- Social post titles, post bodies, and comment bodies are treated as hostile
-  external content and pass through the same prompt-injection sanitizer used for
-  video transcripts before embed data is stored or sent to the model.
+Social post titles, bodies, and replies pass through the external-content sanitizer before embed data is stored or sent to the model.

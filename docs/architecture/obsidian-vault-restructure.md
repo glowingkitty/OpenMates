@@ -79,7 +79,7 @@ memory/
 |   |   |-- events/                 # was: Marketing/Events/ + Events/
 |   |   |   |-- gpn24-2026.md
 |   |   |   |-- jugend-hack.md
-|   |   |-- meetup-groups/          # was: Marketing/Meetup groups/
+|   |   |-- community-groups/       # Community outreach notes
 |   |   |-- videos/                 # was: Marketing/Videos/ + Videos/
 |   |   |-- newsletters.md         # was: Read various newsletters...md
 |   |

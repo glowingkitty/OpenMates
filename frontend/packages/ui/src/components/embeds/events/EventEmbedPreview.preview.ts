@@ -8,14 +8,14 @@
 const sampleEvent = {
   embed_id: "preview-event-embed-1",
   id: "evt-preview-1",
-  provider: "meetup",
-  title: "AI & Machine Learning Berlin Meetup – Spring Edition",
+  provider: "Gathering",
+  title: "AI & Machine Learning Berlin Gathering – Spring Edition",
   description:
     "Join us for an evening of talks on large language models, RAG architectures, " +
     "and deploying AI to production. Speakers from leading Berlin AI companies.\n\n" +
     "Schedule:\n- 18:30 Doors open\n- 19:00 Talk 1: LLMs in Production\n" +
     "- 19:45 Talk 2: RAG Architectures\n- 20:30 Networking",
-  url: "https://www.meetup.com/example-ai-berlin/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-03-15T19:00:00+01:00",
   date_end: "2026-03-15T22:00:00+01:00",
   timezone: "Europe/Berlin",
@@ -43,11 +43,11 @@ const sampleEvent = {
 const sampleOnlineEvent = {
   embed_id: "preview-event-embed-online",
   id: "evt-preview-online",
-  provider: "meetup",
+  provider: "Gathering",
   title: "TypeScript Deep Dive: Advanced Patterns for Scalable Apps",
   description:
     "A live online session covering generic constraints, conditional types, and module augmentation.",
-  url: "https://www.meetup.com/example-webdev-online/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-03-20T18:00:00Z",
   date_end: "2026-03-20T20:00:00Z",
   timezone: "UTC",
@@ -63,11 +63,11 @@ const sampleOnlineEvent = {
 const samplePaidEvent = {
   embed_id: "preview-event-embed-paid",
   id: "evt-preview-paid",
-  provider: "meetup",
+  provider: "Gathering",
   title: "Product Management Summit – London 2026",
   description:
     "Two-day conference covering product strategy, user research, and growth tactics.",
-  url: "https://www.meetup.com/example-pm-london/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-04-05T09:00:00+01:00",
   date_end: "2026-04-06T17:00:00+01:00",
   timezone: "Europe/London",

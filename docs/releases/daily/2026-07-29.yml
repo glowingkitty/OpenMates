@@ -5,7 +5,6 @@ generated_at: '2026-08-06T13:18:07+00:00'
 range:
   since: '2026-07-29T00:00:00+00:00'
   until: '2026-07-30T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,110 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -216,11 +193,7 @@ sections:
     - backend/apps/travel/app.yml
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
-    - backend/apps/travel/providers/transitous_provider.py
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     - backend/tests/test_travel_skill_constraints.py
     - docs/architecture/apps/travel-train-api-research.md
@@ -252,28 +225,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: true
@@ -303,8 +270,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -347,8 +312,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -407,8 +370,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -442,7 +403,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -771,28 +731,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: false
@@ -887,8 +841,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1434,28 +1386,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'feat: add prompt-budget benchmark harness'
@@ -1469,8 +1415,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: resolve svelte client runtime in vitest'
     commits:
@@ -1525,8 +1469,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: add embeds map view renderer'
     commits:
@@ -1560,8 +1502,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: stabilize message sync version wait'
     commits:
@@ -1616,28 +1556,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - title: 'test: avoid chat task parity title collision'
@@ -1659,7 +1593,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'test: resolve shared asset refs from cli cache'
     commits:
@@ -1756,8 +1689,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: update screenshot html embed label'
     commits:
@@ -1793,28 +1724,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: preserve newer chat metadata cache'
@@ -1894,28 +1819,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -1930,8 +1849,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: return static embeds as payloads'
@@ -1969,8 +1886,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'feat: add embeds map view renderer'
@@ -2000,8 +1915,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: align guest all examples controls'
@@ -2031,28 +1944,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -2068,7 +1975,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: avoid double closing train fullscreen'
@@ -2098,8 +2004,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
 risks:
@@ -2322,11 +2226,7 @@ sources:
     - backend/apps/travel/app.yml
     - backend/apps/travel/providers/base_provider.py
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
-    - backend/apps/travel/providers/transitous_provider.py
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     - backend/tests/test_travel_skill_constraints.py
     - docs/architecture/apps/travel-train-api-research.md

@@ -109,8 +109,6 @@ sections:
     changed_paths:
     - backend/apps/nutrition/app.yml
     - backend/apps/nutrition/providers/edamam_recipe_provider.py
-    - backend/apps/nutrition/providers/rewe_recipe_provider.py
-    - backend/apps/nutrition/skills/rewe_online.py
     - backend/apps/nutrition/skills/search_recipes.py
     - backend/tests/test_edamam_recipe_provider.py
     - backend/tests/test_nutrition_search_recipes_skill.py
@@ -1509,8 +1507,6 @@ sources:
     changed_paths:
     - backend/apps/nutrition/app.yml
     - backend/apps/nutrition/providers/edamam_recipe_provider.py
-    - backend/apps/nutrition/providers/rewe_recipe_provider.py
-    - backend/apps/nutrition/skills/rewe_online.py
     - backend/apps/nutrition/skills/search_recipes.py
     - backend/tests/test_edamam_recipe_provider.py
     - backend/tests/test_nutrition_search_recipes_skill.py

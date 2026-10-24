@@ -431,7 +431,7 @@ export function workflowIcon(
     `${title} ${graph?.nodes.map((node) => node.config?.app_id ?? "").join(" ") ?? ""}`.toLowerCase();
   if (/apartment|flat|rent|home|wohnung/.test(names)) return "house";
   if (/weather|rain|forecast|wetter/.test(names)) return "cloud-rain";
-  if (/event|meetup/.test(names)) return "calendar-days";
+  if (/event|Gathering/.test(names)) return "calendar-days";
   if (/news|brief/.test(names)) return "newspaper";
   return "workflow";
 }

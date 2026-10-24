@@ -34,17 +34,17 @@
       "skill_id": "search_connections",
       "metadata": {
         "query": "Berlin to Munich train connections",
-        "provider": "Deutsche Bahn, FlixBus / FlixTrain",
+        "provider": "Example Rail, Example Rail / Example Coach",
         "providers": [
           {
-            "id": "deutsche_bahn",
-            "name": "Deutsche Bahn",
-            "icon_url": "https://www.bahn.de/favicon.ico"
+            "id": "example_rail",
+            "name": "Example Rail",
+            "icon_url": "https://example.invalid/rail/favicon.ico"
           },
           {
-            "id": "flix",
-            "name": "FlixBus / FlixTrain",
-            "icon_url": "https://www.flixbus.com/favicon.ico"
+            "id": "example_multimodal",
+            "name": "Example Rail / Example Coach",
+            "icon_url": "https://example.invalid/coach/favicon.ico"
           }
         ],
         "legs": [
@@ -60,7 +60,7 @@
         {
           "type": "connection",
           "transport_method": "train",
-          "source_provider": "deutsche_bahn",
+          "source_provider": "example_rail",
           "trip_type": "one_way",
           "total_price": "39.99",
           "currency": "EUR",
@@ -83,9 +83,9 @@
               "stops": 0,
               "segments": [
                 {
-                  "carrier": "Deutsche Bahn",
-                  "carrier_code": "DB",
-                  "number": "ICE 505",
+                  "carrier": "Example Rail",
+                  "carrier_code": "RAIL",
+                  "number": "RAIL 505",
                   "departure_station": "Berlin Hbf",
                   "departure_time": "2026-08-12T09:04:00+02:00",
                   "scheduled_departure_time": "2026-08-12T09:04:00+02:00",
@@ -116,22 +116,22 @@
               "layovers": []
             }
           ],
-          "hash": "travel-train-fixture-db-505",
+          "hash": "travel-train-fixture-rail-505",
           "origin": "Berlin Hbf",
           "destination": "Munich Hbf",
           "departure": "2026-08-12T09:04:00+02:00",
           "arrival": "2026-08-12T13:06:00+02:00",
           "duration": "4h 2m",
           "stops": 0,
-          "carriers": ["Deutsche Bahn"],
-          "carrier_codes": ["DB"],
-          "booking_url": "https://www.bahn.de/buchung/fahrplan/suche#so=Berlin%20Hbf&zo=Munich%20Hbf&hd=2026-08-12T09%3A04%3A00",
-          "booking_provider": "Deutsche Bahn"
+          "carriers": ["Example Rail"],
+          "carrier_codes": ["RAIL"],
+          "booking_url": "https://example.invalid/rail/booking?origin=Berlin&destination=Munich&departure=2026-08-12T09%3A04%3A00",
+          "booking_provider": "Example Rail"
         },
         {
           "type": "connection",
           "transport_method": "train",
-          "source_provider": "flix",
+          "source_provider": "example_multimodal",
           "trip_type": "one_way",
           "total_price": "24.99",
           "currency": "EUR",
@@ -148,8 +148,8 @@
               "stops": 1,
               "segments": [
                 {
-                  "carrier": "FlixTrain",
-                  "carrier_code": "flixtrain",
+                  "carrier": "Example Rail",
+                  "carrier_code": "example_rail",
                   "number": "FLX 1243",
                   "departure_station": "Berlin Central Station",
                   "departure_time": "2026-08-12T07:37:00+02:00",
@@ -166,8 +166,8 @@
                   "arrival_is_daytime": true
                 },
                 {
-                  "carrier": "FlixBus",
-                  "carrier_code": "flixbus",
+                  "carrier": "Example Coach",
+                  "carrier_code": "example_coach",
                   "number": "BUS 099",
                   "departure_station": "Nuremberg Central Station",
                   "departure_time": "2026-08-12T12:05:00+02:00",
@@ -196,7 +196,7 @@
               ]
             }
           ],
-          "hash": "travel-train-fixture-flix-1243",
+          "hash": "travel-train-fixture-multimodal-1243",
           "origin": "Berlin Central Station",
           "destination": "Munich Central Bus Station",
           "departure": "2026-08-12T07:37:00+02:00",
@@ -208,10 +208,10 @@
             "has_transfers": true,
             "short_transfer_count": 0
           },
-          "carriers": ["FlixTrain", "FlixBus"],
-          "carrier_codes": ["flixtrain", "flixbus"],
-          "booking_url": "https://shop.global.flixbus.com/search?departureCity=berlin&arrivalCity=munich&rideDate=12.08.2026",
-          "booking_provider": "FlixBus / FlixTrain"
+          "carriers": ["Example Rail", "Example Coach"],
+          "carrier_codes": ["example_rail", "example_coach"],
+          "booking_url": "https://example.invalid/coach/booking?origin=Berlin&destination=Munich&date=2026-08-12",
+          "booking_provider": "Example Rail / Example Coach"
         }
       ]
     }

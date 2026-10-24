@@ -406,7 +406,7 @@ maps.search.3:
   verified_by_human: [en]
 
 shopping.search_products.1:
-  context: Query label for the first shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for organic dark chocolate bars.
+  context: Query label for the first shopping search example in the Apps. Shown on a preview card that opens real ExampleGrocer supermarket product results for organic dark chocolate bars.
   en: Organic dark chocolate
   de: Bio-Zartbitterschokolade
   zh: 有机黑巧克力
@@ -430,7 +430,7 @@ shopping.search_products.1:
   he: שוקולד מריר אורגני
   verified_by_human: [en]
 shopping.search_products.2:
-  context: Query label for the second shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for extra virgin olive oil.
+  context: Query label for the second shopping search example in the Apps. Shown on a preview card that opens real ExampleGrocer supermarket product results for extra virgin olive oil.
   en: Extra virgin olive oil
   de: Natives Olivenöl extra
   zh: 特级初榨橄榄油
@@ -454,7 +454,7 @@ shopping.search_products.2:
   he: שמן זית כתית מעולה
   verified_by_human: [en]
 shopping.search_products.3:
-  context: Query label for the third shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for spaghetti pasta.
+  context: Query label for the third shopping search example in the Apps. Shown on a preview card that opens real ExampleGrocer supermarket product results for spaghetti pasta.
   en: Spaghetti pasta
   de: Spaghetti
   zh: 意大利面
@@ -771,7 +771,7 @@ code.get_docs.3:
   verified_by_human: [en]
 
 health.search_appointments.1:
-  context: Query label for the first health appointments example in the Apps. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
+  context: Query label for the first health appointments example in the Apps. Shown on a preview card that opens real ExampleClinicA appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
   en: Eye doctor in Berlin
   de: Augenarzt in Berlin
   zh: 柏林的眼科医生
@@ -1561,7 +1561,7 @@ images.generate_draft.3:
   verified_by_human: [en]
 
 electronics.search_components.1:
-  context: Query label for the first electronics component search example in the Apps. Shown on a preview card that opens real TI WEBENCH buck converter recommendations for converting 12V to 5V.
+  context: Query label for the first electronics component search example in the Apps. Shown on a preview card that opens real ExampleComponents buck converter recommendations for converting 12V to 5V.
   en: 12V to 5V buck converter
   de: 12V zu 5V Abwärtswandler
   zh: 12V 转 5V 降压转换器
@@ -1585,7 +1585,7 @@ electronics.search_components.1:
   he: ממיר buck מ-12V ל-5V
   verified_by_human: [en]
 electronics.search_components.2:
-  context: Query label for the second electronics component search example in the Apps. Shown on a preview card that opens real TI WEBENCH regulator recommendations for converting 24V to 3.3V.
+  context: Query label for the second electronics component search example in the Apps. Shown on a preview card that opens real ExampleComponents regulator recommendations for converting 24V to 3.3V.
   en: 24V to 3.3V regulator module
   de: 24V zu 3,3V Reglermodul
   zh: 24V 转 3.3V 稳压模块

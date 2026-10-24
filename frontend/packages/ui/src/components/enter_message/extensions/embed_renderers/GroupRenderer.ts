@@ -1961,7 +1961,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             skillId: normalized.skillId,
             query: query || normalized.query,
-            provider: normalized.provider || provider || "Urban Sports Club",
+            provider: normalized.provider || provider || "",
             summary: normalized.summary,
             filters: normalized.filters,
             status,
@@ -2407,7 +2407,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Printables",
+            provider: provider || "",
             status,
             results: modelPreviewResults,
             previewResultsJson: decodedContent?.preview_results_json || "",
@@ -2678,7 +2678,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Doctolib",
+            provider: provider || "",
             status,
             results,
             taskId,
@@ -2697,7 +2697,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "REWE",
+            provider: provider || "",
             status,
             results,
             taskId,
@@ -2751,7 +2751,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "Power converters",
-            provider: provider || "TI WEBENCH",
+            provider: provider || "",
             status,
             results,
             embedIds: childEmbedIds,

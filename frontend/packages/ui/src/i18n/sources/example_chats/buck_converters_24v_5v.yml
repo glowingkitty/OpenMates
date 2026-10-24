@@ -50,27 +50,27 @@ summary:
 
 message_1:
   context: "user message 1 in example chat: Buck converters for 24V to 5V. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  de: Finde passende Texas Instruments Abwärtswandler für 24 Volt Eingang auf 5 Volt Ausgang bei 3 Ampere.
-  zh: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  es: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  fr: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  pt: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  ru: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  ja: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  ko: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  it: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  tr: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  vi: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  id: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  pl: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  nl: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  ar: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  hi: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  th: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  cs: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  sv: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  he: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
+  en: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  de: Finde passende Example Components Abwärtswandler für 24 Volt Eingang auf 5 Volt Ausgang bei 3 Ampere.
+  zh: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  es: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  fr: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  pt: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  ru: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  ja: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  ko: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  it: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  tr: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  vi: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  id: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  pl: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  nl: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  ar: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  hi: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  th: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  cs: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  sv: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
+  he: "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
   verified_by_human: []
 
 message_2:
@@ -80,7 +80,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -116,7 +116,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
     
-    Für dein 24V-auf-5V-Design mit 3A sind mehrere Abwärtswandler von [Texas Instruments](wiki:Texas_Instruments) geeignet. Da 24V eine gängige Industriespannung ist, die manchmal schwanken kann, habe ich Bauteile ausgewählt, die unterschiedliche Eingangsspannungsreserven und Design-Einfachheit bieten.
+    Für dein 24V-auf-5V-Design mit 3A sind mehrere Abwärtswandler von Example Components geeignet. Da 24V eine gängige Industriespannung ist, die manchmal schwanken kann, habe ich Bauteile ausgewählt, die unterschiedliche Eingangsspannungsreserven und Design-Einfachheit bieten.
     
     ### Top-Empfehlungen
     
@@ -152,7 +152,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -188,7 +188,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -224,7 +224,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -260,7 +260,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -296,7 +296,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -332,7 +332,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -368,7 +368,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -404,7 +404,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -440,7 +440,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -476,7 +476,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -512,7 +512,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -548,7 +548,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -584,7 +584,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -620,7 +620,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -656,7 +656,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -692,7 +692,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -728,7 +728,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -764,7 +764,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 
@@ -800,7 +800,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
 
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
+    For your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
 
     ### Top Recommendations
 

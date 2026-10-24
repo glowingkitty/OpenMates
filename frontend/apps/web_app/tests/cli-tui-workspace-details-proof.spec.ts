@@ -117,9 +117,9 @@ test('records real terminal Project, Workflow, Apps skill, and encrypted result 
 			'description: Disposable Events search workflow for terminal proof.',
 			'start_when:', '  schedule:', '    type: once', '    at: "2036-01-01T00:00:00Z"',
 			'steps:', '  - id: events', '    use_app_skill: events.search', '    input:',
-			'      requests:', '        - query: OpenMates meetup Berlin', '          location: Berlin',
+			'      requests:', '        - query: OpenMates Gathering Berlin', '          location: Berlin',
 			'          count: 3', '          start_date: "2036-01-01"', '          end_date: "2036-01-02"',
-			'          providers:', '            - Meetup'
+			'          providers:', '            - Gathering'
 		].join('\n'));
 		await runWorkflowCliJson(apiUrl, home, ['workflows', 'update', fixture.workflowId!, '--file', eventsYaml], 'prepare Events search editor proof');
 		const savedResultId = seedEncryptedAppsResult(apiUrl, home, candidateCli);

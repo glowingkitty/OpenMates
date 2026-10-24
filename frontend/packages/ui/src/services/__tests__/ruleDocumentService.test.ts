@@ -54,7 +54,7 @@ describe('encrypted private Rule transport', () => {
     mocks.readHead.mockResolvedValue({ content: { code: guide }, revision: 1, embedKey: new Uint8Array(32), hasInitialHistory: true });
   });
 
-  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.selection.source-scoped
+  // contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped
   it('never reads Project catalog or bodies before authoritative activation', async () => {
     expect(await collectCustomRuleDocuments({ chatId: 'chat-1', projectId: 'p1' })).toEqual([]);
     expect(mocks.getProject).not.toHaveBeenCalled();

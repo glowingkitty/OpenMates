@@ -284,21 +284,8 @@ capabilities:
                   basic: false
                 type: object
   electronics.search_components:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - category: power_converters
-          input_voltage_min: 5
-          input_voltage_max: 12
-          output_voltage: 3.3
-          output_current_max: 1
-          max_results: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -366,18 +353,8 @@ capabilities:
                   basic: false
                 type: number
   fitness.search_locations:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [location]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: yoga studio
-          city: Berlin
-          limit: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -449,18 +426,8 @@ capabilities:
                   basic: false
                 type: string
   fitness.search_classes:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [location]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: yoga
-          city: Berlin
-          limit: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -540,18 +507,8 @@ capabilities:
                   basic: false
                 type: string
   health.search_appointments:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [location]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - speciality: dermatologist
-          city: Berlin
-          max_doctors: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -622,17 +579,8 @@ capabilities:
     available: false
     unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
   home.search:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [location]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: Berlin
-          max_results: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema: *search_output
   images.search:
     available: true
@@ -831,17 +779,8 @@ capabilities:
             basic: false
           type: integer
   models3d.search:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: office chair
-          count: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -1108,17 +1047,8 @@ capabilities:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
   shopping.search_products:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: coffee beans
-          max_results: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -1207,8 +1137,8 @@ capabilities:
     test_allowed: true
     test_example_input:
       requests:
-        - platform: reddit
-          page: selfhosted
+        - platform: bluesky
+          page: bsky.app
           limit: 3
     output_schema:
       type: object
@@ -1294,7 +1224,7 @@ capabilities:
     test_allowed: true
     test_example_input:
       requests:
-        - platform: reddit
+        - platform: bluesky
           query: open source AI
           limit: 3
     output_schema:
@@ -1378,21 +1308,8 @@ capabilities:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
   travel.search_connections:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - legs:
-            - origin: Berlin
-              destination: Hamburg
-              date: "2026-08-01"
-          transport_methods: [train]
-          max_results: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -1490,20 +1407,8 @@ capabilities:
                   basic: false
                 type: [number, 'null']
   travel.search_stays:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [location]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - query: Berlin
-          check_in_date: "2026-08-01"
-          check_out_date: "2026-08-03"
-          adults: 1
-          max_results: 3
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -1625,7 +1530,7 @@ capabilities:
     test_allowed: false
     test_example_input:
       requests:
-        - url: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+        - url: https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet
           languages: [en]
     output_schema: *search_output
   videos.search:
@@ -1721,18 +1626,8 @@ capabilities:
       radius_km: 5
     output_schema: *search_output
   web.read:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      requests:
-        - url: https://openmates.org
-          formats: [markdown]
-          only_main_content: true
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
     output_schema:
       type: object
       properties:
@@ -1752,3 +1647,9 @@ capabilities:
   workflows.search:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  business.search_trademarks:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
+  hosting.search_domains:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED

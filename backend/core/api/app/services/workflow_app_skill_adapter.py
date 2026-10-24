@@ -498,7 +498,14 @@ def _require_workflow_runtime_safe(app_id: str, skill_id: str, metadata: Any) ->
         workflow_runtime_unavailable_reason,
     )
 
+    from backend.shared.python_schemas.app_metadata_schemas import skill_has_provider_support
+
     definition = _find_skill_definition(metadata, skill_id)
+    if definition is not None and not skill_has_provider_support(definition):
+        raise WorkflowSkillBillingError(
+            "WORKFLOW_SKILL_NOT_REGISTERED",
+            "This app skill is unavailable: no permitted provider is configured",
+        )
     declared = definition.get("workflow") if isinstance(definition, Mapping) else getattr(definition, "workflow", None)
     if hasattr(declared, "model_dump"):
         declared = declared.model_dump(mode="json")

@@ -4,7 +4,7 @@
   import businessDevelopmentAvatar from '../../assets/landing/business_development.jpeg';
   import EmbedPreviewCorner from '../results/EmbedPreviewCorner.svelte';
   import eventIcon from '../../assets/results/event.svg?url';
-  import eventImage from '../../assets/results/meetup.webp';
+  import eventImage from '../../assets/results/community-event.webp';
   import EventResultCard from '../results/EventResultCard.svelte';
   import { actionableStages, privacyStages, featureAnimationCopy } from './landingFeatureAnimationContent';
 
@@ -59,7 +59,7 @@
   let playing = $derived(active && visible && !reducedMotion);
   let interaction = $derived(scene.id === 'event-preview'
     ? (scene.timeMs >= 1800 ? 'preview-clicked' : scene.timeMs >= 1000 ? 'preview-targeted' : 'idle')
-    : scene.id === 'luma-cta'
+    : scene.id === 'provider-cta'
       ? (scene.timeMs >= 1450 ? 'cta-clicked' : scene.timeMs >= 700 ? 'cta-targeted' : 'idle')
       : 'idle');
 
@@ -126,8 +126,8 @@
           <EmbedPreviewCorner background="var(--color-app-events, var(--color-primary))" iconUrl={`url(${JSON.stringify(eventIcon)})`} />
           <EventResultCard title={copy.actionable_event_title} imageUrl={eventImage} date={eventDate} timezone="Europe/Berlin" locale={language === 'de' ? 'de-DE' : 'en-US'} attribution={new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(eventDate))} rsvpCount={460} rsvpLabel={copy.actionable_event_rsvps} />
         </div>
-      {:else if scene.id === 'luma-cta'}
-        <div class="luma-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-luma-button">{copy.actionable_event_open_luma}</div>
+      {:else if scene.id === 'provider-cta'}
+        <div class="provider-cta" class:pressed={interaction === 'cta-clicked'} data-testid="landing-actionable-provider-button">{copy.actionable_event_open_provider}</div>
       {:else if scene.id === 'encryption-lock'}
         <div class="data-orbit">
           {#each ['chat', 'file', 'folder', 'task'] as name, index}
@@ -152,7 +152,7 @@
       </div>
     </div>
   {/key}
-  {#if scene.id === 'event-preview' || scene.id === 'luma-cta'}
+  {#if scene.id === 'event-preview' || scene.id === 'provider-cta'}
     <div class="pointer" class:targeted={interaction !== 'idle'} class:clicked={interaction.endsWith('clicked')} data-testid="landing-actionable-pointer">{@render icon('pointer')}</div>
   {/if}
 </div>
@@ -187,7 +187,7 @@
   .copy { max-width: 30rem; margin: 0; font-size: clamp(1.25rem, 3.8cqi, 1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
   /* The app and public demo render the same pure event/card/calendar presentation. */
   .event-preview { position: relative; container: result-card / inline-size; width: 300px; max-width: 100%; height: 200px; border-radius: 30px; overflow: hidden; background: var(--color-grey-0); box-shadow: 0 8px 24px rgb(0 0 0 / 16%), 0 2px 6px rgb(0 0 0 / 10%); transition: transform 140ms ease; }
-  .luma-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
+  .provider-cta { padding: var(--spacing-6) var(--spacing-12); border-radius: var(--radius-8); background: var(--color-button-primary); color: var(--color-font-button); box-shadow: var(--shadow-md); font-size: clamp(1rem, 2.8cqi, 1.3rem); font-weight: 800; transition: transform 140ms ease; }
   .pressed { transform: scale(0.97); }
   .pointer { position: absolute; left: 54%; top: calc(100% + 40px); width: 38px; height: 38px; color: var(--color-font-primary); opacity: 0; transform: translate(-15%, -12%) scale(0.82); transition: left 620ms cubic-bezier(0.16, 1, 0.3, 1), top 620ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, transform 140ms ease; }
   .pointer.targeted { top: 53%; left: 57%; opacity: 1; transform: translate(-15%, -12%) scale(1); }

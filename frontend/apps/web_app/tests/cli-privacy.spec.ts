@@ -32,7 +32,7 @@ test('optional offline anonymization controls never download or activate in head
 });
 
 // contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy,chats.send.immediate-admission
- test('built SDK prefetches encrypted privacy and scopes fresh follow-up history without account recovery', async () => {
+test('built SDK prefetches encrypted privacy and scopes fresh follow-up history without account recovery', async () => {
   const { requireIsolatedCliBuild } = require('./cli-tui-proof-helpers');
   const { execFile } = require('node:child_process');
   const { promisify } = require('node:util');

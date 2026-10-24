@@ -5,7 +5,6 @@ generated_at: '2026-08-06T13:19:02+00:00'
 range:
   since: '2026-08-02T00:00:00+00:00'
   until: '2026-08-03T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,110 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -192,7 +169,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -235,7 +211,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -262,7 +237,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -454,35 +428,29 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:travel:search_stays
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -564,7 +532,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: false
@@ -594,8 +561,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -620,21 +585,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -678,21 +639,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -708,7 +665,6 @@ sections:
     authored_at: '2026-08-02T12:40:38+00:00'
     changed_paths:
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     release_status: dev_only
     communication_status: dev_only
@@ -719,21 +675,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -760,7 +712,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
@@ -906,7 +857,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -930,7 +880,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -959,50 +908,11 @@ sections:
     - 99b943132
     authored_at: '2026-08-02T16:16:02+00:00'
     changed_paths:
-    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/04489286c58797e1.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/14064155087f7c9e.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/11613b903c5643b9.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/1cdcc3cea4b03f79.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/260f02982001318b.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/38385e1dfac3985d.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/7cf358ebce8dc4a6.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/9193183b7eb00256.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/a036eba16fd1de00.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/ab02ef165db391d7.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/c33d845784dbe7c3.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/f8ad88533c33c736.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/3d10d9abfaa8e3ba.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/6374a3e6d213cbc7.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/aba78ae0c67a7e4e.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/af1994a1d53bc790.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/08d75df5870c326f.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/096a366174b844cb.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/4cd0c3da7a5f5a8d.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/6fc865032c6ddcff.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/70e9ed18d8010dc6.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/7417e56b45f114f2.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b0b3249ed562089.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b976dce94c1cbd7.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/a16cac59fdc7bbab.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/dc0168f2a23cd8c2.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/ef2dc340e8a3b624.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/4e3535b630ab10cd.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/513f2cba5f088964.json
     - backend/apps/ai/testing/api_cache/events_search_cli/ra_graphql/d530e4ed86327212.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/3a0a7da4eb3bd0c7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/81da59d8adeb8be3.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/a34c823ddf9bdde8.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/ba06a08a530f6d16.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/11613b903c5643b9.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/1cdcc3cea4b03f79.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/260f02982001318b.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/38385e1dfac3985d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/7cf358ebce8dc4a6.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/9193183b7eb00256.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/a036eba16fd1de00.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/ab02ef165db391d7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/c33d845784dbe7c3.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/f8ad88533c33c736.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/1e5ea324ef317653.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/259f46c19324dad7.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/2f86b9ba1bf3b330.json
@@ -1011,19 +921,6 @@ sections:
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/6a30cd850c17d20b.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/89cdf7911c622a3c.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/a6c6dfa8584c360d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/08d75df5870c326f.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/096a366174b844cb.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/4cd0c3da7a5f5a8d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/6fc865032c6ddcff.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/70e9ed18d8010dc6.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/7417e56b45f114f2.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b0b3249ed562089.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b976dce94c1cbd7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/a16cac59fdc7bbab.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/dc0168f2a23cd8c2.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/ef2dc340e8a3b624.json
-    - backend/apps/ai/testing/api_cache/events_search_web/meetup/e293d2fa1c66d56c.json
-    - backend/apps/ai/testing/api_cache/events_search_web/meetup/f874d85b8c726606.json
     - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/9dc90e2b3484b9c0.json
     - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/fd0fc0e641a37d8d.json
     release_status: dev_only
@@ -1035,8 +932,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1227,7 +1122,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'test: align continuous rail position tolerance'
     commits:
@@ -1248,7 +1142,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: keep landing app rail continuous'
     commits:
@@ -1276,7 +1169,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'test: cover landing rail switch continuity'
     commits:
@@ -1297,7 +1189,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'feat: add encrypted project remote access bridge'
     commits:
@@ -1311,7 +1202,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: prune stale blocked deploy records'
     commits:
@@ -1352,8 +1242,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: relax mobile landing rail tolerance'
     commits:
@@ -1436,35 +1324,29 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:travel:search_stays
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'test: stabilize landing intro request sampling'
@@ -1513,7 +1395,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - title: 'fix: stabilize issue reports and map view refs'
@@ -1527,8 +1408,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: record travel coordinate fallback evidence'
     commits:
@@ -1555,21 +1434,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: sync landing intro app rail highlights'
@@ -1604,21 +1479,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: stabilize travel transfer enrichment'
@@ -1632,21 +1503,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: preserve embed preview result counts'
@@ -1660,7 +1527,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
   - title: 'docs: record travel transfer quality evidence'
@@ -1687,7 +1553,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: keep landing app rail continuous'
@@ -1718,7 +1583,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add encrypted project remote access bridge'
@@ -1733,7 +1597,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: fit mobile landing actionable message'
@@ -1779,35 +1642,29 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:travel:search_stays
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -1838,7 +1695,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -1853,8 +1709,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: resolve travel transfer station coordinates'
@@ -1868,21 +1722,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -1905,21 +1755,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -1934,21 +1780,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -1963,7 +1805,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     newsletter_ready: false
@@ -2156,50 +1997,11 @@ sources:
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/04489286c58797e1.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/berlin_philharmonic/14064155087f7c9e.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/11613b903c5643b9.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/1cdcc3cea4b03f79.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/260f02982001318b.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/38385e1dfac3985d.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/7cf358ebce8dc4a6.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/9193183b7eb00256.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/a036eba16fd1de00.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/ab02ef165db391d7.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/c33d845784dbe7c3.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/eventbrite/f8ad88533c33c736.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/3d10d9abfaa8e3ba.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/6374a3e6d213cbc7.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/aba78ae0c67a7e4e.json
     - backend/apps/ai/testing/api_cache/events_search_cli/llm__gemini-3.5-flash-lite/af1994a1d53bc790.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/08d75df5870c326f.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/096a366174b844cb.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/4cd0c3da7a5f5a8d.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/6fc865032c6ddcff.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/70e9ed18d8010dc6.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/7417e56b45f114f2.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b0b3249ed562089.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/9b976dce94c1cbd7.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/a16cac59fdc7bbab.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/dc0168f2a23cd8c2.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/luma/ef2dc340e8a3b624.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/4e3535b630ab10cd.json
-    - backend/apps/ai/testing/api_cache/events_search_cli/meetup/513f2cba5f088964.json
     - backend/apps/ai/testing/api_cache/events_search_cli/ra_graphql/d530e4ed86327212.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/3a0a7da4eb3bd0c7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/81da59d8adeb8be3.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/a34c823ddf9bdde8.json
-    - backend/apps/ai/testing/api_cache/events_search_web/berlin_philharmonic/ba06a08a530f6d16.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/11613b903c5643b9.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/1cdcc3cea4b03f79.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/260f02982001318b.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/38385e1dfac3985d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/7cf358ebce8dc4a6.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/9193183b7eb00256.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/a036eba16fd1de00.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/ab02ef165db391d7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/c33d845784dbe7c3.json
-    - backend/apps/ai/testing/api_cache/events_search_web/eventbrite/f8ad88533c33c736.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/1e5ea324ef317653.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/259f46c19324dad7.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/2f86b9ba1bf3b330.json
@@ -2208,19 +2010,6 @@ sources:
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/6a30cd850c17d20b.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/89cdf7911c622a3c.json
     - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/a6c6dfa8584c360d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/08d75df5870c326f.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/096a366174b844cb.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/4cd0c3da7a5f5a8d.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/6fc865032c6ddcff.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/70e9ed18d8010dc6.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/7417e56b45f114f2.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b0b3249ed562089.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/9b976dce94c1cbd7.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/a16cac59fdc7bbab.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/dc0168f2a23cd8c2.json
-    - backend/apps/ai/testing/api_cache/events_search_web/luma/ef2dc340e8a3b624.json
-    - backend/apps/ai/testing/api_cache/events_search_web/meetup/e293d2fa1c66d56c.json
-    - backend/apps/ai/testing/api_cache/events_search_web/meetup/f874d85b8c726606.json
     - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/9dc90e2b3484b9c0.json
     - backend/apps/ai/testing/api_cache/events_search_web/ra_graphql/fd0fc0e641a37d8d.json
     related_feature_ids:
@@ -2512,7 +2301,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     related_feature_ids:
     - app:travel

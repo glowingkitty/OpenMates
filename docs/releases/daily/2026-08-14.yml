@@ -5,7 +5,6 @@ generated_at: '2026-08-15T00:20:06+00:00'
 range:
   since: '2026-08-14T00:00:00+00:00'
   until: '2026-08-15T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,110 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -186,7 +163,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -338,7 +314,6 @@ sections:
     - 39fd57342
     authored_at: '2026-08-14T23:13:37+00:00'
     changed_paths:
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/tests/test_travel_departure_time_contract.py
     - contracts/generated/assertion-index.yml
     - frontend/packages/openmates-cli/tests/cli.test.ts
@@ -351,8 +326,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
     rationale:
@@ -399,8 +372,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -465,9 +436,6 @@ sections:
     authored_at: '2026-08-14T20:52:15+00:00'
     changed_paths:
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
-    - backend/apps/travel/providers/transitous_provider.py
     - backend/apps/travel/skills/search_connections.py
     - backend/tests/test_travel_departure_time_contract.py
     - contracts/features/app-skills/travel-search/contract.yml
@@ -486,21 +454,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -714,7 +678,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -764,7 +727,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -815,7 +777,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -839,7 +800,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     feature_metadata_changed: false
@@ -923,8 +883,6 @@ sections:
     - ef353269f
     authored_at: '2026-08-14T12:26:16+00:00'
     changed_paths:
-    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/7e6eacb180b0ce7b.json
-    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/d8b7e9e3201a5e9c.json
     - backend/shared/testing/caching_http_transport.py
     - backend/tests/test_caching_http_transport.py
     release_status: dev_only
@@ -936,8 +894,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1781,8 +1737,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
   - title: 'fix: align digest activity timestamps'
     commits:
@@ -1802,8 +1756,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: count usage entries with integer timestamps'
     commits:
@@ -1831,7 +1783,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'docs: record child ownership proof'
     commits:
@@ -1865,21 +1816,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: keep new Teams create result visible'
@@ -2055,7 +2002,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: Fix encrypted PII sidecar persistence
     commits:
@@ -2076,7 +2022,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'fix: match workspace composer height'
     commits:
@@ -2104,7 +2049,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'test: make shared chat asset prompt unique'
     commits:
@@ -2138,7 +2082,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
   - title: 'test: enforce workspace visual parity'
@@ -2208,8 +2151,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: Stabilize unauthenticated chat navigation spec
     commits:
@@ -2409,8 +2350,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     newsletter_ready: false
   - title: 'fix: stabilize search skill embeds'
@@ -2424,8 +2363,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: align mobile workspace composer baseline'
@@ -2448,7 +2385,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add operational monitoring digests'
@@ -2470,21 +2406,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     - id: skill:travel:search_connections
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -2548,7 +2480,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: Fix encrypted PII sidecar persistence
@@ -2571,7 +2502,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: match workspace composer height'
@@ -2594,7 +2524,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: Fix uploaded image preview fallback
@@ -2608,7 +2537,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     newsletter_ready: false
@@ -2647,8 +2575,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: keep payment order provider in sync'
@@ -2745,7 +2671,6 @@ sources:
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/apps/travel/providers/serpapi_provider.py
     - backend/tests/test_travel_departure_time_contract.py
     - contracts/generated/assertion-index.yml
     - frontend/packages/openmates-cli/tests/cli.test.ts
@@ -2877,9 +2802,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/travel/providers/db_provider.py
-    - backend/apps/travel/providers/flix_provider.py
-    - backend/apps/travel/providers/serpapi_provider.py
-    - backend/apps/travel/providers/transitous_provider.py
     - backend/apps/travel/skills/search_connections.py
     - backend/tests/test_travel_departure_time_contract.py
     - contracts/features/app-skills/travel-search/contract.yml
@@ -3392,8 +3314,6 @@ sources:
     in_main: false
     in_dev: true
     changed_paths:
-    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/7e6eacb180b0ce7b.json
-    - backend/apps/ai/testing/api_cache/shopping_search_web/rewe/d8b7e9e3201a5e9c.json
     - backend/shared/testing/caching_http_transport.py
     - backend/tests/test_caching_http_transport.py
     related_feature_ids:

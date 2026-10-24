@@ -104,13 +104,7 @@ private struct EventsSearchPreview: View {
                     .font(.omXs.weight(.medium))
                     .foregroundStyle(Color.grey70)
                 ForEach(providers, id: \.self) { provider in
-                    if ["meetup", "luma", "resident_advisor"].contains(provider) {
-                        Icon(provider, size: 13)
-                            .foregroundStyle(Color.grey70)
-                            .frame(width: 19, height: 19)
-                            .background(Color.grey0)
-                            .clipShape(Circle())
-                    }
+                    Text(provider).font(.omXs).foregroundStyle(Color.grey70)
                 }
             }
 

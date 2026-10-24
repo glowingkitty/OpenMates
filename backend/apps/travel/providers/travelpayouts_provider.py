@@ -6,8 +6,7 @@ month-matrix endpoint. This is a free affiliate API that returns cached
 flight prices (up to 48h old) for every day of a month on a given route.
 
 Ideal for a quick "when is it cheapest to fly?" heatmap overview.
-Not intended for booking — users should use the Search Connections skill
-for live pricing and booking links on specific dates.
+Not intended for booking or live fare confirmation.
 
 API docs: https://support.travelpayouts.com/hc/en-us/articles/203956163
 """

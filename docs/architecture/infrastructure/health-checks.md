@@ -133,7 +133,7 @@ This closes the notification gap surfaced by OpenAI quota/429 streaming failures
 
 ### Rollout Plan
 
-1. Keep the existing `/v1/health` and status-page data model as the source of truth. It already covers LLM providers, Brave Search, app APIs/workers, and external services such as Firecrawl, SerpAPI, YouTube, Google Maps, Sightengine, Brevo, and Stripe.
+1. Keep the existing `/v1/health` and status-page data model as the source of truth. It already covers LLM providers, Brave Search, app APIs/workers, and external services such as YouTube, Google Maps, Sightengine, Brevo, and Stripe.
 2. Deploy the transition Discord path and verify it posts to the dev server webhook without queueing email when only `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` are present.
 3. Add live smoke coverage for the actual streaming inference path, not just non-streaming minimal completions, so quota/429 failures during SSE streaming are detected before users report them.
 4. Add provider-specific quota classification where provider responses expose it safely, while continuing to publish only sanitized values (`429`, `timeout`, `credential_error`, etc.) through public health APIs and emails.

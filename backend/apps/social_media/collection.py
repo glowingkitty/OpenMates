@@ -9,62 +9,76 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
 from backend.shared.providers.bluesky.public import BlueskyPost, fetch_author_posts
 from backend.shared.providers.mastodon.public import MastodonPost, fetch_account_posts
-from backend.shared.providers.reddit.json import (
-    RedditCommentSort,
-    RedditListingSort,
-    RedditTimeRange,
-    fetch_subreddit_posts_json,
-)
-from backend.shared.providers.reddit.rss import RedditRateLimit, RedditRssPost, fetch_subreddit_posts
 
-SUPPORTED_PLATFORMS = {"bluesky", "mastodon", "reddit"}
+class ListingSort(str, Enum):
+    NEW = "new"
+    HOT = "hot"
+    RISING = "rising"
+    TOP = "top"
+    COMMENTS = "comments"
+
+
+class CommentSort(str, Enum):
+    TOP = "top"
+    CONFIDENCE = "confidence"
+    NEW = "new"
+    CONTROVERSIAL = "controversial"
+    OLD = "old"
+
+
+class TimeRange(str, Enum):
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    ALL = "all"
+
+
+SUPPORTED_PLATFORMS = {"bluesky", "mastodon"}
 BLUESKY_PROVIDER_NAME = "Bluesky"
 DEFAULT_REQUEST_LIMIT = 10
 DEFAULT_COMMENTS_LIMIT = 5
 MAX_COMMENTS_PER_POST = 5
 MASTODON_PROVIDER_NAME = "Mastodon"
-REDDIT_PROVIDER_NAME = "Reddit"
-REDDIT_PROXY_REQUIRED_WARNING = (
-    "Reddit post collection is currently unavailable because the Reddit proxy is not configured. "
-    "Try a Bluesky or Mastodon profile, or ask an admin to configure Webshare proxy credentials."
-)
 
 
 class GetPostsRequestItem(BaseModel):
     """A single social page fetch request."""
 
     id: Optional[Any] = Field(default=None, description="Optional caller-supplied request ID.")
-    platform: str = Field(default="reddit", description="Social platform: reddit, bluesky, or mastodon.")
+    platform: str = Field(default="", description="Social platform: bluesky or mastodon.")
     page: str = Field(
         default="",
         description=(
-            "Platform page/profile identifier. For Reddit, this is the subreddit name; "
+            "Platform profile identifier. "
             "for Bluesky, this is an actor handle; for Mastodon, this is user@instance or a profile URL."
         ),
     )
-    sort: RedditListingSort = Field(
-        default=RedditListingSort.NEW,
-        description="Post listing sort. Reddit: new, hot, rising, top, comments. Bluesky profile feeds ignore this value.",
+    sort: ListingSort = Field(
+        default=ListingSort.NEW,
+        description="Post listing sort; profile feeds may ignore this value.",
     )
-    time_range: Optional[RedditTimeRange] = Field(
+    time_range: Optional[TimeRange] = Field(
         default=None,
-        description="Reddit time filter for top/comments sorts: hour, day, week, month, year, all.",
+        description="Optional listing time range.",
     )
     limit: int = Field(default=DEFAULT_REQUEST_LIMIT, ge=1, le=25, description="Number of posts to fetch.")
     include_comments: bool = Field(default=True, description="Whether to fetch comments for returned posts.")
     comments_limit: int = Field(default=DEFAULT_COMMENTS_LIMIT, ge=0, le=MAX_COMMENTS_PER_POST, description="Comments to fetch per post.")
-    comments_sort: RedditCommentSort = Field(default=RedditCommentSort.TOP, description="Reddit comment sort.")
-    min_score: Optional[int] = Field(default=None, ge=0, description="Minimum Reddit score/upvotes to include.")
-    min_comments: Optional[int] = Field(default=None, ge=0, description="Minimum Reddit comment count to include.")
-    exclude_stickied: bool = Field(default=True, description="Exclude stickied Reddit posts.")
-    exclude_nsfw: bool = Field(default=True, description="Exclude NSFW Reddit posts.")
-    include_self_posts: bool = Field(default=True, description="Include Reddit text/self posts.")
-    include_link_posts: bool = Field(default=True, description="Include Reddit link/media posts.")
+    comments_sort: CommentSort = Field(default=CommentSort.TOP, description="Comment sort.")
+    min_score: Optional[int] = Field(default=None, ge=0, description="Minimum post score to include.")
+    min_comments: Optional[int] = Field(default=None, ge=0, description="Minimum comment count to include.")
+    exclude_stickied: bool = Field(default=True, description="Exclude stickied posts.")
+    exclude_nsfw: bool = Field(default=True, description="Exclude NSFW posts.")
+    include_self_posts: bool = Field(default=True, description="Include text posts.")
+    include_link_posts: bool = Field(default=True, description="Include link/media posts.")
 
 
 class GetPostsResponseItem(BaseModel):
@@ -74,10 +88,10 @@ class GetPostsResponseItem(BaseModel):
     platform: str
     page: str
     sort: str
-    posts: list[RedditRssPost | BlueskyPost | MastodonPost] = Field(default_factory=list)
+    posts: list[BlueskyPost | MastodonPost] = Field(default_factory=list)
     provider: str = Field(default="")
     request_count: int = 0
-    rate_limit: Optional[RedditRateLimit] = None
+    rate_limit: Optional[dict[str, Any]] = None
     rate_limited: bool = False
     next_retry_after_seconds: Optional[float] = None
     comments_skipped_count: int = 0
@@ -100,9 +114,6 @@ class GetPostsResponse(BaseModel):
 
 async def collect_posts(
     requests: list[dict[str, Any]],
-    *,
-    reddit_proxy_url: Optional[str] = None,
-    reddit_proxy_warning: Optional[str] = None,
 ) -> list[GetPostsResponseItem]:
     """Fetch posts for a normalized list of social media page requests."""
     results: list[GetPostsResponseItem] = []
@@ -125,107 +136,11 @@ async def collect_posts(
             results.append(await _fetch_bluesky(request_id, item))
         elif platform == "mastodon":
             results.append(await _fetch_mastodon(request_id, item))
-        else:
-            results.append(
-                await _fetch_reddit(
-                    request_id,
-                    item,
-                    proxy_url=reddit_proxy_url,
-                    proxy_warning=reddit_proxy_warning,
-                )
-            )
     return results
 
 
-async def _fetch_reddit(
-    request_id: Any,
-    item: GetPostsRequestItem,
-    *,
-    proxy_url: Optional[str] = None,
-    proxy_warning: Optional[str] = None,
-) -> GetPostsResponseItem:
-    if not item.page.strip():
-        return GetPostsResponseItem(
-            id=request_id,
-            platform="reddit",
-            page="",
-            sort=item.sort,
-            provider=REDDIT_PROVIDER_NAME,
-            errors=["Reddit requests require a page/subreddit."],
-        )
-
-    if not proxy_url:
-        error = proxy_warning or REDDIT_PROXY_REQUIRED_WARNING
-        return GetPostsResponseItem(
-            id=request_id,
-            platform="reddit",
-            page=item.page,
-            sort=item.sort,
-            provider=REDDIT_PROVIDER_NAME,
-            errors=[REDDIT_PROXY_REQUIRED_WARNING if "Webshare" in error else error],
-        )
-
-    reddit_result = await fetch_subreddit_posts_json(
-        item.page,
-        sort=item.sort,
-        time_range=item.time_range,
-        limit=item.limit,
-        include_comments=item.include_comments,
-        comments_limit=item.comments_limit,
-        comments_sort=item.comments_sort,
-        min_score=item.min_score,
-        min_comments=item.min_comments,
-        exclude_stickied=item.exclude_stickied,
-        exclude_nsfw=item.exclude_nsfw,
-        include_self_posts=item.include_self_posts,
-        include_link_posts=item.include_link_posts,
-        proxy_url=proxy_url,
-    )
-    if reddit_result.errors and not reddit_result.posts:
-        warnings = [
-            "Reddit temporarily used a fallback source.",
-            *reddit_result.warnings,
-            *[_clean_reddit_error(error, item.page) for error in reddit_result.errors],
-        ]
-        fallback = await fetch_subreddit_posts(
-            item.page,
-            sort="top" if item.sort == RedditListingSort.COMMENTS else item.sort.value,
-            limit=item.limit,
-            include_comments=item.include_comments,
-            comments_limit=item.comments_limit,
-            proxy_url=proxy_url,
-        )
-        fallback.warnings = warnings + fallback.warnings
-        reddit_result = fallback
-    warnings = list(reddit_result.warnings)
-    if proxy_warning:
-        warnings.append(proxy_warning)
-    return GetPostsResponseItem(
-        id=request_id,
-        platform=reddit_result.platform,
-        page=reddit_result.page,
-        sort=reddit_result.sort,
-        posts=reddit_result.posts,
-        provider=REDDIT_PROVIDER_NAME,
-        request_count=reddit_result.request_count,
-        rate_limit=reddit_result.rate_limit,
-        rate_limited=reddit_result.rate_limited,
-        next_retry_after_seconds=reddit_result.next_retry_after_seconds,
-        comments_skipped_count=reddit_result.comments_skipped_count,
-        warnings=warnings,
-        errors=[_clean_reddit_error(error, item.page) for error in reddit_result.errors],
-    )
 
 
-def _clean_reddit_error(error: str, page: str) -> str:
-    if (
-        "HTTP 403" in error
-        or "HTTP 429" in error
-        or "reddit.com" in error
-        or "Proxy Authentication Required" in error
-    ):
-        return f"Could not fetch r/{page}. Reddit temporarily blocked or rate-limited the request; please try again later."
-    return error if len(error) <= 240 else f"{error[:237]}..."
 
 
 async def _fetch_bluesky(request_id: Any, item: GetPostsRequestItem) -> GetPostsResponseItem:

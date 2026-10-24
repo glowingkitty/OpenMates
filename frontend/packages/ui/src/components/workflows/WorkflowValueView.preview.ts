@@ -1,5 +1,5 @@
 const classResults = {
-  provider: 'Urban Sports Club',
+  provider: 'ExampleFitness',
   results: [{
     id: 'request-1',
     result_count: 2,
@@ -13,4 +13,4 @@ const classResults = {
 const defaultProps = { value: classResults, appId: 'fitness', path: 'fitness-test' };
 
 export default defaultProps;
-export const variants = { empty: { ...defaultProps, value: { provider: 'Urban Sports Club', results: [] } } };
+export const variants = { empty: { ...defaultProps, value: { provider: 'ExampleFitness', results: [] } } };

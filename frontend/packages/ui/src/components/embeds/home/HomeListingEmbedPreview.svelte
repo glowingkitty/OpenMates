@@ -41,11 +41,11 @@
     image_url?: string;
     /** Direct link to listing on platform */
     url?: string;
-    /** Provider name (ImmoScout24, Kleinanzeigen, WG-Gesucht) */
+    /** Provider name (ExampleHousingA, ExampleHousingB, ExampleHousingC) */
     provider?: string;
     /** Listing type (rent or buy) */
     listing_type?: string;
-    /** Move-in date (DD.MM.YYYY, WG-Gesucht only) */
+    /** Move-in date (DD.MM.YYYY, ExampleHousingC only) */
     available_from?: string;
     /** Click handler to open fullscreen view */
     onSelect: () => void;

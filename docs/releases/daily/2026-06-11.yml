@@ -2225,7 +2225,6 @@ sections:
     - docs/architecture/infrastructure/logging.md
     - docs/architecture/infrastructure/status-page.md
     - docs/architecture/infrastructure/video-hosting.md
-    - docs/architecture/integrations/luma.md
     - docs/architecture/integrations/media-generation.md
     - docs/architecture/messaging/embed-diff-editing.md
     - docs/architecture/messaging/embeds.md
@@ -5952,7 +5951,6 @@ sources:
     - docs/architecture/infrastructure/logging.md
     - docs/architecture/infrastructure/status-page.md
     - docs/architecture/infrastructure/video-hosting.md
-    - docs/architecture/integrations/luma.md
     - docs/architecture/integrations/media-generation.md
     - docs/architecture/messaging/embed-diff-editing.md
     - docs/architecture/messaging/embeds.md

@@ -7878,7 +7878,7 @@ const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
     "openmates apps electronics search_components --category power_converters --input-voltage-min 12 --input-voltage-max 12 --output-voltage 3.3 --output-current-max 3 --max-results 3 --json",
   ],
   "events/search": [
-    "openmates apps events search \"technology meetup\" --location Berlin --provider auto --json",
+    "openmates apps events search \"technology Gathering\" --location Berlin --provider auto --json",
   ],
   "fitness/search_classes": [
     "openmates apps fitness search_classes Yoga --address \"Sorauer Str. 12, Berlin\" --radius-km 3 --attendance-mode onsite --days 7 --limit 5 --json",
@@ -7908,7 +7908,7 @@ const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
     "openmates apps news search \"artificial intelligence\" --freshness pw --json",
   ],
   "shopping/search_products": [
-    "openmates apps shopping search_products \"bio joghurt\" --provider REWE --json",
+    "openmates apps shopping search_products \"bio joghurt\" --provider ExampleGrocer --json",
   ],
   "travel/search_connections": [
     "openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --json",
@@ -8301,7 +8301,7 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
     console.log("  --destination <place> Route destination for a typed connection search.");
     console.log("  --date <YYYY-MM-DD>  Departure date for a typed connection search.");
     console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
-    console.log("  --providers <csv>    Optional providers, e.g. deutsche_bahn,transitous.");
+    console.log("  --providers <csv>    Optional provider filters from current app metadata.");
     console.log("  --owned-passes <csv> Optional owned passes, e.g. deutschland_ticket.");
     console.log("  --pass-only          Prefer pass-covered routes when supported.");
     console.log("  --rail-products <csv> Optional rail filters, e.g. high_speed,regional.");
@@ -13742,8 +13742,8 @@ function printSkillResultItem(
     return;
   }
 
-  // ── Fitness result (Urban Sports Club locations/classes) ────────────────
-  if (str(item.provider) === "Urban Sports Club" && (item.venue_id || item.appointment_id)) {
+  // ── Fitness result (locations/classes) ────────────────
+  if ((item.venue_id || item.appointment_id)) {
     const name = str(item.name) ?? "Unknown fitness result";
     const isClass = typeof item.appointment_id === "string";
     const plans = Array.isArray(item.plans_required)
@@ -15230,7 +15230,7 @@ function printAppsHelp(): void {
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
   openmates apps images detect-ai --file ./image.png [--json]
-  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--json]
+  openmates apps models3d search --query benchy [--count 10] [--providers SOURCE] [--json]
   openmates apps design export-icon lucide:home --output home.svg [--color '#111827']
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
@@ -15251,7 +15251,7 @@ Examples:
   openmates apps examples travel search_connections
   openmates apps code run --language python --source-filename hello.py --code 'print("Hello from CLI")'
   openmates apps images detect-ai --file ./image.png --json
-  openmates apps models3d search --query benchy --count 2 --providers Printables --json
+  openmates apps models3d search --query benchy --count 2 --providers SOURCE --json
   openmates apps design search_icons --query home --count 12 --json
   openmates apps design export-icon lucide:home --format png --size 64 --output home.png
   openmates apps travel booking-link --token "<booking_token from search result>"

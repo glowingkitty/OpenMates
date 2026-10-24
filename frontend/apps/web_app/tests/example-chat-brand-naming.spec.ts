@@ -40,7 +40,7 @@ for (const [viewport, size] of [
     await expect(page.locator('[data-testid="focus-mode-bar"][data-focus-id="business-find_brand_name"]').first()).toBeVisible();
     const parent = page.getByTestId('embed-preview').filter({ has: page.getByTestId('trademark-search-preview') }).first();
     await parent.scrollIntoViewIfNeeded();
-    await expect(parent).toContainText('USPTO');
+    await expect(parent).toContainText('ExampleTrademarks');
     await expect(parent).toContainText('US · Checked');
     await testInfo.attach(`brand-naming-${viewport}-preview`, { body: await parent.screenshot(), contentType: 'image/png' });
     const fullscreen = await openFullscreen(page, parent);
@@ -48,7 +48,7 @@ for (const [viewport, size] of [
     await expect(coverage).toContainText('Equafy');
     await expect(coverage).toContainText('Cadenceo');
     await expect(fullscreen.getByTestId('trademark-fullscreen-limitation')).toContainText('legal availability');
-    await expect(fullscreen.getByTestId('trademark-record-source').first()).toHaveAttribute('href', /^https:\/\/tsdr\.uspto\.gov\/#caseNumber=/);
+    await expect(fullscreen.getByTestId('trademark-record-source').first()).toHaveAttribute('href', /^https:\/\/tsdr\.ExampleTrademarks\.gov\/#caseNumber=/);
     await testInfo.attach(`brand-naming-${viewport}-fullscreen`, { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
     await closeFullscreen(page, fullscreen);
     await page.reload({ waitUntil: 'domcontentloaded' });

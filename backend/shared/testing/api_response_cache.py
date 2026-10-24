@@ -73,7 +73,7 @@ class ApiResponseCache:
 
     Each JSON file contains:
         - fingerprint: Hash of the request
-        - category: API category (e.g., "llm/openai", "brave", "doctolib")
+        - category: API category (e.g., "llm/openai", "brave", "public_catalog")
         - group_id: Test flow namespace
         - recorded_at: ISO timestamp
         - request: Human-readable request summary (for debugging)

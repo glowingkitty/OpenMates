@@ -4,7 +4,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { formatChecked, formatMoney, formatTierMoney, headlineTier, isFirstYearOffer, normalRegistration, normalizeDomain, numberValue, quote, safeGandiUrl, years, type DomainResult, type DomainTier } from './hostingDomainData';
+  import { formatChecked, formatMoney, formatTierMoney, headlineTier, isFirstYearOffer, normalRegistration, normalizeDomain, numberValue, quote, safeProviderUrl, years, type DomainResult, type DomainTier } from './hostingDomainData';
 
   interface Props {
     data?: EmbedFullscreenRawData;
@@ -21,7 +21,7 @@
   let result = $derived(domain ?? normalizeDomain(embedId || '', data?.decodedContent ?? {}));
   let registration = $derived(headlineTier(result.registration_tiers));
   let renewal = $derived(headlineTier(result.renewal_tiers));
-  let providerUrl = $derived(safeGandiUrl(result.provider_url));
+  let providerUrl = $derived(safeProviderUrl(result.provider_url));
   let checked = $derived(formatChecked(result.checked_at));
   let statusLabel = $derived(result.availability === 'available'
     ? $text('embeds.hosting.search_domains.available')
@@ -69,7 +69,7 @@
   {onNavigateNext}
 >
   {#snippet embedHeaderCta()}
-    {#if providerUrl}<EmbedHeaderCtaButton label={$text('embeds.hosting.search_domains.open_on_gandi')} href={providerUrl} />{/if}
+    {#if providerUrl}<EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', result.provider)} href={providerUrl} />{/if}
   {/snippet}
 
   {#snippet summary()}

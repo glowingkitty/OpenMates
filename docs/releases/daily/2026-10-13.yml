@@ -5,7 +5,6 @@ generated_at: '2026-10-19T00:45:53+00:00'
 range:
   since: '2026-10-13T00:00:00+00:00'
   until: '2026-10-14T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -289,8 +265,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -310,16 +284,10 @@ sections:
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/routes/apps_api.py
     - backend/core/api/app/services/embed_service.py
-    - backend/providers/eighty_thousand_hours.yml
-    - backend/providers/hard_problems.yml
-    - backend/shared/providers/jobs/eighty_thousand_hours.py
-    - backend/shared/providers/jobs/hard_problems.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_jobs_impact_providers.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/eighty-thousand-hours.md
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - docs/plans/jobs-search/plan.yml
     - docs/user-guide/apps/jobs.md
@@ -392,35 +360,28 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
@@ -441,12 +402,8 @@ sections:
     - backend/apps/jobs/skills/__init__.py
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/services/workflow_app_skill_adapter.py
-    - backend/providers/arbeitnow.yml
-    - backend/providers/arbeitsagentur.yml
     - backend/providers/jobtech.yml
     - backend/shared/providers/jobs/__init__.py
-    - backend/shared/providers/jobs/arbeitnow.py
-    - backend/shared/providers/jobs/arbeitsagentur.py
     - backend/shared/providers/jobs/common.py
     - backend/shared/providers/jobs/jobtech.py
     - backend/shared/providers/jobs/models.py
@@ -457,8 +414,6 @@ sections:
     - backend/tests/test_jobs_search_skill.py
     - backend/tests/test_models3d_generate_task.py
     - backend/tests/test_workflow_app_skill_adapter.py
-    - docs/apis/arbeitnow.md
-    - docs/apis/arbeitsagentur.md
     - docs/apis/jobs-search-research.md
     - docs/apis/jobtech.md
     - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts
@@ -489,35 +444,27 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
@@ -564,8 +511,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -634,15 +579,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     feature_metadata_changed: true
     rationale:
@@ -848,245 +789,197 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     feature_metadata_changed: true
@@ -1177,8 +1070,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1207,14 +1098,12 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: false
@@ -1311,21 +1200,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: false
@@ -1414,8 +1299,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1446,8 +1329,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1534,7 +1415,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1611,8 +1491,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1676,15 +1554,12 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1744,8 +1619,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1795,8 +1668,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1839,14 +1710,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -1900,8 +1768,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -2024,15 +1890,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
   - title: 'fix: complete text skills in the same assistant turn'
     commits:
@@ -2045,245 +1907,197 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - title: 'perf: overlap chat context with admission and reuse first-turn history'
@@ -2304,8 +2118,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: overlap chat setup and routing for faster first response'
     commits:
@@ -2318,15 +2130,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
     commits:
@@ -2339,35 +2148,28 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'feat: add key-free Jobs Search and workflow execution'
@@ -2381,35 +2183,27 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'chore: clean uploaded CI recordings and register Jobs preview metadata'
@@ -2432,8 +2226,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: restore backend skill completion and recovery'
     commits:
@@ -2446,15 +2238,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
   - title: 'fix: align public examples and stabilize landing hero'
     commits:
@@ -2488,8 +2276,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: share website navigation on news and blog'
     commits:
@@ -2516,8 +2302,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: keep Jobs details readable on phones'
     commits:
@@ -2530,14 +2314,12 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
@@ -2551,35 +2333,28 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'fix: keep team selection in quick access'
@@ -2600,21 +2375,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'fix: show loaded memories on pending assistant replies'
@@ -2642,8 +2413,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: allow atomic chat admission through the service dispatcher'
     commits:
@@ -2663,8 +2432,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: reduce chat admission and first-text latency'
     commits:
@@ -2677,8 +2444,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: consolidate fresh chat context preparation'
     commits:
@@ -2691,14 +2456,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'perf: repair chat auth churn and fail context preparation promptly'
@@ -2712,8 +2474,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   social_or_video:
   - title: 'fix: restore fast routing for ordinary chat requests'
@@ -2727,8 +2487,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: restore backend skill completion and recovery'
@@ -2742,15 +2500,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     newsletter_ready: true
   - title: 'fix: align public examples and stabilize landing hero'
@@ -2772,245 +2526,197 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:models3d:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:generated_model
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:images:vectorize
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:models3d:generate
       kind: skill
       default_enabled: false
       effective_enabled: false
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:social_media:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     newsletter_ready: false
@@ -3026,7 +2732,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'perf: overlap chat context with admission and reuse first-turn history'
@@ -3056,8 +2761,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: share website navigation on news and blog'
@@ -3087,15 +2790,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: repair optional answer recovery and device email discovery'
@@ -3109,8 +2809,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: keep Jobs details readable on phones'
@@ -3124,14 +2822,12 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: true
@@ -3146,8 +2842,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add country-scoped Jobs search, impact boards and workflow UI'
@@ -3161,35 +2855,28 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: true
@@ -3212,21 +2899,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: true
@@ -3241,35 +2924,27 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: false
@@ -3300,8 +2975,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: preserve trademark evidence in Workflow outputs'
@@ -3315,8 +2988,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: allow atomic chat admission through the service dispatcher'
@@ -3338,8 +3009,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'perf: reduce chat admission and first-text latency'
@@ -3353,8 +3022,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'perf: consolidate fresh chat context preparation'
@@ -3368,14 +3035,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: true
@@ -3390,8 +3054,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
 risks:
@@ -4090,16 +3752,10 @@ sources:
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/routes/apps_api.py
     - backend/core/api/app/services/embed_service.py
-    - backend/providers/eighty_thousand_hours.yml
-    - backend/providers/hard_problems.yml
-    - backend/shared/providers/jobs/eighty_thousand_hours.py
-    - backend/shared/providers/jobs/hard_problems.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_jobs_impact_providers.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/eighty-thousand-hours.md
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - docs/plans/jobs-search/plan.yml
     - docs/user-guide/apps/jobs.md
@@ -4228,12 +3884,8 @@ sources:
     - backend/apps/jobs/skills/__init__.py
     - backend/apps/jobs/skills/search_skill.py
     - backend/core/api/app/services/workflow_app_skill_adapter.py
-    - backend/providers/arbeitnow.yml
-    - backend/providers/arbeitsagentur.yml
     - backend/providers/jobtech.yml
     - backend/shared/providers/jobs/__init__.py
-    - backend/shared/providers/jobs/arbeitnow.py
-    - backend/shared/providers/jobs/arbeitsagentur.py
     - backend/shared/providers/jobs/common.py
     - backend/shared/providers/jobs/jobtech.py
     - backend/shared/providers/jobs/models.py
@@ -4244,8 +3896,6 @@ sources:
     - backend/tests/test_jobs_search_skill.py
     - backend/tests/test_models3d_generate_task.py
     - backend/tests/test_workflow_app_skill_adapter.py
-    - docs/apis/arbeitnow.md
-    - docs/apis/arbeitsagentur.md
     - docs/apis/jobs-search-research.md
     - docs/apis/jobtech.md
     - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts

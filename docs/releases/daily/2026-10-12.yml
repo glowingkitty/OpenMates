@@ -5,7 +5,6 @@ generated_at: '2026-10-19T00:45:31+00:00'
 range:
   since: '2026-10-12T00:00:00+00:00'
   until: '2026-10-13T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -188,8 +164,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -379,42 +353,34 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
@@ -499,57 +465,42 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:diagrams
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
     feature_metadata_changed: true
     rationale:
@@ -568,9 +519,7 @@ sections:
     - backend/apps/business/app.yml
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
     - backend/apps/business/skills/search_trademarks.py
-    - backend/providers/uspto.yml
     - backend/shared/providers/trademarks/__init__.py
-    - backend/shared/providers/trademarks/uspto.py
     - backend/tests/test_business_preview_contract.py
     - backend/tests/test_trademark_search.py
     - docs/apis/trademark-search.md
@@ -625,21 +574,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: embed:business:search_trademarks
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     - id: skill:business:search_trademarks
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     feature_metadata_changed: true
@@ -709,7 +654,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:diagrams
       source: backend/apps/diagrams/app.yml
     feature_metadata_changed: false
@@ -779,8 +723,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -808,8 +750,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -834,8 +774,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -877,8 +815,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -923,8 +859,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -990,8 +924,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1023,15 +955,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1105,8 +1033,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1135,8 +1061,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1247,246 +1171,177 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:electronics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/electronics/app.yml
     - id: app:events
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:mail
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mail/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:math
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/math/app.yml
     - id: app:mindmaps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mindmaps/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:pdf
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1530,7 +1385,6 @@ sections:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1569,8 +1423,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1620,8 +1472,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1753,8 +1603,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: admit chat turns immediately and isolate early Mate routing'
     commits:
@@ -1767,42 +1615,34 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'feat: refine landing hero and publish Diagrams example'
@@ -1816,57 +1656,42 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:diagrams
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
   - title: 'fix: complete minimized assistant activity summaries'
     commits:
@@ -1879,8 +1704,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'feat: add keyless trademark search and concise brand naming'
     commits:
@@ -1893,21 +1716,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: embed:business:search_trademarks
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     - id: skill:business:search_trademarks
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
   - title: 'fix: gate unpublished landing examples (Vercel build)'
@@ -1921,8 +1740,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
   - title: 'fix: correct landing app wheel defaults and interaction'
     commits:
@@ -1935,246 +1752,177 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:electronics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/electronics/app.yml
     - id: app:events
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:mail
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mail/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:math
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/math/app.yml
     - id: app:mindmaps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mindmaps/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:pdf
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
   - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
     commits:
@@ -2203,8 +1951,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'perf: shorten CLI chat admission and early routing'
     commits:
@@ -2217,8 +1963,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: keep naming comparisons concise through final link cleanup'
     commits:
@@ -2231,8 +1975,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: retain trademark tools during brand naming research'
     commits:
@@ -2245,8 +1987,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: publish verified brand naming example and evidence policy'
     commits:
@@ -2259,8 +1999,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: initialize request options for traced Gemini streams'
     commits:
@@ -2273,8 +2011,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: keep naming price advice grounded in checked registrars'
     commits:
@@ -2287,8 +2023,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: preserve delayed Project focus activation in activity summaries'
     commits:
@@ -2308,8 +2042,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: reconcile visible CLI text across response phases'
     commits:
@@ -2336,8 +2068,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: preserve trademark arrays and tighten naming flow'
     commits:
@@ -2350,15 +2080,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
   - title: 'fix: settle confirmed focus activity summaries'
     commits:
@@ -2378,21 +2104,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: embed:business:search_trademarks
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     - id: skill:business:search_trademarks
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
   - title: 'fix: gate unpublished landing examples (Vercel build)'
@@ -2406,8 +2128,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
   - title: 'feat: add editable Diagram Design HTML embeds'
     commits:
@@ -2420,7 +2140,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:diagrams
       source: backend/apps/diagrams/app.yml
   social_or_video:
@@ -2436,7 +2155,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: focus the chat composer before immediate typing'
@@ -2458,8 +2176,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'perf: shorten CLI chat admission and early routing'
@@ -2473,8 +2189,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: keep naming comparisons concise through final link cleanup'
@@ -2488,8 +2202,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'fix: retain trademark tools during brand naming research'
@@ -2503,8 +2215,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'feat: publish verified brand naming example and evidence policy'
@@ -2518,8 +2228,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'fix: initialize request options for traced Gemini streams'
@@ -2533,8 +2241,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: true
   - title: 'fix: keep naming price advice grounded in checked registrars'
@@ -2548,8 +2254,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'feat: admit chat turns immediately and isolate early Mate routing'
@@ -2563,42 +2267,34 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -2621,8 +2317,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'fix: reconcile visible CLI text across response phases'
@@ -2652,57 +2346,42 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:diagrams
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
     newsletter_ready: false
   - title: 'fix: keep brand comparisons concise in chat'
@@ -2716,8 +2395,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'fix: preserve trademark arrays and tighten naming flow'
@@ -2731,15 +2408,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     newsletter_ready: true
   - title: 'fix: settle confirmed focus activity summaries'
@@ -2761,8 +2434,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: add keyless trademark search and concise brand naming'
@@ -2776,21 +2447,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: embed:business:search_trademarks
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     - id: skill:business:search_trademarks
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
     newsletter_ready: true
@@ -2805,8 +2472,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/diagrams/app.yml
     newsletter_ready: true
   - title: 'fix: correct landing app wheel defaults and interaction'
@@ -2820,246 +2485,177 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
     - id: app:business
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/business/app.yml
     - id: app:calendar
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/calendar/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:design
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/design/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:electronics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/electronics/app.yml
     - id: app:events
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: app:finance
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: app:life_coaching
       kind: app
       default_enabled: true
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: backend/apps/life_coaching/app.yml
     - id: app:mail
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mail/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: app:math
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/math/app.yml
     - id: app:mindmaps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/mindmaps/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:news
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/news/app.yml
     - id: app:nutrition
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/nutrition/app.yml
     - id: app:pdf
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
     - id: app:politics
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/politics/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:study
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/study/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:weather
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     newsletter_ready: false
   - title: 'feat: add editable Diagram Design HTML embeds'
@@ -3073,7 +2669,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:diagrams
       source: backend/apps/diagrams/app.yml
     newsletter_ready: true
@@ -3685,9 +3280,7 @@ sources:
     - backend/apps/business/app.yml
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
     - backend/apps/business/skills/search_trademarks.py
-    - backend/providers/uspto.yml
     - backend/shared/providers/trademarks/__init__.py
-    - backend/shared/providers/trademarks/uspto.py
     - backend/tests/test_business_preview_contract.py
     - backend/tests/test_trademark_search.py
     - docs/apis/trademark-search.md

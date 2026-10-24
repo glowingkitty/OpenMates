@@ -35,7 +35,6 @@ context_discovery:
   docs:
     - docs/contributing/guides/spec-driven-development.md
     - docs/user-guide/apps/maps.md
-    - docs/plans/fitness-urban-sports-search/plan.yml
     - docs/plans/models3d-search/plan.yml
     - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
   code_patterns:
@@ -813,7 +812,6 @@ implementation_notes:
     - backend/apps/maps/skills/search_skill.py direct async app-skill execution and grouped request handling.
     - backend/shared/providers/google_maps/google_places.py Vault-backed provider module and normalized result formatting.
     - backend/core/api/app/services/cache_base.py simple JSON get/set cache helpers with TTL.
-    - docs/plans/fitness-urban-sports-search/plan.yml provider-backed app-skill phase ladder and provider/legal updates.
     - frontend/apps/web_app/tests/skill-maps-search.spec.ts four-phase maps skill coverage across preview, CLI, CLI chat, and web chat.
   architecture: >
     Add a small Geoapify provider adapter under `backend/shared/providers`, wire it

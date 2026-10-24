@@ -237,27 +237,27 @@ bookmarks.example_3:
     - de
 favorite_websites.example_1:
   context: Example entry for favorite websites
-  en: reddit.com
-  de: reddit.com
-  zh: reddit.com
-  es: reddit.com
-  fr: reddit.com
-  pt: reddit.com
-  ru: reddit.com
-  ja: reddit.com
-  ko: reddit.com
-  it: reddit.com
-  tr: reddit.com
-  vi: reddit.com
-  id: reddit.com
-  pl: reddit.com
-  nl: reddit.com
-  ar: reddit.com
-  hi: reddit.com
-  th: reddit.com
-  cs: reddit.com
-  sv: reddit.com
-  he: reddit.com
+  en: ExampleCommunity.com
+  de: ExampleCommunity.com
+  zh: ExampleCommunity.com
+  es: ExampleCommunity.com
+  fr: ExampleCommunity.com
+  pt: ExampleCommunity.com
+  ru: ExampleCommunity.com
+  ja: ExampleCommunity.com
+  ko: ExampleCommunity.com
+  it: ExampleCommunity.com
+  tr: ExampleCommunity.com
+  vi: ExampleCommunity.com
+  id: ExampleCommunity.com
+  pl: ExampleCommunity.com
+  nl: ExampleCommunity.com
+  ar: ExampleCommunity.com
+  hi: ExampleCommunity.com
+  th: ExampleCommunity.com
+  cs: ExampleCommunity.com
+  sv: ExampleCommunity.com
+  he: ExampleCommunity.com
   verified_by_human:
     - en
     - de

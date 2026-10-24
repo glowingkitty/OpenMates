@@ -12,11 +12,10 @@ from html.parser import HTMLParser
 import json
 import logging
 import math
-import posixpath
 import re
 import time
 from typing import Any, Awaitable, Callable
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
@@ -116,7 +115,7 @@ def photos(value: Any) -> list[str]:
             variants = variants.get('url', [])
         variants = variants if isinstance(variants, list) else [variants]
         supplied = [url for variant in variants for url in photos(variant) if '%WIDTH%' not in url and '%HEIGHT%' not in url]
-        return supplied[-1:]  # largest fixed rendition in IS24 attachment ordering
+        return list(dict.fromkeys(supplied))
     return [url for key in ('image', 'images', 'pictures', 'picture', 'attachment', 'attachments', 'gallery') for url in photos(value.get(key))]
 
 
@@ -135,65 +134,18 @@ def defaults(listing: dict[str, Any]) -> dict[str, Any]:
     return listing
 
 
-def _listing_photo(url: str) -> bool:
-    """Reject known advertiser avatars even if a provider embeds one in images."""
-    parsed = urlsplit(url)
-    if parsed.hostname in {'www.wg-gesucht.de', 'wg-gesucht.de'} and posixpath.normpath(parsed.path) == '/img/d.gif':
-        return False
-    return not (parsed.hostname == 'img.kleinanzeigen.de' and '/prod-user/' in parsed.path)
-
-
-def _photo_identity(url: str) -> str:
-    """Identify supplied renditions using the provider's stable photo asset path."""
-    parsed = urlsplit(url)
-    host = parsed.hostname or ''
-    path = parsed.path
-    if host == 'img.wg-gesucht.de':
-        path = posixpath.normpath(path)  # provider supplies /./media on sized URLs
-        path = re.sub(r'\.(?:small|sized|large)(?=\.(?:jpe?g|png|webp)$)', '', path, flags=re.I)
-        return f'{host}{path}'
-    if host == 'img.kleinanzeigen.de':
-        if '/prod-ads/images/' in path:
-            return f'{host}{path}'  # rule=$_1.AUTO and $_59.AUTO are renditions
-        return url.split('/$_')[0]
-    if host.endswith(('.is24.de', '.immobilienscout24.de')):
-        return url.split('/ORIG/')[0]
-    return url
-
-
-def _photo_quality(url: str) -> int:
-    """Prefer known supplied larger renditions; never invent an original URL."""
-    parsed = urlsplit(url)
-    if parsed.hostname == 'img.wg-gesucht.de':
-        variant = re.search(r'\.(small|sized|large)\.(?:jpe?g|png|webp)$', parsed.path, re.I)
-        return {'small': 1, 'sized': 2, 'large': 3}.get(variant.group(1).lower(), 0) if variant else 0
-    if parsed.hostname == 'img.kleinanzeigen.de':
-        rule = parse_qs(parsed.query).get('rule', [''])[0]
-        # These are the search-thumbnail and detail-gallery rules observed in
-        # the provider response. Other numeric rule IDs do not imply a size.
-        return 2 if rule.startswith('$_59.') else 1 if rule.startswith('$_1.') else 0
-    if (parsed.hostname or '').endswith(('.is24.de', '.immobilienscout24.de')):
-        dimensions = re.search(r'/resize/(\d+)x(\d+)', parsed.path)
-        return int(dimensions.group(1)) * int(dimensions.group(2)) if dimensions else 0
-    return 0
-
-
 def merge_gallery(listing: dict[str, Any], urls: list[str], complete: bool = False) -> None:
-    """Keep photo identity order, upgrading each slot to its best supplied URL."""
+    """Keep unique supplied URLs in order without source-specific transformations."""
     supplied = filter(None, [listing.get('image_url'), *listing.get('image_urls', []), *urls])
     positions: dict[str, int] = {}
     unique: list[str] = []
     for url in supplied:
-        if not photo_url(url) or not _listing_photo(url):
+        if not photo_url(url):
             continue
-        identity = _photo_identity(url)
+        identity = url
         if identity not in positions:
             positions[identity] = len(unique)
             unique.append(url)
-        else:
-            index = positions[identity]
-            if _photo_quality(url) > _photo_quality(unique[index]):
-                unique[index] = url
     listing['image_urls'] = unique
     listing['image_url'] = next(iter(unique), None)
     listing['gallery_status'] = ('complete' if complete else 'partial') if unique else 'unavailable'
@@ -306,9 +258,6 @@ class DetailHTML(HTMLParser):
                 'gallery', 'image-gallery', 'imagegallery', 'gallery-container',
                 'gallery-wrapper', 'galleryimage', 'gallery-image', 'gallery-item',
                 'galleryimage-element', 'galleryimage-large',
-                'viewad-image', 'viewad-gallery', 'vip-gallery', 'vip-image-gallery',
-                'offer_images', 'offer-images', 'offer-image-gallery',
-                'gallery_slides',  # WG-Gesucht public listing SliderPro slides
             })
 
         def unrelated(attributes: dict[str, str]) -> bool:
@@ -331,11 +280,10 @@ class DetailHTML(HTMLParser):
             has_lazy_photo = any(photo_url(urljoin(self.base_url, attr[key])) for key in lazy_keys if attr.get(key))
             for key in (*lazy_keys, 'src', 'href', 'content'):
                 if key == 'src' and has_lazy_photo:
-                    continue  # SliderPro uses img/d.gif until its data-src loads
+                    continue  # A supplied lazy source takes precedence over a placeholder.
                 if key in attr:
                     url = photo_url(urljoin(self.base_url, attr[key]))
-                    cdn_photo = bool(url and urlsplit(url).hostname == 'img.kleinanzeigen.de' and '/prod-ads/images/' in urlsplit(url).path)
-                    if url and (tag != 'a' or cdn_photo or re.search(r'\.(?:jpe?g|png|webp)(?:[?/#]|$)', url, re.I)):
+                    if url and (tag != 'a' or re.search(r'\.(?:jpe?g|png|webp)(?:[?/#]|$)', url, re.I)):
                         self.images.append(url)
             for key in ('srcset', 'data-srcset'):
                 for candidate in attr.get(key, '').split(','):
@@ -372,9 +320,7 @@ class DetailHTML(HTMLParser):
             key = attr.get('itemprop', '')
             if key in {'streetAddress', 'postalCode', 'addressLocality', 'latitude', 'longitude'}:
                 self.address_text.setdefault(key, []).append(data)
-            if attr.get('id') == 'viewad-locality':
-                self.address_text.setdefault('locality', []).append(data)
-        if any(a.get('id') in {'viewad-description-text', 'ad_description_text', 'description', 'freitext_beschreibung'} or a.get('itemprop') == 'description' for _, a in self.stack):
+        if any(a.get('id') in {'description'} or a.get('itemprop') == 'description' for _, a in self.stack):
             self.description.append(data)
 
     def listing_json(self) -> dict[str, Any]:
@@ -460,13 +406,13 @@ def html_details(listing: dict[str, Any], html: str) -> None:
         listing['price_label'] = f"{listing['price']:,.0f} {suffix}".replace(',', '.')
     structured_images = structured.get('image')
     structured_photos = photos(structured_images)
-    gallery_photos = [url for url in parsed.images if photo_url(url) and _listing_photo(url)]
+    gallery_photos = [url for url in parsed.images if photo_url(url)]
     # A recognized but empty/lazy wrapper is no evidence that all photos were
     # obtained. JSON-LD's single image is often only the search cover. A typed
     # image array supplies an explicit collection; otherwise require photos
     # actually extracted from the listing's gallery container.
     structured_collection = isinstance(structured_images, list) and len({
-        _photo_identity(url) for url in structured_photos if _listing_photo(url)
+        url for url in structured_photos if photo_url(url)
     }) > 1
     merge_gallery(listing, structured_photos + gallery_photos,
                   complete=bool(gallery_photos) or structured_collection)

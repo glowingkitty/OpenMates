@@ -87,9 +87,9 @@ function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' 
 				}
 				if(!historyReady)throw Error('Encrypted chat history did not sync: '+lastObservation);
 				const parent={app_id:appId,skill_id:'search',status:'finished',query:'${QUERY}',
-					provider:eventFixture?'luma':'Brave Search',embed_ids:childIds.join('|'),result_count:childIds.length};
+					provider:eventFixture?'ExampleEvents':'Brave Search',embed_ids:childIds.join('|'),result_count:childIds.length};
 				const child=eventFixture?{type:'event_result',app_id:'events',skill_id:'search',
-					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'luma',
+					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'ExampleEvents',
 					url:'https://example.com/events/barcamp',date_start:'2026-11-14T09:00:00+01:00',is_paid:false,
 					organizer_name:'Historical event fixture',image_url:'/favicon.png',
 					timezone:'Europe/Berlin',description:'Recovered encrypted event details'}
@@ -377,7 +377,7 @@ test(missingParent ? 'historical event link discovers its absent encrypted paren
     }
     await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 60_000 });
     await expect(page.getByTestId('event-organizer-card')).toContainText('Historical event fixture');
-    await expect(page.getByTestId('external-provider-cta')).toHaveText('Register on Luma');
+    await expect(page.getByTestId('external-provider-cta')).toHaveText('Register on ExampleEvents');
     if (!missingParent) {
       await page.getByTestId('embed-minimize').click();
       await link.click();

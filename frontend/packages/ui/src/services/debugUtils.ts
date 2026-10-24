@@ -4030,7 +4030,7 @@ function showDebugHelp(): void {
       "  window.demo_mode.on()                     — demo mode: hide Report Issue & Start Debugging buttons + Server/Logs settings\n" +
       "  window.demo_mode.off()                    — exit demo mode, restore normal developer UI\n\n" +
       "  Onboarding:\n" +
-      "  await window.onboarding()                 — create + auto-open a fresh onboarding chat (QA / Firecrawl testing)\n",
+      "  await window.onboarding()                 — create + auto-open a fresh onboarding chat (QA / browser testing)\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );

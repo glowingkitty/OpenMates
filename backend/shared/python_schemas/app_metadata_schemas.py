@@ -63,17 +63,27 @@ class ProviderRef(BaseModel):
     A provider reference in a skill definition.
 
     Providers can be declared as either a plain string (provider name) or an object
-    with additional metadata. When a provider uses web scraping or other methods
-    that don't require an API key, set no_api_key=True so the skill isn't filtered
-    out by is_skill_available().
+    with additional metadata. Set no_api_key=True for supported public APIs or
+    licensed feeds that do not require credentials. Permission to use the source
+    must be established independently of credential availability.
 
-    Use display_name when the internal provider (used for API key lookup) differs
-    from the user-facing brand. Example: SerpAPI provides Google Flights data, so
-    name="SerpAPI" (for key lookup) but display_name="Google" (shown in Apps).
+    Use display_name when the internal credential identifier differs from the
+    user-facing provider name.
     """
-    name: str = Field(description="Internal provider identifier used for API key lookups (e.g., 'serpapi', 'brave').")
+    name: str = Field(description="Internal provider identifier used for API key lookups (e.g., 'brave').")
     display_name: Optional[str] = Field(default=None, description="User-facing provider name shown in Apps (e.g., 'Google'). Defaults to name if not set.")
-    no_api_key: bool = Field(default=False, description="If true, this provider does not require an API key (e.g., web scrapers). The skill will be considered available without checking for credentials.")
+    no_api_key: bool = Field(default=False, description="Whether this supported API or licensed feed is available without credentials.")
+
+
+def skill_has_provider_support(skill: Any) -> bool:
+    """Keep provider-backed capabilities unavailable until a source is configured.
+
+    Local-only operations continue to work without a provider list. This check
+    is structural; credential and health checks remain the caller's responsibility.
+    """
+    if isinstance(skill, dict):
+        return not skill.get("provider_required", False) or bool(skill.get("providers"))
+    return not getattr(skill, "provider_required", False) or bool(getattr(skill, "providers", None))
 
 
 def _reject_removed_stage(values: Any, model_name: str) -> Any:
@@ -113,6 +123,7 @@ class AppSkillDefinition(BaseModel):
     )
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
+    provider_required: bool = Field(default=False, description="Whether execution requires at least one configured supported provider. Local-only skills may leave this false.")
     icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")
 
     @field_validator('providers', mode='before')
@@ -121,7 +132,7 @@ class AppSkillDefinition(BaseModel):
         """Accept both plain strings and dicts for provider entries in app.yml.
 
         Plain string:  "Brave"  → ProviderRef(name="Brave", no_api_key=False)
-        Dict object:   {name: "Doctolib", no_api_key: true} → ProviderRef as-is
+        Dict object:   {name: "Public Catalog", no_api_key: true} → ProviderRef as-is
         """
         if v is None:
             return v

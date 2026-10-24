@@ -154,7 +154,7 @@ test('result followups allow only visible metadata from supplied and decoded res
   const cases = [
     {
       component: 'shopping/ShoppingResultEmbedFullscreen',
-      props: { product: { ...hidden, embed_id: 'safe-product', title: 'Visible product', provider: 'REWE', stock: 0, attributes: { ...hidden, is_organic: true } } },
+      props: { product: { ...hidden, embed_id: 'safe-product', title: 'Visible product', provider: 'ExampleGrocer', stock: 0, attributes: { ...hidden, is_organic: true } } },
       expected: { title: 'Visible product', stock: 0, organic: true },
     },
     {

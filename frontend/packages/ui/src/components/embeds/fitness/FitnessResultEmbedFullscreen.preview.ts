@@ -5,7 +5,7 @@ const result = {
   venue_address: 'Oranienstr. 1, 10997 Berlin', venue_lat: 52.502, venue_lon: 13.421,
   image_url: '/preview-fixtures/fitness-yoga-studio.svg', distance_km: 0.9, spots_display: '5 spots left',
   plans_required: ['Classic', 'Premium'], disciplines: ['Yoga', 'Pilates'], attendance_mode: 'In person',
-  detail_url: 'https://urbansportsclub.com/en/venues/yoga-studio',
+  detail_url: 'https://example.com/fixture',
 };
 const defaultProps = { data: { decodedContent: result }, embedId: 'fitness-class-design', onClose: () => {} };
 export default defaultProps;

@@ -110,7 +110,7 @@ for (const width of [390, 1280]) {
 		await expect(page.getByTestId('result-facts')).toContainText('120 EUR');
 		await expect(page.getByTestId('result-facts')).toContainText('Private');
 		await expect(page.getByTestId('result-map')).toBeVisible();
-		await expect(page.getByTestId('external-provider-cta')).toHaveText('Open on Doctolib');
+		await expect(page.getByTestId('external-provider-cta')).toHaveText('Open on ExampleClinicA');
 		await expect(page.getByTestId('apps-request-textarea')).toBeVisible();
 		await page.getByTestId('health-appointment-info').click();
 		await expect(page.getByRole('tooltip')).toContainText('Dr. Sophie Müller');
@@ -128,10 +128,10 @@ for (const width of [390, 1280]) {
 		await expect(page.getByTestId('result-facts')).not.toContainText('Private');
 		const insurance = page
 			.getByTestId('result-facts')
-			.getByRole('button', { name: /verify on Doctolib/ });
+			.getByRole('button', { name: /verify on ExampleClinicA/ });
 		await expect(insurance).toHaveAttribute('data-state', 'unknown');
 		await insurance.focus();
-		await expect(page.getByRole('tooltip')).toContainText('verify on Doctolib');
+		await expect(page.getByRole('tooltip')).toContainText('verify on ExampleClinicA');
 	});
 
 	// contract-test: supporting surface=gui.web assertions=home-search.images.complete-gallery,health-search-appointments.surface-parity
@@ -280,7 +280,7 @@ for (const width of [390, 1280]) {
 }
 
 // contract-test: direct surface=gui.web assertions=home-search.listings.rich-provider-evidence,home-search.filters.explicit-and-unknown
- test('home advertised rent and availability details stay in compact fact explanations', async ({ page }) => {
+test('home advertised rent and availability details stay in compact fact explanations', async ({ page }) => {
   await page.goto(preview('home/HomeListingEmbedFullscreen', 390, 'rentDetails'));
   await waitForComponentPreview(page);
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));

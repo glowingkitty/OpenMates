@@ -11,6 +11,8 @@ requirements. RSS and article-list monitoring are outside this proposal.
 
 ## Readiness
 
+Website reading currently reports unavailable. This historical design describes the generic scheduling, comparison, and encrypted-delivery contract; the illustrated workflow does not perform live page checks.
+
 The system is partially ready. We can reuse the scheduler, website extraction,
 Jev AI Check, Ask AI summaries, and encrypted owner-client chat delivery. We need
 a persisted successful-read baseline, a deterministic diff, reliable read-quality
@@ -24,7 +26,6 @@ signals, a comparison-before-semantic-scan path, and state/delivery integration.
 | Jev requirement decision | `workflow_ai_service.py:184` | Already returns true/false/unsure over explicitly selected, bounded, untrusted data |
 | Read quality | `read_skill.py:416` | API success becomes a result even if markdown is empty or a challenge page |
 | Provider metadata | `read_skill.py:422`, `ReadResult` at `:78` | Current result drops source status, final/source URL, warnings, and structured links |
-| Freshness | `read_skill.py:55`; `firecrawl_scrape.py:163`, `:203` | Units disagree in descriptions; provider uses milliseconds and omitted settings allow cached reads |
 | Diff-only AI cost | `workflow_app_skill_adapter.py:149`; `app_skill_output_safety.py:196` | Ordinary reads safety-scan full-page text before downstream comparison |
 | Input size | `workflow_ai_service.py:506` | Existing AI inputs may truncate at 24,000 characters; monitor must not silently truncate a diff |
 | Output picker | `workflow_capabilities.yml:1736`; `workflowBuilder.ts:224` | Web reads have a generic result-array schema; Checks expose only matched. Declare typed diff outputs |
@@ -32,25 +33,7 @@ signals, a comparison-before-semantic-scan path, and state/delivery integration.
 | Text-only event memory | `workflow_action_adapter.py:247`; runtime transaction `delivery_history.js:115` | Current result membership expects result embeds; website change events need explicit text-message acknowledgement support |
 | Deletion | Workflow Specification `workflows.history.delete-forgets`; `workflow_service.py:2517` | Run deletion forgets membership; payload expiry differs. Define monitor state lifetime explicitly |
 
-`events.ccc.de` returned HTTP 200 and useful article text during a direct public
-read. This establishes source readability today, not a successful OpenMates
-Firecrawl/workflow run. The homepage currently has post headings, excerpts and
-post links, making it a useful future test fixture. The existing read hash is a
-hash of the URL (`base_skill.py:788`), not a content hash. Sending the homepage
-through result deduplication would therefore remember that URL rather than its
-changing contents.
-
-Firecrawl's current [scrape documentation](https://docs.firecrawl.dev/features/scrape)
-confirms the default cache window is two days, `maxAge` uses milliseconds, and
-`maxAge: 0` forces a new scrape. A fresh provider request is still not proof that
-the returned page has useful/current content. Use an explicit freshness setting
-for monitoring and preserve evidence of read quality.
-
-Firecrawl also provides [change tracking](https://docs.firecrawl.dev/features/change-tracking).
-Its team/tag-scoped snapshots are persistent and do not expire. Our wrapper does
-not expose the returned change tracking data or its structured configuration.
-This could be an optional future accelerator, but is not sufficient for our
-owner-scoped last-good-read, deletion, retry, and notification semantics.
+Historical read probes did not establish a successful scheduled Workflow run. The original URL-based read hash differs from a content hash, so result deduplication alone does not detect changes in page text.
 
 ## Proposed user experience
 
@@ -74,7 +57,7 @@ This refines the initial combined-Check proposal: reading owns the URL and Check
 owns the condition. The executor coordinates comparison internally whenever a
 downstream consumer selects a change output. The owner does not configure a
 Track changes toggle, storage nodes, hashes, diff algorithms, or cache units.
-Keep ordinary standalone Web read available with its existing safety behavior.
+Standalone read states retain the result-safety contract; source-free execution reports unavailable.
 
 The read test shows useful extracted text or a specific blocked/empty/unsupported
 state. A change-input test with a baseline shows the diff and requirement verdict. Preview

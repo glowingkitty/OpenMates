@@ -47,5 +47,5 @@ verification_notes:
   - "All five isolated Shopping integration cases passed with verified cleanup (run 39400678392, source 786a173999521ce461cc09cfe4703f7cbf35b635)."
   - "Actual automatic-routing image checks covered OCR, counts, image history, obscured evidence and three-image comparison; Gemini 3.8 completed directly on AI Studio with LOW, MEDIUM and HIGH thinking."
   - "The final unchanged-prompt Shopping run on 0cbcf2c715b49c83424f028659948683b4dbc94e made one request with final cap five, evaluated all forty candidates, filtered thirty-nine and retained the independently verified fabric match; no product was unavailable."
-  - "Known Stoffe CDN migration compatibility preserves supplied gallery URLs and existing public-DNS, pinned-IP and no-redirect guards; unavailable-image fallback remains explicit."
+  - "Existing image URL compatibility preserves supplied gallery URLs and existing public-DNS, pinned-IP and no-redirect guards; unavailable-image fallback remains explicit."
   - "Mercury Decide comparison is recorded in docs/apis/mercury-decide-jev-comparison.md; Jev remains the production default and no Mercury or SubQ integration was added."

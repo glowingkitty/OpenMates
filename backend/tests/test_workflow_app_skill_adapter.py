@@ -653,7 +653,7 @@ def test_hosting_workflow_flattens_only_selected_domains_and_preserves_group_evi
         "domain_ascii": "example.com",
         "domain_unicode": "example.com",
         "availability": "available",
-        "url": "https://shop.gandi.net/en/domain/suggest?search=example.com",
+        "url": "https://domains.example/registration?domain=example.com",
         "currency": "EUR",
         "country": "DE",
         "registration_tiers": [{"unit": "year", "price_including_tax": 14.28}],
@@ -662,7 +662,7 @@ def test_hosting_workflow_flattens_only_selected_domains_and_preserves_group_evi
     used = {"domain_ascii": "example.net", "availability": "unavailable"}
     raw_output = {
         "success": True,
-        "provider": "Gandi",
+        "provider": "Example Registrar",
         "results": [
             {"id": "com", "query": "example.com", "partial": False,
              "results": [selected], "checked_results": [selected], "warnings": [], "error": None},
@@ -684,10 +684,10 @@ def test_hosting_workflow_flattens_only_selected_domains_and_preserves_group_evi
     )
 
     assert output["result_count"] == 1
-    assert output["provider"] == "Gandi"
+    assert output["provider"] == "Example Registrar"
     assert output["results"] == [{
         **selected,
-        "provider": "Gandi",
+        "provider": "Example Registrar",
         "canonical_url": selected["url"],
         "source_id": selected["url"],
     }]
@@ -703,7 +703,7 @@ def test_hosting_workflow_flattens_only_selected_domains_and_preserves_group_evi
 # contract-test: supporting surface=rest_api assertions=hosting-domains.results.partial-and-safe,hosting-domains.surface-parity
 def test_hosting_workflow_total_error_keeps_safe_group_diagnostics() -> None:
     raw_output = {
-        "success": False, "provider": "Gandi", "error": "Domain provider unavailable",
+        "success": False, "provider": "Example Registrar", "error": "Domain provider unavailable",
         "results": [{"id": "exact", "query": "example.com", "partial": True,
                      "results": [], "checked_results": [{"domain_ascii": "example.com", "availability": "unknown"}],
                      "warnings": ["Some domain availability checks were inconclusive"],
@@ -731,11 +731,11 @@ def test_travel_connection_workflow_output_preserves_real_grouped_result_fields(
         "currency": "EUR",
         "transport_method": "train",
         "booking_url": "https://booking.example/connection",
-        "source_provider": "deutsche_bahn",
+        "source_provider": "example_rail",
         "trip_type": "one_way",
         "stops": 0,
-        "carriers": ["ICE"],
-        "booking_provider": "Deutsche Bahn",
+        "carriers": ["Example Rail"],
+        "booking_provider": "Example Rail",
     }
     raw_output = {
         "provider": "travel",
@@ -901,3 +901,38 @@ async def test_team_daily_context_prechecks_team_wallet_and_charges_same_wallet(
     assert charges[0]["team_id"] == "selected-team"
     assert charges[0]["user_id"] == "alice"
     personal_precheck.assert_not_awaited()
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+async def test_no_source_saved_workflow_stops_before_billing_dispatch_or_network(monkeypatch):
+    import httpx
+    registry = FakeRegistry(metadata={"skills": [{
+        "id": "search", "provider_required": True, "providers": [],
+        "workflow": {"available": True, "execution_mode": "sync", "unattended": True, "approval": "never"},
+    }]})
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    async def forbidden_billing(**kwargs):
+        pytest.fail("Unavailable sources must be rejected before billing")
+    monkeypatch.setattr(workflow_app_skill_adapter, "_precheck_workflow_skill_billing", forbidden_billing)
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: pytest.fail("No provider network is allowed"))
+    with pytest.raises(WorkflowSkillBillingError) as exc:
+        await adapter.execute("example", "search", {}, user_id="owner", billing_context={
+            "workflow_id": "wf", "run_id": "run", "node_id": "node", "source": "workflow",
+        })
+    assert exc.value.code == "WORKFLOW_SKILL_NOT_REGISTERED"
+    assert registry.calls == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("required,providers", [(False, []), (True, ["permitted-api"])])
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+async def test_queued_dispatch_retains_local_and_configured_provider_workflows(required, providers):
+    registry = FakeRegistry(response={"results": []}, metadata={"skills": [{
+        "id": "lookup", "provider_required": required, "providers": providers,
+        "workflow": {"available": True, "execution_mode": "sync", "unattended": True, "approval": "never"},
+    }]})
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    await adapter.execute("example", "lookup", {}, user_id="owner")
+    assert len(registry.calls) == 1
+    assert registry.calls[0][2]["_user_id"] == "owner"

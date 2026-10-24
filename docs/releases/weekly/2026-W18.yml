@@ -17,73 +17,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -716,15 +696,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-01'
     title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
@@ -740,15 +716,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-01'
     title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
@@ -764,15 +736,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-01'
     title: 'fix: add files field and request_embed for deduplicated PDF uploads'
@@ -898,15 +866,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
@@ -922,15 +886,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix: clear stale embedCache in multi-tab DUPLICATE path — fixes Loading embeds and re-request loop'
@@ -1161,16 +1121,6 @@ themes:
     title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
     commits:
     - 253071ffd
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-30'
-    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    commits:
-    - 2fcd00e8e
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1542,16 +1492,6 @@ themes:
     newsletter_ready: false
     user_facing: false
     related_features: []
-  - date: '2026-05-01'
-    title: 'test: add E2E spec for train connections via Deutsche Bahn'
-    commits:
-    - 4ca692aee
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
   - date: '2026-05-02'
     title: 'docs(01-01): complete token sync plan — SUMMARY, STATE, ROADMAP'
     commits:
@@ -1826,15 +1766,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(01-01): fix Swift font family name in build-tokens.js'
@@ -1860,15 +1796,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
@@ -1884,15 +1816,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
@@ -1908,15 +1836,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): redesign settings menu to match web app design'
@@ -1932,15 +1856,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
@@ -1956,15 +1876,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: cli_sdk
   item_count: 3
@@ -2015,16 +1931,6 @@ themes:
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
-    related_features: []
-  - date: '2026-05-01'
-    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    commits:
-    - 1ff0f4ac3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
     related_features: []
   - date: '2026-05-03'
     title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
@@ -2769,16 +2675,6 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-04-30'
-    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    commits:
-    - 2fcd00e8e
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-30'
     title: 'fix: constrain teaser video height'
     commits:
     - 7a99d8fd4
@@ -3003,16 +2899,6 @@ marketing_candidates:
     commits:
     - bb13d93d6
     section: improvements
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-01'
-    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    commits:
-    - 1ff0f4ac3
-    section: features
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -3943,15 +3829,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-30'
     title: 'feat: add Stripe revenue summary to admin server stats'
@@ -4077,16 +3959,6 @@ marketing_candidates:
     title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
     commits:
     - 253071ffd
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-30'
-    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
-    commits:
-    - 2fcd00e8e
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -4337,15 +4209,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-01'
     title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
@@ -4361,26 +4229,12 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-  - date: '2026-05-01'
-    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
-    commits:
-    - 1ff0f4ac3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-05-01'
     title: 'feat: add bahn.de booking deeplinks to train connection results'
     commits:
@@ -4405,15 +4259,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-01'
     title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
@@ -4619,15 +4469,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
@@ -4663,15 +4509,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
@@ -4687,15 +4529,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
@@ -4711,15 +4549,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
@@ -4735,15 +4569,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): redesign settings menu to match web app design'
@@ -4759,15 +4589,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
@@ -4783,15 +4609,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-02'
     title: 'fix(travel): add daytime detection and layover city name for DB train connections'
@@ -4950,10 +4772,8 @@ sources:
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-02.yml
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-03.yml
 llm_summary:
-  overview: OpenMates delivered a major update this week, highlighted by the launch of a diff-based editing engine for document
-    embeds and the expansion of the travel skill to include Deutsche Bahn train connections. The project also finalized its
-    migration to Stripe Managed Payments, introduced a comprehensive suite of mobile touch gestures, and overhauled the introductory
-    user experience with autoplaying video teasers and dedicated privacy pages.
+  overview: The project also finalized its migration to Stripe Managed Payments, introduced a comprehensive suite of mobile
+    touch gestures, and overhauled the introductory user experience with autoplaying video teasers and dedicated privacy pages.
   released_changes:
   - text: OpenMates added the ability for users to update their account email address directly within the settings menu.
     evidence:
@@ -4993,14 +4813,6 @@ llm_summary:
     evidence:
       commits:
       - adb9f9b0c
-    release_status: released_main
-  - text: The travel application now supports train connection searches via Deutsche Bahn, featuring official provider logos
-      and direct booking deeplinks.
-    evidence:
-      commits:
-      - 1ff0f4ac3
-      - d909babd4
-      - 616abde82
     release_status: released_main
   - text: A new diff-based editing engine was launched for mail, code, and document embeds, allowing users to track AI-driven
       changes via a version timeline.
@@ -5170,13 +4982,6 @@ llm_summary:
         - f30df002c
         - cb98225f9
       reason: Major improvement to mobile and touch-based navigation.
-    - text: Train connection search via Deutsche Bahn with integrated booking links and official provider logos.
-      evidence:
-        commits:
-        - 1ff0f4ac3
-        - d909babd4
-        - 616abde82
-      reason: Significant expansion of the travel skill with high-value utility.
     - text: Diff-based editing engine for mail, code, and document embeds with a version timeline UI.
       evidence:
         commits:
@@ -5238,5 +5043,4 @@ llm_summary:
   - The introduction of diff-based editing was accompanied by extensive E2E test hardening to ensure reliability during AI
     inference.
   - Significant focus was placed on international UX, specifically resolving the 'English flash' during initial page loads.
-  - The travel skill expansion to Deutsche Bahn includes deep integration such as daytime detection and direct booking links.
   validation_warnings: []

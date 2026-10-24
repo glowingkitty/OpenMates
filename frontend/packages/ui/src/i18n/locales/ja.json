@@ -1116,7 +1116,7 @@
           "text": "クイックアクセスのためのお気に入りのウェブサイト"
         },
         "example_1": {
-          "text": "reddit.com"
+          "text": "ExampleCommunity.com"
         },
         "example_2": {
           "text": "medium.com"
@@ -1618,18 +1618,18 @@
       "search_locations": {
         "text": "フィットネス施設を検索",
         "description": {
-          "text": "都市、住所、半径、アクティビティ、プランで Urban Sports Club のフィットネス施設を探します。"
+          "text": "都市、住所、半径、アクティビティ、プランで ExampleFitness のフィットネス施設を探します。"
         },
         "how_to_use": {
           "1": {
-            "text": "ベルリンの Sorauer Str. 12 から 1 km 以内の Urban Sports 施設を探して"
+            "text": "ベルリンの Sorauer Str. 12 から 1 km 以内の fitness source 施設を探して"
           }
         }
       },
       "search_classes": {
         "text": "フィットネスクラスを検索",
         "description": {
-          "text": "日付、住所、半径、アクティビティ、参加形式、空き枠、プランで予約可能な Urban Sports Club クラスを探します。"
+          "text": "日付、住所、半径、アクティビティ、参加形式、空き枠、プランで予約可能な ExampleFitness クラスを探します。"
         },
         "how_to_use": {
           "1": {
@@ -2231,13 +2231,13 @@
         },
         "how_to_use": {
           "1": {
-            "text": "REWEでオーガニック全脂牛乳を検索"
+            "text": "ExampleGrocerでオーガニック全脂牛乳を検索"
           },
           "2": {
             "text": "異なるスーパーマーケットでスパゲッティの価格を比較"
           },
           "3": {
-            "text": "REWEではどんなビーガンチーズが手に入りますか？"
+            "text": "ExampleGrocerではどんなビーガンチーズが手に入りますか？"
           }
         }
       }
@@ -5059,10 +5059,10 @@
         "text": "OpenMates v0.9: 新しいアプリとスキル、AIモデル、ファイルアップロードなど"
       },
       "message": {
-        "text": "こんにちは、\n\nOpenMates v0.11をリリースしました。今回のアップデートはv0.10の改善をベースに、日々の作業に役立つ実用的な機能を追加しました：より充実した『今日のインスピレーション』、コード実行、リポジトリ調査、音楽生成、画像生成プロバイダーの改善、より分かりやすくなったアプリの結果表示、そしてローカルインターフェースフォントなどです。\n\n# まずは、v0.10の簡単な振り返り\n\nv0.10では、回答内へのWikipediaリンクの追加、メッセージのハイライトとコメント機能、公開アナウンス/サンプルページの改善、SEPA銀行振込への対応、アカウントメールアドレスの変更機能などが追加されました。\n\nこれらの変更により、OpenMatesは日々のワークスペースとしてより使いやすくなりました。学習や共有が容易になり、アカウントや支払いといった基本機能の安定性も向上しました。\n\n# ✨ v0.11の新機能\n\n## 1. 『今日のインスピレーション』の拡充\n\n『今日のインスピレーション』がより豊かで多彩になりました。公開動画や便利な機能のアイデア、OpenMatesでやりたいことの具体的な出発点などが表示されるようになります。\n\n目標は、OpenMatesを単なる空のチャットボットの入力欄ではなく、トピックの調査、動画の理解、タスクの計画、ツールの探索、あるいはサンプルからの継続など、役立つことを見つける手助けをする場所にすることです。\n\n## 2. コード実行とコード調査の改善\n\nコードアプリが大きく進化しました。OpenMatesでコードをサンドボックス内で実行し、出力を表示したり、リポジトリの検索を支援したり、コード関連のフォローアップアクションをより多く処理できるようになりました。\n\nこれはプロの開発者でなくても、一般のユーザーにとっても便利です。小さなスクリプトの作成、データのクリーンアップ、ドキュメント生成、ウェブサイトのプレビュー、ログの解説、技術的な質問などが、よりインタラクティブになります。\n\n## 3. 音楽生成と画像プロバイダーの改善\n\nv0.11では、音楽生成や画像生成プロバイダーに関する改善により、生成メディアのワークフローが拡張されました。これにより、短い音楽のアイデア作成、ビジュアルコンセプトの生成、プロンプトの推敲、あるいはラフなアイデアを実際に確認・再利用可能なメディアに変換するといったクリエイティブなタスクを、チャット内で直接サポートできるようになります。\n\nまた、生成されたメディアの表示方法も改善され、結果のプレビュー、展開、その後の作業への移行がよりスムーズになりました。\n\n## 4. アプリ結果とプロバイダー詳細の明確化\n\n多くのアプリカードや埋め込みプレビューで、より適切な実例、プロバイダーのロゴ、ソース情報、そして明確なメタデータが表示されるようになりました。これにより、何が起きたのか、結果がどこから来たのか、どのアプリのスキルが使われたのかを理解しやすくなります。\n\n日常的な利用において、推測に頼る必要が減ることを意味します。旅行の検索結果、ウェブの検索結果、生成されたファイル、メディア出力、コードの実行結果などが、より識別しやすく、アクションを起こしやすくなります。\n\n## 5. フォローアップ表示の改善\n\nフォローアップの提案機能は以前からありましたが、表示がよりすっきりと使いやすくなりました。自分で完璧な次のプロンプトを考えることなく、タスクを継続できるように設計されています。\n\n## 6. ローカルインターフェースフォント\n\nローカルインターフェースフォントの設定を選択できるようになりました。小さな設定ですが、OpenMatesで読み書きに多くの時間を費やす場合には重要なポイントです。\n\n## 7. 安定性とパフォーマンスの向上\n\nチャットの同期、埋め込み、ファイルのプレビュー、画像結果のプレビューにおいて、安定性とパフォーマンスの向上も行われました。\n\n# 今後の予定\n\n次のステップは、OpenMatesをさらに分かりやすく、使いやすくし続けることです。より良いサンプルの提供、アプリフローの明確化、クリエイティブツールや調査ツールのブラッシュアップ、そしてチャット体験における細かな不備の解消に取り組んでいきます。\n\nOpenMatesをご利用いただき、また、分かりにくい点や不具合についてのフィードバックをいただきありがとうございます。\n\nよろしくお願いいたします。\n\nMarco  \nOpenMates開発者"
+        "text": "こんにちは、\n\nOpenMates v0.11をリリースしました。今回のアップデートはv0.10の改善をベースに、日々の作業に役立つ実用的な機能を追加しました：より充実した『今日のインスピレーション』、コード実行、リポジトリ調査、音楽生成、画像生成プロバイダーの改善、より分かりやすくなったアプリの結果表示、そしてローカルインターフェースフォントなどです。\n\n# まずは、v0.10の簡単な振り返り\n\nv0.10では、回答内へのWikipediaリンクの追加、メッセージのハイライトとコメント機能、公開アナウンス/サンプルページの改善、SEPA銀行振込への対応、アカウントメールアドレスの変更機能などが追加されました。\n\nこれらの変更により、OpenMatesは日々のワークスペースとしてより使いやすくなりました。学習や共有が容易になり、アカウントや支払いといった基本機能の安定性も向上しました。\n\n# ✨ v0.11の新機能\n\n## 1. 『今日のインスピレーション』の拡充\n\n『今日のインスピレーション』がより豊かで多彩になりました。公開動画や便利な機能のアイデア、OpenMatesでやりたいことの具体的な出発点などが表示されるようになります。\n\n目標は、OpenMatesを単なる空のチャットボットの入力欄ではなく、トピックの調査、動画の理解、タスクの計画、ツールの探索、あるいはサンプルからの継続など、役立つことを見つける手助けをする場所にすることです。\n\n## 2. コード実行とコード調査の改善\n\nコードアプリが大きく進化しました。OpenMatesでコードをサンドボックス内で実行し、出力を表示したり、リポジトリの検索を支援したり、コード関連のフォローアップアクションをより多く処理できるようになりました。\n\nこれはプロの開発者でなくても、一般のユーザーにとっても便利です。小さなスクリプトの作成、データのクリーンアップ、ドキュメント生成、ウェブサイトのプレビュー、ログの解説、技術的な質問などが、よりインタラクティブになります。\n\n## 3. 音楽生成と画像プロバイダーの改善\n\nv0.11では、音楽生成や画像生成プロバイダーに関する改善により、生成メディアのワークフローが拡張されました。これにより、短い音楽のアイデア作成、ビジュアルコンセプトの生成、プロンプトの推敲、あるいはラフなアイデアを実際に確認・再利用可能なメディアに変換するといったクリエイティブなタスクを、チャット内で直接サポートできるようになります。\n\nまた、生成されたメディアの表示方法も改善され、結果のプレビュー、展開、その後の作業への移行がよりスムーズになりました。\n\n## 4. アプリ結果とプロバイダー詳細の明確化\n\n多くのアプリカードや埋め込みプレビューで、より適切な実例、プロバイダーのロゴ、ソース情報、そして明確なメタデータが表示されるようになりました。これにより、何が起きたのか、結果がどこから来たのか、どのアプリのスキルが使われたのかを理解しやすくなります。\n\n日常的な利用において、推測に頼る必要が減ることを意味します。旅行の検索結果、ウェブの検索結果、生成されたファイル、メディア出力、コードの実行結果などが、より識別しやすく、アクションを起こしやすくなります。\n\n## 5. フォローアップ表示の改善\n\nフォローアップの提案機能は以前からありましたが、表示がよりすっきりと使いやすくなりました。自分で完璧な次のプロンプトを考えることなく、タスクを継続できるように設計されています。\n\n## 6. ローカルインターフェースフォント\n\nローカルインターフェースフォントの設定を選択できるようになりました。小さな設定ですが、OpenMatesで読み書きに多くの時間を費やす場合には重要なポイントです。\n\n## 7. 安定性とパフォーマンスの向上\n\nチャットの同期、埋め込み、ファイルのプレビュー、画像結果のプレビューにおいて、安定性とパフォーマンスの向上も行われました。\n\n# 今後の予定\n\n次のステップは、OpenMatesをさらに分かりやすく、使いやすくし続けることです。より良いサンプルの提供、アプリフローの明確化、クリエイティブツールや調査ツールのブラッシュアップ、そしてチャット体験における細かな不備の解消に取り組んでいきます。\n\nOpenMatesをご利用いただき、また、分かりにくい点や不具合についてのフィードバックをいただきありがとうございます。\n\nよろしくお願いいたします。\n\nMarco\nOpenMates開発者"
       },
       "email_body": {
-        "text": "こんにちは。\nOpenMatesの開発者、Marco（別名 [glowingkitty](https://github.com/glowingkitty)）です。\nOpenMatesのことを忘れていたわけではありません。むしろその逆です。\n\n[video]\n\n# 🙏 まずは感謝の言葉を\n\n12月末、Chaos Communication Congressに関連して、ドイツのテレビ局ZDFから思いがけずインタビューを依頼されました（[大手テック企業のAIに代わる、プライバシー重視の選択肢の重要性についてのレポート](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html)）。それは素晴らしい経験でした。当時のOpenMatesはまだ荒削りな部分も多かったのですが、最初の方々が登録して使い始めてくれました。そして、私が自分のデバイスでテストしていた時には遭遇しなかったバグやエッジケースを見つけ、ありがたいことに報告してくれました。報告してくださった皆さんに心から感謝します。おかげで、OpenMatesをより洗練させ、安定させ、完成度を高めることができました！もちろん、OpenMatesを使っていて違和感や不具合を感じた場合は、引き続き遠慮なく報告してください。\n\nこれは私が作った最初のソフトウェアではありませんが、数人以上の人たちが自分の作ったソフトウェアを使い始めたのは初めてのことでした。現在、180人以上のアクティブユーザーがOpenMatesを利用しています！これは非常にエキサイティングなことであり、正直なところ、最初は少し圧倒される思いもありました。\n\nそれ以来、私はOpenMatesの改善とデバッグ、そして機能の充実とブラッシュアップに完全に集中し、コードに膨大な変更を加えました。バグ修正、新機能、ユーザーインターフェースの改善など、数多くの改良を行いました。\n\nそして今日、ここ数ヶ月の最もエキサイティングな変更点についてアップデートをお伝えできることを嬉しく思います！すべての変更について話すと1通のニュースレターでは長くなりすぎてしまうため、今回はハイライトに絞ってお伝えします。また、今後数週間にわたって、OpenMatesの様々な機能についての短い動画を以下のSNSで公開していく予定です：\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates)\n\n# ✨ ここ数ヶ月のハイライト\n\n## 1. 🧩 新しいアプリとアプリスキル\n\n既存のウェブ検索、ウェブサイトの閲覧・分析、YouTube動画の文字起こしを読み取って議論を開始する機能に加え、OpenMatesに多くの新しいアプリとアプリスキルが加わりました。以下はそのハイライトです：\n\n- 🏥 **[Health（健康）](https://openmates.org/#settings/apps/health/skills/search_appointments):** 医者の予約をお探しですか？HealthアプリでDoctolibやJamedaの空き状況を確認できるようになりました。\n- 🏠 **[Home（住まい）](https://openmates.org/#settings/apps/home/skills/search):** ImmoScout24、WG-Gesucht、Kleinanzeigenでアパートを検索できます。主要な詳細はOpenMates上で直接確認可能です。\n- 🎉 **[Events（イベント）](https://openmates.org/#settings/apps/events/skills/search):** Meetup、Luma、Resident Advisor、Googleでイベントを検索・フィルタリングできます。説明、画像、日時、場所などの詳細が表示され、RSVP（参加申し込み）や参加へのダイレクトリンクも含まれます。\n- ✈️ **[Travel（旅行）](https://openmates.org/#settings/apps/travel):** 新しい「[Search connection（乗り換え・便の検索）](https://openmates.org/#settings/apps/travel/skills/search_connections)」スキルでは、Google経由でフライトを検索できます。複数の日程の複数の便を同時に検索でき、フライトの詳細や予約リンクも表示されます。鉄道の検索も今後対応予定です。また、「[Price calendar（料金カレンダー）](https://openmates.org/#settings/apps/travel/skills/price_calendar)」スキルでは、1ヶ月間の価格推移を素早く確認できます。\n- ⏰ **[Reminders（リマインダー）](https://openmates.org/#settings/apps/reminder):** チャットにリマインダーを作成して、後で戻ってくることができます。また、特定のトピックに関する最新のデイリーニュースを検索して要約するようOpenMatesに設定することも可能です。\n- 🖼️ **[Images（画像）](https://openmates.org/#settings/apps/images):** ウェブ上の画像を[検索](https://openmates.org/#settings/apps/images/skills/search)したり、画像を[生成](https://openmates.org/#settings/apps/images/skills/generate)したり、[ベクターグラフィックス](https://openmates.org/#settings/apps/images/skills/vectorize)を作成したりできます。\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** PDFをアップロードして、テキストや視覚的なレイアウトについて質問できます。OpenMatesはPDFの読み取りと表示の両方が可能です！\n- 💻 **[Code（コード）](https://openmates.org/#settings/apps/code):** OpenMatesは[最新のドキュメントを検索](https://openmates.org/#settings/apps/code/skills/get_docs)してコーディングに関する質問に答え、コードを書き、さらにウェブサイトのデザインやコードをブラウザで直接プレビューさせることもできます！これはコーディング機能のほんの始まりに過ぎません。\n- 🧮 **[Math（数学）](https://openmates.org/#settings/apps/math):** 式の計算やプロットの可視化を、すべてOpenMates内で行えます。\n- 📝 **[Docs（文書）](https://openmates.org/#settings/apps/docs):** Word文書の生成を依頼し、.docxファイルとしてダウンロードできます。\n- 📊 **[Sheets（スプレッドシート）](https://openmates.org/#settings/apps/sheets):** 表を作成し、.xlsxファイルとしてダウンロードできます。DocsとSheetsは今後数週間でさらに強力になる予定です。\n- 📧 **[Mail（メール）](https://openmates.org/#settings/apps/mail):** メールの下書きを作成できます。作成した下書きは、デバイスのデフォルトのメールプログラムで簡単に開いて送信できます。\n- 🎙️ **[Audio（オーディオ）](https://openmates.org/#settings/apps/audio):** 入力が面倒ですか？メッセージフィールドから直接、音声メッセージを録音してOpenMatesに送信できます。\n\nさらに多くのアプリスキルが追加されています。[OpenMatesアプリをチェックして探索](https://openmates.org/#settings/apps)してみてください。\n\n## 2. 🔒 個人データプレースホルダー\n\n大手テック企業や一般的なスタートアップのAIチャットボットとは異なり、OpenMatesはプライバシーを最優先事項として設計されています。すでに以下のような様々なプライバシー保護機能が備わっています：\n- 🔐 すべてのチャットは、あなたのデバイス上でのみ暗号化・復号されます。\n- 🖼️ すべての外部画像はOpenMatesサーバー経由で読み込まれます（外部サイトにあなたのIPアドレスやデバイス情報が知られることはありません）。\n- 📉 Googleアナリティクスなどの分析ソフトウェアは一切使用していません（OpenMatesにクッキーバナーが表示されないのはそのためです）。\n\n新機能：メールアドレス、電話番号、APIキーなどの機密データが自動的に検出され、メッセージを下書きしてOpenMatesに送信する際に、デバイス上でプレースホルダーに置き換えられるようになりました。ユーザーインターフェース上でいつでも元の値に戻すことができますし、検出されたデータをクリックして置換を無効にすることもできます。しかし、デフォルトではこの機能により、OpenMatesもメッセージを処理するAIプロバイダーも、機密データを最初から目にすることはありません。\n\n[自分で試してみる](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — このリンクをクリックして、個人データプレースホルダーの動作を確認してください。AIに送信される前に、メールアドレスと電話番号が自動検出され、置き換えられます。\n\n## 3. 🧠 メモリ\n\nOpenMatesは、今後の旅行の予定やプロジェクトの詳細など、アプリ固有のメモリ（記憶）を保持できるようになりました。ただし、すべてのメモリはあなたのデバイス上でのみ暗号化・復号され、特定のチャットであなたが明示的に承認した場合にのみ、OpenMatesサーバーおよびAIプロバイダーと一時的に共有されます。これにより、プロジェクトの詳細を何度も繰り返すことなくパーソナライズされた回答を最大限に活用でき、同時に、どのデータをいつ、どのAIプロバイダーと共有するかを完全にコントロールできます。[OpenMatesアプリのメモリ](https://openmates.org/#settings/apps/all/memories)をチェックしてみてください。\n\n## 4. 🎯 フォーカスモード\n\nAIチャットボットに適切な指示を与える方法を知っているかどうかで、チャットボットの有用性や回答の質に大きな差が出ます。フォーカスモードを使えば、プロンプトエンジニアリングの専門家でなくても、優れた的を絞った指示を最大限に活用できます。例えば、OpenMatesにキャリアに関する洞察を求めると、「キャリアインサイト」フォーカスモードが自動的に有効になり、プロセスをガイドします。もちろん、これは始まりに過ぎません。今後数週間でさらに多くのフォーカスモードが追加され、既存のモードの質もさらに向上する予定です。[OpenMatesアプリのフォーカスモード](https://openmates.org/#settings/apps/all/focus-modes)をぜひご覧ください。\n\n## 5. 🤖 新しいモデル\n\nOpenMatesは、現在利用可能な最も効率的でパフォーマンスの高いAIモデルを幅広く取り揃えています。デフォルトでは、タスクに基づいて最適なモデルが自動選択されます。しかし、[AI設定](https://openmates.org/#settings/ai)でこの動作を永続的に変更したり、メッセージフィールドで `@{モデル名}` を使って特定のモデルを指定したりすることも可能です。現在、以下のような幅広いAIモデルから選択できます：\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- Devstral 2\n- `@best` と `@fast` のモデルエイリアス — `@best` と入力すると最強のモデルに、`@fast` と入力するとOpenMatesで利用可能な最速のモデルに自動ルーティングされます。\n\n## 6. 💡 今日のインスピレーションとWikipediaリンク\n\nAIは、適切に使用すれば学習のための素晴らしいツールになります。OpenMatesは、人々が学び、探索し、インスピレーションを得ることを促進するように最適化されています。ログイン後のインターフェース上部に表示される「今日のインスピレーション」はそのためのものです。興味深い新しい動画や、将来的にはWikipediaの記事、OpenMatesの新機能、芸術作品の写真や詳細、重要な歴史的出来事などが表示されます。今日のインスピレーションはあなたのチャットに合わせてカスタマイズされ、あなただけが持つキーでデバイス上にロックされるため、プライバシーは守られます。\nさらに、OpenMatesはアシスタントの回答内でWikipediaの記事を自動的にハイライトします。オレンジ色にハイライトされた単語（横に学習アイコンがあるもの）をクリックするだけで、そのトピックについて簡単に詳しく学ぶことができます。\n\n# 🚀 今後の予定\n\n今後数週間にわたり、OpenMatesの多くの機能や便利な使い方を紹介する短いクリップを投稿するほか、ソフトウェアのさらなる改善、アプリ、プロバイダー、機能の追加を行っていきます。\n\n今後は、数週間ごとに発表やアップデートのためのニュースレターを、またそれとは別にOpenMatesの使い方のヒントやコツをお送りする予定です。ニュースレターの受信頻度を変更したい場合は、いつでも[ニュースレターの設定を確認](https://openmates.org/#settings/newsletter)してください。\n\nOpenMatesをぜひお楽しみください。今後のアップデートにもご期待ください！\n\n[cta]"
+        "text": "こんにちは。\nOpenMatesの開発者、Marco（別名 [glowingkitty](https://github.com/glowingkitty)）です。\nOpenMatesのことを忘れていたわけではありません。むしろその逆です。\n\n[video]\n\n# 🙏 まずは感謝の言葉を\n\n12月末、Chaos Communication Congressに関連して、ドイツのテレビ局ZDFから思いがけずインタビューを依頼されました（[大手テック企業のAIに代わる、プライバシー重視の選択肢の重要性についてのレポート](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html)）。それは素晴らしい経験でした。当時のOpenMatesはまだ荒削りな部分も多かったのですが、最初の方々が登録して使い始めてくれました。そして、私が自分のデバイスでテストしていた時には遭遇しなかったバグやエッジケースを見つけ、ありがたいことに報告してくれました。報告してくださった皆さんに心から感謝します。おかげで、OpenMatesをより洗練させ、安定させ、完成度を高めることができました！もちろん、OpenMatesを使っていて違和感や不具合を感じた場合は、引き続き遠慮なく報告してください。\n\nこれは私が作った最初のソフトウェアではありませんが、数人以上の人たちが自分の作ったソフトウェアを使い始めたのは初めてのことでした。現在、180人以上のアクティブユーザーがOpenMatesを利用しています！これは非常にエキサイティングなことであり、正直なところ、最初は少し圧倒される思いもありました。\n\nそれ以来、私はOpenMatesの改善とデバッグ、そして機能の充実とブラッシュアップに完全に集中し、コードに膨大な変更を加えました。バグ修正、新機能、ユーザーインターフェースの改善など、数多くの改良を行いました。\n\nそして今日、ここ数ヶ月の最もエキサイティングな変更点についてアップデートをお伝えできることを嬉しく思います！すべての変更について話すと1通のニュースレターでは長くなりすぎてしまうため、今回はハイライトに絞ってお伝えします。また、今後数週間にわたって、OpenMatesの様々な機能についての短い動画を以下のSNSで公開していく予定です：\n- [Instagram](https://instagram.com/openmates_official)\n- [Bluesky](https://bsky.app/profile/openmates.bsky.social)\n- [Mastodon](https://mastodon.social/@OpenMates)\n- [YouTube](https://www.youtube.com/@OpenMates)\n\n# ✨ ここ数ヶ月のハイライト\n\n## 1. 🧩 新しいアプリとアプリスキル\n\n既存のウェブ検索、ウェブサイトの閲覧・分析、YouTube動画の文字起こしを読み取って議論を開始する機能に加え、OpenMatesに多くの新しいアプリとアプリスキルが加わりました。以下はそのハイライトです：\n\n- 🏥 **[Health（健康）](https://openmates.org/#settings/apps/health/skills/search_appointments):** 医者の予約をお探しですか？HealthアプリでExampleClinicAやExampleClinicBの空き状況を確認できるようになりました。\n- 🏠 **[Home（住まい）](https://openmates.org/#settings/apps/home/skills/search):** ExampleHousingA、ExampleHousingC、ExampleHousingBでアパートを検索できます。主要な詳細はOpenMates上で直接確認可能です。\n- 🎉 **[Events（イベント）](https://openmates.org/#settings/apps/events/skills/search):** Gathering、ExampleEvents、ExampleConcerts、Googleでイベントを検索・フィルタリングできます。説明、画像、日時、場所などの詳細が表示され、RSVP（参加申し込み）や参加へのダイレクトリンクも含まれます。\n- ✈️ **[Travel（旅行）](https://openmates.org/#settings/apps/travel):** 新しい「[Search connection（乗り換え・便の検索）](https://openmates.org/#settings/apps/travel/skills/search_connections)」スキルでは、Google経由でフライトを検索できます。複数の日程の複数の便を同時に検索でき、フライトの詳細や予約リンクも表示されます。鉄道の検索も今後対応予定です。また、「[Price calendar（料金カレンダー）](https://openmates.org/#settings/apps/travel/skills/price_calendar)」スキルでは、1ヶ月間の価格推移を素早く確認できます。\n- ⏰ **[Reminders（リマインダー）](https://openmates.org/#settings/apps/reminder):** チャットにリマインダーを作成して、後で戻ってくることができます。また、特定のトピックに関する最新のデイリーニュースを検索して要約するようOpenMatesに設定することも可能です。\n- 🖼️ **[Images（画像）](https://openmates.org/#settings/apps/images):** ウェブ上の画像を[検索](https://openmates.org/#settings/apps/images/skills/search)したり、画像を[生成](https://openmates.org/#settings/apps/images/skills/generate)したり、[ベクターグラフィックス](https://openmates.org/#settings/apps/images/skills/vectorize)を作成したりできます。\n- 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** PDFをアップロードして、テキストや視覚的なレイアウトについて質問できます。OpenMatesはPDFの読み取りと表示の両方が可能です！\n- 💻 **[Code（コード）](https://openmates.org/#settings/apps/code):** OpenMatesは[最新のドキュメントを検索](https://openmates.org/#settings/apps/code/skills/get_docs)してコーディングに関する質問に答え、コードを書き、さらにウェブサイトのデザインやコードをブラウザで直接プレビューさせることもできます！これはコーディング機能のほんの始まりに過ぎません。\n- 🧮 **[Math（数学）](https://openmates.org/#settings/apps/math):** 式の計算やプロットの可視化を、すべてOpenMates内で行えます。\n- 📝 **[Docs（文書）](https://openmates.org/#settings/apps/docs):** Word文書の生成を依頼し、.docxファイルとしてダウンロードできます。\n- 📊 **[Sheets（スプレッドシート）](https://openmates.org/#settings/apps/sheets):** 表を作成し、.xlsxファイルとしてダウンロードできます。DocsとSheetsは今後数週間でさらに強力になる予定です。\n- 📧 **[Mail（メール）](https://openmates.org/#settings/apps/mail):** メールの下書きを作成できます。作成した下書きは、デバイスのデフォルトのメールプログラムで簡単に開いて送信できます。\n- 🎙️ **[Audio（オーディオ）](https://openmates.org/#settings/apps/audio):** 入力が面倒ですか？メッセージフィールドから直接、音声メッセージを録音してOpenMatesに送信できます。\n\nさらに多くのアプリスキルが追加されています。[OpenMatesアプリをチェックして探索](https://openmates.org/#settings/apps)してみてください。\n\n## 2. 🔒 個人データプレースホルダー\n\n大手テック企業や一般的なスタートアップのAIチャットボットとは異なり、OpenMatesはプライバシーを最優先事項として設計されています。すでに以下のような様々なプライバシー保護機能が備わっています：\n- 🔐 すべてのチャットは、あなたのデバイス上でのみ暗号化・復号されます。\n- 🖼️ すべての外部画像はOpenMatesサーバー経由で読み込まれます（外部サイトにあなたのIPアドレスやデバイス情報が知られることはありません）。\n- 📉 Googleアナリティクスなどの分析ソフトウェアは一切使用していません（OpenMatesにクッキーバナーが表示されないのはそのためです）。\n\n新機能：メールアドレス、電話番号、APIキーなどの機密データが自動的に検出され、メッセージを下書きしてOpenMatesに送信する際に、デバイス上でプレースホルダーに置き換えられるようになりました。ユーザーインターフェース上でいつでも元の値に戻すことができますし、検出されたデータをクリックして置換を無効にすることもできます。しかし、デフォルトではこの機能により、OpenMatesもメッセージを処理するAIプロバイダーも、機密データを最初から目にすることはありません。\n\n[自分で試してみる](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — このリンクをクリックして、個人データプレースホルダーの動作を確認してください。AIに送信される前に、メールアドレスと電話番号が自動検出され、置き換えられます。\n\n## 3. 🧠 メモリ\n\nOpenMatesは、今後の旅行の予定やプロジェクトの詳細など、アプリ固有のメモリ（記憶）を保持できるようになりました。ただし、すべてのメモリはあなたのデバイス上でのみ暗号化・復号され、特定のチャットであなたが明示的に承認した場合にのみ、OpenMatesサーバーおよびAIプロバイダーと一時的に共有されます。これにより、プロジェクトの詳細を何度も繰り返すことなくパーソナライズされた回答を最大限に活用でき、同時に、どのデータをいつ、どのAIプロバイダーと共有するかを完全にコントロールできます。[OpenMatesアプリのメモリ](https://openmates.org/#settings/apps/all/memories)をチェックしてみてください。\n\n## 4. 🎯 フォーカスモード\n\nAIチャットボットに適切な指示を与える方法を知っているかどうかで、チャットボットの有用性や回答の質に大きな差が出ます。フォーカスモードを使えば、プロンプトエンジニアリングの専門家でなくても、優れた的を絞った指示を最大限に活用できます。例えば、OpenMatesにキャリアに関する洞察を求めると、「キャリアインサイト」フォーカスモードが自動的に有効になり、プロセスをガイドします。もちろん、これは始まりに過ぎません。今後数週間でさらに多くのフォーカスモードが追加され、既存のモードの質もさらに向上する予定です。[OpenMatesアプリのフォーカスモード](https://openmates.org/#settings/apps/all/focus-modes)をぜひご覧ください。\n\n## 5. 🤖 新しいモデル\n\nOpenMatesは、現在利用可能な最も効率的でパフォーマンスの高いAIモデルを幅広く取り揃えています。デフォルトでは、タスクに基づいて最適なモデルが自動選択されます。しかし、[AI設定](https://openmates.org/#settings/ai)でこの動作を永続的に変更したり、メッセージフィールドで `@{モデル名}` を使って特定のモデルを指定したりすることも可能です。現在、以下のような幅広いAIモデルから選択できます：\n\n- [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)\n- [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)\n- [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)\n- [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)\n- Devstral 2\n- `@best` と `@fast` のモデルエイリアス — `@best` と入力すると最強のモデルに、`@fast` と入力するとOpenMatesで利用可能な最速のモデルに自動ルーティングされます。\n\n## 6. 💡 今日のインスピレーションとWikipediaリンク\n\nAIは、適切に使用すれば学習のための素晴らしいツールになります。OpenMatesは、人々が学び、探索し、インスピレーションを得ることを促進するように最適化されています。ログイン後のインターフェース上部に表示される「今日のインスピレーション」はそのためのものです。興味深い新しい動画や、将来的にはWikipediaの記事、OpenMatesの新機能、芸術作品の写真や詳細、重要な歴史的出来事などが表示されます。今日のインスピレーションはあなたのチャットに合わせてカスタマイズされ、あなただけが持つキーでデバイス上にロックされるため、プライバシーは守られます。\nさらに、OpenMatesはアシスタントの回答内でWikipediaの記事を自動的にハイライトします。オレンジ色にハイライトされた単語（横に学習アイコンがあるもの）をクリックするだけで、そのトピックについて簡単に詳しく学ぶことができます。\n\n# 🚀 今後の予定\n\n今後数週間にわたり、OpenMatesの多くの機能や便利な使い方を紹介する短いクリップを投稿するほか、ソフトウェアのさらなる改善、アプリ、プロバイダー、機能の追加を行っていきます。\n\n今後は、数週間ごとに発表やアップデートのためのニュースレターを、またそれとは別にOpenMatesの使い方のヒントやコツをお送りする予定です。ニュースレターの受信頻度を変更したい場合は、いつでも[ニュースレターの設定を確認](https://openmates.org/#settings/newsletter)してください。\n\nOpenMatesをぜひお楽しみください。今後のアップデートにもご期待ください！\n\n[cta]"
       }
     },
     "announcements_openmates_meetup_may_19": {
@@ -5073,10 +5073,10 @@
         "text": "5月19日（火）19:00"
       },
       "message": {
-        "text": "すでにOpenMatesを利用していて、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加したいですか？\n\nこの1年半、私はOpenMates.orgを構築してきました。これはChatGPT、Claude、OpenClaw、Manusなどのより優れた代替手段です。通常、より優れた回答を提供し、UXデザインも優れており、さまざまな機能でプライバシー、安全性、ユーザーの利益を優先しています。また、特定のエコシステムに縛られることなく、すでに使い慣れているAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、さまざまなアプリスキルを利用でき、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）がいます。\n\nとはいえ、まだこれだけで生計を立てられる段階ではなく（主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎて、ますます燃え尽き症候群になりつつあります。これが巨大なプロジェクトであり、個人のプロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に焦点を当てるのではなく、AIの有用な側面を一般の人々が利用できるようにするために、チームでの取り組みに注力しています。そして、単に「質の低下（enshittification）」へと向かうだけのスタートアップになるのではなく、何年も先まで人々に愛され続ける持続可能なビジネスと製品を構築したいと考えています。私は、出口戦略や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップのような概念にはるかに興味があります。\n\n私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、OpenMatesを利用している方からのフィードバックは、バックグラウンドに関わらず本当に貴重であり、大歓迎です。\n\nもしこれに興味を持ち、フィードバックで貢献したい、他の人々とつながりたい、あるいは長期的に協力したいと思われたなら、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)\n\nよろしくお願いします。\n\nMarco  \nOpenMates クリエイター"
+        "text": "すでにOpenMatesを利用していて、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加したいですか？\n\nこの1年半、私はOpenMates.orgを構築してきました。これはChatGPT、Claude、OpenClaw、Manusなどのより優れた代替手段です。通常、より優れた回答を提供し、UXデザインも優れており、さまざまな機能でプライバシー、安全性、ユーザーの利益を優先しています。また、特定のエコシステムに縛られることなく、すでに使い慣れているAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、さまざまなアプリスキルを利用でき、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）がいます。\n\nとはいえ、まだこれだけで生計を立てられる段階ではなく（主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎて、ますます燃え尽き症候群になりつつあります。これが巨大なプロジェクトであり、個人のプロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に焦点を当てるのではなく、AIの有用な側面を一般の人々が利用できるようにするために、チームでの取り組みに注力しています。そして、単に「質の低下（enshittification）」へと向かうだけのスタートアップになるのではなく、何年も先まで人々に愛され続ける持続可能なビジネスと製品を構築したいと考えています。私は、出口戦略や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップのような概念にはるかに興味があります。\n\n私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、OpenMatesを利用している方からのフィードバックは、バックグラウンドに関わらず本当に貴重であり、大歓迎です。\n\nもしこれに興味を持ち、フィードバックで貢献したい、他の人々とつながりたい、あるいは長期的に協力したいと思われたなら、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)\n\nよろしくお願いします。\n\nMarco\nOpenMates クリエイター"
       },
       "email_body": {
-        "text": "[image]\n\n[cta]\n\nすでにOpenMatesをご利用中で、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加しませんか？\n\nこの1年半、私はOpenMates.orgを開発してきました。これはChatGPT、Claude、OpenClaw、Manusなどに代わる、より優れた選択肢です。通常、より優れた回答を提供し、UXデザインも洗練されています。プライバシー、安全性、ユーザーの利益を優先する様々な機能を備え、特定のエコシステムに縛られることなく、すでにお馴染みのAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、様々なアプリスキルを利用可能で、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）を獲得しています。\n\nとはいえ、まだこれだけで生計を立てられる段階ではなく（現在は主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎたため、徐々に燃え尽き症候群（バーンアウト）の兆候が出始めています。これが巨大なプロジェクトであり、個人プロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に注力するのではなく、AIの有用な側面を一般の人々が利用できるようにするため、チーム体制でのプロジェクトへと移行することに力を入れています。そして、単に「質の低下（enshittification）」を辿るだけのスタートアップになるのではなく、何年も先まで愛され続ける持続可能なビジネスとプロダクトを構築したいと考えています。出口戦略（エグジット）や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップ（受託者所有）のような概念にずっと興味があります。\n\n私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、バックグラウンドに関わらず、OpenMatesを利用している方からのフィードバックは本当に貴重であり、心から歓迎します。\n\nもし興味をお持ちいただけたなら、フィードバックでの貢献、他の方々との交流、あるいは長期的なコラボレーションなど、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)\n\nよろしくお願いします。\n\nMarco  \nOpenMates開発者"
+        "text": "[image]\n\n[cta]\n\nすでにOpenMatesをご利用中で、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加しませんか？\n\nこの1年半、私はOpenMates.orgを開発してきました。これはChatGPT、Claude、OpenClaw、Manusなどに代わる、より優れた選択肢です。通常、より優れた回答を提供し、UXデザインも洗練されています。プライバシー、安全性、ユーザーの利益を優先する様々な機能を備え、特定のエコシステムに縛られることなく、すでにお馴染みのAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、様々なアプリスキルを利用可能で、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）を獲得しています。\n\nとはいえ、まだこれだけで生計を立てられる段階ではなく（現在は主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎたため、徐々に燃え尽き症候群（バーンアウト）の兆候が出始めています。これが巨大なプロジェクトであり、個人プロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に注力するのではなく、AIの有用な側面を一般の人々が利用できるようにするため、チーム体制でのプロジェクトへと移行することに力を入れています。そして、単に「質の低下（enshittification）」を辿るだけのスタートアップになるのではなく、何年も先まで愛され続ける持続可能なビジネスとプロダクトを構築したいと考えています。出口戦略（エグジット）や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップ（受託者所有）のような概念にずっと興味があります。\n\n私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、バックグラウンドに関わらず、OpenMatesを利用している方からのフィードバックは本当に貴重であり、心から歓迎します。\n\nもし興味をお持ちいただけたなら、フィードバックでの貢献、他の方々との交流、あるいは長期的なコラボレーションなど、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)\n\nよろしくお願いします。\n\nMarco\nOpenMates開発者"
       }
     },
     "announcements_referral_feature_launch": {
@@ -5087,10 +5087,10 @@
         "text": "新しい紹介機能が利用可能になりました"
       },
       "message": {
-        "text": "こんにちは。\n\nOpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。\n\n仕組みは以下の通りです：\n\n- お支払い設定から紹介リンクまたはQRコードをシェアします。\n- 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。\n- 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。\n\n現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。\n\nこの機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。\n\nプライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。\n\nプロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。\n\nよろしくお願いします。\n\nMarco  \nOpenMates 開発者"
+        "text": "こんにちは。\n\nOpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。\n\n仕組みは以下の通りです：\n\n- お支払い設定から紹介リンクまたはQRコードをシェアします。\n- 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。\n- 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。\n\n現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。\n\nこの機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。\n\nプライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。\n\nプロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。\n\nよろしくお願いします。\n\nMarco\nOpenMates 開発者"
       },
       "email_body": {
-        "text": "こんにちは。\n\nOpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。\n\n[cta]\n\n仕組みは以下の通りです：\n\n- お支払い設定から紹介リンクまたはQRコードをシェアします。\n- 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。\n- 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。\n\n現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。\n\nこの機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。\n\nプライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。\n\nプロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。\n\nよろしくお願いします。\n\nMarco  \nOpenMates 開発者"
+        "text": "こんにちは。\n\nOpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。\n\n[cta]\n\n仕組みは以下の通りです：\n\n- お支払い設定から紹介リンクまたはQRコードをシェアします。\n- 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。\n- 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。\n\n現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。\n\nこの機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。\n\nプライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。\n\nプロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。\n\nよろしくお願いします。\n\nMarco\nOpenMates 開発者"
       }
     }
   },
@@ -5905,8 +5905,8 @@
     "element": {
       "text": "Element X"
     },
-    "meetup": {
-      "text": "Meetup"
+    "Gathering": {
+      "text": "Gathering"
     },
     "email": {
       "text": "メール"
@@ -6677,9 +6677,6 @@
         "other_term_prices": {
           "text": "その他の期間料金: {count}"
         },
-        "open_on_gandi": {
-          "text": "Gandi で開く"
-        },
         "back_to_results": {
           "text": "結果に戻る"
         },
@@ -7365,8 +7362,8 @@
       "telehealth": {
         "text": "テレヘルス"
       },
-      "book_on_doctolib": {
-        "text": "Doctolib で予約"
+      "book_on_ExampleClinicA": {
+        "text": "ExampleClinicA で予約"
       },
       "slots_may_be_outdated": {
         "text": "これらの時間帯はすでに利用できない場合があります。{provider} で最新の空き状況を確認してください。"
@@ -7374,8 +7371,8 @@
       "no_appointments_found": {
         "text": "予約が見つかりません。"
       },
-      "book_on_jameda": {
-        "text": "Jameda で予約する"
+      "book_on_ExampleClinicB": {
+        "text": "ExampleClinicB で予約する"
       },
       "reviews": {
         "text": "件のレビュー"
@@ -8668,21 +8665,21 @@
         "text": "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" Gathering where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
       }
     },
-    "air_fryers_amazon_germany": {
+    "air_fryers_retail_germany": {
       "title": {
         "text": "ドイツで買えるエアフライヤーの比較"
       },
       "summary": {
-        "text": "Amazonドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
+        "text": "ExampleRetailドイツの人気エアフライヤーを価格、容量、評価で比較し、2人暮らしにはPhilips Airfryer 2000シリーズをおすすめしました。"
       },
       "message_1": {
-        "text": "ドイツでオンライン購入できるエアフライヤーを、Amazonの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
+        "text": "ドイツでオンライン購入できるエアフライヤーを、ExampleRetailの出品を含めて探して。現在の価格、容量、レビュー評価を比較し、出典リンクを付けて2人暮らし向けの1台をおすすめして。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのAmazonで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\n現在ドイツのExampleRetailで販売されている高評価のエアフライヤーについて、価格、容量、購入者の評価を比較します。\n\n---\n\n### ドイツで人気のモデルを比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2人暮らしに最もおすすめのモデル\n\n#### **第一候補：[Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **2人に最適な理由：**\n  * **適切な容量（6.2 L）：** 4.5–5 L未満のバスケットでは、2人分でも何回かに分けて調理する必要があります。6.2 Lならサーモンの切り身2枚と野菜やフライドポテトを一層に広げて、むらなく加熱できます。\n  * **キッチンでの設置面積：** NinjaやRussell Hobbsのような2ゾーン型は調理台をかなり占有します。6 Lのシングルバスケットなら、一般的なドイツのキッチンでも比較的省スペースで、十分な調理容量を確保できます。\n  * **透明窓：** 引き出しを開けて熱を逃がさずに焼き色を確認できます。\n  * **価格と性能のバランス：** €99.99で、[Philips](wiki:Philips)の安定した温度管理が得られる、手頃な価格のモデルです。\n\n#### **別の候補（異なる温度で2品を同時に作ることが多い場合）：[Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\n肉や魚と付け合わせの野菜を異なる温度と時間で同時に調理したい場合（例：鶏むね肉を180 °C、カリカリのポテトを200 °C）、このモデルは現在€119.99に値下げされており、2つのバスケットの調理完了時刻をそろえられます。\n\n---\n\n### 購入前に確認したいポイント\n1. **バスケットの形：** 四角いバスケット（CosoriやPhilipsなど）は、同じ容量の丸いバスケットより、ステーキや焼き型、串など平らな食品を入れやすくなります。\n2. **食洗機に入るか：** 6 Lのシングルバスケットを入れられる高さがあるか確認しましょう。フッ素樹脂などの焦げ付き防止コーティングを長持ちさせたいなら、手洗いも検討してください。"
       },
       "follow_up_1": {
         "text": "エアフライヤー専用のレシピを探す"
@@ -8870,7 +8867,7 @@
         "text": "ヨガ初心者なのですが、来週ベルリンで開催される初心者向けのクラスを探しています。時間、料金、予約リンクを含めていくつか見つけてもらえますか？"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n来週ベルリン各地で開催される、初心者向けの[ヨガ](wiki:Yoga)クラスをご紹介します：\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (クロイツベルク)\n- **内容:** 呼吸に合わせた動きとポーズの保持をバランスよく行い、アライメント（姿勢）と静寂を探求するマインドフルなクラスです。特に初心者向けに構成されています（英語での指導）。\n- **日時:** 2026年10月14日（水）18:00 – 19:00 CEST（10分前にお越しください）\n- **場所:** Art OM, Wrangelstraße 54, 10997 Berlin ([クロイツベルク](wiki:Kreuzberg))\n- **料金:** €11.83 – €22.49\n- **予約:** [Eventbriteでチケットを予約](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (フリードリヒスハイン)\n- **内容:** あらゆるレベルに対応した、インフォーマルでリラックスしたモビリティ＆ヨガセッションです。フローはゆっくりとしたペースで、ステップごとに説明されます。柔軟性や経験は必要ありません。\n- **日時:** 2026年10月13日（火）19:00 – 19:45 CEST（15分前にお越しください）\n- **場所:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([フリードリヒスハイン](wiki:Friedrichshain))\n- **料金:** €5（ボルダリングも行う場合は、Urban Sports Club / Wellpassで無料入場可）\n- **予約:** [詳細と予約リンクを表示](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (ウェディング / ミッテ)\n- **内容:** 初心者向けに調整を加えた、ダイナミックかつ穏やかなヴィンヤサセッションです。呼吸への意識、身体のアライメント、ストレス解消に焦点を当てています。\n- **日時:** 2026年10月14日（水）19:30 – 21:00 CEST\n- **場所:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ミッテ](wiki:Mitte))\n- **料金:** 初回体験クラス €10（スターターパック：3クラス €20）\n- **予約:** [Berlin Yoga Club Meetupで予約](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 初めてのヨガクラスへのアドバイス\n* **服装:** 動きやすく、体を曲げやすい、快適で伸縮性のある服。ヨガは通常、裸足で行います。\n* **水分補給と食事:** クラスの1.5〜2時間前からは重い食事を避けてください。\n* **自分の体の声を聞く:** クラスが始まる前に、初めてであることを講師に伝えてください。調整方法やプロップス（ブロック、ブランケット、ストラップなど）の使い方を喜んで教えてくれます。関節や背中に持病がある場合は、ダイナミックな動きを試す前に医師や理学療法士に相談してください。\n\n特定のエリア（ノイケルン、プレンツラウアー・ベルク、シャルロッテンブルクなど）に近い場所や、[ハタヨガ](wiki:Hatha_yoga)や[陰ヨガ](wiki:Yin_yoga)のような穏やかなスタイルに絞ったおすすめが必要ですか？\n---\n*⚠️ これは教育目的の情報であり、医学的アドバイスではありません。医学的な判断については医師にご相談ください。*"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e4569c35-68a2-486d-af5d-dc5600aca187\",\"app_id\":\"fitness\",\"skill_id\":\"search_classes\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"02f512fa-c82a-41c4-b392-1f52e71d63ba\",\"app_id\":\"events\",\"skill_id\":\"search\"}\n```\n\n来週ベルリン各地で開催される、初心者向けの[ヨガ](wiki:Yoga)クラスをご紹介します：\n\n```embeds_results_view\ntitle: Beginner Yoga Classes in Berlin (Next Week)\nembeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l\n```\n\n---\n\n### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (クロイツベルク)\n- **内容:** 呼吸に合わせた動きとポーズの保持をバランスよく行い、アライメント（姿勢）と静寂を探求するマインドフルなクラスです。特に初心者向けに構成されています（英語での指導）。\n- **日時:** 2026年10月14日（水）18:00 – 19:00 CEST（10分前にお越しください）\n- **場所:** Art OM, Wrangelstraße 54, 10997 Berlin ([クロイツベルク](wiki:Kreuzberg))\n- **料金:** €11.83 – €22.49\n- **予約:** [ExampleTicketsでチケットを予約](embed:yoga-for-grounding-TB2)\n\n### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (フリードリヒスハイン)\n- **内容:** あらゆるレベルに対応した、インフォーマルでリラックスしたモビリティ＆ヨガセッションです。フローはゆっくりとしたペースで、ステップごとに説明されます。柔軟性や経験は必要ありません。\n- **日時:** 2026年10月13日（火）19:00 – 19:45 CEST（15分前にお越しください）\n- **場所:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([フリードリヒスハイン](wiki:Friedrichshain))\n- **料金:** €5（ボルダリングも行う場合は、ExampleFitness / Wellpassで無料入場可）\n- **予約:** [詳細と予約リンクを表示](embed:mobility-yoga-optional-qv3)\n\n### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (ウェディング / ミッテ)\n- **内容:** 初心者向けに調整を加えた、ダイナミックかつ穏やかなヴィンヤサセッションです。呼吸への意識、身体のアライメント、ストレス解消に焦点を当てています。\n- **日時:** 2026年10月14日（水）19:30 – 21:00 CEST\n- **場所:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ミッテ](wiki:Mitte))\n- **料金:** 初回体験クラス €10（スターターパック：3クラス €20）\n- **予約:** [Berlin Yoga Club Meetupで予約](embed:vinyasa-flow-in-a8l)\n\n---\n\n### 初めてのヨガクラスへのアドバイス\n* **服装:** 動きやすく、体を曲げやすい、快適で伸縮性のある服。ヨガは通常、裸足で行います。\n* **水分補給と食事:** クラスの1.5〜2時間前からは重い食事を避けてください。\n* **自分の体の声を聞く:** クラスが始まる前に、初めてであることを講師に伝えてください。調整方法やプロップス（ブロック、ブランケット、ストラップなど）の使い方を喜んで教えてくれます。関節や背中に持病がある場合は、ダイナミックな動きを試す前に医師や理学療法士に相談してください。\n\n特定のエリア（ノイケルン、プレンツラウアー・ベルク、シャルロッテンブルクなど）に近い場所や、[ハタヨガ](wiki:Hatha_yoga)や[陰ヨガ](wiki:Yin_yoga)のような穏やかなスタイルに絞ったおすすめが必要ですか？\n---\n*⚠️ これは教育目的の情報であり、医学的アドバイスではありません。医学的な判断については医師にご相談ください。*"
       },
       "follow_up_1": {
         "text": "ベルリン・ノイケルンのヨガ教室を検索する"
@@ -8902,7 +8899,7 @@
         "text": "Find Berlin AI workshops and meetups happening soon, show the most useful options on a map, and highlight the best one for a founder who wants practical networking."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (Luma) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Meetup / Luma) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (Eventbrite) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (Eventbrite) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking. \n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"50dda9ce-723f-4e07-80d1-7da89a80dd39\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop Gathering\", \"provider\": \"Gathering\", \"providers\": [\"Gathering\"], \"location\": \"Berlin, Germany\"}\n```\n\nHere are the upcoming AI workshops and meetups in Berlin that are best suited for founders looking to build, validate, and connect with other builders:\n\n1. [Build your first app with AI in one evening](embed:build-your-first-K18) (ExampleEvents) — A hands-on physical workshop focusing on practical agentic coding tools. Perfect for founders who want to move past the chat box and build prototypes.\n2. [Build Fridays Berlin](embed:build-fridays-berlin-O4R) (Gathering / ExampleEvents) hosted at Miro Office — An open work session and networking event specifically designed for founders, engineers, and product people who want to ship product, demo work, and solve blockers with peers.\n3. [Master AI Entrepreneurship Masterclass](embed:master-ai-entrepreneurship-QvO) (ExampleTickets) — Focused on spotting profitable opportunities and validating AI business models.\n4. [Prompt to Profit](embed:prompt-to-profit-3sF) (ExampleTickets) — A practical workshop for leveraging generative AI for business innovation and growth.\n### Best Option for Practical Networking & Building: **Build Fridays Berlin**\nFor a founder prioritizing **practical networking**, [Build Fridays Berlin](embed:build-fridays-berlin-O4R) is the standout choice. Unlike standard lecture-style webinars, it brings active builders together in person (hosted at Miro) with structured intros, open hacking, demo time, and direct feedback from fellow founders and engineers who prefer shipping over talking.\n\nIf you want an intensive technical workshop alongside that, [Build your first app with AI in one evening](embed:build-your-first-K18) is also an excellent hands-on option.\n\nWould you like help preparing a pitch or project demo to bring to one of these sessions?\n\n```embeds_map_view\ntitle: Mapped results\nembeds: build-your-first-K18, build-fridays-berlin-O4R, master-ai-entrepreneurship-QvO, prompt-to-profit-3sF\nhighlight: build-fridays-berlin-O4R\n```"
       }
     },
     "berlin_english_speaking_gp_appointments": {
@@ -8916,7 +8913,7 @@
         "text": "来週、ベルリンで英語対応の一般医（GP）の予約が必要です。最短の候補を比較して予約カードを表示し、保険の適用については予約ページで確認できる場合のみ記載してください。不明な場合はそのように伝えてください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nベルリン市内で、今後7日間以内に予約可能な英語対応の一般医（GP）をいくつか見つけました。保険の適用範囲については、予約ページ自体に記載がある場合のみ明記しています。\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**来週の最短予約オプション**\n1. **10月12日（月）07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 住所: Albert-Einstein-Straße 2, 12489 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n2. **10月12日（月）08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 住所: Kapweg 5, 13405 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: 英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n3. **10月12日（月）08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 住所: Stargarder Straße 69, 10437 Berlin\n   - 受診タイプ: 急患対応\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n4. **10月12日（月）08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 住所: Müllerstraße 36, 13353 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n5. **10月12日（月）08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 住所: Wallstraße 16, 10179 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n注意事項:\n- 「来週」というご希望に合わせて、**10月9日〜10日**のより早い日程の選択肢は上記の比較から除外しています。\n- これらの結果はDoctolibの掲載情報に基づいているようです。今回の検索結果ではJamedaの情報は含まれていません。\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nご希望であれば、次に以下のことが可能です：\n- 確認済みの**公的保険のみ**に絞り込む\n- **地区や現在地からの距離**で絞り込んだリストを作成する\n---\n*⚠️ これは情報提供のみを目的としており、医学的アドバイスではありません。医療上の判断については医師にご相談ください。*"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"14ccee29-eff7-47e5-8a27-9578da7f6501\",\"app_id\":\"health\",\"skill_id\":\"search_appointments\"}\n```\n\nベルリン市内で、今後7日間以内に予約可能な英語対応の一般医（GP）をいくつか見つけました。保険の適用範囲については、予約ページ自体に記載がある場合のみ明記しています。\n\n[!](embed:hausarztpraxis-adlershof-dr-RRw)\n[!](embed:katrin-reimer-b-bKm)\n[!](embed:die-haus-rzte-Di3)\n[!](embed:hermann-fondis-d6N)\n[!](embed:lubomir-rakita-UPM)\n\n**来週の最短予約オプション**\n1. **10月12日（月）07:45** — [Hausarztpraxis Adlershof - Dr. Gilbert Büchner und Kolleg:innen](embed:hausarztpraxis-adlershof-dr-RRw)\n   - 住所: Albert-Einstein-Straße 2, 12489 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n2. **10月12日（月）08:00** — [Katrin Reimer-Bürkle](embed:katrin-reimer-b-bKm)\n   - 住所: Kapweg 5, 13405 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: 英語\n   - **保険:** プライベート保険 *(予約ページで確認済み)*\n\n3. **10月12日（月）08:00** — [die Hausärzte](embed:die-haus-rzte-Di3)\n   - 住所: Stargarder Straße 69, 10437 Berlin\n   - 受診タイプ: 急患対応\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n4. **10月12日（月）08:00** — [Hermann Fondis](embed:hermann-fondis-d6N)\n   - 住所: Müllerstraße 36, 13353 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n5. **10月12日（月）08:10** — [Lubomir Rakita](embed:lubomir-rakita-UPM)\n   - 住所: Wallstraße 16, 10179 Berlin\n   - 受診タイプ: 初診（新患）\n   - 表示されている言語: ドイツ語、英語\n   - **保険:** 不明 *(予約ページに記載なし)*\n\n注意事項:\n- 「来週」というご希望に合わせて、**10月9日〜10日**のより早い日程の選択肢は上記の比較から除外しています。\n- これらの結果はExampleClinicAの掲載情報に基づいているようです。今回の検索結果ではExampleClinicBの情報は含まれていません。\n\n```embeds_results_view\ntitle: Earliest English-speaking GP appointments in Berlin next week\nembeds: hausarztpraxis-adlershof-dr-RRw, katrin-reimer-b-bKm, die-haus-rzte-Di3, hermann-fondis-d6N, lubomir-rakita-UPM\n```\n\nご希望であれば、次に以下のことが可能です：\n- 確認済みの**公的保険のみ**に絞り込む\n- **地区や現在地からの距離**で絞り込んだリストを作成する\n---\n*⚠️ これは情報提供のみを目的としており、医学的アドバイスではありません。医療上の判断については医師にご相談ください。*"
       },
       "follow_up_1": {
         "text": "ミッテ区で公的保険適用の一般医の予約を検索する"
@@ -9055,10 +9052,10 @@
         "text": "Find TI buck converter options for a 24V-to-5V electronics project."
       },
       "message_1": {
-        "text": "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
+        "text": "Find matching Example Components buck converters for 24 volts input to 5 volts output at 3 amps."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"bf56c645-032a-431d-91ae-8e562b5c2ab0\", \"app_id\": \"electronics\", \"skill_id\": \"search_components\"}\n```\n\nFor your 24V to 5V, 3A design, several Example Components buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.\n\n### Top Recommendations\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"b3f95aa4-ddc7-4bff-b878-381c47a7c9fd\"}\n```\n\n\n---\n\n### Detailed Options\n\n[!](embed:tps543021drlr-buck-zO8)\nThe TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.\n\n[!](embed:lmr604303srakr-buck-XEz)\nIf your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.\n\n[!](embed:tpsm84338rcjr-buck-Swx)\nFor rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.\n\n### Design Considerations\n*   **Voltage Margin:** If your \"24V\" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.\n*   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.\n\nWhich of these factors is most important for your project: cost, ease of assembly, or high reliability?\n\n**Next Steps:**\n*   Would you like to see a reference schematic for one of these parts?\n*   Do you need help calculating the inductor and capacitor values for the discrete options?"
       }
     },
     "building_maintenance_email": {
@@ -9380,7 +9377,7 @@
         "text": "来週ベルリンで開催されるクリエイティビティ／ドローイング関連のミートアップは？"
       },
       "assistant_message_1": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2adf55c0-1e78-42f4-88b3-ce0bff942110\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"drawing meetup\", \"provider\": \"Meetup\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"65f0886d-e9aa-4ae0-8fbe-928b3fd44274\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"creativity workshop\", \"provider\": \"Meetup\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"21ca5a92-705a-46c2-b6f8-a5cfd030dc14\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"art sketching meetup\", \"provider\": \"Meetup\"}\n```\n\nベルリンには活気あるクリエイティブシーンがあり、来週（2026年4月13日〜19日）にはいくつかのドローイング・アート関連ミートアップが予定されています。ハイライトをご紹介します：\n\n### 月曜日、4月13日\n*   **[Open Draw](embed:open-draw-iPc)**（18:00 – 21:00）Offenes Wohnzimmer, Moabitにて。デッサン、ペインティング、交流のためのリラックスした夕べ。木炭、水彩、アクリル絵の具などの画材が用意されています。\n*   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)**（18:00 – 19:30）Friedrichshainにて。ウェット・オン・ウェットや色の混合など基本テクニックに焦点を当てた練習グループ。\n\n### 火曜日、4月14日\n*   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)**（18:00 – 19:30）Studio Good, Prenzlauer Bergにて。参加者がドローイングをローテーションして共同作品を制作し、その後個別の版画制作を行うユニークなセッション。\n*   **[Lino Café](embed:lino-caf-51i)**（18:00 – 20:00）kunstraum heartspace, Prenzlauer Bergにて。あらゆるレベルのリノカット愛好家のためのクリエイティブスペース。\n*   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)**（18:00 – 19:30）Friedrichshainにて。科学と想像力を融合させ、水彩で人体を探求するワークショップ。\n*   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)**（18:15 – 21:45）Wilhelmine-Gemberg-Weg付近にて。参加者がデッサンとモデルの両方を行える、敬意あるクィアフレンドリーな雰囲気のインティメートなセッション。\n*   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)**（18:30 – 21:30）PAKD Gallery, Lichtenbergにて。遠近法、光と影をカバーする写実的鉛筆画のステップバイステップコース。\n*   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)**（18:45 – 21:45）同じくPAKD Galleryにて。写実的油彩画のアカデミックな伝統に焦点。\n*   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)**（20:00 – 22:00）Friedrichshainにて。プレッシャーのない、罪悪感のないクリエイティブスペース。様々な画材が用意されています。\n\n### 木曜日、4月16日\n*   **[Improv Thursdays](embed:improv-thursdays-zos)**（18:30 – 20:30）Theatre Pool, Friedrichshainにて。厳密にはドローイングではありませんが、このセッションはシアターゲームを通じた即興的な創造性とストーリーテリングに焦点を当てています。\n\n### オンライン / コワーキング\n他の人と一緒に自分のクリエイティブプロジェクトに取り組みたい場合、Artists and Creatives Co-workingグループが主催する**[月曜日](embed:creatives-co-working-LpA)**と**[水曜日](embed:creatives-co-working-kZe)**（15:00 – 17:00）のコワーキングセッションがあります。\n\nこれらのイベントの詳細や、別の種類のクリエイティブ活動をお知りになりたいですか？\n\n**提案：**\n*   [ベルリンの週末アート展覧会を検索](/#settings/apps/web)\n*   [お近くの画材店を探す](/#settings/apps/maps)"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"2adf55c0-1e78-42f4-88b3-ce0bff942110\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"drawing Gathering\", \"provider\": \"Gathering\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"65f0886d-e9aa-4ae0-8fbe-928b3fd44274\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"creativity workshop\", \"provider\": \"Gathering\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"21ca5a92-705a-46c2-b6f8-a5cfd030dc14\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"art sketching Gathering\", \"provider\": \"Gathering\"}\n```\n\nベルリンには活気あるクリエイティブシーンがあり、来週（2026年4月13日〜19日）にはいくつかのドローイング・アート関連ミートアップが予定されています。ハイライトをご紹介します：\n\n### 月曜日、4月13日\n*   **[Open Draw](embed:open-draw-iPc)**（18:00 – 21:00）Offenes Wohnzimmer, Moabitにて。デッサン、ペインティング、交流のためのリラックスした夕べ。木炭、水彩、アクリル絵の具などの画材が用意されています。\n*   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)**（18:00 – 19:30）Friedrichshainにて。ウェット・オン・ウェットや色の混合など基本テクニックに焦点を当てた練習グループ。\n\n### 火曜日、4月14日\n*   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)**（18:00 – 19:30）Studio Good, Prenzlauer Bergにて。参加者がドローイングをローテーションして共同作品を制作し、その後個別の版画制作を行うユニークなセッション。\n*   **[Lino Café](embed:lino-caf-51i)**（18:00 – 20:00）kunstraum heartspace, Prenzlauer Bergにて。あらゆるレベルのリノカット愛好家のためのクリエイティブスペース。\n*   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)**（18:00 – 19:30）Friedrichshainにて。科学と想像力を融合させ、水彩で人体を探求するワークショップ。\n*   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)**（18:15 – 21:45）Wilhelmine-Gemberg-Weg付近にて。参加者がデッサンとモデルの両方を行える、敬意あるクィアフレンドリーな雰囲気のインティメートなセッション。\n*   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)**（18:30 – 21:30）PAKD Gallery, Lichtenbergにて。遠近法、光と影をカバーする写実的鉛筆画のステップバイステップコース。\n*   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)**（18:45 – 21:45）同じくPAKD Galleryにて。写実的油彩画のアカデミックな伝統に焦点。\n*   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)**（20:00 – 22:00）Friedrichshainにて。プレッシャーのない、罪悪感のないクリエイティブスペース。様々な画材が用意されています。\n\n### 木曜日、4月16日\n*   **[Improv Thursdays](embed:improv-thursdays-zos)**（18:30 – 20:30）Theatre Pool, Friedrichshainにて。厳密にはドローイングではありませんが、このセッションはシアターゲームを通じた即興的な創造性とストーリーテリングに焦点を当てています。\n\n### オンライン / コワーキング\n他の人と一緒に自分のクリエイティブプロジェクトに取り組みたい場合、Artists and Creatives Co-workingグループが主催する**[月曜日](embed:creatives-co-working-LpA)**と**[水曜日](embed:creatives-co-working-kZe)**（15:00 – 17:00）のコワーキングセッションがあります。\n\nこれらのイベントの詳細や、別の種類のクリエイティブ活動をお知りになりたいですか？\n\n**提案：**\n*   [ベルリンの週末アート展覧会を検索](/#settings/apps/web)\n*   [お近くの画材店を探す](/#settings/apps/maps)"
       },
       "follow_up_1": {
         "text": "今週のベルリンの陶芸・陶器ワークショップを探す"
@@ -9540,7 +9537,7 @@
         "text": "なぜEU Chat Control法はこれほど強く批判されているのですか？"
       },
       "assistant_message_1": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"97185edd-fc4c-4a98-bb4c-54cda1417200\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"EU Chat Control law criticisms and current status April 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"860ffdf6-9732-467f-be1a-267076d132fc\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"EU CSA Regulation encryption privacy concerns experts\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5f5366cb-e519-4787-9536-2bf0785669cc\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"EU Chat Control protest privacy\", \"provider\": \"Brave\"}\n```\n\n「Chat Control」提案（正式名称：**EU児童性的虐待（CSA）規則**）は、欧州史上最も論争的なデジタル立法の一つとなっています。表向きの目標は児童性的虐待への対処ですが、批判者たちは提案されている手法がインターネットのセキュリティとプライバシーの基盤を根本的に破壊すると主張しています。\n\n**2026年4月**現在、この議論は重大な転換点に達しています。テクノロジー企業がメッセージを自発的にスキャンすることを許可していた一時的なルール（**Chat Control 1.0**）は、[欧州議会が3月に延長を拒否した](embed:stateofsurveillance.org-dRV)後、**2026年4月3日**に失効しました。\n\n### 批判がこれほど激しい理由\n\n強い批判は、安全目標とデジタル権利の間にある根本的な対立から生じています：\n\n#### 1. 暗号化への「バックドア」\n最も重要な批判は**エンドツーエンド暗号化（E2EE）**に関するものです。SignalやWhatsAppのようなサービスはE2EEを使用し、送信者と受信者だけがメッセージを読めるようにしています。\n*   **対立点：** これらのメッセージを違法コンテンツについてスキャンするため、EUは**「クライアントサイドスキャニング」**を提案しました——暗号化されて送信される*前*に写真やテキストを確認する、スマートフォン上のソフトウェアです。\n*   **批判：** セキュリティ専門家や[プライバシー擁護者](embed:globalencryption.org-83i)は、これが事実上「バックドア」を作ることになると主張しています。このような仕組みが存在すれば、ハッカーや外国情報機関、または将来の権威主義的政府によってあらゆる種類の通信を監視するために悪用される可能性があります。\n\n#### 2. 大規模監視への転換\n[欧州のデジタル権利団体](embed:fightchatcontrol.eu-YsN)を含む批判者たちは、この法律が「標的を絞った疑惑」（特定の犯罪者を調査すること）から「一般化された監視」（全員のプライベートな生活をスキャンすること）へと移行していると主張しています。\n*   **批判：** これはすべての市民を潜在的な容疑者として扱います。[欧州人権裁判所](embed:globalencryption.org-83i)は以前、*Podchasov v. Russia*のような事件において、大規模監視を可能にするための暗号化の弱体化は基本的権利の不均衡な侵害であると判決を下しています。\n\n#### 3. 技術的信頼性の欠如（「誤検知」問題）\nこの提案は、新たな児童虐待素材と「グルーミング」（捕食的行動）の検出にAIを大きく依存しています。\n*   **批判：** AIは完璧ではありません。独立した[研究では高いエラー率が指摘されており](embed:en.wikipedia.org-Fav)、医師に子どもの入浴写真を送る親や、合意のある画像を共有する十代の若者などの合法的なコンテンツがフラグを立てられて自動的に警察に送られる可能性があります。これは無実の家族のプライバシーを侵害しながら、法執行機関を「ノイズ」で圧倒することになりかねません。\n\n#### 4. リスクグループの脆弱性\n皮肉なことに、多くの批判者は、この法律が保護しようとしている人々そのものを傷つける可能性があると指摘しています。\n*   **批判：** プライバシーと暗号化は、内部告発者、ジャーナリスト、家庭内暴力または政治的迫害の被害者にとって不可欠です。これらのアプリのセキュリティが弱体化されれば、脆弱なグループは連絡を取り合い助けを求めるための安全な場所を失います。\n\n### 対立の概要\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a\"}\n```\n\n\n[!](embed:reddit.com-exI)\n[!](embed:atomicmail.io-wgi)\n[!](embed:protectstar.com-2pG)\n\n### 現在の状況（2026年4月）\n今月初め[自発的スキャンルールが失効した](embed:stateofsurveillance.org-Nsm)後、MetaやGoogleのようなプラットフォームは現在EU内で個人メッセージをスキャンする法的根拠を持っていません。戦いは今、このスキャンを義務化しようとする試みである**「Chat Control 2.0」**へと移っています。EU加盟国間の交渉は続いており、多くの国がプライベートな通信の核心的原則を犠牲にせずに子どもの安全を達成できるかどうかについて、依然として深く分断されています。\n\n**あなたはどう思いますか？** プライバシーが守られた暗号化通信の権利は絶対的であるべきでしょうか、それとも公共の安全のためにバイパスされるべき特定の状況があると思いますか？\n\n法律上の議論をより深く調べたい場合は、[欧州議会の公式文書](embed:europarl.europa.eu-xqu)を確認するか、[EDRi](https://edri.org)のようなデジタル権利追跡機関を探索できます。\n\n**次のことについてもっと知りたいですか：**\n1. **クライアントサイドスキャニング**は技術的にどのように機能しますか？\n2. 現在どのEU諸国が強制法を[支持または反対](embed:reddit.com-sFU)していますか？\n---\n*⚠️ これは教育目的の情報であり、法的助言ではありません。法的助言については弁護士にご相談ください。*"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"97185edd-fc4c-4a98-bb4c-54cda1417200\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"EU Chat Control law criticisms and current status April 2026\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"860ffdf6-9732-467f-be1a-267076d132fc\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"EU CSA Regulation encryption privacy concerns experts\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5f5366cb-e519-4787-9536-2bf0785669cc\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"EU Chat Control protest privacy\", \"provider\": \"Brave\"}\n```\n\n「Chat Control」提案（正式名称：**EU児童性的虐待（CSA）規則**）は、欧州史上最も論争的なデジタル立法の一つとなっています。表向きの目標は児童性的虐待への対処ですが、批判者たちは提案されている手法がインターネットのセキュリティとプライバシーの基盤を根本的に破壊すると主張しています。\n\n**2026年4月**現在、この議論は重大な転換点に達しています。テクノロジー企業がメッセージを自発的にスキャンすることを許可していた一時的なルール（**Chat Control 1.0**）は、[欧州議会が3月に延長を拒否した](embed:stateofsurveillance.org-dRV)後、**2026年4月3日**に失効しました。\n\n### 批判がこれほど激しい理由\n\n強い批判は、安全目標とデジタル権利の間にある根本的な対立から生じています：\n\n#### 1. 暗号化への「バックドア」\n最も重要な批判は**エンドツーエンド暗号化（E2EE）**に関するものです。SignalやWhatsAppのようなサービスはE2EEを使用し、送信者と受信者だけがメッセージを読めるようにしています。\n*   **対立点：** これらのメッセージを違法コンテンツについてスキャンするため、EUは**「クライアントサイドスキャニング」**を提案しました——暗号化されて送信される*前*に写真やテキストを確認する、スマートフォン上のソフトウェアです。\n*   **批判：** セキュリティ専門家や[プライバシー擁護者](embed:globalencryption.org-83i)は、これが事実上「バックドア」を作ることになると主張しています。このような仕組みが存在すれば、ハッカーや外国情報機関、または将来の権威主義的政府によってあらゆる種類の通信を監視するために悪用される可能性があります。\n\n#### 2. 大規模監視への転換\n[欧州のデジタル権利団体](embed:fightchatcontrol.eu-YsN)を含む批判者たちは、この法律が「標的を絞った疑惑」（特定の犯罪者を調査すること）から「一般化された監視」（全員のプライベートな生活をスキャンすること）へと移行していると主張しています。\n*   **批判：** これはすべての市民を潜在的な容疑者として扱います。[欧州人権裁判所](embed:globalencryption.org-83i)は以前、*Podchasov v. Russia*のような事件において、大規模監視を可能にするための暗号化の弱体化は基本的権利の不均衡な侵害であると判決を下しています。\n\n#### 3. 技術的信頼性の欠如（「誤検知」問題）\nこの提案は、新たな児童虐待素材と「グルーミング」（捕食的行動）の検出にAIを大きく依存しています。\n*   **批判：** AIは完璧ではありません。独立した[研究では高いエラー率が指摘されており](embed:en.wikipedia.org-Fav)、医師に子どもの入浴写真を送る親や、合意のある画像を共有する十代の若者などの合法的なコンテンツがフラグを立てられて自動的に警察に送られる可能性があります。これは無実の家族のプライバシーを侵害しながら、法執行機関を「ノイズ」で圧倒することになりかねません。\n\n#### 4. リスクグループの脆弱性\n皮肉なことに、多くの批判者は、この法律が保護しようとしている人々そのものを傷つける可能性があると指摘しています。\n*   **批判：** プライバシーと暗号化は、内部告発者、ジャーナリスト、家庭内暴力または政治的迫害の被害者にとって不可欠です。これらのアプリのセキュリティが弱体化されれば、脆弱なグループは連絡を取り合い助けを求めるための安全な場所を失います。\n\n### 対立の概要\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a\"}\n```\n\n\n[!](embed:ExampleCommunity.com-exI)\n[!](embed:atomicmail.io-wgi)\n[!](embed:protectstar.com-2pG)\n\n### 現在の状況（2026年4月）\n今月初め[自発的スキャンルールが失効した](embed:stateofsurveillance.org-Nsm)後、MetaやGoogleのようなプラットフォームは現在EU内で個人メッセージをスキャンする法的根拠を持っていません。戦いは今、このスキャンを義務化しようとする試みである**「Chat Control 2.0」**へと移っています。EU加盟国間の交渉は続いており、多くの国がプライベートな通信の核心的原則を犠牲にせずに子どもの安全を達成できるかどうかについて、依然として深く分断されています。\n\n**あなたはどう思いますか？** プライバシーが守られた暗号化通信の権利は絶対的であるべきでしょうか、それとも公共の安全のためにバイパスされるべき特定の状況があると思いますか？\n\n法律上の議論をより深く調べたい場合は、[欧州議会の公式文書](embed:europarl.europa.eu-xqu)を確認するか、[EDRi](https://edri.org)のようなデジタル権利追跡機関を探索できます。\n\n**次のことについてもっと知りたいですか：**\n1. **クライアントサイドスキャニング**は技術的にどのように機能しますか？\n2. 現在どのEU諸国が強制法を[支持または反対](embed:ExampleCommunity.com-sFU)していますか？\n---\n*⚠️ これは教育目的の情報であり、法的助言ではありません。法的助言については弁護士にご相談ください。*"
       },
       "follow_up_1": {
         "text": "[ai] クライアントサイドスキャニングの技術的な詳細を説明して"
@@ -9616,7 +9613,7 @@
         "text": "EquafyとCadenceoについて、.comの空き状況と提示価格、ウェブ上の既存ブランド、および米国の商標をチェックしてください。比較は簡潔にまとめ、おすすめと、まだ済んでいないチェック項目も教えてください。"
       },
       "message_6": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n2026年10月12日に実施された調査に基づく比較結果は以下の通りです。\n\n### Equafy\n- **ドメイン**: `equafy.com` は現在 Gandi で利用できません。標準の登録価格が不明なため、年間20ユーロの予算内には収まりません。\n- **ウェブおよびブランドの状況**: この正確な名称を使用している著名な予算管理ソフトはありませんが、ウェブ検索では [Equifax のパーソナルファイナンスサービス](embed:equifax.com-TrW) との発音が酷似しており、検索結果の混同が見られます。\n- **米国商標 (USPTO)**: 予備調査では 1,640 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。有効な一致項目には、第36類（申請中の金融およびバリューカードサービス）の `EQUIFY` や、第35類（登録済みのオークションサービス）が含まれます。\n\n### Cadenceo\n- **ドメイン**: `cadenceo.com` は現在 Gandi で利用できません。標準の登録価格が不明なため、年間20ユーロの予算要件を満たしません。\n- **ウェブおよびブランドの状況**: 米国およびカナダで iOS、Android、ウェブ向けに展開されている、実績のあるパーソナルファイナンス・予算管理アプリ [Cadence Money](embed:cadencemoney.com-IcE) と直接重複しています。\n- **米国商標 (USPTO)**: 予備調査では 227 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。`CADENCE` の有効な一致項目には、第9類のダウンロード可能なソフトウェアのレコードが含まれます。\n\n---\n\n### 推奨事項とトレードオフ\n- **方針**: 両方とも見送る。**Equafy** は **Cadenceo**（*Cadence Money* と直接競合）よりも直接的なアプリの競合は少ないものの、どちらも年間20ユーロ以内で利用可能な `.com` ドメインがなく、Equafy は *Equify* や *Equifax* といった既存の金融関連商標と発音が混同される恐れがあります。\n- **未実施の調査**: 米国以外の国際商標登録、コモン・ローに基づく州の商標登録、およびドメインの二次市場での買収査定は調査に含まれていません。\n\n他の候補（**Solowell** や **StillLedger** など）のドメインの空き状況や権利関係を調査しますか？あるいは、予算内で利用可能な `.com` を見つけるために、少し変えた複合名の案を探りますか？\n\n- [Solowell と StillLedger を確認する](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20ユーロ以下で .com が取得可能な複合名を考案する](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"6299b856-3312-4cb4-8a84-71e22f4e79ec\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"e7667416-87b3-4b90-91fc-d2de3c033c25\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9ff39ced-3c97-4d35-81a7-327d91a80038\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d716542e-e785-43b1-9b0c-5b4a5dbb416d\",\"app_id\":\"web\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bb1485ff-f3bc-44a3-85bb-394c8e8fad35\",\"app_id\":\"business\",\"skill_id\":\"search_trademarks\"}\n```\n\n2026年10月12日に実施された調査に基づく比較結果は以下の通りです。\n\n### Equafy\n- **ドメイン**: `equafy.com` は現在 ExampleRegistrar で利用できません。標準の登録価格が不明なため、年間20ユーロの予算内には収まりません。\n- **ウェブおよびブランドの状況**: この正確な名称を使用している著名な予算管理ソフトはありませんが、ウェブ検索では [Equifax のパーソナルファイナンスサービス](embed:equifax.com-TrW) との発音が酷似しており、検索結果の混同が見られます。\n- **米国商標 (ExampleTrademarks)**: 予備調査では 1,640 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。有効な一致項目には、第36類（申請中の金融およびバリューカードサービス）の `EQUIFY` や、第35類（登録済みのオークションサービス）が含まれます。\n\n### Cadenceo\n- **ドメイン**: `cadenceo.com` は現在 ExampleRegistrar で利用できません。標準の登録価格が不明なため、年間20ユーロの予算要件を満たしません。\n- **ウェブおよびブランドの状況**: 米国およびカナダで iOS、Android、ウェブ向けに展開されている、実績のあるパーソナルファイナンス・予算管理アプリ [Cadence Money](embed:cadencemoney.com-IcE) と直接重複しています。\n- **米国商標 (ExampleTrademarks)**: 予備調査では 227 件の類似レコードのうち 5 件が返されました（一部表示。正確な名称の不在は確定できません）。`CADENCE` の有効な一致項目には、第9類のダウンロード可能なソフトウェアのレコードが含まれます。\n\n---\n\n### 推奨事項とトレードオフ\n- **方針**: 両方とも見送る。**Equafy** は **Cadenceo**（*Cadence Money* と直接競合）よりも直接的なアプリの競合は少ないものの、どちらも年間20ユーロ以内で利用可能な `.com` ドメインがなく、Equafy は *Equify* や *Equifax* といった既存の金融関連商標と発音が混同される恐れがあります。\n- **未実施の調査**: 米国以外の国際商標登録、コモン・ローに基づく州の商標登録、およびドメインの二次市場での買収査定は調査に含まれていません。\n\n他の候補（**Solowell** や **StillLedger** など）のドメインの空き状況や権利関係を調査しますか？あるいは、予算内で利用可能な `.com` を見つけるために、少し変えた複合名の案を探りますか？\n\n- [Solowell と StillLedger を確認する](/#message=Check%20Solowell%20and%20StillLedger%20for%20domain%20availability%2C%20brands%2C%20and%20US%20trademarks.)\n- [20ユーロ以下で .com が取得可能な複合名を考案する](/#message=Brainstorm%20calm%20freelancer%20budgeting%20names%20with%20available%20.com%20domains%20under%20%E2%82%AC20.)"
       },
       "follow_up_1": {
         "text": "SolowellとStillLedgerのドメイン空き状況と商標を確認する"
@@ -9680,7 +9677,7 @@
         "text": "ベルリンでバルコニー付きの賃貸アパートを探しています。できれば川や湖の近くで、月額1,800ユーロ以下、2部屋以上の物件が理想です。いくつかの物件を、フォトギャラリーや地図上の位置を含めて比較できますか？賃料、契約期間、水辺へのアクセスなど、物件情報で確定していることと不明なことを区別してください。業者がおおよその位置しか提供していない場合や、写真が不完全な場合は、その旨を明記してください。詳細が欠けている場合でも、可能性として明確にラベル付けされていれば歓迎します。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\n以下は、ベルリン市内の月額1,800ユーロ以下、バルコニー付き2部屋賃貸アパートの比較分析です。バルコニーの有無、水辺への近接性やその主張に焦点を当て、確認済みの事実と不明瞭な点を明らかにします。\n\nベルリンのバルコニー付き2部屋賃貸アパート\n\n---\n\n### 概要比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### 物件詳細プロファイル\n\n#### 1. [バルコニー付き2部屋ロフトアパート、リングバーン近く](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **家賃と費用**: 共益費込み家賃（Warmmiete）は月額**1,350ユーロ**と明記されています。内訳は冷家賃（Kaltmiete）1,200ユーロと、詳細不明の追加費用150ユーロです。暖房費が含まれているかの詳細は不明です。敷金は2,000ユーロです。\n* **賃貸条件**: 期間限定の転貸。データ上は2026年11月1日から2027年4月1日までとなっていますが、説明文では確定期間は**2026年11月1日から12月28日**までであり、その後は相互の合意により2027年4月1日まで月単位で延長可能とされています。\n* **バルコニーの証拠**: 確認済み。設備リストと本文に明記されています（「フェンプフール公園を望む日当たりの良いバルコニー」）。14枚の写真のうち3枚をサンプルとして確認し、インデックス0の写真でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: リヒテンベルク区のアントン・ゼーフコウ・プラッツに位置。番地なしの通りレベルでジオコーディングされています。OpenStreetMapデータで水辺（**フェンプフール**、公園内の湖）を確認しましたが、代表座標のみです。正確な岸までの距離や徒歩分数は算出されていないため、未検証です。\n\n---\n\n#### 2. [マイバッハ・ウーファー沿い、2つのバルコニー付き家具付き2部屋アパート](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **家賃と費用**: 月額**1,800ユーロ**の定額オールインクルーシブとして広告されています（冷家賃・共益費込み家賃ともに1,800ユーロと入力されています）。公共料金、暖房費、電気代の内訳はありません。敷金は1,000ユーロです。\n* **賃貸条件と範囲の不一致**:\n  * *日付の矛盾*: データ項目では2026年10月21日から2027年5月3日までとなっています。しかし、ドイツ語の本文では11月11日から2ヶ月間と明記されており、さらにその下の英語翻訳では「11月6日から4〜6ヶ月」と記載されています。\n  * *部屋の制限*: オーナーの荷物部屋（Sperrraum）は施錠され、レンタル対象から除外されるとの注記があります。ただし、使用可能な残りのスペースは85㎡の2部屋として説明されています。\n* **バルコニーの証拠**: 確認済み。2つのバルコニー（中庭側と水辺側）があるとされています。15枚中3枚の写真を確認し、写真0と14でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: 住所は[ノイケルン](wiki:Neukölln)のマイバッハ・ウーファー。ジオコーディング結果が曖昧で、ベルリン市全域の座標にフォールバックされました。本文では[ラントヴェーア運河](wiki:Landwehr_Canal)が直接見えると明記されていますが、座標の不備により近隣距離や徒歩ルートの幾何学的検証はできませんでした。\n\n---\n\n#### 3. [限定共用スペース付き2部屋アパート（Momento Berlin）](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **家賃と費用**: 共益費込み家賃は**月額1,372ユーロ**からで、運営費130ユーロ、暖房費105ユーロの内訳があります。冷家賃の基本額は省略されており、説明文にはこれがキャンペーン価格の最低開始家賃である旨が記載されています。電気代は入居者が個別に契約する必要があります。\n* **賃貸条件**: 商業事業者による新築物件（2026年新築入居）。**最低賃貸期間12ヶ月**が必要です。開始日は未定です（毎週水・木に内覧実施）。\n* **バルコニーの証拠**: 説明文（「einen Balkon」）および属性で確認済み。27枚中3枚の写真を確認したところ、インデックス26の写真で外側のバルコニー構造を確認しました。\n* **水辺へのアクセスと立地**: ノイケルン／[ブリッツ](wiki:Britz)地区のBuschkrugallee 64に位置。提供された座標に基づいており、通りの独立した検証は行われていません。説明文には運河（ノイケルン船舶運河）に隣接しているとの記載がありますが、正確な岸までの距離やアクセス地点は算出されていません。\n\n---\n\n#### 4. [シャルロッテンブルクの転貸用2部屋アパート](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **家賃と費用**: 共益費込み家賃は**月額980ユーロ**で広告されています。説明文に「共益費：月額270ユーロ」とありますが、これが980ユーロに含まれているのか、別途請求されるのかは不明です。敷金は1,500ユーロです。\n* **物件全体か個室かの重大な曖昧さ**: タイトルは「2部屋アパート...転貸」となっていますが、本文は「バルコニー付きの素敵で静かな家具付きの個室（Zimmer）を貸し出します...」で始まっています。50㎡の2部屋アパート全体が転貸されるのか、その中の1部屋のみなのかは不明です。\n* **バルコニーの証拠**: 目視未確認。タイトルと本文にはバルコニーありと記載されていますが、写真は1枚のみで、その写真にバルコニーは写っていません。\n* **水辺へのアクセスと立地**: 14057 [シャルロッテンブルク](wiki:Charlottenburg)に位置。提供者は通り名や番地を指定していません（郵便番号レベルの精度のみ）。説明文にはリーツェンゼー公園（リーツェンゼー湖がある）まで徒歩圏内との記載がありますが、住所不明のため正確なルートや距離は算出できません。\n* **賃貸条件**: 2026年11月1日から最長2027年11月1日までの期間限定転貸（短期間の相談可）。\n\n---\n\n### 問い合わせ前の重要ポイント\n1. **水辺の検証**: マイバッハ・ウーファーの物件のみが部屋から直接水辺を望めると明記していますが、座標は概算であり日付に矛盾があります。アントン・ゼーフコウ・プラッツの物件はフェンプフール公園への近接が確認されていますが、正確な距離は未測定です。\n2. **賃貸形態**: WG-Gesuchtの掲載物件はいずれも無期限（unbefristet）ではなく、期間限定の転貸です。Momento Berlinは最低12ヶ月からの長期賃貸を提供しています。\n3. **写真確認の制限**: 目視による評価は、各物件1〜3枚の限定的なサンプル画像に基づいています。各物件カードからアクセスできるフルギャラリーには、追加の設備が写っている可能性があります。\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\n以下は、ベルリン市内の月額1,800ユーロ以下、バルコニー付き2部屋賃貸アパートの比較分析です。バルコニーの有無、水辺への近接性やその主張に焦点を当て、確認済みの事実と不明瞭な点を明らかにします。\n\nベルリンのバルコニー付き2部屋賃貸アパート\n\n---\n\n### 概要比較\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### 物件詳細プロファイル\n\n#### 1. [バルコニー付き2部屋ロフトアパート、リングバーン近く](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **家賃と費用**: 共益費込み家賃（Warmmiete）は月額**1,350ユーロ**と明記されています。内訳は冷家賃（Kaltmiete）1,200ユーロと、詳細不明の追加費用150ユーロです。暖房費が含まれているかの詳細は不明です。敷金は2,000ユーロです。\n* **賃貸条件**: 期間限定の転貸。データ上は2026年11月1日から2027年4月1日までとなっていますが、説明文では確定期間は**2026年11月1日から12月28日**までであり、その後は相互の合意により2027年4月1日まで月単位で延長可能とされています。\n* **バルコニーの証拠**: 確認済み。設備リストと本文に明記されています（「フェンプフール公園を望む日当たりの良いバルコニー」）。14枚の写真のうち3枚をサンプルとして確認し、インデックス0の写真でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: リヒテンベルク区のアントン・ゼーフコウ・プラッツに位置。番地なしの通りレベルでジオコーディングされています。OpenStreetMapデータで水辺（**フェンプフール**、公園内の湖）を確認しましたが、代表座標のみです。正確な岸までの距離や徒歩分数は算出されていないため、未検証です。\n\n---\n\n#### 2. [マイバッハ・ウーファー沿い、2つのバルコニー付き家具付き2部屋アパート](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **家賃と費用**: 月額**1,800ユーロ**の定額オールインクルーシブとして広告されています（冷家賃・共益費込み家賃ともに1,800ユーロと入力されています）。公共料金、暖房費、電気代の内訳はありません。敷金は1,000ユーロです。\n* **賃貸条件と範囲の不一致**:\n  * *日付の矛盾*: データ項目では2026年10月21日から2027年5月3日までとなっています。しかし、ドイツ語の本文では11月11日から2ヶ月間と明記されており、さらにその下の英語翻訳では「11月6日から4〜6ヶ月」と記載されています。\n  * *部屋の制限*: オーナーの荷物部屋（Sperrraum）は施錠され、レンタル対象から除外されるとの注記があります。ただし、使用可能な残りのスペースは85㎡の2部屋として説明されています。\n* **バルコニーの証拠**: 確認済み。2つのバルコニー（中庭側と水辺側）があるとされています。15枚中3枚の写真を確認し、写真0と14でバルコニーを確認しました。\n* **水辺へのアクセスと立地**: 住所は[ノイケルン](wiki:Neukölln)のマイバッハ・ウーファー。ジオコーディング結果が曖昧で、ベルリン市全域の座標にフォールバックされました。本文では[ラントヴェーア運河](wiki:Landwehr_Canal)が直接見えると明記されていますが、座標の不備により近隣距離や徒歩ルートの幾何学的検証はできませんでした。\n\n---\n\n#### 3. [限定共用スペース付き2部屋アパート（Momento Berlin）](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **家賃と費用**: 共益費込み家賃は**月額1,372ユーロ**からで、運営費130ユーロ、暖房費105ユーロの内訳があります。冷家賃の基本額は省略されており、説明文にはこれがキャンペーン価格の最低開始家賃である旨が記載されています。電気代は入居者が個別に契約する必要があります。\n* **賃貸条件**: 商業事業者による新築物件（2026年新築入居）。**最低賃貸期間12ヶ月**が必要です。開始日は未定です（毎週水・木に内覧実施）。\n* **バルコニーの証拠**: 説明文（「einen Balkon」）および属性で確認済み。27枚中3枚の写真を確認したところ、インデックス26の写真で外側のバルコニー構造を確認しました。\n* **水辺へのアクセスと立地**: ノイケルン／[ブリッツ](wiki:Britz)地区のBuschkrugallee 64に位置。提供された座標に基づいており、通りの独立した検証は行われていません。説明文には運河（ノイケルン船舶運河）に隣接しているとの記載がありますが、正確な岸までの距離やアクセス地点は算出されていません。\n\n---\n\n#### 4. [シャルロッテンブルクの転貸用2部屋アパート](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **家賃と費用**: 共益費込み家賃は**月額980ユーロ**で広告されています。説明文に「共益費：月額270ユーロ」とありますが、これが980ユーロに含まれているのか、別途請求されるのかは不明です。敷金は1,500ユーロです。\n* **物件全体か個室かの重大な曖昧さ**: タイトルは「2部屋アパート...転貸」となっていますが、本文は「バルコニー付きの素敵で静かな家具付きの個室（Zimmer）を貸し出します...」で始まっています。50㎡の2部屋アパート全体が転貸されるのか、その中の1部屋のみなのかは不明です。\n* **バルコニーの証拠**: 目視未確認。タイトルと本文にはバルコニーありと記載されていますが、写真は1枚のみで、その写真にバルコニーは写っていません。\n* **水辺へのアクセスと立地**: 14057 [シャルロッテンブルク](wiki:Charlottenburg)に位置。提供者は通り名や番地を指定していません（郵便番号レベルの精度のみ）。説明文にはリーツェンゼー公園（リーツェンゼー湖がある）まで徒歩圏内との記載がありますが、住所不明のため正確なルートや距離は算出できません。\n* **賃貸条件**: 2026年11月1日から最長2027年11月1日までの期間限定転貸（短期間の相談可）。\n\n---\n\n### 問い合わせ前の重要ポイント\n1. **水辺の検証**: マイバッハ・ウーファーの物件のみが部屋から直接水辺を望めると明記していますが、座標は概算であり日付に矛盾があります。アントン・ゼーフコウ・プラッツの物件はフェンプフール公園への近接が確認されていますが、正確な距離は未測定です。\n2. **賃貸形態**: ExampleHousingCの掲載物件はいずれも無期限（unbefristet）ではなく、期間限定の転貸です。Momento Berlinは最低12ヶ月からの長期賃貸を提供しています。\n3. **写真確認の制限**: 目視による評価は、各物件1〜3枚の限定的なサンプル画像に基づいています。各物件カードからアクセスできるフルギャラリーには、追加の設備が写っている可能性があります。\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
       },
       "message_2_thinking": {
         "text": "**アパート検索パラメータの定義**\n\nベルリンの賃貸物件に関する正確な検索パラメータの定義を絞り込んでいます。都市をベルリンに指定し、リスティングタイプを「賃貸（rent）」、物件タイプを「アパート（apartment）」に制限しました。バルコニーは必須条件であるため、検索条件に確実に含まれるようにします。\n\n\n**検索条件の絞り込み**\n\n検索パラメータをさらに調整しました。「理想的には川や湖の近く」という要望を、水辺への近さの好みとして翻訳し、`neighborhood_categories: ['water']` に分類しました。「月額最大1,800ユーロ」という予算は、共益費込みの賃料（warm rent）であると想定し、`max_warm_rent_eur: 1800` として指定しました。さらに、「詳細が不明な場合でも、明確にラベル付けされた可能性のある物件は歓迎する」との指示に基づき、`include_unconfirmed: true` を含めて未確認のリスティングも明示的に対象とします。\n\n\n**検索要件の分析**\n\nこの住宅検索ツールのガイドラインを慎重に分析しています。自分の好みを、どのようにして正しい構造化フィルタと `relevance_criteria`（関連性基準）に変換するのが最善かに焦点を当てています。水辺への近さ、バルコニーの証拠、予算の制約に関する要件がすべて適切にエンコードされていることを確認する必要があります。また、検索において何が「必須（required）」、「除外（excluded）」、「優先（preferred）」であるかを明確に区別するようにしています。\n\n\n**リスティングデータの完全性の評価**\n\nデータの完全性について深く検討しています。視覚的な証拠を過剰に主張することを避け、各プロバイダーによる制限を明記しなければなりません。水辺への近さは確かな証拠に基づいている必要があり、情報の拡充が利用できない場合やタイムアウトした場合は「未検証（unverified）」として報告します。目に見えるバルコニーが必ずしもそのアパートに属しているとは限らないことを明確にし、リースの詳細は明示されている場合にのみ報告します。\n\n\n**リスティングデータの分析**\n\n現在、返されたリスティングを詳細に調査し、提供されたルールと照らし合わせて細かくチェックしています。確認済みのデータポイントと不確実な要素を明確に区別することに重点を置いています。賃料、リース期間、水辺へのアクセスなどの詳細に細心の注意を払い、曖昧な点があればフラグを立てています。目標はピンポイントの正確さです。\n\n\n**近接基準の明確化**\n\nニュアンスの異なる近接要件を統合しています。証拠における制限事項を慎重に文書化しています。検証済みの主張と未検証の情報を透明性を持って分離することに注力しています。文書化においては正確さを優先しています。何が検証済みの水辺へのアクセスを構成し、何がそうでないかを明確にしています。不確実なデータには明示的なラベル付けが必要であることを強調しています。\n\n\n**曖昧さに関するルールの洗練**\n\n不確実なデータポイントに関するルールの洗練に注力しています。水辺の特徴に関する言及がない場合は「不明」として報告し、近接性を推測しません。写真で確認できるバルコニーと、テキストによる確認を区別します。リース条件は、記載がある場合にのみ明示的に報告します。日付の矛盾や賃料の内訳の不一致を優先的に扱います。埋め込みプレビューカードをビューとして使用します。\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**結果形式の解釈**\n\n「embeds\\_results\\_view」レスポンスの構造に注目しています。「source\\_ref」がないことに気づきました。これは「sources」と「embeds」のどちらを正しく使用するかに影響します。source\\_ref が利用できない場合は「embeds」フィールドを使用し、返された子要素の embed\\_ref 値を具体的に参照するようにします。また、説明的な要素として「title」フィールドにも注意を払います。\n\n\n**リスティング詳細の検討**\n\n個々のリスティング、特に「環状線（Ringbahn）近くのバルコニー付き2部屋ロフトアパート」を詳しく調べています。このリスティングを埋め込みデータと照合しています。湖の眺望について言及されていますが、距離やアクセスが不明なため、水辺への近さは未検証であると記しています。確認済み事項と未検証事項を明確に区別することに重点を置いています。すべての不確実な要素を慎重に文書化しています。\n\n\n**リスティング詳細の評価**\n\n別のリスティングの評価を終えたところです。写真分析によりバルコニーの存在を確認しました。リース期間は一定期間の固定後に柔軟な延長が可能であるとされており、これを記録しました。詳細事項に集中しています。現在、関連するすべてのリスティング情報を完全に理解しようと努めています。\n```\n```\n\n**特定の属性の詳細化**\n\nこの特定のリスティングの詳細をまとめています。通りのジオコードが曖昧であり、これが水辺への近さの検証に影響していることを記しています。ラントヴェーア運河（Landwehrkanal）の眺望があるというテキスト上の主張は、幾何学的に検証できません。テキストと視覚的なチェックの両方でバルコニーの存在を確認しました。構造化データと説明テキストの間でリース日の矛盾があることを明示的にフラグ立てしています。\n\n\n**リスティングデータの評価**\n\n最新のリスティングを詳しく調べています。管理費抜きの賃料（cold rent）の欠落と、不正確な賃料の内訳にフラグを立てました。広告されている賃料は開始価格であるため、不明な最低価格について注記しました。プロジェクト内のアパートのサイズの幅が広く、リスティングのサイズがその範囲内にあるため、明確にする必要があります。場所の精度が未検証であるため、運河への近さが不確実であることにフラグを立てました。\n\n\n**リース詳細の解釈**\n\n最新のリスティングのリース情報とバルコニーの検証に焦点を当てています。テキストとサンプルの画像によりバルコニーの存在を確認しました。12ヶ月の最低リース期間と、データ内に明確な終了日がないことを注記しました。リスティングはバルコニー付きの家具付き個室（furnished room）ですが、タイトルには「2部屋アパート」とあるため、個室かアパートかという曖昧さの可能性を調査しています。すべての詳細に細心の注意を払っています。\n\n\n**リスティング詳細の分析**\n\n新しいリスティングを慎重に分析しています。そこにはバルコニー付きの家具付き個室と記載されています。「vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon（私たちの美しく静かなバルコニー付き家具付き個室を貸し出します）」というフレーズは重大な曖昧さを加えています。提供されたリスティングの1枚の写真にはバルコニーの確認が取れないため、フラグを立てました。住所が地区レベルのジオコードであるため、水辺への近さは曖昧です。リース期間は2026年11月1日から2027年11月1日までとなっています。\n\n\n**水辺に関する言及の比較**\n\nマイバッハ・ウーファー（Maybachufer）などの水辺の特徴に言及しているリスティングを比較し、その主張の正確さや固有のデータの違いを識別しています。それらの証拠と網羅性を確認しています。ユーザーからリクエストされた正確な詳細に焦点を当てています。データにおける不確実性や制限事項があればフラグを立てます。\n\n\n**賃料内訳の検証**\n\n賃料の数値の不一致に焦点を当てています。矛盾する数値の調整を優先し、項目化されていないコストを報告し、暖房費が含まれているか不明であることを明示的に記しています。また、インラインの埋め込み参照を調べ、表示テキストが決して embed\\_ref にならないように確認しています。さらに、構文に基づいて、埋め込み参照には大きなカードまたは小さなカードのみを使用します。最後に、この更新の最後に提案されたフォローアップメッセージを追加します。"
@@ -9777,7 +9774,7 @@
         "text": "[ai] 航空で使用される他の特殊貨物機をリストアップして"
       },
       "assistant_message_1": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c71ba783-237b-4f89-8034-a44bd560fe65\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"gigantic airplane used to transport rocket parts name\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"a9f61cd9-09d1-4010-b720-fc60fe92e0c0\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Antonov An-225 Mriya rocket transport\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5e183917-41a3-45f4-a0e7-e01e346b1e58\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"NASA Super Guppy rocket transport\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Stratolaunch Roc rocket transport\", \"provider\": \"Brave\"}\n```\n\nロケットやその部品の輸送で有名な「巨大」な飛行機がいくつかあります。部品を内部に積んで運ぶ飛行機のことか、シャトルを背中に載せて運ぶ飛行機のことかによって、おそらく以下のいずれかを思い浮かべているでしょう：\n\n### 1. Antonov An-225 Mriya\n**Antonov An-225 Mriya** は、これまでに建造された中で最も重い航空機であり、運用中の航空機の中で最大の翼幅を持っていました。1980年代にソビエト連邦によって、**ブラン宇宙往還機**と**エネルギアロケット**の部品をその背中に載せて輸送するために特別に設計されました。\n\n[!](embed:popularmechanics.com-kIm)\n[!](embed:britannica.com-f9U)\n[!](embed:space.com-EES)\n\n### 2. NASA Super Guppy\nロケット部品を「飲み込む」ような膨らんだ奇妙な形の飛行機のことであれば、それは **NASA Super Guppy** です。NASAによって、アポロ時代の**サターンVロケットのS-IVBステージ**や、最近では**アルテミス**月面ミッションの部品など、超大型貨物の輸送に使用されています。機首がヒンジ式に開き、巨大な部品を直接胴体に搭載できます。\n\n[!](embed:interestingengineering.com-fne)\n[!](embed:nasa.gov-IKy)\n[!](embed:reddit.com-eHx)\n\n### 3. Stratolaunch \"Roc\"\n**Stratolaunch Roc** は現在、世界最長の翼幅（385フィート）の記録を保持しています。他の機体とは異なり、双胴体の間にロケットを搭載して高高度まで運び、宇宙に放出する**移動式発射プラットフォーム**として設計されています。\n\n[!](embed:jetsprops.com-uun)\n[!](embed:cnet.com-ML7)\n[!](embed:jetsprops.com-opu)\n\n**あなたが見たものに最も似ているのはどれですか？**\n- **An-225**（ソビエト/ウクライナ）は、6基のエンジンを持つ巨大なジェット機です。\n- **Super Guppy**（NASA）は、巨大な膨らんだクジラのような外見です。\n- **Stratolaunch** は2つの独立した胴体を持っています（双胴型）。\n\n[An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) の歴史や、[Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) の仕組みについてもっと知りたいですか？"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c71ba783-237b-4f89-8034-a44bd560fe65\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"gigantic airplane used to transport rocket parts name\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"a9f61cd9-09d1-4010-b720-fc60fe92e0c0\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Antonov An-225 Mriya rocket transport\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"5e183917-41a3-45f4-a0e7-e01e346b1e58\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"NASA Super Guppy rocket transport\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Stratolaunch Roc rocket transport\", \"provider\": \"Brave\"}\n```\n\nロケットやその部品の輸送で有名な「巨大」な飛行機がいくつかあります。部品を内部に積んで運ぶ飛行機のことか、シャトルを背中に載せて運ぶ飛行機のことかによって、おそらく以下のいずれかを思い浮かべているでしょう：\n\n### 1. Antonov An-225 Mriya\n**Antonov An-225 Mriya** は、これまでに建造された中で最も重い航空機であり、運用中の航空機の中で最大の翼幅を持っていました。1980年代にソビエト連邦によって、**ブラン宇宙往還機**と**エネルギアロケット**の部品をその背中に載せて輸送するために特別に設計されました。\n\n[!](embed:popularmechanics.com-kIm)\n[!](embed:britannica.com-f9U)\n[!](embed:space.com-EES)\n\n### 2. NASA Super Guppy\nロケット部品を「飲み込む」ような膨らんだ奇妙な形の飛行機のことであれば、それは **NASA Super Guppy** です。NASAによって、アポロ時代の**サターンVロケットのS-IVBステージ**や、最近では**アルテミス**月面ミッションの部品など、超大型貨物の輸送に使用されています。機首がヒンジ式に開き、巨大な部品を直接胴体に搭載できます。\n\n[!](embed:interestingengineering.com-fne)\n[!](embed:nasa.gov-IKy)\n[!](embed:ExampleCommunity.com-eHx)\n\n### 3. Stratolaunch \"Roc\"\n**Stratolaunch Roc** は現在、世界最長の翼幅（385フィート）の記録を保持しています。他の機体とは異なり、双胴体の間にロケットを搭載して高高度まで運び、宇宙に放出する**移動式発射プラットフォーム**として設計されています。\n\n[!](embed:jetsprops.com-uun)\n[!](embed:cnet.com-ML7)\n[!](embed:jetsprops.com-opu)\n\n**あなたが見たものに最も似ているのはどれですか？**\n- **An-225**（ソビエト/ウクライナ）は、6基のエンジンを持つ巨大なジェット機です。\n- **Super Guppy**（NASA）は、巨大な膨らんだクジラのような外見です。\n- **Stratolaunch** は2つの独立した胴体を持っています（双胴型）。\n\n[An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) の歴史や、[Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) の仕組みについてもっと知りたいですか？"
       },
       "assistant_message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"040ef265-5dc8-4512-b443-b52bc86f7a6b\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Airbus Beluga and BelugaXL history and usage Europe airplane parts\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"f483e089-ff31-472e-9b0d-28f03b92eee1\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Airbus BelugaXL transporting airplane parts\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"893f5c33-f98b-46e7-b81a-475a94827b35\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"Airbus Beluga A300-600ST vs BelugaXL A330-743L\", \"provider\": \"Brave\"}\n```\n\nはい、まさにその通りです！エアバスは1990年代までNASAスタイルのオリジナル **Super Guppies** を使用していましたが、最終的にヨーロッパ各地の工場間で巨大な翼や胴体セクションを輸送するための独自の専用バージョンを建造しました。\n\nあなたが思い浮かべている航空機は **Airbus Beluga** です。2つの世代があります：\n\n### 1. Airbus BelugaST（オリジナル）\n1995年に導入された **BelugaST**（スーパートランスポーター）は、Airbus A300-600をベースにしています。老朽化したSuper Guppy機団の後継として特別に設計されました。約30年間、フランス、ドイツ、イギリス、スペインのエアバス製造拠点を結ぶ主力機として活躍しました。\n\n[!](embed:airbus.com-lTo)\n[!](embed:aviationa2z.com-fNJ)\n\n### 2. Airbus BelugaXL（新バージョン）\nあなたが言及した「新バージョン」は **BelugaXL** で、2020年に就航しました。より大型の **Airbus A330** をベースに、A350旅客機の製造ペースに対応するために建造されました。\n* **積載能力：** **A350の翼を2枚同時に**運搬できます。オリジナルのBelugaは1枚しか運べませんでした。\n* **「スマイル」：** 「笑顔のクジラ」の塗装で有名で、これはエアバスの全社投票で従業員によって選ばれました。\n\n[!](embed:cnn.com-5jh)\n[!](embed:simpleflying.com-N3v)\n[!](embed:gettyimages.com-8Kw)\n\n### なぜ使われるのか？\nエアバスは異なる国で飛行機の異なる部品を製造しています（例：翼はイギリス、尾翼はスペイン、胴体はドイツ）。これらの部品は列車や標準的な貨物機には大きすぎるため、Belugaが巨大な前面扉から「飲み込み」、**フランスのトゥールーズ**または**ドイツのハンブルク**の最終組立ラインまで空輸します。\n\nBelugaXLに[翼を積み込む動画](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing)を見たいですか、それともボーイングのバージョンである[Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)との比較に興味がありますか？"
@@ -9855,13 +9852,13 @@
         "text": "4つの求人プラットフォームでドイツの求人を検索。デザイン職の比較や雇用主への質問の準備を行います。"
       },
       "message_1": {
-        "text": "ドイツで、特に研究、デザイン、またはソフトウェアエンジニアリングの分野でやりがいのある仕事を探しています。80,000 Hours、Hard Problems、Arbeitnow、および連邦雇用庁（Federal Employment Agency）を使って、現在の求人をいくつか見つけてください。ドイツ国内ならどこでも構いません。雇用主、勤務地、情報源、応募リンクをまとめた短いリストを作成してください。募集要項に記載がない場合は、リモートワークや給与について推測しないでください。"
+        "text": "ドイツで、特に研究、デザイン、またはソフトウェアエンジニアリングの分野でやりがいのある仕事を探しています。ExampleJobsB、ExampleJobsC、ExampleJobsD、および連邦雇用庁（Example Employment Board）を使って、現在の求人をいくつか見つけてください。ドイツ国内ならどこでも構いません。雇用主、勤務地、情報源、応募リンクをまとめた短いリストを作成してください。募集要項に記載がない場合は、リモートワークや給与について推測しないでください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n[80,000 Hours](wiki:80,000_Hours)、**Hard Problems**、**Arbeitnow**、**連邦雇用庁**（*Bundesagentur für Arbeit*）から、ドイツで現在募集中の研究、デザイン、ソフトウェアエンジニアリング分野の求人を厳選しました。 \n\n---\n\n### デザイン\n\n* **シニアプロダクトデザイナー**\n  * **雇用主：** voize（看護・臨床ケアの記録業務を効率化する音声認識AIを開発）\n  * **勤務地：** ドイツ、ベルリン（リモート勤務可能と記載）\n  * **掲載元：** Hard Problems\n  * **給与：** 記載なし\n  * **応募：** [voizeから応募](embed:senior-product-designer-Wid)\n\n* **UI/UXデザイン（m/w/d）**\n  * **雇用主：** stiftung ear（電子廃棄物の処分、回収、循環型経済に関する追跡を調整する全国登録機関）\n  * **勤務地：** バイエルン州ニュルンベルク\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 求人説明に柔軟な働き方やモバイルワークへの言及あり。ただし、正式なフルリモート区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:ui-ux-design-1Bm)\n\n---\n\n### 研究\n\n* **共同フェローシッププログラム（平和・安全保障政策）**\n  * **雇用主：** [ハンブルク大学](wiki:University_of_Hamburg)および平和研究・安全保障政策研究所（IFSH）\n  * **勤務地：** ドイツ、ハンブルク\n  * **掲載元：** 80,000 Hours\n  * **勤務形態・給与：** 記載なし\n  * **応募：** [IFSH / 80,000 Hoursから応募](embed:joint-fellowship-program-iLH)\n\n* **研究員（m/f/x）– 機械学習と不確実性下の意思決定**\n  * **雇用主：** [ルール大学ボーフム](wiki:Ruhr_University_Bochum)\n  * **勤務地：** ノルトライン＝ヴェストファーレン州ボーフム\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** フルタイム（週39.83時間）。リモート勤務に関する記載なし。公的部門の労働協約に基づく給与体系TV-L E13に準拠（具体的な金額は求人に記載なし）\n  * **応募：** [連邦雇用庁から応募](embed:research-associate-m-79L)\n\n* **研究エンジニア（f/m/d）– 電力網の脱炭素化・基盤技術**\n  * **雇用主：** [シーメンス・エナジー](wiki:Siemens_Energy)\n  * **勤務地：** ベルリン\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 本文に柔軟な働き方やモバイルワークへの言及あり。ただし、リモート勤務の明確な区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:research-engineer-f-7ao)\n\n---\n\n### ソフトウェアエンジニアリング\n\n* **シニアバックエンドエンジニア（m/w/d）– Java/Kotlin、AWS、Kafka**\n  * **雇用主：** idealo internet GmbH\n  * **勤務地：** ドイツ、ベルリン\n  * **掲載元：** Arbeitnow\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [Arbeitnowから応募](embed:senior-backend-engineer-q7x)\n\n* **学生アルバイト – ソフトウェアエンジニアリング（コンピュータービジョン／自律システム）**\n  * **雇用主：** Quantum-Systems GmbH（自律飛行プラットフォームとロボットの知覚技術）\n  * **勤務地：** バイエルン州ギルヒング\n  * **掲載元：** Arbeitnow\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [Arbeitnowから応募](embed:working-student-software-VX8)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nExampleJobsB、**ExampleJobsC**、**ExampleJobsD**、**連邦雇用庁**（*Example Employment Board*）から、ドイツで現在募集中の研究、デザイン、ソフトウェアエンジニアリング分野の求人を厳選しました。\n\n---\n\n### デザイン\n\n* **シニアプロダクトデザイナー**\n  * **雇用主：** voize（看護・臨床ケアの記録業務を効率化する音声認識AIを開発）\n  * **勤務地：** ドイツ、ベルリン（リモート勤務可能と記載）\n  * **掲載元：** ExampleJobsC\n  * **給与：** 記載なし\n  * **応募：** [voizeから応募](embed:senior-product-designer-Wid)\n\n* **UI/UXデザイン（m/w/d）**\n  * **雇用主：** stiftung ear（電子廃棄物の処分、回収、循環型経済に関する追跡を調整する全国登録機関）\n  * **勤務地：** バイエルン州ニュルンベルク\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 求人説明に柔軟な働き方やモバイルワークへの言及あり。ただし、正式なフルリモート区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:ui-ux-design-1Bm)\n\n---\n\n### 研究\n\n* **共同フェローシッププログラム（平和・安全保障政策）**\n  * **雇用主：** [ハンブルク大学](wiki:University_of_Hamburg)および平和研究・安全保障政策研究所（IFSH）\n  * **勤務地：** ドイツ、ハンブルク\n  * **掲載元：** ExampleJobsB\n  * **勤務形態・給与：** 記載なし\n  * **応募：** [IFSH / ExampleJobsBから応募](embed:joint-fellowship-program-iLH)\n\n* **研究員（m/f/x）– 機械学習と不確実性下の意思決定**\n  * **雇用主：** [ルール大学ボーフム](wiki:Ruhr_University_Bochum)\n  * **勤務地：** ノルトライン＝ヴェストファーレン州ボーフム\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** フルタイム（週39.83時間）。リモート勤務に関する記載なし。公的部門の労働協約に基づく給与体系TV-L E13に準拠（具体的な金額は求人に記載なし）\n  * **応募：** [連邦雇用庁から応募](embed:research-associate-m-79L)\n\n* **研究エンジニア（f/m/d）– 電力網の脱炭素化・基盤技術**\n  * **雇用主：** [シーメンス・エナジー](wiki:Siemens_Energy)\n  * **勤務地：** ベルリン\n  * **掲載元：** 連邦雇用庁\n  * **勤務形態・給与：** 本文に柔軟な働き方やモバイルワークへの言及あり。ただし、リモート勤務の明確な区分はなし。給与の記載なし\n  * **応募：** [連邦雇用庁から応募](embed:research-engineer-f-7ao)\n\n---\n\n### ソフトウェアエンジニアリング\n\n* **シニアバックエンドエンジニア（m/w/d）– Java/Kotlin、AWS、Kafka**\n  * **雇用主：** idealo internet GmbH\n  * **勤務地：** ドイツ、ベルリン\n  * **掲載元：** ExampleJobsD\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [ExampleJobsDから応募](embed:senior-backend-engineer-q7x)\n\n* **学生アルバイト – ソフトウェアエンジニアリング（コンピュータービジョン／自律システム）**\n  * **雇用主：** Quantum-Systems GmbH（自律飛行プラットフォームとロボットの知覚技術）\n  * **勤務地：** バイエルン州ギルヒング\n  * **掲載元：** ExampleJobsD\n  * **勤務形態・給与：** 出社／ハイブリッド勤務。給与の記載なし\n  * **応募：** [ExampleJobsDから応募](embed:working-student-software-VX8)"
       },
       "message_2_thinking": {
-        "text": "**ドイツでの機会の特定**\n\n現在、ドイツ国内の関連する求人を特定することに注力しています。まずは、有望な情報源のリストを作成しました：`80,000 Hours`、`Hard Problems`、`Arbeitnow`、および`連邦雇用庁（Federal Employment Agency）`です。主な関心対象は研究、デザイン、ソフトウェアエンジニアリングの職種であり、勤務地についても細かくチェックしています。\n\n\n**検索パラメータの精査**\n\n`jobs-search` ツールを効果的に活用するため、アプローチを洗練させています。リクエストの上限が5件であることを踏まえ、`requests` 配列に焦点を当てて一連のクエリを作成し、プロバイダーを直接指定しています。プロバイダーをリストとして明示的に提供する方法と、関連性の基準を定義する方法を確認するために、関数の定義をチェックしています。これにより、雇用主、勤務地、情報源、応募リンクを含むショートリストの作成に役立てます。明記されていない限り、リモートワークや給与に関する推測は避けるようにします。\n\n\n**プロバイダーからの返信の確認**\n\nプロバイダーから返ってきた情報を一通り確認しました。「Hard Problems」からの案件と、Arbeitnowからの数件（Java/Kotlinのシニアバックエンドエンジニア職と、ワーキングステーション（学生インターン）職）があるようです。第一印象をメモし、各求人の潜在的な影響を評価しています。\n\n\n**現在の機会の分析**\n\n現在、2つの有望な機会の評価に注力しています。1つ目はハンブルク大学平和研究・安全保障政策研究所の「ジョイント・フェローシップ・プログラム」、2つ目はInterface Cybersecurity Programmeの「スチューデント・アシスタント」職です。平和・安全保障研究およびサイバーセキュリティというそれぞれの文脈において、それぞれのメリットを慎重に検討しています。\n\n\n**新しいリードの優先順位付け**\n\nバランスの取れたショートリストを作成することに意識を向けました。関連性と最近の投稿を重視し、デザインと研究の機会を優先しています。現在は、ベルリンの voize でのシニアプロダクトデザイナー職と、stiftung ear でのUI/UXデザイン職を検討しています。研究職については、ハンブルクのジョイント・フェローシップ・プログラムと並行して、ルール大学ボーフムでの職務を確認しています。\n\n\n**新しい可能性の評価**\n\n基準に照らして新しいリードを検討しています。連邦雇用庁を通じて、ベルリンの Siemens Energy での基礎研究に焦点を当てたリサーチエンジニア職などの選択肢を見つけました。また、idealo internet GmbH（ベルリン、Arbeitnow）のシニアバックエンドエンジニア職や、CT Software Engineering（インゴルシュタット、連邦雇用庁）のジュニアC++ソフトウェアデベロッパー職も検討しています。これらはソフトウェアエンジニアリングへの関心に合致しています。\n\n\n**応募基準の精査**\n\n応募リンクの取り扱いを明確にしています。わかりやすい応募プロセスを優先し、`[表示テキスト](embed:embed_ref)` または標準的なリンクの使用を確認することを忘れないようにします。さらに、求人情報に明記されていない限り、リモートワークを想定したり給与を開示したりすることは避けるべきです。\n\n\n**応募プロトコルの明確化**\n\n応募リンクの形式を絞り込んでいます。直接リンクの統合、または `(embed:embed_ref)` 形式の使用に焦点を当て、両方を提供しないようにします。コンプライアンスを確保するため、アプリのスキルから返されたURLを慎重に確認しています。1つの求人応募リンクにつき、1つのリンクスタイルのみを使用するというルールを遵守することを目指します。\n\n\n**応募リンクの標準化**\n\n応募リンクの戦略を実行に移しています。求人情報のフォーマットを標準化することを目指しています。応募リンクには埋め込み参照（embed ref）のみを使用します。また、各求人について、職務、雇用主、勤務地、情報源を組み込み、埋め込みリンクを使用します。常に1つの求人につき1つのリンクを使用するように徹底します。\n\n\n**機会データの収集**\n\n複数の機会の詳細をまとめています。voize のシニアプロダクトデザイナー職、stiftung ear のUI/UXデザイン職、ハンブルク大学のジョイント・フェローシップ・プログラムに関する情報を得ました。それぞれの職務、雇用主、勤務地、情報源、およびリモートワークと給与の仕様をメモしています。各応募に埋め込みを使用して、一貫したリンク形式を確保することに注力しています。\n\n\n**新しい求人の統合**\n\n新しい求人をデータセットに統合しています。ルール大学ボーフムのリサーチアソシエイト職を追加しました。これは連邦雇用庁からの情報で、リモートワークと給与の詳細もメモしています。また、Siemens Energy のリサーチエンジニア職（フレキシブルなオプションを含む）に関する情報もまとめました。応募リンクには埋め込みを使用し、リンク形式の一貫性を確保しています。\n\n\n**新しい求人の追加**\n\n新たに2つの求人を追加しました。勤務地未指定のシニアバックエンドエンジニア職と、ギルヒングの Quantum-Systems GmbH でのワーキングステーション（学生インターン）職です。勤務地、リモートワークのオプション、給与情報（利用可能な場合）、および標準化された形式の応募リンクを含むすべての詳細を正確に把握することに注力しています。応募リンクには `(embed:embed_ref)` 形式を使用しています。"
+        "text": "**ドイツでの機会の特定**\n\n現在、ドイツ国内の関連する求人を特定することに注力しています。まずは、有望な情報源のリストを作成しました：`ExampleJobsB`、`ExampleJobsC`、`ExampleJobsD`、および`連邦雇用庁（Example Employment Board）`です。主な関心対象は研究、デザイン、ソフトウェアエンジニアリングの職種であり、勤務地についても細かくチェックしています。\n\n\n**検索パラメータの精査**\n\n`jobs-search` ツールを効果的に活用するため、アプローチを洗練させています。リクエストの上限が5件であることを踏まえ、`requests` 配列に焦点を当てて一連のクエリを作成し、プロバイダーを直接指定しています。プロバイダーをリストとして明示的に提供する方法と、関連性の基準を定義する方法を確認するために、関数の定義をチェックしています。これにより、雇用主、勤務地、情報源、応募リンクを含むショートリストの作成に役立てます。明記されていない限り、リモートワークや給与に関する推測は避けるようにします。\n\n\n**プロバイダーからの返信の確認**\n\nプロバイダーから返ってきた情報を一通り確認しました。「ExampleJobsC」からの案件と、ExampleJobsDからの数件（Java/Kotlinのシニアバックエンドエンジニア職と、ワーキングステーション（学生インターン）職）があるようです。第一印象をメモし、各求人の潜在的な影響を評価しています。\n\n\n**現在の機会の分析**\n\n現在、2つの有望な機会の評価に注力しています。1つ目はハンブルク大学平和研究・安全保障政策研究所の「ジョイント・フェローシップ・プログラム」、2つ目はInterface Cybersecurity Programmeの「スチューデント・アシスタント」職です。平和・安全保障研究およびサイバーセキュリティというそれぞれの文脈において、それぞれのメリットを慎重に検討しています。\n\n\n**新しいリードの優先順位付け**\n\nバランスの取れたショートリストを作成することに意識を向けました。関連性と最近の投稿を重視し、デザインと研究の機会を優先しています。現在は、ベルリンの voize でのシニアプロダクトデザイナー職と、stiftung ear でのUI/UXデザイン職を検討しています。研究職については、ハンブルクのジョイント・フェローシップ・プログラムと並行して、ルール大学ボーフムでの職務を確認しています。\n\n\n**新しい可能性の評価**\n\n基準に照らして新しいリードを検討しています。連邦雇用庁を通じて、ベルリンの Siemens Energy での基礎研究に焦点を当てたリサーチエンジニア職などの選択肢を見つけました。また、idealo internet GmbH（ベルリン、ExampleJobsD）のシニアバックエンドエンジニア職や、CT Software Engineering（インゴルシュタット、連邦雇用庁）のジュニアC++ソフトウェアデベロッパー職も検討しています。これらはソフトウェアエンジニアリングへの関心に合致しています。\n\n\n**応募基準の精査**\n\n応募リンクの取り扱いを明確にしています。わかりやすい応募プロセスを優先し、`[表示テキスト](embed:embed_ref)` または標準的なリンクの使用を確認することを忘れないようにします。さらに、求人情報に明記されていない限り、リモートワークを想定したり給与を開示したりすることは避けるべきです。\n\n\n**応募プロトコルの明確化**\n\n応募リンクの形式を絞り込んでいます。直接リンクの統合、または `(embed:embed_ref)` 形式の使用に焦点を当て、両方を提供しないようにします。コンプライアンスを確保するため、アプリのスキルから返されたURLを慎重に確認しています。1つの求人応募リンクにつき、1つのリンクスタイルのみを使用するというルールを遵守することを目指します。\n\n\n**応募リンクの標準化**\n\n応募リンクの戦略を実行に移しています。求人情報のフォーマットを標準化することを目指しています。応募リンクには埋め込み参照（embed ref）のみを使用します。また、各求人について、職務、雇用主、勤務地、情報源を組み込み、埋め込みリンクを使用します。常に1つの求人につき1つのリンクを使用するように徹底します。\n\n\n**機会データの収集**\n\n複数の機会の詳細をまとめています。voize のシニアプロダクトデザイナー職、stiftung ear のUI/UXデザイン職、ハンブルク大学のジョイント・フェローシップ・プログラムに関する情報を得ました。それぞれの職務、雇用主、勤務地、情報源、およびリモートワークと給与の仕様をメモしています。各応募に埋め込みを使用して、一貫したリンク形式を確保することに注力しています。\n\n\n**新しい求人の統合**\n\n新しい求人をデータセットに統合しています。ルール大学ボーフムのリサーチアソシエイト職を追加しました。これは連邦雇用庁からの情報で、リモートワークと給与の詳細もメモしています。また、Siemens Energy のリサーチエンジニア職（フレキシブルなオプションを含む）に関する情報もまとめました。応募リンクには埋め込みを使用し、リンク形式の一貫性を確保しています。\n\n\n**新しい求人の追加**\n\n新たに2つの求人を追加しました。勤務地未指定のシニアバックエンドエンジニア職と、ギルヒングの Quantum-Systems GmbH でのワーキングステーション（学生インターン）職です。勤務地、リモートワークのオプション、給与情報（利用可能な場合）、および標準化された形式の応募リンクを含むすべての詳細を正確に把握することに注力しています。応募リンクには `(embed:embed_ref)` 形式を使用しています。"
       },
       "message_3": {
         "text": "2つのデザイン職が一番面白そうです。保存した求人情報の内容を簡単に比較して、応募前にそれぞれの雇用主に何を聞くべきか提案してもらえますか？"
@@ -9933,7 +9930,7 @@
         "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\"}\n```\n\n[Mastodon](wiki:Mastodon_(social_network))上の公式@Mastodonアカウントによる最近の公開投稿は、主に以下のいくつかの主要なテーマに集約されます：\n\n---\n\n### 1. プラットフォームの再設計と今後の機能（Mastodon 5.0）\nユーザーエクスペリエンス調査の共有や、今後予定されているデザイン変更の公開に大きな焦点が当てられています。\n- **Mastodon 5.0の先行公開：** バージョン5.0の初期プレビュー。より落ち着いたレイアウト、新しいビジュアル、刷新された投稿作成画面などが特徴です（[Mastodon 5.0の先行公開](embed:mastodon-after-publishing-WqJ)）。\n- **Discovery Weekの調査結果：** コミュニティがプラットフォームをどのように利用しているかをより深く理解するため、デザインチームが主導したユーザーワークショップやアンケートの結果を共有しています（[Discovery Weekの概要](embed:mastodon-we-re-5Ll)）。\n\n### 2. ガバナンスと商標の明確化\nプロジェクトのポリシーに関するコミュニティの懸念への対応に注力しています。\n- **商標ポリシーのガイドライン：** コミュニティからの意見を受け、Mastodonの商標ポリシーに関する更新・明確化されたガイドラインと、平易な言葉による要約を公開しました（[商標ガイドラインの発表](embed:mastodon-today-we-3Kb)）。\n\n### 3. コミュニティスポットライトとエコシステムのサポート\nより広範な[Fediverse](wiki:Fediverse)エコシステム、サーバー運営者、および安全性の取り組みにスポットライトを当てています。\n- **注目のサーバー紹介：** 環境分野の弁護士、科学者、活動家向けに調整されたエコフレンドリーなサーバー「*Earth.Law*」など、特定の目的を持ったインスタンスを宣伝しています（[Earth.Lawサーバーの紹介](embed:mastodon-here-is-miz)）。\n- **エコシステム調査：** モデレーターや管理者を支援するため、IFTAS Social Web Operations Surveyなどの管理イニシアチブを後押ししています（[IFTAS調査の投稿](embed:mastodon-re-https-wnD)）。\n\n### 4. 組織とチームの最新情報\nチームの交代やリーダーシップに関する透明性を確保しています。\n- **リーダーシップの退任：** コミュニティディレクター兼理事のHannah Aubry氏の退任を報告し、コミュニティの成長への貢献に感謝を述べています（[Hannah Aubry氏の退任投稿](embed:mastodon-hannah-aubry-O6F)）。\n\n### 5. プロジェクトの資金調達とグッズ\nネットワークのオープンソース開発を維持するための取り組みです。\n- **Plushtodonの予約販売：** ショップで新しい色のマスコットぬいぐるみを発表し、サポーターが開発資金を直接支援できるようにしています（[Plushtodon予約販売の投稿](embed:mastodon-new-plushtodon-7D2)）。\n\n---\n\n### 注目の例\n\n[@Mastodon: Discovery Weekの結果を公開したところで、いよいよ最初の先行公開を...](embed:mastodon-after-publishing-WqJ)\n[@Mastodon: 本日、コミュニティからの意見に基づき、商標ポリシーに関する追加のガイドラインを...](embed:mastodon-today-we-3Kb)\n[@Mastodon: ショップで新しい色の #Plushtodon が予約可能になりました！これは開発を...](embed:mastodon-new-plushtodon-7D2)"
       },
       "follow_up_1": {
-        "text": "RedditでMastodon 5.0に関する最近の議論を検索する"
+        "text": "ExampleCommunityでMastodon 5.0に関する最近の議論を検索する"
       },
       "follow_up_2": {
         "text": "Fediverseにおける分散型モデレーションの仕組みを説明する"
@@ -10074,7 +10071,7 @@
         "text": "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
       },
       "message_2": {
-        "text": "It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.\n\nBased on the specific notes you've saved for this event, here is a practical checklist to help you prepare:\n\n*   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.\n*   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.\n*   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.\n*   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.\n*   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.\n*   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
+        "text": "It looks like you have the **Berlin AI Builders Gathering** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.\n\nBased on the specific notes you've saved for this event, here is a practical checklist to help you prepare:\n\n*   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.\n*   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.\n*   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.\n*   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.\n*   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.\n*   **Review your goals:** Remind yourself of what you want to get out of this specific Gathering—whether it's feedback on your demo or meeting potential collaborators.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
       }
     },
     "memory_health_appointments": {
@@ -10486,13 +10483,13 @@
         "text": "3Dプリント可能なBenchyとスマホスタンドのモデル"
       },
       "summary": {
-        "text": "Printablesで人気の3Dプリント可能なBenchyやスマホスタンドのモデルを検索し、プレビューカードとソースリンクを表示します。"
+        "text": "ExampleModelsで人気の3Dプリント可能なBenchyやスマホスタンドのモデルを検索し、プレビューカードとソースリンクを表示します。"
       },
       "message_1": {
-        "text": "Printablesで3Dプリント可能なBenchyとスマホスタンドのモデルを探して。プレビューカードとソースリンク付きで、おすすめのものを表示して。"
+        "text": "ExampleModelsで3Dプリント可能なBenchyとスマホスタンドのモデルを探して。プレビューカードとソースリンク付きで、おすすめのものを表示して。"
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"Printables\", \"providers\": [\"Printables\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"Printables\", \"providers\": [\"Printables\"]}\n```\n\n次の3Dプリントプロジェクトに向けて、Printablesで特に人気がありクリエイティブなモデルをいくつか見つけました。定番の[キャリブレーション](wiki:Calibration_(statistics))用タグボートから実用的な[スマートフォン](wiki:Smartphone)アクセサリーまで、これらのオプションは素晴らしい出発点になります。\n\n### 3DBenchyコレクション\n[3DBenchy](wiki:3DBenchy)は、[3Dプリンター](wiki:3D_printing)の性能をテストするための指標（ゴールドスタンダード）です。オリジナル以外にも、作業スペースに個性を添えてくれる「リミックス」版がいくつかあります。\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **オリジナル3DBenchy**: [オーバーハング](wiki:3D_printing#Support_structures)や[ブリッジ](wiki:3D_printing#Support_structures)、表面の仕上がりなどの[ベンチマーク](wiki:Benchmark_(computing))に最適です。\n*   **アサルト・ベンチー**: 少し個性を出したい人向けの、ポーズを変えられる[メカ](wiki:Mecha)バージョンです。\n*   **フローティング・ベン**: 船体が中空になるよう特別に設計されており、実際に水に浮きます。お風呂にぴったりです！\n\n### 実用的なスマホスタンド\nスマホスタンドは、実用的なプリントとして最適です。ミニマルなものから複雑なメカニカルギアまで、さまざまなデザインがあります。\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **ハニカムスタンド**: [比強度](wiki:Specific_strength)（軽さと強さの比率）の高さとモダンな外観で非常に人気があります。\n*   **ギアスタンド**: 組み立て不要の「プリント・イン・プレイス」方式で、視聴角度を調整できる驚きのメカニズムです。\n*   **モダン・カーブ**: 洗練された一体型デザインで、ミニマルなオフィス環境に完璧にフィットします。\n\n**プロのヒント:** [ギア付きスマホスタンド](embed:geared-phone-stand-3Bl)をプリントする際は、可動パーツ同士がくっついてしまわないよう、[押し出し倍率](wiki:3D_printing#Fused_deposition_modeling)をしっかり調整しておきましょう。\n\nこれらにはどのような[フィラメント](wiki:3D_printing_filament)（PLA、PETGなど）を使う予定ですか？素材に合わせた具体的なスライス設定のコツをアドバイスできます！\n\n**次は何をしますか？**\n- [他の3Dモデルを探す](/#settings/apps/models3d)\n- [3Dプリントのコツを見る](/#settings/apps/web)"
+        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"184d8df7-75ff-4220-805f-e9615a9f0628\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"Benchy\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"99a93bec-fb8b-4f2e-ad60-7b9148cc7f01\", \"app_id\": \"models3d\", \"skill_id\": \"search\", \"query\": \"phone stand\", \"provider\": \"ExampleModels\", \"providers\": [\"ExampleModels\"]}\n```\n\n次の3Dプリントプロジェクトに向けて、ExampleModelsで特に人気がありクリエイティブなモデルをいくつか見つけました。定番の[キャリブレーション](wiki:Calibration_(statistics))用タグボートから実用的な[スマートフォン](wiki:Smartphone)アクセサリーまで、これらのオプションは素晴らしい出発点になります。\n\n### 3DBenchyコレクション\n[3DBenchy](wiki:3DBenchy)は、[3Dプリンター](wiki:3D_printing)の性能をテストするための指標（ゴールドスタンダード）です。オリジナル以外にも、作業スペースに個性を添えてくれる「リミックス」版がいくつかあります。\n\n[!](embed:3d-benchy-TPb)\n[!](embed:all-terrain-assault-HqB)\n[!](embed:blocky-benchy-D1T)\n[!](embed:benchy-kraken-attack-SiS)\n[!](embed:ben-the-floating-eMA)\n\n*   **オリジナル3DBenchy**: [オーバーハング](wiki:3D_printing#Support_structures)や[ブリッジ](wiki:3D_printing#Support_structures)、表面の仕上がりなどの[ベンチマーク](wiki:Benchmark_(computing))に最適です。\n*   **アサルト・ベンチー**: 少し個性を出したい人向けの、ポーズを変えられる[メカ](wiki:Mecha)バージョンです。\n*   **フローティング・ベン**: 船体が中空になるよう特別に設計されており、実際に水に浮きます。お風呂にぴったりです！\n\n### 実用的なスマホスタンド\nスマホスタンドは、実用的なプリントとして最適です。ミニマルなものから複雑なメカニカルギアまで、さまざまなデザインがあります。\n\n[!](embed:phone-stand-Jnb)\n[!](embed:geared-phone-stand-3Bl)\n[!](embed:phone-stand-no-VTM)\n[!](embed:phone-stand-modern-G4X)\n[!](embed:phone-stand-industrial-Au7)\n\n*   **ハニカムスタンド**: [比強度](wiki:Specific_strength)（軽さと強さの比率）の高さとモダンな外観で非常に人気があります。\n*   **ギアスタンド**: 組み立て不要の「プリント・イン・プレイス」方式で、視聴角度を調整できる驚きのメカニズムです。\n*   **モダン・カーブ**: 洗練された一体型デザインで、ミニマルなオフィス環境に完璧にフィットします。\n\n**プロのヒント:** [ギア付きスマホスタンド](embed:geared-phone-stand-3Bl)をプリントする際は、可動パーツ同士がくっついてしまわないよう、[押し出し倍率](wiki:3D_printing#Fused_deposition_modeling)をしっかり調整しておきましょう。\n\nこれらにはどのような[フィラメント](wiki:3D_printing_filament)（PLA、PETGなど）を使う予定ですか？素材に合わせた具体的なスライス設定のコツをアドバイスできます！\n\n**次は何をしますか？**\n- [他の3Dモデルを探す](/#settings/apps/models3d)\n- [3Dプリントのコツを見る](/#settings/apps/web)"
       }
     },
     "privacy_first_local_ai_workspace": {
@@ -10734,7 +10731,7 @@
         "text": "対面で会った後の連絡維持や、新しい出会いを支援するソーシャルアプリの命名を考えています。特徴的な名前のアイデアを2つ提案してください。それぞれのアイデアについて、.com、.net、.appドメインの空き状況をリアルタイムで確認し、空き状況、登録費用、更新費用、制限事項が確認できたドメインのみを提案してください。確認していないドメインについては推測しないでください。確認結果に基づいて、より優れた名前を選んでください。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n対面でのつながりを育み、社交の輪を広げることに特化したアプリにぴったりの、特徴的な2つの名前のアイデアを提案します。それぞれの名前について、`.com`、`.net`、`.app` 拡張子のドメイン空き状況も確認しました。\n\n---\n\n### アイデア 1: Kinloop\n* **コンセプト:** 「kin」（コミュニティ、親近感、信頼できる絆）と「loop」（最初の出会いの後のフォローアップや、継続的なサークル内でのつながりを維持すること）を組み合わせています。\n* **ライブドメイン確認:**\n  * **`kinloop.com`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-uFu))\n  * **`kinloop.net`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-nTi))\n  * **`kinloop.app`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-XJX))\n* **推奨事項:** なし。3つのターゲットドメインすべてが現在登録済み（利用不可）であるため、この名前に対して推奨できる正確なドメインはありません。\n\n---\n\n### アイデア 2: Orbitfolk\n* **コンセプト:** 実生活での知人を自分の「orbit」（軌道、活動範囲）に留めつつ、新しい人々（「folk」）を常に発見し、自分の世界に迎え入れるというイメージを想起させます。\n* **ライブドメイン確認:**\n  * **`orbitfolk.com`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-hBP))\n  * **`orbitfolk.net`**: **利用可能** ([Gandiで確認](embed:shop.gandi.net-cex))\n    * **登録価格:** 1年目 $12.99 税抜（19%のVAT込で $15.46、通常の1年間の料金は $18.78）\n    * **更新価格:** 年間 $39.98 税抜（1年契約の場合19%のVAT込で $47.58、2〜9年契約の場合は税抜 $35.98/年）\n    * **制限事項:** 報告なし\n  * **`orbitfolk.app`**: **利用可能** ([Gandiで確認](embed:shop.gandi.net-U3Z))\n    * **登録価格:** 1年目 $9.99 税抜（19%のVAT込で $11.89、通常の1年間の料金は $23.29）\n    * **更新価格:** 年間 $47.98 税抜（1年契約の場合19%のVAT込で $57.10、2〜9年契約の場合は税抜 $43.18/年）\n    * **制限事項:** 報告なし\n\n---\n\n### 比較とおすすめ\n\n**Orbitfolk** の方が強力な選択肢です：\n\n1. **直接的な可用性:** `Kinloop` は3つの拡張子すべてで取得済みですが、`Orbitfolk` は `.app` と `.net` の両方がすぐに登録可能です。\n2. **プロダクトへの適合性:** これはモバイルソーシャル製品であるため、**`orbitfolk.app`** は製品タイプをユーザーに直接伝える、クリーンで目的に特化したドメイン拡張子を提供します。\n\n---\n\n### 次のステップ\n\n* [ソーシャル・オービットに関連する名前のバリエーションをもっと探す](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [対面でつながるためのオンボーディングフローをドラフトする](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"0b2c9f63-036e-44a8-b967-318b90533fcc\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c1914c51-1b63-4a11-b6c6-fc2f6813105a\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fb6d0336-f734-4b14-8192-3ebe50d3638c\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"bee65385-095b-481f-9e63-8c93e692ada5\",\"app_id\":\"hosting\",\"skill_id\":\"search_domains\"}\n```\n\n対面でのつながりを育み、社交の輪を広げることに特化したアプリにぴったりの、特徴的な2つの名前のアイデアを提案します。それぞれの名前について、`.com`、`.net`、`.app` 拡張子のドメイン空き状況も確認しました。\n\n---\n\n### アイデア 1: Kinloop\n* **コンセプト:** 「kin」（コミュニティ、親近感、信頼できる絆）と「loop」（最初の出会いの後のフォローアップや、継続的なサークル内でのつながりを維持すること）を組み合わせています。\n* **ライブドメイン確認:**\n  * **`kinloop.com`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-uFu))\n  * **`kinloop.net`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-nTi))\n  * **`kinloop.app`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-XJX))\n* **推奨事項:** なし。3つのターゲットドメインすべてが現在登録済み（利用不可）であるため、この名前に対して推奨できる正確なドメインはありません。\n\n---\n\n### アイデア 2: Orbitfolk\n* **コンセプト:** 実生活での知人を自分の「orbit」（軌道、活動範囲）に留めつつ、新しい人々（「folk」）を常に発見し、自分の世界に迎え入れるというイメージを想起させます。\n* **ライブドメイン確認:**\n  * **`orbitfolk.com`**: **利用不可** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-hBP))\n  * **`orbitfolk.net`**: **利用可能** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-cex))\n    * **登録価格:** 1年目 $12.99 税抜（19%のVAT込で $15.46、通常の1年間の料金は $18.78）\n    * **更新価格:** 年間 $39.98 税抜（1年契約の場合19%のVAT込で $47.58、2〜9年契約の場合は税抜 $35.98/年）\n    * **制限事項:** 報告なし\n  * **`orbitfolk.app`**: **利用可能** ([ExampleRegistrarで確認](embed:shop.ExampleRegistrar.net-U3Z))\n    * **登録価格:** 1年目 $9.99 税抜（19%のVAT込で $11.89、通常の1年間の料金は $23.29）\n    * **更新価格:** 年間 $47.98 税抜（1年契約の場合19%のVAT込で $57.10、2〜9年契約の場合は税抜 $43.18/年）\n    * **制限事項:** 報告なし\n\n---\n\n### 比較とおすすめ\n\n**Orbitfolk** の方が強力な選択肢です：\n\n1. **直接的な可用性:** `Kinloop` は3つの拡張子すべてで取得済みですが、`Orbitfolk` は `.app` と `.net` の両方がすぐに登録可能です。\n2. **プロダクトへの適合性:** これはモバイルソーシャル製品であるため、**`orbitfolk.app`** は製品タイプをユーザーに直接伝える、クリーンで目的に特化したドメイン拡張子を提供します。\n\n---\n\n### 次のステップ\n\n* [ソーシャル・オービットに関連する名前のバリエーションをもっと探す](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)\n* [対面でつながるためのオンボーディングフローをドラフトする](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)"
       },
       "follow_up_1": {
         "text": "別のソーシャルアプリのアイデアで空きドメインを検索する"
@@ -11461,10 +11458,10 @@
       "text": "Today at 19:00 near Kreuzberg"
     },
     "landing_actionable_event_detail": {
-      "text": "分散型コンピューティングと DePIN 研究を扱うベルリンの Luma イベントです。"
+      "text": "分散型コンピューティングと DePIN 研究を扱うベルリンの event website イベントです。"
     },
-    "landing_actionable_event_open_luma": {
-      "text": "Luma で開く"
+    "landing_actionable_event_open_provider": {
+      "text": "event website で開く"
     },
     "landing_actionable_event_venue": {
       "text": "Magazin in der Heeresbaeckerei"
@@ -11617,7 +11614,7 @@
           "text": "タスクを実行してもらいましょう"
         },
         "paragraph": {
-          "text": "例えば：\nDoctolib & Jamedaで\nあなたのカレンダーと重ならない\n医師の予約を探します。"
+          "text": "例えば：\nExampleClinicA & ExampleClinicBで\nあなたのカレンダーと重ならない\n医師の予約を探します。"
         }
       },
       "apps": {
@@ -11631,7 +11628,7 @@
           "text": "あなたの私生活と仕事を\n変革します。"
         },
         "paragraph": {
-          "text": "例えば：\nMeetup、Eventbrite、RAで\nイベントを探します。"
+          "text": "例えば：\nGathering、ExampleTickets、RAで\nイベントを探します。"
         }
       }
     },
@@ -12085,26 +12082,10 @@
             }
           }
         },
-        "fitness": {
-          "heading": {
-            "text": "フィットネス検索（フィットネススキルを使用する場合のみ）"
-          },
-          "description": {
-            "text": "これらのプロバイダーは、フィットネスアプリの Urban Sports 施設検索またはクラス検索スキルを使用した場合にのみ使われます。公開されているログアウト状態の検索ページを照会し、OpenMates のユーザー識別子や Urban Sports の認証情報は送信しません。"
-          },
-          "urban_sports_club": {
-            "heading": {
-              "text": "Urban Sports Club"
-            },
-            "description": {
-              "text": "Urban Sports Club はフィットネス施設とクラス空き状況の検索を提供します。Urban Sports Club は都市、住所または座標、半径、日付、参加形式、プランフィルターなどの検索詳細を受け取りますが、OpenMates のユーザー識別子は受け取りません。"
-            }
-          }
-        },
         "payments": {
           "revolut_business": {
             "heading": {
-              "text": "3.15 Revolut Business（SEPA銀行振込）"
+              "text": "3.13 Revolut Business（SEPA銀行振込）"
             },
             "description": {
               "text": "当社はSEPA銀行振込の受取銀行としてRevolut Bank UAB（リトアニア、EU）を使用しています。銀行振込でのお支払いを選択された場合、当社のRevolut IBANをお知らせします。振込が到着した際、Revoltは暗号署名されたWebhookで当社に通知します。当社はお客様の個人データをRevolutに送信しません。処理されるのは取引参照、金額、RevolutのトランザクションIDのみです。"
@@ -12418,39 +12399,12 @@
               "text": "Brave Searchは、ウェブ、動画、ニュースの検索スキルを支えている。Braveは検索クエリのテキスト、およびローカライズされた結果を表示するための国と言語の設定を参照するが、ユーザー識別子は参照しない。"
             }
           },
-          "firecrawl": {
-            "heading": {
-              "text": "Firecrawl（ウェブページのスクレイピング）"
-            },
-            "description": {
-              "text": "Firecrawlはウェブ閲覧（web-read）スキルを支えており、指定されたウェブページからコンテンツをスクレイピングして抽出する。Firecrawlは、リクエストされたURLとスクレイピングされたページの全コンテンツを参照する。"
-            }
-          },
           "iconify": {
             "heading": {
               "text": "Iconify (公開SVGアイコン検索)"
             },
             "description": {
               "text": "Iconifyはdesign.search_iconsスキルを支えています。Iconifyは、アイコンの検索クエリやSVGプレビューの取得に必要なアイコンコレクション名/名前を参照しますが、OpenMatesのユーザー識別子は参照しません。OpenMatesはサーバー側でIconifyのデータを取得し、クライアントが直接Iconifyを呼び出すことはありません。"
-            }
-          },
-          "webshare": {
-            "domain_fallback": {
-              "text": "ドメイン検索では、Gandi への直接リクエストが失敗した場合にのみ Webshare を使います。Webshare は Gandi のホストと接続情報を確認できますが、HTTPS で暗号化されたドメインの検索内容や OpenMates のユーザー識別子は読み取れません。"
-            },
-            "heading": {
-              "text": "Webshare（ローテーションプロキシ）"
-            },
-            "description": {
-              "text": "Webshareは、ブロックされる可能性のあるサービスへのリクエストに対してローテーションプロキシを提供します。YouTubeの文字起こしリクエスト（動画の文字起こし取得スキル用）や医師の予約検索（ヘルスケアの予約検索スキル用 — グループHを参照）は、Webshareを経由してルーティングされます。Webshareは、経由するURLを閲覧します。"
-            }
-          },
-          "gandi": {
-            "heading": {
-              "text": "Gandi (domain search)"
-            },
-            "description": {
-              "text": "Hosting のドメイン検索を利用すると、Gandi はドメイン名または検索キーワード、国、通貨を受け取ります。OpenMates は OpenMates のユーザー識別子や Gandi の認証情報を含めず、サーバーから HTTPS で送信します。料金は参考値であり、登録は行いません。"
             }
           },
           "google_maps": {
@@ -12493,36 +12447,12 @@
           "description": {
             "text": "これらのプロバイダーは、フライト検索、ホテル検索、フライト追跡などの旅行スキルを呼び出した場合にのみ使用されます。旅行アプリを使用しない限り、データが共有されることはありません。"
           },
-          "serpapi": {
-            "heading": {
-              "text": "SerpAPI（フライト・ホテル検索）"
-            },
-            "description": {
-              "text": "SerpAPIは、Google FlightsおよびGoogle Hotelsのエンドポイントを介してフライトとホテルの検索を提供します。SerpAPIは、出発地、目的地、日付、設定などの検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          },
           "flightradar24": {
             "heading": {
               "text": "Flightradar24（フライト追跡）"
             },
             "description": {
               "text": "Flightradar24は、特定の便名について問い合わせた際に、実際のフライト追跡データを提供します。IATA便名と出発日を受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          },
-          "deutsche_bahn": {
-            "heading": {
-              "text": "Deutsche Bahn (列車の乗り換え案内)"
-            },
-            "description": {
-              "text": "Deutsche Bahnは、鉄道ルートを検索した際に列車の乗り換え結果を提供します。Deutsche Bahnは、OpenMatesのユーザー識別子を含まない出発地、目的地、日付の検索詳細を受信します。"
-            }
-          },
-          "flix": {
-            "heading": {
-              "text": "FlixBus / FlixTrain (バスと列車の乗り換え案内)"
-            },
-            "description": {
-              "text": "Flixは、FlixBusまたはFlixTrainのルートを検索した際に、都市間バスと鉄道の乗り換え結果を提供します。Flixは、OpenMatesのユーザー識別子を含まない出発地、目的地、日付の検索詳細を受信します。"
             }
           }
         },
@@ -12532,78 +12462,6 @@
           },
           "description": {
             "text": "これらのプロバイダーは、イベント検索スキルを呼び出した場合にのみ使用されます。呼び出されるプロバイダーは、検索する都市やイベントの種類によって異なります。"
-          },
-          "meetup": {
-            "heading": {
-              "text": "Meetup"
-            },
-            "description": {
-              "text": "Meetupはコミュニティイベントの検索を提供します。Meetupは、都市、カテゴリー、日付などの検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          },
-          "luma": {
-            "heading": {
-              "text": "Luma"
-            },
-            "description": {
-              "text": "Lumaは、テック、クリエイティブ、コミュニティイベントの検索を提供します。Lumaは検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          },
-          "resident_advisor": {
-            "heading": {
-              "text": "Resident Advisor"
-            },
-            "description": {
-              "text": "Resident Advisorは電子音楽イベントの検索を提供します。RAは検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          }
-        },
-        "health": {
-          "heading": {
-            "text": "ヘルスケア予約検索（ヘルスケアスキルを使用する場合のみ）"
-          },
-          "description": {
-            "text": "これらのアップストリームサービスには、ヘルスケアアプリの予約検索スキルを呼び出した場合にのみ、Webshareローテーションプロキシ（グループEを参照）を介してアクセスします。送信されるクエリ（例：「来週の火曜日のベルリンの皮膚科」）はユーザー識別子なしで送信されますが、クエリの内容自体が健康上の懸念を示唆する場合があります。このスキルを呼び出すことにより、GDPR第9条(2)(a)（特別なカテゴリーのデータに対する明示的な同意）に基づくこの処理に同意したものとみなされます。"
-          },
-          "doctolib": {
-            "heading": {
-              "text": "Doctolib（EU）"
-            },
-            "description": {
-              "text": "Doctolibは、サポートされているEU地域の医師や専門医を掲載しています。Webshareプロキシを経由して、ユーザー識別子なしで、条件に一致する予約可能な枠をDoctolibに照会します。"
-            }
-          },
-          "jameda": {
-            "heading": {
-              "text": "Jameda（ドイツ）"
-            },
-            "description": {
-              "text": "Jamedaは、ドイツ全土の医師や専門医を掲載しています。Webshareプロキシを経由して、ユーザー識別子なしで、条件に一致する予約可能な枠をJamedaに照会します。"
-            }
-          }
-        },
-        "shopping": {
-          "heading": {
-            "text": "ショッピング（ショッピングスキルを使用する場合のみ）"
-          },
-          "description": {
-            "text": "これらのプロバイダーは、最新の商品や価格の検索のためにショッピング検索スキルを呼び出した場合にのみ使用されます。"
-          },
-          "rewe": {
-            "heading": {
-              "text": "REWE（ドイツの食料品店）"
-            },
-            "description": {
-              "text": "ドイツの食料品を検索すると、REWEの商品カタログから最新の商品および価格データが照会されます。REWEは検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
-          },
-          "amazon": {
-            "heading": {
-              "text": "Amazon"
-            },
-            "description": {
-              "text": "Amazonの商品カタログから最新の商品および価格データが照会されます。Amazonは検索クエリを受け取りますが、ユーザー識別子は受け取りません。"
-            }
           }
         },
         "nutrition": {
@@ -12622,22 +12480,6 @@
             }
           }
         },
-        "electronics": {
-          "heading": {
-            "text": "Electronics (only when you use the electronics skill)"
-          },
-          "description": {
-            "text": "These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups."
-          },
-          "ti_webench": {
-            "heading": {
-              "text": "Texas Instruments WEBENCH (US)"
-            },
-            "description": {
-              "text": "TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier."
-            }
-          }
-        },
         "mail": {
           "heading": {
             "text": "メール (メールスキルを使用する場合のみ)"
@@ -12651,38 +12493,6 @@
             },
             "description": {
               "text": "When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail."
-            }
-          }
-        },
-        "home": {
-          "heading": {
-            "text": "住宅・不動産 (物件検索を使用する場合のみ)"
-          },
-          "description": {
-            "text": "これらのプロバイダーは、住宅アプリの物件検索スキルを呼び出した場合にのみ使用されます。物件検索を一度も行わない場合、データが共有されることはありません。"
-          },
-          "immoscout24": {
-            "heading": {
-              "text": "ImmoScout24 (ドイツの物件検索)"
-            },
-            "description": {
-              "text": "ImmoScout24は、ドイツの住宅物件を検索した際に照会されます。ImmoScout24は、OpenMatesのユーザー識別子を含まない物件検索クエリ、場所、フィルター、およびリクエストされた物件ページを受信します。"
-            }
-          },
-          "kleinanzeigen": {
-            "heading": {
-              "text": "Kleinanzeigen (ドイツのクラシファイド物件検索)"
-            },
-            "description": {
-              "text": "Kleinanzeigenは、ドイツのクラシファイド住宅物件を検索した際に照会されます。Kleinanzeigenは、OpenMatesのユーザー識別子を含まない物件検索クエリ、場所、フィルター、およびリクエストされた物件ページを受信します。"
-            }
-          },
-          "wg_gesucht": {
-            "heading": {
-              "text": "WG-Gesucht (ドイツのシェアハウス検索)"
-            },
-            "description": {
-              "text": "WG-Gesuchtは、ドイツのシェアハウスまたは賃貸物件を検索した際に照会されます。WG-Gesuchtは、OpenMatesのユーザー識別子を含まない物件検索クエリ、場所、フィルター、およびリクエストされた物件ページを受信します。"
             }
           }
         },
@@ -12712,14 +12522,6 @@
           "description": {
             "text": "これらのプロバイダーは、ソーシャルメディアアプリの投稿取得または検索スキルを呼び出した場合にのみ使用されます。これらのプロバイダーは、OpenMatesのユーザー識別子を含まない公開プロフィール、ページ、または検索クエリを受信します。"
           },
-          "reddit": {
-            "heading": {
-              "text": "Reddit (公開投稿とディスカッション)"
-            },
-            "description": {
-              "text": "Redditは、公開されているRedditの投稿を取得または検索した際に照会されます。Redditは、OpenMatesのユーザー識別子を含まないサブレディット名、公開投稿のURL、および検索クエリを受信します。"
-            }
-          },
           "bluesky": {
             "heading": {
               "text": "Bluesky (公開投稿とプロフィールフィード)"
@@ -12737,27 +12539,12 @@
             }
           }
         },
-        "business_data": {
-          "uspto": {
-            "description": {
-              "text": "米国商標検索では候補名と状態、綴り、ニース分類の条件を USPTO に送信します。リクエストはサーバーから送信し、OpenMates のユーザー識別情報やチャット履歴は含めません。"
-            }
-          }
-        },
         "jobs": {
           "heading": {
             "text": "求人検索サービス"
           },
           "description": {
-            "text": "求人検索時にのみ使用します。ドイツ連邦雇用庁と JobTech には、選択した検索語、場所、適用されるフィルターがサーバー経由で送られます。Arbeitnow の公開フィードは OpenMates がローカルで絞り込みます。OpenMates のユーザー ID、履歴書、アカウント認証情報は送信しません。"
-          },
-          "arbeitsagentur": {
-            "heading": {
-              "text": "German Federal Employment Agency"
-            },
-            "description": {
-              "text": "ドイツ連邦雇用庁は、公開求人検索のために選択した求人キーワード、場所、検索半径、適用されるフィルターを受け取ります。"
-            }
+            "text": "JobTech は、スウェーデンの求人検索のために選択したキーワード、場所名、リモート勤務の希望、掲載期間、結果件数を受け取ります。"
           },
           "jobtech": {
             "heading": {
@@ -12765,14 +12552,6 @@
             },
             "description": {
               "text": "JobTech は、スウェーデンの求人検索のために選択したキーワード、場所名、リモート勤務の希望、掲載期間、結果件数を受け取ります。"
-            }
-          },
-          "arbeitnow": {
-            "heading": {
-              "text": "Arbeitnow"
-            },
-            "description": {
-              "text": "OpenMates は Arbeitnow の公開求人フィードを取得します。キーワード、場所、フィルターはローカルで適用され、Arbeitnow には送信されません。"
             }
           }
         }
@@ -12923,20 +12702,9 @@
           "text": "Brave Searchプライバシーポリシー"
         }
       },
-      "webshare": {
-        "heading": {
-          "text": "3.11 Webshare"
-        },
-        "description": {
-          "text": "当社は、ウェブアプリケーションで外部サービスへのネットワークリクエストを行うためのサードパーティサービスとしてWebshareを使用しています。動画の文字起こし取得、健康の予約取得、またはイベント検索機能を使用すると、関連するリクエストURLがWebshare経由で各サービスにルーティングされます。WebshareはどのようなURLが要求されているかを確認しますが、すべてのデータはユーザー識別子なしで共有されます — Webshareはどの特定のユーザーが各リクエストを行ったかを知りません。このデータ共有は、これらの機能を積極的に使用する場合にのみ発生します。"
-        },
-        "privacy_policy_link": {
-          "text": "Webshareプライバシーポリシー"
-        }
-      },
       "google": {
         "heading": {
-          "text": "3.12 Google（地図検索とLLM）"
+          "text": "3.11 Google（地図検索とLLM）"
         },
         "description": {
           "text": "当社は、ウェブアプリケーションで地図検索とLLMリクエストの処理にGoogle（米国企業）を使用しています。地図検索機能を使用すると、場所の検索クエリがGoogle Maps Platformに送信され、場所情報が提供されます - Googleは検索する場所の内容を確認します。また、チャットメッセージとプロンプトを処理するLLMリクエストの処理にGoogle GenAIを使用しています - Google GenAIはチャットメッセージとプロンプトの内容を確認します。すべてのデータはユーザー識別子なしで共有されます - Googleはどの特定のユーザーが各検索を行ったか、または各メッセージを送信したかを知りません。このデータ共有は、地図検索機能を積極的に使用する場合、またはチャットリクエストがGoogle GenAI経由で処理される場合にのみ発生します。"
@@ -12945,23 +12713,12 @@
           "text": "Googleプライバシーポリシー"
         }
       },
-      "firecrawl": {
-        "heading": {
-          "text": "3.13 Firecrawl（ウェブスクレイピング）"
-        },
-        "description": {
-          "text": "当社は、ウェブアプリケーションでウェブスクレイピングにFirecrawl（米国企業）を使用しています。ウェブ読み取り機能を使用すると、スクレイピングをリクエストするウェブページのURLがFirecrawlに送信され、Firecrawlがこれらのウェブページをスクレイピングしてコンテンツを返します。Firecrawlは読み取りをリクエストするウェブサイトの完全なコンテンツを確認および処理しますが、すべてのデータはユーザー識別子なしで共有されます - Firecrawlはどの特定のユーザーが各ウェブページをリクエストしたかを知りません。このデータ共有は、ウェブ読み取り機能を積極的に使用する場合にのみ発生します。"
-        },
-        "privacy_policy_link": {
-          "text": "Firecrawlプライバシーポリシー"
-        }
-      },
       "groq": {
         "heading": {
-          "text": "3.14 Groq（外部データ処理）"
+          "text": "3.12 Groq（外部データ処理）"
         },
         "description": {
-          "text": "Braveからの検索結果やFirecrawlからのウェブサイトコンテンツなど、外部データを取得する機能を使用する場合、LLMリクエストの処理にGroq（米国企業）を使用します。Groqは検索結果とスクレイピングされたウェブページの実際のコンテンツを確認および処理し、チャット応答に含める前にそれらをサニタイズします。すべてのデータはユーザー識別子なしで共有されます - Groqはどの特定のユーザーが各コンテンツの処理をリクエストしたかを知りません。このデータ共有は、外部データを取得する機能を使用し、そのコンテンツを処理する必要がある場合にのみ発生します。"
+          "text": "Braveからの検索結果やExampleReaderからのウェブサイトコンテンツなど、外部データを取得する機能を使用する場合、LLMリクエストの処理にGroq（米国企業）を使用します。Groqは検索結果とスクレイピングされたウェブページの実際のコンテンツを確認および処理し、チャット応答に含める前にそれらをサニタイズします。すべてのデータはユーザー識別子なしで共有されます - Groqはどの特定のユーザーが各コンテンツの処理をリクエストしたかを知りません。このデータ共有は、外部データを取得する機能を使用し、そのコンテンツを処理する必要がある場合にのみ発生します。"
         },
         "privacy_policy_link": {
           "text": "Groqプライバシーポリシー"
@@ -12969,7 +12726,7 @@
       },
       "flightradar24": {
         "heading": {
-          "text": "3.16 Flightradar24"
+          "text": "3.14 Flightradar24"
         },
         "description": {
           "text": "「フライト追跡を取得」スキルを使用して実際のフライトデータを要求すると、完了したフライトの過去のGPSトラックデータを取得するためにFlightradar24に照会します。Flightradar24はフライト番号と出発日を受け取ります。個人データは共有されません。"
@@ -14842,6 +14599,15 @@
     },
     "event_at": {
       "text": "場所"
+    },
+    "luggage_not_included": {
+      "text": "手荷物は含まれていません"
+    },
+    "daytime": {
+      "text": "昼間"
+    },
+    "nighttime": {
+      "text": "夜間"
     }
   },
   "rules": {},

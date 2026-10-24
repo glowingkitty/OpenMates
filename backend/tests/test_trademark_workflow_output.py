@@ -16,7 +16,7 @@ from backend.core.api.app.services.workflow_app_skill_adapter import _normalize_
 def test_declared_trademark_workflow_fields_remain_typed_and_preserve_coverage(state):
     matches = [{"query": "ADIDAS", "mark": "ADIDAS", "region": "US",
                 "application_number": "72318279", "nice_classes": [25],
-                "source_url": "https://tsdr.uspto.gov/#caseNumber=72318279"}] if state == "partial" else []
+                "source_url": "https://example.org/registry/72318279"}] if state == "partial" else []
     coverage = ([{"query": "ADIDAS", "region": "US", "status": "searched",
                   "returned_count": len(matches), "total_matches": len(matches),
                   "checked_at": "2026-10-13T00:00:00Z"}] if state != "unsupported" else [])

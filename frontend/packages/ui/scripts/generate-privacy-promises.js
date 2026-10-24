@@ -68,7 +68,7 @@ function main() {
 
   const lines = [
     "// frontend/packages/ui/src/legal/privacyPromises.generated.ts",
-    "// ",
+    "//",
     "// AUTO-GENERATED from /shared/docs/privacy_promises.yml by",
     "// frontend/packages/ui/scripts/generate-privacy-promises.js",
     "// DO NOT EDIT BY HAND — run `npm run generate-privacy-promises` instead.",

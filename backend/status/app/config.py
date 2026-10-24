@@ -133,8 +133,6 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
     )),
     ("Search & Data", (
         UserComponent("Brave Search", "Search & Data", ("brave", "brave_search")),
-        UserComponent("SerpAPI", "Search & Data", ("serpapi",)),
-        UserComponent("Firecrawl", "Search & Data", ("firecrawl",)),
         UserComponent("Context7", "Search & Data", ("context7",)),
         UserComponent("YouTube", "Search & Data", ("youtube",)),
         UserComponent("Google Maps", "Search & Data", ("google_maps",)),
@@ -143,14 +141,8 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
         UserComponent("FAL (Flux)", "Image & Media", ("fal",)),
         UserComponent("Recraft", "Image & Media", ("recraft",)),
     )),
-    ("Events & Health", (
-        UserComponent("Doctolib", "Events & Health", ("doctolib",)),
-        UserComponent("Meetup", "Events & Health", ("meetup",)),
-        UserComponent("Luma Events", "Events & Health", ("luma",)),
-    )),
     ("Travel", (
         UserComponent("Travelpayouts", "Travel", ("travelpayouts",)),
-        UserComponent("Transitous", "Travel", ("transitous",)),
         UserComponent("FlightRadar24", "Travel", ("flightradar24",)),
     )),
     ("Payment", (

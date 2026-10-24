@@ -1,26 +1,3 @@
-"""
-Search skill for the Home app — German apartment and housing search.
-
-Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht in parallel for
-apartment, house, and WG room listings. Results are merged, sorted by
-price (ascending, nulls last), and returned as a SearchResponse.
-
-The skill follows the standard BaseSkill request/response pattern with
-the 'requests' array convention used by all OpenMates skills.
-
-Data flow:
-  1. LLM calls skill with requests=[{query: "Berlin", listing_type: "rent"}]
-  2. Skill validates input with _validate_requests_array (requires 'query')
-  3. Each request is processed in parallel via _process_requests_in_parallel
-  4. For each request: calls selected providers in parallel with asyncio.gather
-  5. Results merged, sorted by price, truncated to max_results
-  6. Results grouped by request ID and returned as SearchResponse
-  7. Frontend renders listings in HomeSearchEmbedPreview / Fullscreen
-
-See: backend/apps/home/providers/ for individual provider implementations.
-"""
-
-import asyncio
 import logging
 import math
 from datetime import date, datetime
@@ -29,20 +6,11 @@ from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.home.providers.immoscout24 import search_listings as is24_search
-from backend.apps.home.providers.kleinanzeigen import search_listings as ka_search
-from backend.apps.home.providers.wg_gesucht import search_listings as wg_search
-from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.geo_utils import lookup_city
-from backend.apps.home.evidence import assess_home_evidence, resolve_home_preferences
-from backend.apps.home.location_enrichment import enrich_home_locations, requested_categories, set_city_fallback
+from backend.apps.home.location_enrichment import set_city_fallback
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
-    normalize_relevance_criteria,
     normalize_url_for_deduplication,
-    rank_search_candidates,
-    relevance_candidate_target,
-    stable_deduplicate_candidates,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,11 +20,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # All available providers and their search functions
-PROVIDER_MAP: Dict[str, Any] = {
-    "ImmoScout24": is24_search,
-    "Kleinanzeigen": ka_search,
-    "WG-Gesucht": wg_search,
-}
+PROVIDER_MAP: Dict[str, Any] = {}
 
 ALL_PROVIDER_NAMES: List[str] = list(PROVIDER_MAP.keys())
 
@@ -130,7 +94,7 @@ class SearchRequestItem(BaseModel):
     max_water_walk_minutes: Optional[float] = Field(default=None, ge=0, le=120, description="Maximum supported walk to a public waterfront; a straight-line estimate cannot satisfy it.")
     providers: Optional[List[str]] = Field(
         default=None,
-        description="Providers to search. Defaults to all three: ImmoScout24, Kleinanzeigen, WG-Gesucht.",
+        description="Optional source identifiers; housing search is currently unavailable.",
     )
     max_results: int = Field(
         default=10,
@@ -332,128 +296,18 @@ def _listing_identity(listing: Dict[str, Any]) -> str:
 
 
 class SearchSkill(BaseSkill):
-    """
-    Skill that searches German housing platforms for apartment and room listings.
-
-    Accepts a 'requests' array where each request contains:
-    - query: City/location name (required), e.g. "Berlin", "Munich"
-    - listing_type: "rent" | "buy" (default: "rent")
-    - providers: Optional list of provider names to search
-      (default: all three — ImmoScout24, Kleinanzeigen, WG-Gesucht)
-    - max_results: Maximum listings per search (1–20, default 10)
-
-    Returns merged results sorted by price (ascending, nulls last).
-    Each listing includes: title, price, size, rooms, address, image, URL, provider.
-    """
-
-    FOLLOW_UP_SUGGESTIONS = FOLLOW_UP_SUGGESTIONS
+    """Housing contract retained while no permitted source is configured."""
 
     @classmethod
     def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Resolve selected housing providers before network search starts."""
-        requested = request.get("providers")
-        if isinstance(requested, list) and requested:
-            providers = [str(provider) for provider in requested if str(provider) in PROVIDER_MAP]
-        else:
-            providers = ALL_PROVIDER_NAMES.copy()
-        if not providers:
-            providers = ALL_PROVIDER_NAMES.copy()
-        return {"provider": "Multi", "providers": providers}
+        return {"provider": "Unavailable", "providers": []}
 
-    async def execute(
-        self,
-        requests: List[Dict[str, Any]],
-        secrets_manager: Optional[SecretsManager] = None,
-        **kwargs: Any,
-    ) -> SearchResponse:
-        """
-        Execute the home search skill.
-
-        1. Validate the requests array (requires 'query' field)
-        2. Process each request via _process_single_request in parallel
-        3. Group results by request ID
-        4. Return SearchResponse
-
-        Args:
-            requests: Array of search request dicts, each requiring 'query'.
-            secrets_manager: Optional injected secrets manager for Jev relevance ranking.
-            **kwargs: Additional kwargs (passed through to BaseSkill helpers).
-
-        Returns:
-            SearchResponse with grouped, sorted listing results.
-        """
-        requests = [item.model_dump(exclude_none=True) if isinstance(item, BaseModel) else item for item in requests]
-        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
-            requests=requests,
-            required_fields=["query"],
-            field_display_names={"query": "query"},
-            empty_error_message="No search requests provided",
-            logger=logger,
-        )
-        if validation_error:
-            return SearchResponse(results=[], error=validation_error)
-        if not validated_requests:
-            return self._build_response_with_errors(
-                response_class=SearchResponse,
-                grouped_results=invalid_grouped_results,
-                errors=validation_errors,
-                provider="Multi",
-                suggestions=self.FOLLOW_UP_SUGGESTIONS,
-                logger=logger,
-                providers=[],
-            )
-
-        # 2. Process requests in parallel
-        all_results = await self._process_requests_in_parallel(
-            requests=validated_requests,
-            process_single_request_func=self._process_single_request,
-            logger=logger,
-            secrets_manager=secrets_manager,
-            cache_service=kwargs.get("cache_service"),
-        )
-
-        warnings: List[str] = []
-        normalized_results = []
-        for result in all_results:
-            if isinstance(result, tuple) and len(result) == 4:
-                warnings.extend(result[3])
-                result = result[:3]
-            normalized_results.append(result)
-        all_results = normalized_results
-
-        # 3. Group results by request ID
-        grouped_results, errors = self._group_results_by_request_id(
-            results=all_results,
-            requests=requests,
-            logger=logger,
-        )
-        grouped_results = self._merge_grouped_results_preserving_request_order(
-            grouped_results,
-            invalid_grouped_results,
-            requests,
-        )
-
-        # 4. Collect unique provider names from results that actually returned listings
-        successful_providers: List[str] = []
-        seen_providers: set = set()
-        for group in grouped_results:
-            for listing in group.get("results", []):
-                prov = listing.get("provider")
-                if prov and prov not in seen_providers:
-                    seen_providers.add(prov)
-                    successful_providers.append(prov)
-
-        # 5. Build and return response
-        return self._build_response_with_errors(
-            response_class=SearchResponse,
-            grouped_results=grouped_results,
-            errors=errors,
-            provider="Multi",
-            suggestions=self.FOLLOW_UP_SUGGESTIONS,
-            logger=logger,
-            providers=successful_providers,
-            warnings=sorted(set(warnings)),
-        )
+    async def execute(self, requests: List[Dict[str, Any]], secrets_manager: Any = None,
+                      **kwargs: Any) -> SearchResponse:
+        error = "Housing search is unavailable: no permitted provider is configured."
+        groups = [{"id": item.get("id", index + 1), "results": [], "error": error}
+                  for index, item in enumerate(requests or [])]
+        return SearchResponse(results=groups, provider="Unavailable", providers=[], error=error)
 
     async def _geocode_listings(
         self,
@@ -467,206 +321,3 @@ class SearchSkill(BaseSkill):
                 continue
             if coords:
                 set_city_fallback(listing, coords, source="OpenMates city lookup")
-
-
-    async def _process_single_request(
-        self,
-        req: Dict[str, Any],
-        request_id: Any,
-        **kwargs: Any,
-    ) -> tuple:
-        """
-        Process a single housing search request across multiple providers.
-
-        Args:
-            req: Request dict with 'query' (city), optional 'listing_type',
-                 'providers', 'max_results', and 'relevance_criteria'.
-            request_id: Unique ID for this request (for result grouping).
-            **kwargs: Additional kwargs, including the optional secrets manager.
-
-        Returns:
-            Tuple of (request_id, results_list, error_string_or_none).
-        """
-        try:
-            validated = SearchRequestItem.model_validate(req)
-        except Exception as exc:
-            return (request_id, [], f"Invalid housing search input: {exc}")
-        req = validated.model_dump(mode="json", exclude_none=True)
-        query: str = req.get("query", "").strip()
-        listing_type: str = req.get("listing_type", "rent").strip().lower()
-        providers_requested: Optional[List[str]] = req.get("providers")
-        max_results: int = int(req.get("max_results", 10))
-        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
-
-        if not query:
-            return (request_id, [], "Missing 'query' in request")
-
-        req = await resolve_home_preferences(req, secrets_manager=kwargs.get("secrets_manager"))
-        amenity_search = any(req.get(key) for key in ("required_amenities", "excluded_amenities", "preferred_amenities"))
-        geographic_search = bool(requested_categories(req))
-        filtered_search = any(req.get(key) is not None for key in (
-            "min_price_eur", "max_price_eur", "min_rooms", "max_rooms", "min_size_sqm", "max_size_sqm",
-            "max_warm_rent_eur", "max_cold_rent_eur", "available_by"))
-        expanded_search = bool(relevance_criteria or amenity_search or geographic_search or filtered_search)
-
-        # Clamp max_results
-        max_results = max(1, min(MAX_RESULTS_HARD_LIMIT, max_results))
-        candidate_target = relevance_candidate_target(max_results) if expanded_search else max_results
-
-        # Validate listing_type
-        if listing_type not in ("rent", "buy"):
-            listing_type = "rent"
-
-        property_type = req.get("property_type", "apartment")
-        sort = req.get("sort", "price_asc")
-
-        # Determine which providers to search
-        if providers_requested:
-            selected_providers = {
-                name: func
-                for name, func in PROVIDER_MAP.items()
-                if name in providers_requested
-            }
-            if len(selected_providers) != len(set(providers_requested)):
-                return (request_id, [], "Unknown housing search provider")
-        else:
-            selected_providers = PROVIDER_MAP
-
-        if property_type == "shared_room":
-            selected_providers = {name: func for name, func in selected_providers.items() if name == "WG-Gesucht"}
-            if not selected_providers:
-                return (request_id, [], "Shared-room searches require WG-Gesucht")
-
-        logger.info(
-            "Home search query=%r type=%s providers=%s max=%d",
-            query, listing_type, list(selected_providers.keys()), max_results,
-        )
-
-        if expanded_search:
-            provider_count = max(1, len(selected_providers))
-            discovery_limit = min(
-                MAX_RESULTS_HARD_LIMIT,
-                max(max_results, (candidate_target + provider_count - 1) // provider_count),
-            )
-        else:
-            discovery_limit = MAX_RESULTS_HARD_LIMIT if sort == "newest" or any(
-                req.get(key) is not None for key in ("max_price_eur", "min_rooms", "min_size_sqm")
-            ) else max_results
-
-        # Call all selected providers in parallel
-        try:
-            provider_tasks = [
-                func(city=query, listing_type=listing_type, max_results=discovery_limit,
-                     property_type=property_type, sort=sort)
-                for func in selected_providers.values()
-            ]
-            provider_results = await asyncio.gather(*provider_tasks, return_exceptions=True)
-        except Exception as e:
-            logger.error("Home search gather failed query=%r: %s", query, e, exc_info=True)
-            return (request_id, [], f"Search failed: {e}")
-
-        # Merge results from all providers
-        merged: List[Dict[str, Any]] = []
-        provider_errors: List[str] = []
-        warnings: List[str] = []
-
-        for provider_name, result in zip(selected_providers.keys(), provider_results):
-            if isinstance(result, Exception):
-                error_msg = f"{provider_name} failed: {result}"
-                logger.error("Home search provider error: %s", error_msg)
-                provider_errors.append(error_msg)
-            elif isinstance(result, list):
-                warnings.extend(getattr(result, "warnings", []))
-                for rank, listing in enumerate(result):
-                    listing["discovery_rank"] = rank
-                    listing["property_type"] = property_type
-                    merged.append(listing)
-                logger.info("Home search %s returned %d listings", provider_name, len(result))
-            else:
-                logger.warning("Home search %s returned unexpected type: %s", provider_name, type(result))
-                provider_errors.append(f"{provider_name} returned an invalid response")
-
-        # Authoritative numeric constraints avoid spending inference on known conflicts.
-        merged, numeric_warnings = filter_home_listings(merged, req, amenities=False, geographic=False)
-        warnings.extend(numeric_warnings)
-        if sort == "newest":
-            merged.sort(key=lambda item: item["discovery_rank"])
-            if any(name != "Kleinanzeigen" for name in selected_providers):
-                warnings.append("ImmoScout24 and WG-Gesucht retain provider order; newest ordering is not guaranteed.")
-        else:
-            merged.sort(key=lambda item: (item.get("price") is None, item.get("price") or 0))
-        merged = stable_deduplicate_candidates(merged, key=_listing_identity)[:candidate_target]
-
-        if amenity_search:
-            warnings.extend(await assess_home_evidence(
-                merged, request=req, secrets_manager=kwargs.get("secrets_manager"),
-                cache_service=kwargs.get("cache_service")))
-        # Remove authoritative amenity conflicts and unresolved hard requirements
-        # after assessment, before they consume the optional location budget.
-        merged, amenity_warnings = filter_home_listings(merged, req, geographic=False)
-        warnings.extend(amenity_warnings)
-        if geographic_search:
-            prioritized = prioritize_location_candidates(merged, req)
-            warnings.extend(await enrich_home_locations(
-                prioritized, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
-                cache_service=kwargs.get("cache_service")))
-
-        merged, evidence_warnings = filter_home_listings(merged, req)
-        warnings.extend(evidence_warnings)
-        ranking_criteria = relevance_criteria or (
-            "Prefer explicitly supported amenities: " + ", ".join(req.get("preferred_amenities", []))
-            if req.get("preferred_amenities") else ""
-        )
-        if geographic_search and not ranking_criteria:
-            ranking_criteria = "Prioritize supported nearby " + ", ".join(requested_categories(req)) + " evidence."
-        if ranking_criteria:
-            projections = []
-            for listing in merged:
-                neighborhood = (listing.get("neighborhood") or {}).get("features", {})
-                nearby = {category: [{key: row.get(key) for key in ("name", "distance_m", "distance_method", "walk_minutes")}
-                                     for row in rows[:2]] for category, rows in neighborhood.items() if isinstance(rows, list)}
-                projections.append({
-                    "title": listing.get("title"), "amenities": listing.get("amenities"),
-                    "match_evidence": listing.get("match_evidence"), "nearby": nearby,
-                    "location_precision": listing.get("location_precision"),
-                    "price": listing.get("price"), "price_type": listing.get("price_type"),
-                    "warm_rent_eur": listing.get("warm_rent_eur"), "cold_rent_eur": listing.get("cold_rent_eur"),
-                    "rooms": listing.get("rooms"), "size_sqm": listing.get("size_sqm"),
-                    "address": listing.get("address"), "available_from": listing.get("available_from"),
-                    "description": listing.get("description"),
-                })
-            ranking = await rank_search_candidates(
-                candidates=merged, candidate_projections=projections,
-                relevance_criteria=ranking_criteria, search_parameters=req,
-                profile="home", secrets_manager=kwargs.get("secrets_manager"))
-            merged = ranking.candidates
-            if not ranking.applied and merged:
-                warnings.append("Relevance ranking was unavailable; provider/price order is retained.")
-
-        # Never emit extra candidate embeds. Enrich neutral searches only after selection.
-        merged = merged[:max_results]
-        if not geographic_search:
-            warnings.extend(await enrich_home_locations(
-                merged, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
-                cache_service=kwargs.get("cache_service")))
-        await self._geocode_listings(merged, city=query)
-        if not merged and not provider_errors:
-            warnings.append("No confirmed matches in the bounded provider results; broaden requirements or inspect unconfirmed listings.")
-        warnings.append("Coverage is limited to the retrieved provider pages; this is not an exhaustive market search.")
-
-        # Build error string if some providers failed (but we still have results)
-        error = "; ".join(provider_errors) if len(provider_errors) == len(selected_providers) else None
-        if not error:
-            warnings.extend(provider_errors)
-
-        if property_type == "shared_room":
-            selected_providers = {name: func for name, func in selected_providers.items() if name == "WG-Gesucht"}
-            if not selected_providers:
-                return (request_id, [], "Shared-room searches require WG-Gesucht")
-
-        logger.info(
-            "Home search query=%r -> %d merged listings (%d provider errors)",
-            query, len(merged), len(provider_errors),
-        )
-
-        return (request_id, merged, error, warnings)

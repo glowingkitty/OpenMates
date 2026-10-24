@@ -262,7 +262,7 @@ skill_id: search`,
       content: `type: image_result
 title: "Two photos; one present-day of Oskar Jakob, a man in his 90s, and the other circa-1920s of Robert Lusser, a man in his 30s."
 source_page_url: "https://www.latimes.com/archives/la-xpm-1996-09-22-ca-46386-story.html"
-image_url: "https://ca-times.brightspotcdn.com/dims4/default/78b1664/2147483647/strip/true/crop/2991x2000+5+0/resize/320x214!/quality/75/?url=https://california-times-brightspot.s3.amazonaws.com/a5/21/d52f7bcb4bcaa31fe56263145ee4/oe-rico-my-nazi-grandfather.jpg"
+image_url: "https://ca-times.brightspotcdn.com/dims4/default/78b1664/2147483647/strip/true/crop/2991x2000+5+0/resize/320x214!/quality/75/?url=https://example.com/a5/21/d52f7bcb4bcaa31fe56263145ee4/oe-rico-my-nazi-grandfather.jpg"
 thumbnail_url: "https://imgs.search.brave.com/BEuSgvMc6Y8XrWpdskyYWJZ0bdRnMuFch9uFcAFwRw8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jYS10/aW1lcy5icmlnaHRz/cG90Y2RuLmNvbS9k/aW1zNC9kZWZhdWx0/Lzc4YjE2NjQvMjE0/NzQ4MzY0Ny9zdHJp/cC90cnVlL2Nyb3Av/Mjk5MXgyMDAwKzUr/MC9yZXNpemUvMzIw/eDIxNCEvcXVhbGl0/eS83NS8_dXJsPWh0/dHBzOi8vY2FsaWZv/cm5pYS10aW1lcy1i/cmlnaHRzcG90LnMz/LmFtYXpvbmF3cy5j/b20vYTUvMjEvZDUy/ZjdiY2I0YmNhYTMx/ZmU1NjI2MzE0NWVl/NC9vZS1yaWNvLW15/LW5hemktZ3JhbmRm/YXRoZXIuanBn"
 source: latimes.com
 favicon_url: "https://imgs.search.brave.com/EIRey0HaEsL1IV9fnxScQLjHB6lv2fJwFlos_6z5T74/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDFlNWJiNjNk/ZGIzOWIzYTU2ODgz/MDYxMDMxNTY1ZjU1/NTdmNzEzMmQwMDRk/NDZmYTc3Mzg2NTA4/ZjdjOWVlMi93d3cu/bGF0aW1lcy5jb20v"

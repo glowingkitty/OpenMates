@@ -99,7 +99,7 @@
       title: asString(content.title),
       part_number: asString(content.part_number),
       base_part_number: asString(content.base_part_number),
-      provider: asString(content.provider) || 'TI WEBENCH',
+      provider: asString(content.provider) || '',
       topology: asString(content.topology) || null,
       package: asString(content.package) || null,
       regulator_type: asString(content.regulator_type) || null,
@@ -134,7 +134,7 @@
 
   let componentData = $derived(component ?? componentFromData(data, embedId));
   let title = $derived(componentData.part_number || componentData.base_part_number || componentData.title || 'Component');
-  let subtitle = $derived([componentData.topology, componentData.package, componentData.provider || 'TI WEBENCH'].filter(Boolean).join(' / '));
+  let subtitle = $derived([componentData.topology, componentData.package, componentData.provider || ''].filter(Boolean).join(' / '));
   let performanceDetails = $derived([
     detail($text('embeds.electronics.efficiency'), formatNumber(componentData.efficiency_percent, '%')),
     detail($text('embeds.electronics.bom_cost'), formatNumber(componentData.bom_cost_usd, ' USD')),
@@ -194,7 +194,7 @@
   {#snippet detailContent()}
     <div class="component-fullscreen">
       <section class="hero-card">
-        <div class="eyebrow">{componentData.provider || 'TI WEBENCH'}</div>
+        <div class="eyebrow">{componentData.provider || ''}</div>
         <h2>{title}</h2>
         {#if componentData.description}
           <p>{componentData.description}</p>

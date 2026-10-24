@@ -90,7 +90,6 @@ CLI architecture lives under [Platforms](platforms/README.md), not Apps, because
 - [File Upload Pipeline](infrastructure/file-upload-pipeline.md) - Presigned URLs and S3 storage
 - [Analytics](infrastructure/analytics.md) - Privacy-preserving analytics
 - [Status Page](infrastructure/status-page.md) - Service status monitoring
-- [Luma API](integrations/luma.md) - Luma video generation API
 - [Media Generation](integrations/media-generation.md) - OG images and social media graphics
 
 ## Contributing

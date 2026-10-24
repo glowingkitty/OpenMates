@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -1032,7 +1012,6 @@ sections:
     - README.md
     - backend/apps/social_media/search_collection.py
     - backend/apps/travel/test_adsb_exchange.py
-    - backend/shared/providers/reddit/rss.py
     - docs/architecture/README.md
     - docs/architecture/compliance/browser-storage.yml
     - docs/architecture/compliance/cookies.yml
@@ -1551,7 +1530,6 @@ sources:
     - README.md
     - backend/apps/social_media/search_collection.py
     - backend/apps/travel/test_adsb_exchange.py
-    - backend/shared/providers/reddit/rss.py
     - docs/architecture/README.md
     - docs/architecture/compliance/browser-storage.yml
     - docs/architecture/compliance/cookies.yml

@@ -1535,7 +1535,7 @@ def main():
             required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
-            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "Gandi", "JobTech"], "paid_provider_credentials": "absent"}
+            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "JobTech"], "paid_provider_credentials": "absent"}
         if "uploads" in profile["services"]:
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
@@ -1648,7 +1648,7 @@ def main():
             evidence["storage_capacity"]["observed_worker_processes"] = observed_worker_slots
         if profile["services"].get("runner-gateway", {}).get("environment", {}).get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
             compose("exec", "-T", "api", "python", "-c", "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()", capture=True, timeout=10)
-            evidence["public_provider_proxy"] = {"allowed_https_hosts": ["webench.ti.com"], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
+            evidence["public_provider_proxy"] = {"allowed_https_hosts": [], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
         if "object-storage" in profile["services"]:
             if socket.gethostbyname("storage.ci.test") != "127.0.0.1":
                 raise RuntimeError("Object storage must resolve on this runner")

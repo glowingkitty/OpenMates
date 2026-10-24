@@ -34,11 +34,11 @@ def transcript_module(monkeypatch):
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.output.external-semantic
-def test_request_schema_accepts_ccc_and_retains_youtube_and_shorts_validation(transcript_module):
+def test_request_schema_accepts_ccc_and_rejects_youtube(transcript_module):
     model = transcript_module.TranscriptRequestItem
-    for url in ["https://media.ccc.de/v/public-talk", "https://youtu.be/dQw4w9WgXcQ", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]:
+    for url in ["https://media.ccc.de/v/public-talk"]:
         assert model(url=url).url == url
-    for url in ["https://media.ccc.de.evil.test/v/talk", "https://www.youtube.com/shorts/dQw4w9WgXcQ"]:
+    for url in ["https://media.ccc.de.evil.test/v/talk", "https://www.youtube.com/shorts/dQw4w9WgXcQ", "https://youtu.be/dQw4w9WgXcQ", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]:
         with pytest.raises(ValueError):
             model(url=url)
 
@@ -59,15 +59,10 @@ async def test_ccc_uses_shared_sanitizer_formatter_and_never_youtube_or_income(t
         seen.append(kwargs["content"])
         return sanitized
 
-    async def youtube_or_income(**kwargs):
-        pytest.fail("CCC captions must not fetch YouTube metadata, proxy credentials or creator income")
-
     monkeypatch.setattr(transcript_module.MediaCCCClient, "fetch_transcript", fetch)
     monkeypatch.setattr(transcript_module, "sanitize_external_content", sanitize)
-    monkeypatch.setattr(skill, "_fetch_transcript", youtube_or_income)
-    monkeypatch.setattr(skill, "_create_creator_income_for_video", youtube_or_income)
-    import backend.core.api.app.utils.server_mode as server_mode
-    monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+    assert not hasattr(skill, "_fetch_transcript")
+    assert not hasattr(skill, "_create_creator_income_for_video")
     request_id, results, error = await skill._process_single_transcript_request(
         {"url": "https://media.ccc.de/v/public-talk#t=5", "languages": ["en"]}, "ccc", None
     )

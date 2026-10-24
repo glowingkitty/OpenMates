@@ -67,9 +67,9 @@
     id: string;
     /** Search query */
     query: string;
-    /** Events provider (e.g., 'Meetup') — legacy single-provider field */
+    /** Events provider (e.g., 'Gathering') — legacy single-provider field */
     provider: string;
-    /** List of provider slugs that contributed results (e.g. ['meetup', 'luma']) */
+    /** List of provider slugs that contributed results (e.g. ['Gathering', 'ExampleEvents']) */
     providers?: string[] | string;
     /** Processing status - must match SkillExecutionStatus */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
@@ -94,15 +94,7 @@
   /** Map backend provider slugs to human-readable display names. */
   function getProviderLabel(slug: string): string {
     switch (slug?.toLowerCase()) {
-      case 'meetup':              return 'Meetup';
-      case 'luma':                return 'Luma';
-      case 'eventbrite':          return 'Eventbrite';
       case 'google_events':       return 'Google';
-      case 'resident_advisor':    return 'Resident Advisor';
-      case 'siegessaeule':        return 'Siegessäule';
-      case 'classictic':          return 'Classictic';
-      case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':           return 'Bachtrack';
       default:                    return slug || '';
     }
   }
@@ -445,20 +437,8 @@
     mask-size: contain;
   }
 
-  .provider-badge-meetup .provider-badge-icon {
-    -webkit-mask-image: url('@openmates/ui/static/icons/meetup.svg');
-    mask-image: url('@openmates/ui/static/icons/meetup.svg');
-  }
 
-  .provider-badge-luma .provider-badge-icon {
-    -webkit-mask-image: url('@openmates/ui/static/icons/luma.svg');
-    mask-image: url('@openmates/ui/static/icons/luma.svg');
-  }
 
-  .provider-badge-resident_advisor .provider-badge-icon {
-    -webkit-mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
-    mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
-  }
 
   .events-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);

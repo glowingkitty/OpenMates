@@ -109,7 +109,7 @@ clarification:
     - question: Should the `Find events` animation render real embed components or a lightweight visual match?
       answer: Use a simplified deterministic animation, but its user/assistant messages must match the real chat history UI and its events surfaces must reuse or mirror the real events embed preview/fullscreen designs.
     - question: Which event should the first `Actionable` animation represent?
-      answer: Use the `DEPIN DAY BERLIN` tech event. The sequence is a localized user request, George's localized `Of course, here you go:` response, the real event preview with a pointer click, and the `Open on Luma` CTA with a pointer click.
+      answer: Use the `DEPIN DAY BERLIN` tech event. The sequence is a localized user request, George's localized `Of course, here you go:` response, the real event preview with a pointer click, and the `Open on registration page` CTA with a pointer click.
   vision_summary: >
     Logged-out users should understand OpenMates from the real app UI before they
     choose topics or read long intro chats. The first page load should feel like a
@@ -348,21 +348,21 @@ attempts:
       chat container still did not stretch tall enough, mobile height was wrong,
       the intro headline needed to be exactly `Simply ask your\nAI team mates`,
       app icons and shadows were still clipped, highlighted icons were too far
-      left, and slide 2 needed a real Luma event image plus cursor clicks that
-      reveal and click an `Open on Luma` CTA instead of showing a simplified
+      left, and slide 2 needed a real registration page event image plus cursor clicks that
+      reveal and click an `Open on registration page` CTA instead of showing a simplified
       fullscreen/map surface.
   - id: ATTEMPT-14
     task_id: TASK-2
-    approach: Patch the rejected landing intro layout and replace slide 2 with a real Luma event preview-to-CTA cursor animation.
+    approach: Patch the rejected landing intro layout and replace slide 2 with a real registration page event preview-to-CTA cursor animation.
     outcome: succeeded
     recorded_at: "2026-07-23"
     notes: >
       Commit `0d0a6b5fe` updates the active-chat intro height to use the viewport-fill
       calc preferred by the user, move the intro headline/rails upward, add more
       left-side rail icons before featured apps, remove icon rail overflow
-      clipping, and replace the fake fullscreen detail with the real Luma event
+      clipping, and replace the fake fullscreen detail with the real registration page event
       `DEPIN DAY BERLIN`, its real cover image, a visible cursor click on the
-      preview, and an `Open on Luma` CTA button. Deployed to Vercel deployment
+      preview, and an `Open on registration page` CTA button. Deployed to Vercel deployment
       `dpl_Czhn8Px12FNnsMM6o1RRsS1SkRcx`; `landing-page-onboarding-refresh.spec.ts`
       passed in GitHub Actions run `30005783218`; `guest-interest-smart-selection.spec.ts`
       passed in GitHub Actions run `30005765899`. User visual confirmation remains
@@ -691,9 +691,9 @@ scenarios:
       - The animation shows a simple user message for tech events in Berlin.
       - It shows a real chat-history-style user bubble with the speech-tail pointer.
       - It shows a real chat-history-style assistant response with the localized general-knowledge mate name and speech-tail pointer saying the localized equivalent of `Of course, here you go:`.
-      - A real events embed preview for `DEPIN DAY BERLIN` fades in with its Luma cover image.
+      - A real events embed preview for `DEPIN DAY BERLIN` fades in with its registration page cover image.
       - A visible cursor moves over the preview and clicks it.
-      - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
+      - The click reveals the actual CTA text `Open on registration page`, and the cursor clicks that CTA.
       - Every user-visible demo string comes from the translation sources for every supported locale.
       - Each content stage enters quickly from below at reduced scale, continues drifting upward very slowly through the center without stopping, then accelerates upward while scaling and fading down.
       - At every viewport width, the large icon-free headline enters from below, keeps moving subtly through center with eased deceleration and acceleration, then fades and exits upward.
@@ -829,7 +829,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The `Actionable` slide shows one large continuously moving icon-free heading, removes it before mounting localized real chat bubble/profile animation, then presents a centered real-image Luma event preview and visible cursor clicks through the readable `Open on Luma` CTA before advancing once with duration-accurate progress.
+    text: The `Actionable` slide shows one large continuously moving icon-free heading, removes it before mounting localized real chat bubble/profile animation, then presents a centered real-image registration page event preview and visible cursor clicks through the readable `Open on registration page` CTA before advancing once with duration-accurate progress.
     required: true
     status: pending
     coverage_status: covered
@@ -1014,13 +1014,13 @@ tests:
     covers:
       - AC-4
     assertions:
-      - actionable slide shows the one-shot Luma event preview-to-CTA explainer sequence
+      - actionable slide shows the one-shot registration page event preview-to-CTA explainer sequence
       - user and assistant messages expose real chat bubble speech-tail styling
       - assistant message includes a mate profile image, localized general-knowledge mate name, and localized `Of course, here you go:` copy
       - event preview uses the real events embed preview surface with app id `events` and skill id `event`
-      - event preview uses a real Luma cover image and provider label
+      - event preview uses a real registration page cover image and provider label
       - no simplified fullscreen/map surface is rendered
-      - visible cursor animation presses the preview, reveals the translated `Open on Luma` CTA, and presses that CTA
+      - visible cursor animation presses the preview, reveals the translated `Open on registration page` CTA, and presses that CTA
       - large icon-free heading keeps moving through center, exits fully, and is absent before the demo mounts
       - user/assistant/CTA text uses readable presentation sizing on phone and desktop
       - mobile post-intro navigation keeps the old content mounted through fade-out, swaps content only at zero opacity, and fades the new slide in

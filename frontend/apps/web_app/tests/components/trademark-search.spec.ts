@@ -49,7 +49,7 @@ test('preview preserves coverage, terminal states and phone layout',async({page}
   await open(page,'BusinessTrademarkSearchEmbedPreview');
   await fits(page,root);
   await expect(root).toContainText('ADIDAS');
-  await expect(root).toContainText('USPTO');
+  await expect(root).toContainText('ExampleTrademarks');
   await expect(root).toContainText('DE · Not searched');
   await expect(root).toContainText('Preliminary search');
   await expect(root.locator('.icon_rounded.business').first()).toBeVisible();
@@ -86,7 +86,7 @@ test('fullscreen retains records, filters, official links and explicit failures'
   await detail.locator('summary').focus();
   await page.keyboard.press('Enter');
   await expect(detail).toContainText('Tote bags.');
-  await expect(detail.getByTestId('trademark-record-source')).toHaveAttribute('href',/^https:\/\/tsdr\.uspto\.gov\/#caseNumber=72318279/);
+  await expect(detail.getByTestId('trademark-record-source')).toHaveAttribute('href',/^https:\/\/tsdr\.ExampleTrademarks\.gov\/#caseNumber=72318279/);
   await testInfo.attach('trademark-fullscreen-phone-light',{body:await root.screenshot(),contentType:'image/png'});
   await open(page,'BusinessTrademarkSearchEmbedFullscreen','filters',1280,'dark');
   await fits(page,root);

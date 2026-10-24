@@ -224,7 +224,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "health_wellbeing", type: "mate", audience: "personal", fallbackLabel: "health & wellbeing", icon: "heart-pulse", appId: "health", gradientCategory: "medical_health",
     related: ["find_doctor_appointments", "cooking_meal_planning", "productivity_organization", "privacy_personal_data"],
-    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-amazon-germany", "example-berlin-weather-bike-commute", "example-habit-garden-web-application", ],
+    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-retail-germany", "example-berlin-weather-bike-commute", "example-habit-garden-web-application", ],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
   },
   {
@@ -248,7 +248,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "find_restaurants_cafes", type: "skill", audience: "personal", fallbackLabel: "find restaurants & cafes", icon: "utensils", appId: "maps", gradientCategory: "cooking_food",
     related: ["find_local_events", "cooking_meal_planning", "plan_trips", "find_apartments"],
-    exampleChats: ["example-berlin-mitte-work-friendly", "example-air-fryers-amazon-germany"],
+    exampleChats: ["example-berlin-mitte-work-friendly", "example-air-fryers-retail-germany"],
     suggestions: ["chat.new_chat_suggestions.meal_prep", "chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
@@ -260,7 +260,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "cooking_meal_planning", type: "mate", audience: "personal", fallbackLabel: "cooking & meal planning", icon: "cooking-pot", appId: "maps", gradientCategory: "cooking_food",
     related: ["health_wellbeing", "find_restaurants_cafes", "productivity_organization"],
-    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-amazon-germany"],
+    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-retail-germany"],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.meal_prep"],
   },
   {

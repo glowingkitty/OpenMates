@@ -12,8 +12,8 @@ const root: DecryptedEmbed = {
   id: 'search', embedId: 'search', type: 'app_skill_use', appId: 'fitness', skillId: 'search_classes',
   textPreview: null, createdAt: null,
   content: {
-    status: 'finished', provider: 'Urban Sports Club', query: 'yoga near Sorauer Str. 12',
-    summary: 'Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans.',
+    status: 'finished', provider: 'ExampleFitness', query: 'yoga near Sorauer Str. 12',
+    summary: 'Found 2 fitness source classes in onsite mode. Searched all fitness source plans.',
     filters: { address: 'Sorauer Str. 12, Berlin', radius_km: 3, plan: 'all', attendance_mode: 'onsite' },
     result_count: 2,
     results: [
@@ -47,8 +47,8 @@ function inOrder(text: string, values: string[]) {
 test('Fitness search details follow the rendered web preview and footer stays at the bottom', () => {
   const lines = rendered(root);
   const text = lines.join('\n');
-  inOrder(text, ['Urban Sports Club', 'Search classes', 'Sorauer Str. 12, Berlin', '2 classes',
-    'Found 2 Urban Sports classes', 'Morning Yoga Flow', 'Yoga Studio Kreuzberg',
+  inOrder(text, ['ExampleFitness', 'Search classes', 'Sorauer Str. 12, Berlin', '2 classes',
+    'Found 2 fitness source classes', 'Morning Yoga Flow', 'Yoga Studio Kreuzberg',
     'HIIT Strength', 'BEAT81 - Paul-Lincke-Ufer', '3 km · Plan: all · onsite',
     'Fitness · Search classes', '/embed fit-s_c-1']);
   assert.match(lines.at(-4) ?? '', /^├/);
@@ -62,7 +62,7 @@ test('Fitness search details follow the rendered web preview and footer stays at
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
 test('Fitness statuses and empty results use the web wording without stale counts or result snippets', () => {
   for (const [status, expected] of [
-    ['processing', 'Searching Urban Sports Club...'], ['error', 'Search failed.'],
+    ['processing', 'Searching fitness classes...'], ['error', 'Search failed.'],
     ['cancelled', 'Search cancelled.'],
   ]) {
     const text = rendered({ ...root, content: { ...root.content, status } }).join('\n');
@@ -77,7 +77,7 @@ test('Fitness statuses and empty results use the web wording without stale count
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
 test('Fitness location search uses location count and address', () => {
   const location = { ...root, skillId: 'search_locations', content: {
-    status: 'finished', provider: 'Urban Sports Club', filters: { city: 'Berlin', radius_km: 2 },
+    status: 'finished', provider: 'ExampleFitness', filters: { city: 'Berlin', radius_km: 2 },
     result_count: 1, results: [{ name: 'BEAT81 - Paul-Lincke-Ufer' }],
   } } satisfies DecryptedEmbed;
   const text = rendered(location, 'fit-s_l-1').join('\n');

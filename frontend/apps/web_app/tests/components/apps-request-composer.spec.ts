@@ -286,8 +286,8 @@ test('event fullscreen forwards visible event fields while excluding raw and nes
   const result = payload.context.result;
   expect(payload.app_id).toBe('events');
   expect(result).toMatchObject({
-    embed_id: 'preview-event-fullscreen-1', title: 'AI & Machine Learning Berlin Meetup – Spring Edition',
-    provider: 'meetup', date_start: '2026-03-15T19:00:00+01:00', date_end: '2026-03-15T22:00:00+01:00', timezone: 'Europe/Berlin',
+    embed_id: 'preview-event-fullscreen-1', title: 'AI & Machine Learning Berlin Gathering – Spring Edition',
+    provider: 'Gathering', date_start: '2026-03-15T19:00:00+01:00', date_end: '2026-03-15T22:00:00+01:00', timezone: 'Europe/Berlin',
     organizer: { id: 'org-ai-berlin', name: 'AI Berlin Community', slug: 'ai-berlin' },
     venue: { name: 'Factory Berlin', address: 'Rheinsberger Str. 76-77', city: 'Berlin', country: 'Germany', lat: 52.5393, lon: 13.4028 },
     fee: { amount: 0, currency: 'EUR' }, rsvp_count: 142, is_paid: false,

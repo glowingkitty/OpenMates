@@ -47,7 +47,7 @@
     practice_url?: string;
     provider?: string;
     provider_platform?: string;
-    // Jameda-specific fields (null for Doctolib results)
+    // the stored provider-specific fields (null for the stored provider results)
     booking_url?: string;
     rating?: number;
     rating_count?: number;

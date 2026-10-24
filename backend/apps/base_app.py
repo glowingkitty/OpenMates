@@ -21,7 +21,8 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
     AppSkillDefinition,
     AppFocusDefinition,
-    AppMemoryFieldDefinition
+    AppMemoryFieldDefinition,
+    skill_has_provider_support,
 )
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
@@ -395,6 +396,8 @@ class BaseApp:
         Request object. The body of this method was lifted unchanged from the old
         ``_execute_skill_route`` after the JSON parsing block.
         """
+        if not skill_has_provider_support(skill_definition):
+            raise HTTPException(status_code=503, detail="No supported provider is configured for this capability.")
         logger.info(f"[SKILL_DISPATCH] Dispatching skill '{self.app_id}.{skill_definition.id}' (keys={list(request_body.keys())})")
 
         try:

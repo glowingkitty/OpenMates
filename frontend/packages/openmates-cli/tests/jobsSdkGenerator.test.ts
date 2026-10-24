@@ -18,7 +18,7 @@ it("exposes jobs.search with Germany default, bounded results, and a direct runn
   assert.equal(metadata.schema.properties.requests.items.properties.countries["x-ui"].basic, false);
   assert.equal(metadata.schema.properties.requests.items.properties.limit.maximum, 50);
   assert.deepEqual(metadata.schema.properties.requests.items.properties.provider.enum, [
-    "auto", "Arbeitnow", "Arbeitsagentur", "JobTech", "80,000 Hours", "Hard Problems",
+    "auto", "ExampleJobsD", "ExampleJobsA", "JobTech", "ExampleJobsB", "ExampleJobsC",
   ]);
   const sdkGroup = metadata.output_schema.properties.results.items.properties;
   assert.equal("title" in sdkGroup, false);

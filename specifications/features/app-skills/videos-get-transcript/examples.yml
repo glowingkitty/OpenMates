@@ -1,28 +1,24 @@
 schema_version: 1
 specification: feature.app-skill.videos-get-transcript@1
 
-backfilled_youtube:
-  - id: watch-url-fragment-and-default-language
-    given: {requests: [{url: 'https://www.youtube.com/watch?v=abcdefghijk#t=5'}]}
-    expect: {url_used: 'https://www.youtube.com/watch?v=abcdefghijk', generated_id: true, languages: [en, de, es, fr], provider: YouTube}
-  - id: short-url-and-ordered-results
-    given: {requests: [{id: first, url: 'https://youtu.be/abcdefghijk'}, {id: second, url: invalid}]}
-    expect: {grouped_ids: [first, second], first_result_type: transcript_result, second_error_visible: true, polling: false}
-  - id: shorts-rejected
-    given: {requests: [{url: 'https://www.youtube.com/shorts/abc123'}]}
-    expect: {error: invalid_youtube_url, provider_called: false}
-  - id: formatted-captions
-    given: {caption: {start: 1.25, duration: 0.75, text: Hello}}
-    expect: {transcript_line: '[00:00:01.250] Hello', result_fields: [type, url, transcript, word_count, characters_count, language, hash]}
-  - id: sanitization-block
-    given: {caption_sanitizer: blocked}
-    expect: {error_visible: true, transcript_returned: false, fail_closed: true}
-  - id: existing-income-and-pricing
-    given: {youtube_result: successful}
-    expect: {configured_videos_pricing: unchanged, creator_income_credits: 9, youtube_income_credits: 1}
-  - id: caption-provider-timeout
-    given: {caption_provider: stalled, elapsed_seconds: 45}
-    expect: {timeout_visible: true, successful_transcript: false, mistral_fallback: false}
+published_captions:
+- id: published-caption-talk
+  given: Alice supplies a canonical https://media.ccc.de/v/example-talk URL with English and German language preferences.
+  when: The official API publishes captions for the talk.
+  then: The matching published captions return in her request group with source URL, language, text, counts and
+    hash.
+  assertion_ids:
+  - videos.transcript.published-captions
+  - videos.transcript.published-result
+- id: unsupported-caption-source
+  given: Alice supplies a URL from an unsupported video host, while an older transcript card remains in her history.
+  when: She requests fresh captions and opens the saved card.
+  then: The new request fails before any provider or proxy request; the generic saved card remains readable without
+    source access.
+  assertion_ids:
+  - videos.transcript.published-captions
+  - videos.transcript.published-safety
+  - videos.transcript.published-result
 
 local_cli:
   - id: audio-only-local-flow
@@ -32,7 +28,7 @@ local_cli:
     given: {command: 'openmates apps videos get_transcript --file clip.mov', auth: api_key_only}
     expect: {error: paired_upload_auth_required, upload_attempted: false, global_audio_api_key_ban: false}
   - id: conflicting-inputs
-    given: {file: clip.mov, url: supported_youtube_url}
+    given: {file: clip.mov, url: supported_media_ccc_url}
     expect: {error: invalid_source_selection, upload_attempted: false}
   - id: missing-local-dependency
     given: {file: clip.mov, ffmpeg: unavailable}
@@ -108,11 +104,11 @@ export:
 
 parity:
   - id: rest-and-cli-boundary
-    given: {surface: rest_api, input: youtube_url}
+    given: {surface: rest_api, input: media_ccc_url}
     expect: {videos_url_schema: unchanged, local_filesystem_access: false}
   - id: sdk-additive-schema
     given: {surfaces: [npm_sdk, pip_sdk], audio_timestamps: word}
-    expect: {timestamp_schema: available, youtube_parity: preserved, login_or_private_access_added: false}
+    expect: {timestamp_schema: available, published_caption_parity: preserved, login_or_private_access_added: false}
   - id: gui-regression
     given: {surfaces: [web, apple]}
-    expect: {existing_youtube_and_audio_embeds: retained, local_video_picker: absent}
+    expect: {existing_transcript_and_audio_embeds: retained, local_video_picker: absent}

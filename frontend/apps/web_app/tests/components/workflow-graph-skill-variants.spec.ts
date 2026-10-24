@@ -328,7 +328,7 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		await expect(listDisclosure).toHaveAttribute('aria-expanded', 'false');
 		await listDisclosure.click();
 		const listDetails = editor.getByTestId('workflow-output-list-details');
-		await expect(listDetails).toContainText('AI community meetup');
+		await expect(listDetails).toContainText('AI community Gathering');
 		await expect(listDetails).toContainText('Date Start');
 		await expect(listDetails).not.toContainText('Description');
 		await listDetails.getByTestId('workflow-output-list-show-all').click();

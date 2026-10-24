@@ -32,7 +32,7 @@ const skillExecution = (id: string, status: 'error' | 'finished') => {
     content: encode({ app_id: 'fitness', skill_id: 'search_classes', status,
       error: status === 'error' ? 'The request timed out. Please try again.' : null,
       query: id === 'failed-fitness' ? 'Evening classes' : 'Morning classes',
-      provider: 'Urban Sports Club', result_count: 0, embed_ids: [],
+      provider: 'ExampleFitness', result_count: 0, embed_ids: [],
     }),
   });
   return { type: 'embed', attrs: {

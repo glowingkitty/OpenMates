@@ -15,7 +15,7 @@ describe('real result header map coordinates', () => {
   });
   // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.location.precision
   it('uses home area geometry and never turns compatibility centers or POIs into pins', () => {
-    const result = {embed_id: 'home', provider: 'WG-Gesucht', title: 'Apartment', latitude: 52, longitude: 13,
+    const result = {embed_id: 'home', provider: 'ExampleHousingC', title: 'Apartment', latitude: 52, longitude: 13,
       location_precision: 'district', location_approximate: true,
       location: {area: {latitude: 52.1, longitude: 13.1, radius_m: 800, basis: 'district'}},
       neighborhood: {features: {water: [{latitude: 52.2, longitude: 13.2}]}}};

@@ -2,7 +2,7 @@
 # test-file: backend/tests/test_leaderboard_resilience.py
 #
 # Celery tasks for updating AI model leaderboard data.
-# Runs daily to aggregate rankings from LMArena, OpenRouter, and other sources.
+# Reads saved model rankings; queued collection updates return unavailable.
 
 import logging
 import asyncio
@@ -165,73 +165,9 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
     time_limit=660,  # 11 minute hard limit
 )
 def update_leaderboard_daily(self, category: str = "text"):
-    """
-    Daily task to update leaderboard data from external sources.
-
-    This task:
-    1. Fetches rankings from LMArena and OpenRouter
-    2. Merges data using external_ids from provider YAMLs
-    3. Saves aggregated data to backend/data/models_leaderboard.yml
-    4. Updates the cache for fast access
-
-    Runs daily at 2 AM UTC via Celery Beat.
-
-    Args:
-        category: LMArena category to fetch (default: "text")
-    """
-    task_id = self.request.id
-    log_prefix = f"[Task ID: {task_id}]"
-
-    logger.info(f"{log_prefix} [LEADERBOARD] Starting daily leaderboard update (category: {category})")
-
-    if not asyncio.run(_claim_refresh_slot_async(category, task_id, self.request.retries)):
-        logger.info(f"{log_prefix} [LEADERBOARD] Skipping provider refresh during cooldown")
-        return {
-            "success": False,
-            "skipped": True,
-            "reason": "Provider refresh cooldown or cache unavailable",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-
-    try:
-        # Run async aggregation
-        data = asyncio.run(_aggregate_leaderboard_async(category))
-        if not _has_rankings(data):
-            raise ValueError("Leaderboard aggregation produced no ranked models")
-
-        # Update cache
-        cache_updated = asyncio.run(_update_cache_async(data))
-
-        result = {
-            "success": True,
-            "category": category,
-            "ranked_models": len(data.get("rankings", [])),
-            "unranked_models": len(data.get("unranked", [])),
-            "cache_updated": cache_updated,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-
-        logger.info(
-            f"{log_prefix} [LEADERBOARD] Daily update completed. "
-            f"Ranked: {result['ranked_models']}, Unranked: {result['unranked_models']}, "
-            f"Cache updated: {cache_updated}"
-        )
-
-        return result
-
-    except Exception as e:
-        logger.error(f"{log_prefix} [LEADERBOARD] Daily update failed: {e}", exc_info=True)
-
-        # Retry on failure
-        try:
-            raise self.retry(exc=e)
-        except self.MaxRetriesExceededError:
-            logger.error(f"{log_prefix} [LEADERBOARD] Max retries exceeded for leaderboard update")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+    """Drain previously queued updates without collection or cache mutations."""
+    return {"success": False, "skipped": True,
+            "error": "No supported leaderboard data source is configured."}
 
 
 @app.task(

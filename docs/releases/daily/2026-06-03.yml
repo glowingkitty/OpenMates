@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -547,14 +527,10 @@ sections:
     changed_paths:
     - backend/apps/events/app.yml
     - backend/apps/events/providers/__init__.py
-    - backend/apps/events/providers/eventbrite.py
     - backend/apps/events/providers/registry.py
     - backend/apps/events/skills/search_skill.py
-    - backend/providers/berlin_philharmonic.yml
-    - backend/providers/eventbrite.yml
     - backend/providers/flightradar24.yml
     - backend/providers/google_events.yml
-    - backend/providers/siegessaeule.yml
     - frontend/apps/web_app/tests/helpers/provider-icon-helpers.ts
     - frontend/apps/web_app/tests/skill-events-search.spec.ts
     - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
@@ -563,11 +539,7 @@ sections:
     - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
     - frontend/packages/ui/src/components/settings/SkillDetails.svelte
     - frontend/packages/ui/src/data/providerIcons.ts
-    - frontend/packages/ui/static/icons/berlin_philharmonic.svg
-    - frontend/packages/ui/static/icons/eventbrite.svg
     - frontend/packages/ui/static/icons/flightradar24.svg
-    - frontend/packages/ui/static/icons/siegessaeule.jpg
-    - scripts/api_tests/test_eventbrite_api.py
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -1585,14 +1557,10 @@ sources:
     changed_paths:
     - backend/apps/events/app.yml
     - backend/apps/events/providers/__init__.py
-    - backend/apps/events/providers/eventbrite.py
     - backend/apps/events/providers/registry.py
     - backend/apps/events/skills/search_skill.py
-    - backend/providers/berlin_philharmonic.yml
-    - backend/providers/eventbrite.yml
     - backend/providers/flightradar24.yml
     - backend/providers/google_events.yml
-    - backend/providers/siegessaeule.yml
     - frontend/apps/web_app/tests/helpers/provider-icon-helpers.ts
     - frontend/apps/web_app/tests/skill-events-search.spec.ts
     - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
@@ -1601,11 +1569,7 @@ sources:
     - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
     - frontend/packages/ui/src/components/settings/SkillDetails.svelte
     - frontend/packages/ui/src/data/providerIcons.ts
-    - frontend/packages/ui/static/icons/berlin_philharmonic.svg
-    - frontend/packages/ui/static/icons/eventbrite.svg
     - frontend/packages/ui/static/icons/flightradar24.svg
-    - frontend/packages/ui/static/icons/siegessaeule.jpg
-    - scripts/api_tests/test_eventbrite_api.py
     related_feature_ids: []
   - sha: 757f57d5be6f61f1afed3b1fc56bab5e405400af
     short_sha: 757f57d5b

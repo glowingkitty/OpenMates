@@ -1,8 +1,0 @@
-provider_id: "arbeitnow"
-name: "Arbeitnow"
-description: "Public German job board feed, updated hourly. Privacy URL verified 2026-10-13."
-logo_svg: "icons/jobs.svg"
-region: "EU"
-privacy_policy: "https://www.arbeitnow.com/privacy"
-api_base_url: "https://www.arbeitnow.com/api/job-board-api"
-no_api_key: true

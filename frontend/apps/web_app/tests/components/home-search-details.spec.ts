@@ -15,7 +15,7 @@ async function openHomeInfo(page: Page, id: string) {
 
 
 for (const width of [390, 1280]) {
-  // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.listings.rich-provider-evidence,home-search.vision.evidence-and-conflicts,home-search.location.precision,home-search.neighborhood.sourced-facts
+  // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.listings.rich-provider-evidence,app-skills.history.renderable,home-search.location.precision
   test(`home listing gallery and compact provider facts remain usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${listingPath}?${capture(width)}`);
@@ -89,7 +89,7 @@ for (const width of [390, 1280]) {
   });
 }
 
-// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.location.precision,home-search.vision.evidence-and-conflicts
+// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.location.precision,app-skills.history.renderable
 test('home empty photos and partial gallery keep missing media truthful', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'noPhotos')}`);
   await waitForComponentPreview(page);
@@ -125,7 +125,7 @@ test('home serialized gallery deduplicates and missing-coordinate listings remai
   await expect(page.getByTestId('result-map')).toHaveCount(0);
 });
 
-// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.vision.evidence-and-conflicts
+// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,app-skills.history.renderable
 test('home retains all eighteen supplied photos beyond the visual assessment limit', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'longGallery')}`);
   await waitForComponentPreview(page);
@@ -229,7 +229,7 @@ for (const width of [390, 1280]) {
   });
 }
 
-// contract-test: direct surface=gui.web assertions=home-search.neighborhood.sourced-facts,home-search.water.distance-and-access
+// contract-test: direct surface=gui.web assertions=app-skills.history.renderable
 test('home precise location does not add neighborhood evidence disclosures or infer routes', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'nearbyEvidence')}`);
   await waitForComponentPreview(page);
@@ -256,7 +256,7 @@ test('home zero confirmed matches retains search warnings and visible controls',
   await expect(page.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(0);
 });
 
-// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.vision.evidence-and-conflicts,home-search.neighborhood.sourced-facts,home-search.filters.explicit-and-unknown
+// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,app-skills.history.renderable,home-search.filters.explicit-and-unknown
 test('home persisted flattened TOON fields hydrate compact evidence and the complete gallery', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'persistedFlattened')}`);
   await waitForComponentPreview(page);
@@ -379,7 +379,7 @@ test('shared home map keeps overlapping area selections and provider filters lin
   await page.getByTestId('embeds-map-view-show-all-results').click();
   await expect(cards).toHaveCount(3);
   await page.getByTestId('embeds-map-view-filter-button').click();
-  const provider = page.getByTestId('embeds-map-view-option-provider-immoscout24');
+  const provider = page.getByTestId('embeds-map-view-option-provider-ExampleHousingA');
   await provider.click();
   await expect(provider).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByTestId('home-location-pin')).toHaveCount(0);

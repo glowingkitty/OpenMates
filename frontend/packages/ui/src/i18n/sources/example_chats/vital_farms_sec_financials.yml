@@ -79,9 +79,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Based on the latest official SEC filing for [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), here are the annual financials for the fiscal year ending December 28, 2025.
-    
+
     ### Latest Annual Financials (FY 2025)
     *   **Revenue:** $759,444,000
     *   **Net Income:** $66,282,000
@@ -89,10 +89,10 @@ message_2:
     *   **Form:** [10-K](embed:company_financial_result-wxr)
     *   **Filing Date:** February 26, 2026
     *   **Source:** Official SEC EDGAR Filing via [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Note on Balance Sheet Data:**
     The standardized SEC facts for this specific filing did not include summarized values for **Total Assets**, **Total Liabilities**, or **Shareholders' Equity** in the automated data feed. To find these specific figures, you would typically look directly at the Consolidated Balance Sheets within the [10-K document](embed:company_financial_result-wxr).
-    
+
     Would you like me to look up the quarterly history for VITL to see if these balance sheet trends are available in more recent 10-Q filings? Or would you prefer to analyze the income growth compared to previous years?
     ---
     *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
@@ -100,9 +100,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Basierend auf der neuesten offiziellen SEC-Einreichung für [Vital Farms, Inc.](wiki:Vital_Farms) (Ticker: `VITL`) sind hier die jährlichen Finanzdaten für das am 28. Dezember 2025 endende Geschäftsjahr.
-    
+
     ### Aktuelle jährliche Finanzdaten (GJ 2025)
     *   **Umsatz:** 759.444.000 $
     *   **Nettoeinkommen:** 66.282.000 $
@@ -110,10 +110,10 @@ message_2:
     *   **Formular:** [10-K](embed:company_financial_result-wxr)
     *   **Einreichungsdatum:** 26. Februar 2026
     *   **Quelle:** Offizielle SEC EDGAR-Einreichung über [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Hinweis zu Bilanzdaten:**
     Die standardisierten SEC-Fakten für diese spezifische Einreichung enthielten im automatisierten Datenfeed keine zusammengefassten Werte für **Gesamtvermögen**, **Gesamtverbindlichkeiten** oder **Eigenkapital**. Um diese spezifischen Zahlen zu finden, müsstest du normalerweise direkt in die konsolidierten Bilanzen innerhalb des [10-K-Dokuments](embed:company_financial_result-wxr) schauen.
-    
+
     Möchtest du, dass ich die Quartalshistorie für VITL nachschlage, um zu sehen, ob diese Bilanztrends in neueren 10-Q-Einreichungen verfügbar sind? Oder möchtest du lieber das Gewinnwachstum im Vergleich zu den Vorjahren analysieren?
     ---
     *⚠️ Dies dient nur zu Informationszwecken und stellt keine Finanzberatung dar. Konsultiere einen qualifizierten Finanzprofi oder Steuerberater für finanzielle Entscheidungen.*
@@ -121,9 +121,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     根据 [Vital Farms, Inc.](wiki:Vital_Farms)（股票代码：`VITL`）最新的官方 SEC 申报文件，以下是截至 2025 年 12 月 28 日财政年度的年度财务数据。
-    
+
     ### 最新年度财务数据 (FY 2025)
     *   **营收：**$759,444,000
     *   **净利润：**$66,282,000
@@ -131,10 +131,10 @@ message_2:
     *   **表格类型：**[10-K](embed:company_financial_result-wxr)
     *   **申报日期：**2026 年 2 月 26 日
     *   **来源：**通过 [Vital Farms 投资者关系](wiki:Vital_Farms) 获取的官方 SEC EDGAR 申报文件
-    
+
     **关于资产负债表数据的说明：**
     此特定申报文件的标准化 SEC 事实在自动数据馈送中未包含**总资产**、**总负债**或**股东权益**的汇总值。要查找这些具体数字，你通常可以直接查看 [10-K 文件](embed:company_financial_result-wxr)中的合并资产负债表。
-    
+
     你是否希望我查询 VITL 的季度历史记录，看看在最近的 10-Q 申报文件中是否可以获得这些资产负债表趋势？或者你更倾向于分析与往年相比的收入增长情况？
     ---
     *⚠️ 本内容仅供参考，不构成财务建议。进行财务决策时，请咨询合格的财务专业人士或税务顾问。*
@@ -142,9 +142,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Basado en el último registro oficial de la SEC para [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), aquí están los estados financieros anuales para el año fiscal que finalizó el 28 de diciembre de 2025.
-    
+
     ### Últimos estados financieros anuales (AF 2025)
     *   **Ingresos:** $759,444,000
     *   **Ingresos netos:** $66,282,000
@@ -152,10 +152,10 @@ message_2:
     *   **Formulario:** [10-K](embed:company_financial_result-wxr)
     *   **Fecha de presentación:** 26 de febrero de 2026
     *   **Fuente:** Registro oficial SEC EDGAR a través de [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Nota sobre los datos del balance general:**
     Los hechos estandarizados de la SEC para este registro específico no incluyeron valores resumidos para **Activos totales**, **Pasivos totales** o **Patrimonio neto de los accionistas** en la fuente de datos automatizada. Para encontrar estas cifras específicas, normalmente tendrías que consultar directamente los Balances Generales Consolidados dentro del [documento 10-K](embed:company_financial_result-wxr).
-    
+
     ¿Te gustaría que busque el historial trimestral de VITL para ver si estas tendencias del balance general están disponibles en registros 10-Q más recientes? ¿O prefieres analizar el crecimiento de los ingresos en comparación con años anteriores?
     ---
     *⚠️ Esta es solo información educativa y no constituye asesoramiento financiero. Consulta a un profesional financiero calificado o a un asesor fiscal para tomar decisiones financieras.*
@@ -163,9 +163,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Sur la base du dernier dépôt officiel auprès de la SEC pour [Vital Farms, Inc.](wiki:Vital_Farms) (symbole : `VITL`), voici les données financières annuelles pour l'exercice clos le 28 décembre 2025.
-    
+
     ### Dernières données financières annuelles (exercice 2025)
     *   **Chiffre d'affaires :** 759 444 000 $
     *   **Résultat net :** 66 282 000 $
@@ -173,10 +173,10 @@ message_2:
     *   **Formulaire :** [10-K](embed:company_financial_result-wxr)
     *   **Date de dépôt :** 26 février 2026
     *   **Source :** Dépôt officiel SEC EDGAR via [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Note sur les données du bilan :**
     Les données standardisées de la SEC pour ce dépôt spécifique n'incluaient pas de valeurs synthétisées pour le **Total de l'actif**, le **Total du passif** ou les **Capitaux propres** dans le flux de données automatisé. Pour trouver ces chiffres spécifiques, il faudrait normalement consulter directement les bilans consolidés au sein du [document 10-K](embed:company_financial_result-wxr).
-    
+
     Souhaites-tu que je recherche l'historique trimestriel de VITL pour voir si ces tendances du bilan sont disponibles dans des dépôts 10-Q plus récents ? Ou préfères-tu analyser la croissance des revenus par rapport aux années précédentes ?
     ---
     *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas des conseils financiers. Consulte un professionnel de la finance qualifié ou un conseiller fiscal pour tes décisions financières.*
@@ -184,9 +184,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Com base no registro oficial mais recente da SEC para a [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), aqui estão os dados financeiros anuais para o ano fiscal encerrado em 28 de dezembro de 2025.
-    
+
     ### Últimos Dados Financeiros Anuais (AF 2025)
     *   **Receita:** $759.444.000
     *   **Lucro Líquido:** $66.282.000
@@ -194,10 +194,10 @@ message_2:
     *   **Formulário:** [10-K](embed:company_financial_result-wxr)
     *   **Data de Arquivamento:** 26 de fevereiro de 2026
     *   **Fonte:** Registro oficial SEC EDGAR via [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Nota sobre os Dados do Balanço Patrimonial:**
     Os fatos padronizados da SEC para este registro específico não incluíram valores resumidos para **Ativos Totais**, **Passivos Totais** ou **Patrimônio Líquido** no feed de dados automatizado. Para encontrar esses valores específicos, normalmente consultarias diretamente os Balanços Patrimoniais Consolidados dentro do [documento 10-K](embed:company_financial_result-wxr).
-    
+
     Gostarias que eu pesquisasse o histórico trimestral da VITL para ver se estas tendências do balanço estão disponíveis em registros 10-Q mais recentes? Ou preferes analisar o crescimento do lucro em comparação com anos anteriores?
     ---
     *⚠️ Esta é apenas informação educacional e não constitui aconselhamento financeiro. Consulta um profissional financeiro qualificado ou consultor fiscal para decisões financeiras.*
@@ -205,9 +205,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     На основе последнего официального отчета SEC для [Vital Farms, Inc.](wiki:Vital_Farms) (тикер: `VITL`), ниже представлены годовые финансовые показатели за фискальный год, закончившийся 28 декабря 2025 года.
-    
+
     ### Последние годовые финансовые показатели (2025 фискальный год)
     *   **Выручка:** $759 444 000
     *   **Чистая прибыль:** $66 282 000
@@ -215,10 +215,10 @@ message_2:
     *   **Форма:** [10-K](embed:company_financial_result-wxr)
     *   **Дата подачи:** 26 февраля 2026 г.
     *   **Источник:** Официальный отчет SEC EDGAR через [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Примечание к данным баланса:**
     Стандартизированные данные SEC для этого конкретного отчета не включали итоговые значения для **совокупных активов**, **совокупных обязательств** или **акционерного капитала** в автоматизированном потоке данных. Чтобы найти эти конкретные цифры, обычно следует обращаться напрямую к консолидированному балансу в [документе 10-K](embed:company_financial_result-wxr).
-    
+
     Хочешь, чтобы я нашел квартальную историю VITL, чтобы проверить наличие этих данных баланса в более свежих отчетах 10-Q? Или ты предпочитаешь проанализировать рост доходов по сравнению с предыдущими годами?
     ---
     *⚠️ Данная информация носит исключительно ознакомительный характер и не является финансовой рекомендацией. Для принятия финансовых решений проконсультируйся с квалифицированным финансовым специалистом или налоговым консультантом.*
@@ -226,9 +226,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     [Vital Farms, Inc.](wiki:Vital_Farms)（ティッカー：`VITL`）の最新の公式 SEC 提出書類に基づき、2025 年 12 月 28 日に終了した会計年度の年次財務情報を以下に示します。
-    
+
     ### 最新の年次財務情報（2025 年度）
     *   **収益：** $759,444,000
     *   **純利益：** $66,282,000
@@ -236,10 +236,10 @@ message_2:
     *   **フォーム：** [10-K](embed:company_financial_result-wxr)
     *   **提出日：** 2026 年 2 月 26 日
     *   **ソース：** [Vital Farms 投資家情報](wiki:Vital_Farms)経由の公式 SEC EDGAR 提出書類
-    
+
     **貸借対照表データに関する注意：**
     この特定の提出書類に関する標準化された SEC ファクトには、自動データフィード内の**総資産**、**総負債**、または**株主資本**の要約値が含まれていませんでした。これらの具体的な数値を確認するには、通常、[10-K 文書](embed:company_financial_result-wxr)内の連結貸借対照表を直接参照します。
-    
+
     より最近の 10-Q 提出書類でこれらの貸借対照表の傾向が確認できるか、VITL の四半期履歴をお調べしましょうか？それとも、前年と比較した収益の伸びを分析しますか？
     ---
     *⚠️ これは教育目的の情報提供のみを目的としたものであり、財務上のアドバイスではありません。財務上の決定については、資格のある金融専門家または税務顧問にご相談ください。*
@@ -247,9 +247,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     [Vital Farms, Inc.](wiki:Vital_Farms)(티커: `VITL`)의 최신 공식 SEC 공시 자료를 바탕으로, 2025년 12월 28일 종료된 회계연도의 연간 재무 정보는 다음과 같습니다.
-    
+
     ### 최신 연간 재무 정보 (FY 2025)
     *   **매출:** $759,444,000
     *   **순이익:** $66,282,000
@@ -257,10 +257,10 @@ message_2:
     *   **양식:** [10-K](embed:company_financial_result-wxr)
     *   **공시 날짜:** 2026년 2월 26일
     *   **출처:** [Vital Farms 투자자 관계](wiki:Vital_Farms)를 통한 공식 SEC EDGAR 공시
-    
+
     **재무상태표 데이터 관련 참고 사항:**
     해당 공시의 표준화된 SEC 데이터에는 자동 데이터 피드의 **총 자산**, **총 부채** 또는 **주주 자본**에 대한 요약 수치가 포함되어 있지 않았습니다. 이러한 구체적인 수치를 확인하려면 일반적으로 [10-K 문서](embed:company_financial_result-wxr) 내의 연결재무상태표를 직접 확인해야 합니다.
-    
+
     최근 10-Q 공시에서 이러한 재무상태표 추세를 확인할 수 있는지 VITL의 분기별 이력을 조회해 드릴까요? 아니면 이전 연도와 비교하여 수익 성장을 분석하는 것을 선호하시나요?
     ---
     *⚠️ 이 정보는 교육용으로만 제공되며 금융 조언이 아닙니다. 재무 관련 결정을 내릴 때는 자격을 갖춘 금융 전문가나 세무 전문가와 상담하세요.*
@@ -268,9 +268,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     In base all'ultimo deposito ufficiale SEC per [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), ecco i dati finanziari annuali per l'anno fiscale terminato il 28 dicembre 2025.
-    
+
     ### Ultimi dati finanziari annuali (AF 2025)
     *   **Ricavi:** $759.444.000
     *   **Utile netto:** $66.282.000
@@ -278,10 +278,10 @@ message_2:
     *   **Modulo:** [10-K](embed:company_financial_result-wxr)
     *   **Data di deposito:** 26 febbraio 2026
     *   **Fonte:** Deposito ufficiale SEC EDGAR tramite [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Nota sui dati dello stato patrimoniale:**
     I dati standardizzati SEC per questo specifico deposito non includevano i valori riassuntivi per **Attività totali**, **Passività totali** o **Patrimonio netto** nel feed di dati automatizzato. Per trovare queste cifre specifiche, dovresti solitamente consultare direttamente gli Stati Patrimoniali Consolidati all'interno del [documento 10-K](embed:company_financial_result-wxr).
-    
+
     Vuoi che cerchi lo storico trimestrale di VITL per vedere se queste tendenze dello stato patrimoniale sono disponibili nei depositi 10-Q più recenti? O preferiresti analizzare la crescita del reddito rispetto agli anni precedenti?
     ---
     *⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono una consulenza finanziaria. Consulta un professionista finanziario qualificato o un consulente fiscale per le decisioni finanziarie.*
@@ -289,9 +289,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     [Vital Farms, Inc.](wiki:Vital_Farms) (sembol: `VITL`) için en son resmi SEC dosyasına dayanarak, 28 Aralık 2025'te sona eren mali yıla ait yıllık finansal veriler aşağıdadır.
-    
+
     ### En Son Yıllık Finansallar (FY 2025)
     *   **Gelir:** $759.444.000
     *   **Net Gelir:** $66.282.000
@@ -299,10 +299,10 @@ message_2:
     *   **Form:** [10-K](embed:company_financial_result-wxr)
     *   **Dosyalama Tarihi:** 26 Şubat 2026
     *   **Kaynak:** [Vital Farms Yatırımcı İlişkileri](wiki:Vital_Farms) aracılığıyla Resmi SEC EDGAR Dosyası
-    
+
     **Bilanço Verileri Hakkında Not:**
     Bu özel dosyalama için standartlaştırılmış SEC verileri, otomatik veri akışında **Toplam Varlıklar**, **Toplam Yükümlülükler** veya **Hissedar Özkaynakları** için özetlenmiş değerleri içermiyordu. Bu spesifik rakamları bulmak için normalde doğrudan [10-K belgesi](embed:company_financial_result-wxr) içindeki Konsolide Bilançolara bakmanız gerekir.
-    
+
     Bu bilanço trendlerinin daha güncel 10-Q dosyalarında mevcut olup olmadığını görmek için VITL'nin üç aylık geçmişine bakmamı ister misin? Yoksa gelir artışını önceki yıllarla karşılaştırarak analiz etmeyi mi tercih edersin?
     ---
     *⚠️ Bu bilgiler yalnızca eğitim amaçlıdır ve finansal tavsiye değildir. Finansal kararlar için yetkili bir finans uzmanına veya vergi danışmanına danışın.*
@@ -310,9 +310,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Dựa trên hồ sơ SEC chính thức mới nhất của [Vital Farms, Inc.](wiki:Vital_Farms) (mã cổ phiếu: `VITL`), dưới đây là báo cáo tài chính hàng năm cho năm tài chính kết thúc vào ngày 28 tháng 12 năm 2025.
-    
+
     ### Báo cáo tài chính hàng năm mới nhất (Năm tài chính 2025)
     *   **Doanh thu:** $759,444,000
     *   **Thu nhập ròng:** $66,282,000
@@ -320,10 +320,10 @@ message_2:
     *   **Mẫu đơn:** [10-K](embed:company_financial_result-wxr)
     *   **Ngày nộp:** 26 tháng 2 năm 2026
     *   **Nguồn:** Hồ sơ SEC EDGAR chính thức thông qua [Quan hệ nhà đầu tư của Vital Farms](wiki:Vital_Farms)
-    
+
     **Lưu ý về dữ liệu Bảng cân đối kế toán:**
     Các dữ liệu SEC được tiêu chuẩn hóa cho hồ sơ cụ thể này không bao gồm các giá trị tóm tắt cho **Tổng tài sản**, **Tổng nợ phải trả** hoặc **Vốn chủ sở hữu của cổ đông** trong nguồn cấp dữ liệu tự động. Để tìm các số liệu cụ thể này, thông thường bạn sẽ xem trực tiếp tại Bảng cân đối kế toán hợp nhất trong [tài liệu 10-K](embed:company_financial_result-wxr).
-    
+
     Bạn có muốn tôi tra cứu lịch sử hàng quý của VITL để xem liệu các xu hướng bảng cân đối kế toán này có trong các hồ sơ 10-Q gần đây hơn không? Hay bạn muốn phân tích sự tăng trưởng thu nhập so với các năm trước?
     ---
     *⚠️ Đây chỉ là thông tin giáo dục và không phải là lời khuyên tài chính. Hãy tham khảo ý kiến của chuyên gia tài chính hoặc cố vấn thuế có trình độ cho các quyết định tài chính.*
@@ -331,9 +331,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Berdasarkan pengajuan resmi SEC terbaru untuk [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), berikut adalah laporan keuangan tahunan untuk tahun fiskal yang berakhir pada 28 Desember 2025.
-    
+
     ### Laporan Keuangan Tahunan Terbaru (TA 2025)
     *   **Pendapatan:** $759.444.000
     *   **Laba Bersih:** $66.282.000
@@ -341,10 +341,10 @@ message_2:
     *   **Formulir:** [10-K](embed:company_financial_result-wxr)
     *   **Tanggal Pengajuan:** 26 Februari 2026
     *   **Sumber:** Pengajuan Resmi SEC EDGAR melalui [Hubungan Investor Vital Farms](wiki:Vital_Farms)
-    
+
     **Catatan tentang Data Neraca:**
     Fakta SEC standar untuk pengajuan khusus ini tidak menyertakan nilai ringkasan untuk **Total Aset**, **Total Liabilitas**, atau **Ekuitas Pemegang Saham** dalam umpan data otomatis. Untuk menemukan angka-angka spesifik ini, kamu biasanya dapat melihat langsung pada Neraca Konsolidasi di dalam [dokumen 10-K](embed:company_financial_result-wxr).
-    
+
     Apakah kamu ingin aku mencari riwayat kuartalan untuk VITL untuk melihat apakah tren neraca ini tersedia dalam pengajuan 10-Q yang lebih baru? Atau apakah kamu lebih suka menganalisis pertumbuhan pendapatan dibandingkan tahun-tahun sebelumnya?
     ---
     *⚠️ Ini hanya informasi edukasi dan bukan saran keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*
@@ -352,9 +352,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Na podstawie najnowszego oficjalnego zgłoszenia SEC dla [Vital Farms, Inc.](wiki:Vital_Farms) (symbol: `VITL`), oto roczne wyniki finansowe za rok obrotowy zakończony 28 grudnia 2025 r.
-    
+
     ### Najnowsze roczne dane finansowe (rok obrotowy 2025)
     *   **Przychody:** 759 444 000 USD
     *   **Dochód netto:** 66 282 000 USD
@@ -362,10 +362,10 @@ message_2:
     *   **Formularz:** [10-K](embed:company_financial_result-wxr)
     *   **Data złożenia:** 26 lutego 2026 r.
     *   **Źródło:** Oficjalne zgłoszenie SEC EDGAR za pośrednictwem [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Uwaga dotycząca danych z bilansu:**
     Ustandaryzowane dane SEC dla tego konkretnego zgłoszenia nie zawierały podsumowanych wartości dla **aktywów ogółem**, **zobowiązań ogółem** ani **kapitału własnego akcjonariuszy** w automatycznym kanale danych. Aby znaleźć te konkretne liczby, zazwyczaj należy zajrzeć bezpośrednio do skonsolidowanych bilansów w [dokumencie 10-K](embed:company_financial_result-wxr).
-    
+
     Czy chcesz, abym sprawdził historię kwartalną dla VITL, aby zobaczyć, czy te trendy bilansowe są dostępne w nowszych raportach 10-Q? A może wolisz przeanalizować wzrost dochodów w porównaniu z poprzednimi latami?
     ---
     *⚠️ To są wyłącznie informacje edukacyjne, a nie porada finansowa. W przypadku decyzji finansowych skonsultuj się z wykwalifikowanym specjalistą finansowym lub doradcą podatkowym.*
@@ -373,9 +373,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Op basis van de meest recente officiële SEC-indiening voor [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), volgen hier de jaarcijfers voor het boekjaar dat eindigde op 28 december 2025.
-    
+
     ### Meest recente jaarcijfers (boekjaar 2025)
     *   **Omzet:** $ 759.444.000
     *   **Nettoresultaat:** $ 66.282.000
@@ -383,10 +383,10 @@ message_2:
     *   **Formulier:** [10-K](embed:company_financial_result-wxr)
     *   **Indieningsdatum:** 26 februari 2026
     *   **Bron:** Officiële SEC EDGAR-indiening via [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Opmerking over balansgegevens:**
     De gestandaardiseerde SEC-feiten voor deze specifieke indiening bevatten geen samengevatte waarden voor **Totale activa**, **Totale passiva** of **Eigen vermogen** in de geautomatiseerde gegevensfeed. Om deze specifieke cijfers te vinden, zou je normaal gesproken rechtstreeks in de geconsolideerde balansen in het [10-K-document](embed:company_financial_result-wxr) kijken.
-    
+
     Wil je dat ik de kwartaalgeschiedenis voor VITL opzoek om te zien of deze balanstrends beschikbaar zijn in recentere 10-Q-indieningen? Of wil je liever de omzetgroei analyseren in vergelijking met voorgaande jaren?
     ---
     *⚠️ Dit is uitsluitend educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financiële professional of belastingadviseur voor financiële beslissingen.*
@@ -394,9 +394,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     بناءً على أحدث تقرير رسمي مقدم لهيئة الأوراق المالية والبورصات (SEC) لشركة [Vital Farms, Inc.](wiki:Vital_Farms) (رمز التداول: `VITL`)، إليك البيانات المالية السنوية للسنة المالية المنتهية في 28 ديسمبر 2025.
-    
+
     ### أحدث البيانات المالية السنوية (السنة المالية 2025)
     *   **الإيرادات:** 759,444,000 دولار
     *   **صافي الدخل:** 66,282,000 دولار
@@ -404,10 +404,10 @@ message_2:
     *   **النموذج:** [10-K](embed:company_financial_result-wxr)
     *   **تاريخ التقديم:** 26 فبراير 2026
     *   **المصدر:** تقرير SEC EDGAR الرسمي عبر [علاقات المستثمرين في Vital Farms](wiki:Vital_Farms)
-    
+
     **ملاحظة حول بيانات الميزانية العمومية:**
     لم تتضمن حقائق SEC الموحدة لهذا التقرير المحدد قيمًا ملخصة لـ **إجمالي الأصول**، أو **إجمالي الالتزامات**، أو **حقوق المساهمين** في تغذية البيانات الآلية. للعثور على هذه الأرقام المحددة، يمكنك عادةً الاطلاع مباشرة على الميزانيات العمومية المجمعة داخل [مستند 10-K](embed:company_financial_result-wxr).
-    
+
     هل تود أن أبحث عن السجل الربع سنوي لشركة VITL لمعرفة ما إذا كانت اتجاهات الميزانية العمومية هذه متاحة في تقارير 10-Q الأحدث؟ أم تفضل تحليل نمو الدخل مقارنة بالسنوات السابقة؟
     ---
     *⚠️ هذه معلومات تعليمية فقط وليست نصيحة مالية. استشر متخصصاً مالياً مؤهلاً أو مستشاراً ضريبياً لاتخاذ القرارات المالية.*
@@ -415,9 +415,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     [Vital Farms, Inc.](wiki:Vital_Farms) (टिकर: `VITL`) के लिए नवीनतम आधिकारिक SEC फाइलिंग के आधार पर, 28 दिसंबर, 2025 को समाप्त होने वाले वित्तीय वर्ष के वार्षिक वित्तीय विवरण यहां दिए गए हैं।
-    
+
     ### नवीनतम वार्षिक वित्तीय विवरण (FY 2025)
     *   **राजस्व (Revenue):** $759,444,000
     *   **शुद्ध आय (Net Income):** $66,282,000
@@ -425,10 +425,10 @@ message_2:
     *   **फॉर्म:** [10-K](embed:company_financial_result-wxr)
     *   **फाइलिंग तिथि:** 26 फरवरी, 2026
     *   **स्रोत:** [Vital Farms Investor Relations](wiki:Vital_Farms) के माध्यम से आधिकारिक SEC EDGAR फाइलिंग
-    
+
     **बैलेंस शीट डेटा पर ध्यान दें:**
     इस विशिष्ट फाइलिंग के लिए मानकीकृत SEC तथ्यों में स्वचालित डेटा फीड में **कुल संपत्ति (Total Assets)**, **कुल देनदारियां (Total Liabilities)**, या **शेयरधारकों की इक्विटी (Shareholders' Equity)** के सारांशित मूल्य शामिल नहीं थे। इन विशिष्ट आंकड़ों को खोजने के लिए, आप आमतौर पर [10-K दस्तावेज़](embed:company_financial_result-wxr) के भीतर समेकित बैलेंस शीट (Consolidated Balance Sheets) को सीधे देखेंगे।
-    
+
     क्या आप चाहेंगे कि मैं VITL के त्रैमासिक इतिहास को देखूं ताकि यह पता चल सके कि क्या ये बैलेंस शीट रुझान हाल की 10-Q फाइलिंग में उपलब्ध हैं? या क्या आप पिछले वर्षों की तुलना में आय वृद्धि का विश्लेषण करना पसंद करेंगे?
     ---
     *⚠️ यह केवल शैक्षिक जानकारी है और वित्तीय सलाह नहीं है। वित्तीय निर्णयों के लिए किसी योग्य वित्तीय पेशेवर या कर सलाहकार से परामर्श लें।*
@@ -436,9 +436,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     จากรายงานที่ยื่นต่อ SEC อย่างเป็นทางการล่าสุดสำหรับ [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`) นี่คือข้อมูลทางการเงินประจำปีสำหรับปีงบประมาณที่สิ้นสุดวันที่ 28 ธันวาคม 2025
-    
+
     ### ข้อมูลทางการเงินประจำปีล่าสุด (ปีงบประมาณ 2025)
     *   **รายได้:** $759,444,000
     *   **กำไรสุทธิ:** $66,282,000
@@ -446,10 +446,10 @@ message_2:
     *   **แบบฟอร์ม:** [10-K](embed:company_financial_result-wxr)
     *   **วันที่ยื่น:** 26 กุมภาพันธ์ 2026
     *   **แหล่งที่มา:** การยื่นแบบ SEC EDGAR อย่างเป็นทางการผ่าน [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **หมายเหตุเกี่ยวกับข้อมูลในงบแสดงฐานะการเงิน:**
     ข้อเท็จจริงมาตรฐานของ SEC สำหรับการยื่นแบบครั้งนี้ไม่ได้รวมค่าสรุปสำหรับ **สินทรัพย์รวม**, **หนี้สินรวม** หรือ **ส่วนของผู้ถือหุ้น** ในฟีดข้อมูลอัตโนมัติ หากต้องการค้นหาตัวเลขเฉพาะเหล่านี้ โดยปกติคุณจะต้องดูโดยตรงที่งบแสดงฐานะการเงินรวมภายใน [เอกสาร 10-K](embed:company_financial_result-wxr)
-    
+
     คุณต้องการให้ฉันค้นหาประวัติรายไตรมาสของ VITL เพื่อดูว่าแนวโน้มงบแสดงฐานะการเงินเหล่านี้มีอยู่ในการยื่นแบบ 10-Q ที่ใหม่กว่าหรือไม่? หรือคุณต้องการวิเคราะห์การเติบโตของรายได้เมื่อเทียบกับปีก่อนหน้า?
     ---
     *⚠️ ข้อมูลนี้มีไว้เพื่อการศึกษาเท่านั้นและไม่ใช่คำแนะนำทางการเงิน โปรดปรึกษาผู้เชี่ยวชาญทางการเงินหรือที่ปรึกษาด้านภาษีที่มีคุณสมบัติเหมาะสมสำหรับการตัดสินใจทางการเงิน*
@@ -457,9 +457,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Na základě nejnovějšího oficiálního podání k SEC pro společnost [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`) uvádíme výroční finanční údaje za fiskální rok končící 28. prosince 2025.
-    
+
     ### Nejnovější výroční finanční údaje (FY 2025)
     *   **Tržby:** $759,444,000
     *   **Čistý zisk:** $66,282,000
@@ -467,10 +467,10 @@ message_2:
     *   **Formulář:** [10-K](embed:company_financial_result-wxr)
     *   **Datum podání:** 26. února 2026
     *   **Zdroj:** Oficiální podání SEC EDGAR prostřednictvím [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Poznámka k údajům z rozvahy:**
     Standardizovaná fakta SEC pro toto konkrétní podání neobsahovala v automatizovaném datovém kanálu souhrnné hodnoty pro **Celková aktiva**, **Celkové závazky** ani **Vlastní kapitál**. Chceš-li tyto konkrétní údaje najít, obvykle bys je hledal přímo v konsolidované rozvaze v rámci [dokumentu 10-K](embed:company_financial_result-wxr).
-    
+
     Chceš, abych vyhledal čtvrtletní historii pro VITL a zjistil, zda jsou tyto trendy v rozvaze k dispozici v novějších podáních 10-Q? Nebo bys raději analyzoval růst příjmů ve srovnání s předchozími lety?
     ---
     *⚠️ Tyto informace jsou pouze vzdělávacího charakteru a nejedná se o finanční poradenství. Ohledně finančních rozhodnutí se poraď s kvalifikovaným finančním odborníkem nebo daňovým poradcem.*
@@ -478,9 +478,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     Baserat på den senaste officiella SEC-arkiveringen för [Vital Farms, Inc.](wiki:Vital_Farms) (ticker: `VITL`), här är årsredovisningen för räkenskapsåret som slutade den 28 december 2025.
-    
+
     ### Senaste årsredovisning (FY 2025)
     *   **Intäkter:** $759 444 000
     *   **Nettoresultat:** $66 282 000
@@ -488,10 +488,10 @@ message_2:
     *   **Formulär:** [10-K](embed:company_financial_result-wxr)
     *   **Arkiveringsdatum:** 26 februari 2026
     *   **Källa:** Officiell SEC EDGAR-arkivering via [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **Notering om balansräkningsdata:**
     De standardiserade SEC-fakta för denna specifika arkivering inkluderade inte sammanfattade värden för **Totala tillgångar**, **Totala skulder** eller **Eget kapital** i det automatiserade dataflödet. För att hitta dessa specifika siffror bör du titta direkt i den konsoliderade balansräkningen i [10-K-dokumentet](embed:company_financial_result-wxr).
-    
+
     Vill du att jag ska slå upp kvartalshistoriken för VITL för att se om dessa balansräkningstrender finns tillgängliga i nyare 10-Q-arkiveringar? Eller föredrar du att analysera intäktstillväxten jämfört med tidigare år?
     ---
     *⚠️ Detta är endast pedagogisk information och inte finansiell rådgivning. Rådgör med en kvalificerad finansiell expert eller skatterådgivare för finansiella beslut.*
@@ -499,9 +499,9 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "94ccced8-6cf6-4f70-b798-b3eede1bfe4a", "app_id": "business", "skill_id": "company_financials", "query": "VITL", "provider": "SEC EDGAR", "providers": ["SEC EDGAR"]}
     ```
-    
+
     בהתבסס על הדיווח הרשמי האחרון ל-SEC עבור [Vital Farms, Inc.](wiki:Vital_Farms) (טיקר: `VITL`), להלן הנתונים הפיננסיים השנתיים לשנת הכספים שהסתיימה ב-28 בדצמבר 2025.
-    
+
     ### נתונים פיננסיים שנתיים אחרונים (שנת כספים 2025)
     *   **הכנסות:** $759,444,000
     *   **רווח נקי:** $66,282,000
@@ -509,10 +509,10 @@ message_2:
     *   **טופס:** [10-K](embed:company_financial_result-wxr)
     *   **תאריך דיווח:** 26 בפברואר 2026
     *   **מקור:** דיווח SEC EDGAR רשמי באמצעות [Vital Farms Investor Relations](wiki:Vital_Farms)
-    
+
     **הערה לגבי נתוני מאזן:**
     נתוני ה-SEC הסטנדרטיים עבור דיווח ספציפי זה לא כללו ערכים מסוכמים עבור **סך הנכסים**, **סך ההתחייבויות** או **הון עצמי** בהזנת הנתונים האוטומטית. כדי למצוא נתונים ספציפיים אלה, בדרך כלל יש להסתכל ישירות במאזנים המאוחדים בתוך [מסמך ה-10-K](embed:company_financial_result-wxr).
-    
+
     האם תרצה שאחפש את ההיסטוריה הרבעונית של VITL כדי לראות אם מגמות המאזן הללו זמינות בדיווחי 10-Q עדכניים יותר? או שמא תעדיף לנתח את הצמיחה בהכנסות בהשוואה לשנים קודמות?
     ---
     *⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ פיננסי. התייעץ עם איש מקצוע פיננסי מוסמך או יועץ מס לצורך קבלת החלטות פיננסיות.*

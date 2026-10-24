@@ -1108,8 +1108,8 @@ test.describe('Apps workspace', () => {
       type: 'appointment', name, speciality: 'Hautarzt', address: 'Synthetic Street, Berlin',
       slot_datetime: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
       visit_motive: 'Allgemeine Sprechstunde', insurance: 'public', allows_new_patients: true,
-      provider_platform: 'Doctolib', practice_url: `https://example.test/appointments/${marker}/${index}`,
-      search_coverage: { Doctolib: 'success', Jameda: 'no_match' },
+      provider_platform: 'ExampleClinicA', practice_url: `https://example.test/appointments/${marker}/${index}`,
+      search_coverage: { ExampleClinicA: 'success', ExampleClinicB: 'no_match' },
     }));
     let skillPosts = 0;
     let nativeInput: Record<string, any> | undefined;

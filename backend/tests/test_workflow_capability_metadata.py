@@ -19,6 +19,7 @@ from backend.core.api.app.services.workflow_capability_registry import (
     WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED,
     WORKFLOW_CONNECTED_ACCOUNT_REQUIRED,
     WORKFLOW_RUNTIME_UNSUPPORTED,
+    WORKFLOW_SKILL_NOT_REGISTERED,
     WORKFLOW_TEST_EXAMPLE_REQUIRED,
     WorkflowCapabilityRegistry,
     _FilesystemWorkflowMetadataRegistry,
@@ -154,27 +155,22 @@ def test_test_allowed_capability_requires_a_schema_valid_example_input() -> None
 
 
 # contract-test: supporting surface=rest_api assertions=hosting-domains.surface-parity,hosting-domains.request.validated
-def test_hosting_capability_has_typed_workflow_contract_and_google_safe_ids() -> None:
+def test_unavailable_hosting_retains_typed_historical_schema_and_safe_ids() -> None:
     capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(
         "hosting.search_domains"
     )
-    assert capability.enabled is True
-    assert capability.metadata["cost"] == {"fixed": 1}
-    workflow = capability.metadata["workflow"]
-    assert {key: workflow[key] for key in (
-        "execution_mode", "effect", "unattended", "approval", "binding_requirements", "test_allowed",
-    )} == {
-        "execution_mode": "sync", "effect": "read", "unattended": True,
-        "approval": "never", "binding_requirements": ["none"], "test_allowed": True,
-    }
-    assert workflow["test_example_input"] == {"requests": [{"query": "example.com", "max_results": 1}]}
+    assert capability.enabled is False
+    assert capability.reason == WORKFLOW_SKILL_NOT_REGISTERED
+    app = _FilesystemWorkflowMetadataRegistry().get_metadata("hosting")
+    declaration = next(skill for skill in app["skills"] if skill["id"] == "search_domains")
+    workflow = declaration["workflow"]
     fields = capability.metadata["input_schema"]["properties"]["requests"]["items"]["properties"]
     assert "anyOf" in fields["id"] and "oneOf" not in fields["id"]
     assert all(_matches_schema(value, fields["id"]) for value in ("com", 2))
     assert not any(_matches_schema(value, fields["id"]) for value in (True, [], None))
     assert fields["availability"]["default"] == "prefer_available"
     assert fields["max_results"]["maximum"] == 20
-    output = capability.metadata["output_schema"]["properties"]
+    output = workflow["output_schema"]["properties"]
     assert output["results"]["type"] == "array"
     assert output["raw"]["properties"]["results"]["items"]["properties"]["checked_results"]["type"] == "array"
 
@@ -257,8 +253,8 @@ def test_repository_expanded_capabilities_and_deferred_reasons_are_discoverable(
 
     assert by_id["math.calculate"].enabled is True
     assert by_id["math.calculate"].metadata["workflow"]["effect"] == "compute"
-    assert by_id["web.read"].enabled is True
-    assert by_id["web.read"].metadata["workflow_source"] == "workflow_capabilities.yml"
+    assert by_id["web.read"].enabled is False
+    assert by_id["web.read"].reason == WORKFLOW_SKILL_NOT_REGISTERED
     assert by_id["tasks.search"].enabled is False
     assert by_id["tasks.search"].reason == WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
     assert by_id["calendar.get-events"].enabled is False
@@ -293,3 +289,52 @@ def test_classification_cache_invalidates_on_source_change(tmp_path, monkeypatch
     source.write_text("capabilities:\n  example.two:\n    available: false\n", encoding="utf-8")
     os.utime(source, None)
     assert "example.two" in capability_module._load_workflow_classifications()
+
+
+NO_SOURCE_CAPABILITIES = (
+    "shopping.search_products", "home.search", "electronics.search_components", "web.read",
+    "travel.search_connections", "travel.search_stays", "fitness.search_locations",
+    "fitness.search_classes", "health.search_appointments", "models3d.search",
+    "business.search_trademarks", "hosting.search_domains",
+)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize("identifier", NO_SOURCE_CAPABILITIES)
+def test_no_source_capability_cannot_be_advertised_by_inline_or_fallback_metadata(identifier):
+    registry = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry())
+    capability = registry.get_capability(identifier)
+    assert capability.enabled is False
+    assert capability.reason == WORKFLOW_SKILL_NOT_REGISTERED
+    classification = capability_module._load_workflow_classifications()[identifier]
+    assert classification["available"] is False
+    assert "test_example_input" not in classification
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize("provider_required,providers,expected", [
+    (True, [], False), (False, [], True), (True, ["permitted-api"], True),
+])
+def test_filesystem_discovery_applies_provider_gate_without_disabling_local_workflows(
+    tmp_path, provider_required, providers, expected,
+):
+    import yaml
+    app_file = tmp_path / "example" / "app.yml"
+    app_file.parent.mkdir()
+    app_file.write_text(yaml.safe_dump({"skills": [{
+        "id": "lookup", "class_path": "example.Lookup", "provider_required": provider_required,
+        "providers": providers, "workflow": _workflow(),
+        "tool_schema": {"type": "object", "properties": {"query": {"type": "string"}}},
+    }]}))
+    registry = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry(tmp_path))
+    capability = registry.get_capability("example.lookup")
+    assert capability.enabled is expected
+    if not expected:
+        assert capability.reason == WORKFLOW_SKILL_NOT_REGISTERED
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize("identifier", ["math.calculate", "weather.forecast", "code.get_docs", "videos.get_transcript"])
+def test_permitted_and_local_workflow_capabilities_remain_available(identifier):
+    capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(identifier)
+    assert capability.enabled is True

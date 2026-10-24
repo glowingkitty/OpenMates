@@ -170,8 +170,6 @@
         "audio-recording-and-speech.spec.ts",
         "hpfsl-acknowledgement-timing.spec.ts",
         "skill-code-search-repos.spec.ts",
-        "skill-events-search.spec.ts",
-        "skill-fitness-urban-sports.spec.ts",
         "skill-health-appointments.spec.ts",
         "skill-home-search.spec.ts",
         "skill-images-search.spec.ts",
@@ -480,7 +478,6 @@
       "execution": "e2e",
       "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
-        "skill-shopping-images.spec.ts",
         "apple-ui-contracts.spec.ts",
         "profile-image-recovery.spec.ts",
         "teams-management-flow.spec.ts",
@@ -493,28 +490,28 @@
     },
     "credential_free_domains": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
+      "enabling_work": "Fresh runner-local accounts and normal REST/CLI/SDK authentication. Verify domain-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
       "specs": [
         "skill-hosting-search-api.spec.ts"
       ]
     },
     "credential_free_fitness": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal CLI API-key authentication; bounded real HTTPS queries to Urban Sports Club public class and venue pages. No AI worker, inference, provider credentials, private account data or shared dev endpoint.",
+      "enabling_work": "Fresh runner-local accounts and normal CLI authentication. Verify class-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
       "specs": [
         "skill-fitness-class-search.spec.ts"
       ]
     },
     "credential_free_jobs": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/npm/pip device approval; bounded real HTTPS queries only to public Arbeitnow, Arbeitsagentur and JobTech vacancy APIs. No AI worker, inference, private provider credentials or shared dev endpoint. Invalid inputs and unsupported source/country combinations make no provider call.",
+      "enabling_work": "Fresh runner-local accounts and normal REST/CLI/npm/pip authentication; bounded queries to supported documented job APIs. Invalid inputs and unsupported source/country combinations make no provider call.",
       "specs": [
         "skill-jobs-search-api.spec.ts"
       ]
     },
     "credential_free_trademarks": {
       "execution": "e2e",
-      "enabling_work": "Fresh runner-local core accounts with normal REST, CLI and npm/pip device approval. Bounded real HTTPS queries to the anonymous USPTO trademark search website API; no provider account, key, paid proxy, challenge bypass, AI worker or inference. Unsupported regions and invalid input make no provider call.",
+      "enabling_work": "Fresh runner-local accounts with normal REST, CLI and npm/pip authentication. Verify trademark-search unavailable responses without external requests; no provider credentials or shared dev endpoint.",
       "specs": [
         "skill-business-trademarks-api.spec.ts",
         "skill-business-trademarks-browser.spec.ts"
@@ -593,7 +590,7 @@
     },
     "workflow_weather": {
       "execution": "e2e",
-      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo, bounded anonymous Gandi shop/USPTO trademark, and official JobTech HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with the dedicated queue and canonical trigger scanner. Supported weather and JobTech APIs need no credentials. Domain and trademark steps return unavailable without external requests; no paid AI/provider keys or generic periodic jobs.",
       "specs": [
         "cli-workflows-rain-real.spec.ts",
         "cli-workflows-jobs-search-real.spec.ts",
@@ -639,7 +636,6 @@
         "skill-math-calculate.spec.ts",
         "skill-news-search.spec.ts",
         "skill-reminder-set.spec.ts",
-        "skill-shopping-images.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts",
         "mercury3-model-picker.spec.ts"
@@ -687,7 +683,7 @@
     },
     "ai_cached_public_provider": {
       "execution": "e2e",
-      "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",
+      "enabling_work": "Run the current electronics unavailable-response contract with runner-local accounts. No external provider requests or credentials.",
       "specs": [
         "skill-electronics-search-components.spec.ts"
       ]
@@ -923,6 +919,16 @@
       "specs": [
         "components/chat-message-timeline.spec.ts",
         "chat-message-timeline.spec.ts"
+      ]
+    },
+    "provider_boundary": {
+      "execution": "e2e",
+      "enabling_work": "Use the isolated core API and runner-local accounts to verify unavailable-skill rejection and supported catalog metadata, plus historical component fixtures for saved embeds and shopping galleries. No AI worker, inference, provider calls, upload service, replay caches or provider credentials are required.",
+      "specs": [
+        "provider-boundary.spec.ts",
+        "skill-events-search.spec.ts",
+        "skill-shopping-images.spec.ts",
+        "skill-fitness-unavailable.spec.ts"
       ]
     },
     "rust_core_session_harness": {
@@ -1479,58 +1485,23 @@
         "code_search_repos_web": 3
       }
     },
-    "skill-events-search.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path with live event sources. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL",
-        "PLAYWRIGHT_VIDEO_HEIGHT",
-        "PLAYWRIGHT_VIDEO_WIDTH"
-      ],
-      "committed_cache_files": {
-        "events_search_cli": 30,
-        "events_search_web": 37
-      }
-    },
-    "skill-fitness-urban-sports.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) fitness_urban_sports_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "fitness_urban_sports_web": 0
-      }
-    },
     "skill-health-appointments.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) health_appointments_cli, health_appointments_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "health_appointments_cli": 0,
-        "health_appointments_web": 0
-      }
+      ]
     },
     "skill-home-search.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) home_search_cli, home_search_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "home_search_cli": 0,
-        "home_search_web": 0
-      }
+      ]
     },
     "skill-images-generate-safety-upload.spec.ts": {
       "dependency": "live_media_provider_and_storage",
@@ -1586,17 +1557,13 @@
       }
     },
     "skill-shopping-search.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) shopping_search_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "shopping_search_cli": 0,
-        "shopping_search_web": 11
-      }
+      ]
     },
     "skill-social-media.spec.ts": {
       "dependency": "missing_original_recorded_cache",
@@ -1609,42 +1576,31 @@
       }
     },
     "skill-travel-connections.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Flights for the original flight search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_connections_cli": 2,
-        "travel_connections_web": 12
-      }
+      ]
     },
     "skill-travel-stays.spec.ts": {
-      "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Hotels for the original hotels search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_stays_cli": 3,
-        "travel_stays_web": 6
-      }
+      ]
     },
     "skill-travel-train-connections.spec.ts": {
-      "dependency": "missing_original_recorded_cache",
-      "next_action": "Original cache group(s) travel_train_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
-      "user_input_required": true,
+      "dependency": "current_capability_verification",
+      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
+      "user_input_required": false,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "travel_train_cli": 0
-      }
+      ]
     },
     "skill-videos-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",

@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef, skill_has_provider_support
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
@@ -57,7 +57,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     This function centralizes the mapping of providers to their API key requirements.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         
     Returns:
         List of environment variable names to check (in order of preference)
@@ -70,11 +70,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
         "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
         "google_vertex": ["GOOGLE_VERTEX_PROJECT_ID", "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON"],
-        "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
-        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -132,7 +130,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     This is used to determine if a skill should be shown as available.
     
     Args:
-        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        provider_id: Provider ID (e.g., "brave", "youtube")
         secrets_manager: SecretsManager instance for checking Vault
         
     Returns:
@@ -228,7 +226,7 @@ async def is_skill_available(
     1. Has a configured API key OR is marked with no_api_key=True, AND
     2. Is healthy according to the cached health check (fail-open if no data).
 
-    If a skill has no providers, it's considered available (no API key required).
+    Local-only skills need no providers; provider-backed skills require a source.
 
     Args:
         skill: The skill definition
@@ -239,7 +237,9 @@ async def is_skill_available(
     Returns:
         True if the skill is available (at least one provider is configured and healthy), False otherwise
     """
-    # If skill has no providers, it's available (no API key required)
+    if not skill_has_provider_support(skill):
+        return False
+    # Local-only skills do not need a provider.
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True

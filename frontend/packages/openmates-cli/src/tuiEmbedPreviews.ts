@@ -106,7 +106,7 @@ function fitnessSearchDetails(embed: DecryptedEmbed, skillId: FitnessSkillId, st
   const content = embed.content ?? {};
   const data = normalizeFitnessSearchContent({ ...content, skill_id: skillId,
     ...(statusOverride ? { status: statusOverride } : {}) }, skillId);
-  const location = readable(data.filters.address || data.filters.city || data.query || 'Urban Sports');
+  const location = readable(data.filters.address || data.filters.city || data.query || 'fitness source');
   const details = [readable(data.provider), fitnessSkillName(skillId), location];
   if (data.status === 'finished') {
     details.push(`${data.resultCount} ${skillId === 'search_locations' ? 'locations' : 'classes'}`);
@@ -118,7 +118,7 @@ function fitnessSearchDetails(embed: DecryptedEmbed, skillId: FitnessSkillId, st
     }
   } else {
     details.push(data.status === 'error' ? 'Search failed.' :
-      data.status === 'cancelled' ? 'Search cancelled.' : 'Searching Urban Sports Club...');
+      data.status === 'cancelled' ? 'Search cancelled.' : 'Searching fitness classes...');
   }
   const chips = [
     data.filters.radius_km ? `${readable(data.filters.radius_km)} km` : '',

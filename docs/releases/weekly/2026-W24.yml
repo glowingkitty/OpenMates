@@ -17,73 +17,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -216,15 +196,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-08'
     title: 'fix: keep embed previews metadata-only'
@@ -290,15 +266,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-08'
     title: 'fix: skip draft-only chats in header navigation'
@@ -344,15 +316,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-08'
     title: 'test: add deeplink-webhook-message E2E spec'
@@ -548,15 +516,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: align Apple chat message spacing'
@@ -572,15 +536,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: assert visible seeded chat content'
@@ -596,15 +556,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: avoid draft send race'
@@ -680,15 +636,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: expose recording overlay children'
@@ -704,15 +656,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: force deep research delegation'
@@ -748,15 +696,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: reduce degraded service false positives'
@@ -812,8 +756,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: send when editor has content'
@@ -899,15 +841,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple UI contract parity checks'
@@ -923,15 +861,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple background notification UI coverage'
@@ -947,15 +881,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple chat flow UI diagnostics'
@@ -971,15 +901,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple chat responsive parity coverage'
@@ -995,15 +921,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple chat visual snapshot assertion'
@@ -1019,15 +941,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple real chat flow coverage'
@@ -1043,15 +961,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add Apple responsive shell parity'
@@ -1067,15 +981,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: align Apple attachment input assertion'
@@ -1091,15 +1001,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: align Apple chat flow identifiers'
@@ -1115,15 +1021,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: assert recording overlay contents'
@@ -1139,15 +1041,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: avoid nested pending remove lookup'
@@ -1163,15 +1061,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: broaden pending embed lookup'
@@ -1187,15 +1081,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: broaden recording overlay lookup'
@@ -1211,15 +1101,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: capture clean Apple chat visual snapshot'
@@ -1235,15 +1121,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: check pending embed before keyboard'
@@ -1259,15 +1141,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: diagnose default model send click'
@@ -1293,15 +1171,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: expose Apple attachment picker identifier'
@@ -1317,15 +1191,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: expose Apple pending embed container'
@@ -1341,15 +1211,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: expose Apple pending embed fallback'
@@ -1365,15 +1231,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: expose chat responsive metrics'
@@ -1389,15 +1251,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: expose responsive metrics accessibly'
@@ -1413,15 +1271,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: fix Apple UI contract preview wait'
@@ -1437,15 +1291,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: focus Apple composer before contract assertions'
@@ -1461,15 +1311,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: force recording overlay fixture'
@@ -1485,15 +1331,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: initialize recording fixture state'
@@ -1509,15 +1351,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: keep pending embed fixture visible'
@@ -1533,15 +1371,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: locate responsive metrics by label'
@@ -1557,15 +1391,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: make Apple background notification simulator deterministic'
@@ -1581,15 +1411,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: match Apple chat message accessibility type'
@@ -1605,15 +1431,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: move responsive metrics to preview'
@@ -1629,15 +1451,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: render recording overlay preview harness'
@@ -1653,15 +1471,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: route recording preview explicitly'
@@ -1677,15 +1491,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: split recording contract states'
@@ -1701,15 +1511,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: stabilize Apple chat visual snapshot'
@@ -1725,15 +1531,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: stabilize Apple real chat flow'
@@ -1749,15 +1551,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: stabilize new chat send helper'
@@ -1783,15 +1581,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'docs: enforce documentation claims cleanup'
@@ -1847,15 +1641,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: add durable share short links'
@@ -1921,15 +1711,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: avoid blocking draft send key check'
@@ -1955,15 +1741,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: classify draft chat without decrypting'
@@ -2159,15 +1941,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple chat share parity smoke'
@@ -2183,15 +1961,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: align issue report specs with current payload'
@@ -2387,15 +2161,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: narrow Apple public chat UI selector'
@@ -2411,15 +2181,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: pass chat error consent context'
@@ -2645,15 +2411,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'feat: add content embed catalog examples'
@@ -2809,15 +2571,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: present Apple chat share sheet from key window'
@@ -2833,15 +2591,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: preserve chat history on follow-up send'
@@ -2917,15 +2671,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: show latest memory mentions first'
@@ -3091,15 +2841,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: enforce parent-only embed preview hydration'
@@ -3125,15 +2871,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: stabilize example chat verification'
@@ -3199,15 +2941,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'feat: persist search parent preview metadata'
@@ -3273,22 +3011,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: connect Apple question answers to chat'
@@ -3304,15 +3036,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: defer paste recovery dismissal until user edit'
@@ -3548,15 +3276,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-13'
     title: 'feat: replace nutrition recipe search with Edamam'
@@ -3772,15 +3496,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-14'
     title: 'fix: enrich Nutrition example recipe embeds'
@@ -4786,15 +4506,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: align native embed parity gallery'
@@ -4810,15 +4526,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: compile native embed gallery helpers'
@@ -4834,15 +4546,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: stabilize embed parity smoke surfaces'
@@ -4858,15 +4566,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: add recording preview route'
@@ -4882,15 +4586,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: query Apple embed route as any element'
@@ -4906,15 +4606,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'test: stabilize Apple embed parity route assertion'
@@ -4930,15 +4626,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: add Apple billing fixture UI'
@@ -4954,15 +4646,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: redesign code execution fullscreen overlay'
@@ -4978,15 +4666,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: add Apple iPad settings test file'
@@ -5002,15 +4686,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: attach Apple settings row identifiers to buttons'
@@ -5026,15 +4706,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: avoid isolated identifiable choices'
@@ -5050,15 +4726,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: await Apple focus activation encryption'
@@ -5074,15 +4746,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: expose Apple app store row id'
@@ -5098,15 +4766,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: force light embed parity screenshots'
@@ -5122,15 +4786,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: isolate Apple app store choices'
@@ -5146,15 +4806,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: keep Apple app store children accessible'
@@ -5170,15 +4826,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: match embed parity page header'
@@ -5194,15 +4846,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: restore Apple code renderer build'
@@ -5218,15 +4866,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: tighten Apple embed parity audit'
@@ -5242,15 +4886,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple app store settings smoke'
@@ -5266,15 +4906,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple auth entry parity slice'
@@ -5290,15 +4926,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple billing StoreKit smoke'
@@ -5314,15 +4946,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple iPad apps settings smoke'
@@ -5338,15 +4966,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple public content parity smoke'
@@ -5362,15 +4986,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple sensitive settings parity smoke'
@@ -5386,15 +5006,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple settings inventory coverage'
@@ -5410,15 +5026,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple settings parity smoke'
@@ -5434,15 +5046,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple settings submenu smoke'
@@ -5458,15 +5066,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: add Apple skill application parity smoke'
@@ -5482,15 +5086,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: assert Apple account subpage navigation'
@@ -5506,15 +5106,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: deepen Apple app store detail smoke'
@@ -5530,15 +5126,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: expose Apple account subpage sentinels'
@@ -5554,15 +5146,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: open Apple delete preview by fixture'
@@ -5578,15 +5166,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: stabilize Apple billing smoke'
@@ -5602,15 +5186,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: tap Apple settings rows as buttons'
@@ -5626,15 +5206,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: use fixture for Apple sensitive settings smoke'
@@ -5650,15 +5226,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'test: use stable Apple settings back route'
@@ -5674,15 +5246,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'docs: clarify CLI and Apple verification order'
@@ -5708,15 +5276,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: expose Apple language back button'
@@ -5732,15 +5296,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: include Remotion renderer in Apple targets'
@@ -5756,15 +5316,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: include Remotion strings in Apple targets'
@@ -5780,15 +5336,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: support Apple icon button identifiers'
@@ -5804,15 +5356,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: add Apple language settings parity'
@@ -5828,15 +5376,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: assert Apple language selection trait'
@@ -5852,15 +5396,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: expose Apple language back button'
@@ -5876,15 +5416,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: expose Apple language page identifier'
@@ -5900,15 +5436,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: mark Apple language subpage'
@@ -5924,15 +5456,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: reuse visible Apple language options'
@@ -5948,15 +5476,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: tolerate Apple language auto-return'
@@ -5972,15 +5496,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: verify Apple language navigation by option'
@@ -5996,15 +5516,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'test: verify Apple language via visible UI'
@@ -6020,15 +5536,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: add Apple interactive question answering'
@@ -6044,15 +5556,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: resolve Apple interactive question build'
@@ -6068,15 +5576,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: route Apple awaiting user input events'
@@ -6092,15 +5596,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: support YouTube watch URLs with leading query params'
@@ -6126,15 +5626,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'test: add Apple interactive question parser coverage'
@@ -6150,15 +5646,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: product
   item_count: 53
@@ -6369,16 +5861,6 @@ themes:
     title: 'fix: fall back when durable short-link storage is unavailable'
     commits:
     - d629ba26d
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-06-10'
-    title: 'fix: restore Doctolib appointment provider'
-    commits:
-    - 9b34bd118
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -9258,16 +8740,6 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-06-10'
-    title: 'fix: restore Doctolib appointment provider'
-    commits:
-    - 9b34bd118
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-06-10'
     title: 'fix: restore draft when stopping new chat creation'
     commits:
     - 56d0d5100
@@ -10492,15 +9964,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-08'
     title: 'fix: clarify contract audit summary emails'
@@ -10666,15 +10134,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-08'
     title: 'fix: rewrite application preview asset paths'
@@ -10800,15 +10264,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'feat: add CLI sub-chat parity'
@@ -10894,15 +10354,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: add settings logs route title'
@@ -10928,15 +10384,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: align native embed parity gallery'
@@ -10952,15 +10404,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: avoid draft send race'
@@ -11006,15 +10454,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: constrain sub-chat continuation reports'
@@ -11070,15 +10514,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: expose recording overlay children'
@@ -11094,15 +10534,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: force deep research delegation'
@@ -11228,8 +10664,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: send when editor has content'
@@ -11285,15 +10719,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-09'
     title: 'fix: strengthen deep research continuation'
@@ -11359,15 +10789,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: add Apple sub-chat focus parity'
@@ -11383,15 +10809,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: add CLI signup billing provisioning'
@@ -11477,15 +10899,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'feat: show memory example chats on app pages'
@@ -11521,15 +10939,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: avoid Apple notification capture race'
@@ -11545,15 +10959,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: avoid blocking draft send key check'
@@ -11579,15 +10989,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: await Apple chat crypto calls'
@@ -11603,15 +11009,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: await Apple focus activation encryption'
@@ -11627,15 +11029,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: classify draft chat without decrypting'
@@ -11671,15 +11069,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: fall back when durable short-link storage is unavailable'
@@ -11715,15 +11109,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: handle shared chat ownership race'
@@ -11759,15 +11149,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: isolate application previews by hostname'
@@ -11793,15 +11179,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: match embed parity page header'
@@ -11817,15 +11199,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: preserve Vite preview module paths'
@@ -11931,26 +11309,12 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-  - date: '2026-06-10'
-    title: 'fix: restore Doctolib appointment provider'
-    commits:
-    - 9b34bd118
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-06-10'
     title: 'fix: restore draft when stopping new chat creation'
     commits:
@@ -12015,15 +11379,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-10'
     title: 'fix: wait for active draft save before send'
@@ -12059,15 +11419,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'feat: add app metadata and focus mode translations'
@@ -12173,15 +11529,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: complete content embed example coverage'
@@ -12227,15 +11579,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: expose legacy issue agent metadata'
@@ -12381,15 +11729,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: present Apple chat share sheet from key window'
@@ -12405,15 +11749,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: preserve chat history on follow-up send'
@@ -12589,15 +11929,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: select code run import dependencies'
@@ -12683,15 +12019,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-11'
     title: 'fix: suppress stale children for empty web search'
@@ -12807,15 +12139,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'feat: persist search parent preview metadata'
@@ -12861,15 +12189,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: defer paste recovery dismissal until user edit'
@@ -13005,15 +12329,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: route Apple awaiting user input events'
@@ -13029,15 +12349,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-12'
     title: 'fix: send valid image bytes to Bedrock'
@@ -13083,15 +12399,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-13'
     title: 'feat: add Kimi K2.7 Code model'
@@ -13127,15 +12439,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-13'
     title: 'feat: replace nutrition recipe search with Edamam'
@@ -13381,15 +12689,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-06-14'
     title: 'fix: enrich Nutrition example recipe embeds'

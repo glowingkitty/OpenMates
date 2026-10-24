@@ -24,13 +24,13 @@ from backend.shared.providers.typesafe.models import DecisionResponse
 def test_routing_catalogue_keeps_providers_from_every_skill_before_hint_truncation():
     skills = []
     for skill_id, provider in (("locations", "Venue Network"), ("trainers", "Trainer Network"),
-                               ("search_classes", "Urban Sports Club")):
+                               ("search_classes", "Activity Network")):
         skill = SimpleNamespace(id=skill_id, preprocessor_hint="Find matching public activities. " + "x" * 500,
                                 providers=[SimpleNamespace(name="internal", display_name=provider)])
         skills.append(preprocessor._skill_routing_candidate("fitness", skill))
     catalogue = jev_preprocessing._app_catalogue(["fitness"], skills)
     assert len(catalogue) == 1
-    assert all(provider in catalogue[0] for provider in ("Venue Network", "Trainer Network", "Urban Sports Club"))
+    assert all(provider in catalogue[0] for provider in ("Venue Network", "Trainer Network", "Activity Network"))
     assert "search classes" in catalogue[0]
     assert len(catalogue[0]) <= 500
     assert "internal" not in catalogue[0]
@@ -40,17 +40,17 @@ def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     history = [
         {"role": "user", "content": "Show me capoeira classes on OpenSports in Berlin."},
         {"role": "assistant", "content": "Here are some general web pages."},
-        {"role": "user", "content": "urban sports"},
+        {"role": "user", "content": "activity network"},
         {"role": "assistant", "content": "A response being drafted must not influence routing."},
     ]
     assert jev_preprocessing._messages(history) == history[:3]
     candidate = preprocessor._skill_routing_candidate("fitness", SimpleNamespace(
         id="search_classes", preprocessor_hint="Find dated fitness classes.",
-        providers=[SimpleNamespace(name="Urban Sports Club", display_name=None)],
+        providers=[SimpleNamespace(name="Activity Network", display_name=None)],
     ))
-    assert "Urban Sports Club" in candidate
+    assert "Activity Network" in candidate
     assert "Find dated fitness classes" in candidate
-    assert "Urban Sports Club" in jev_preprocessing._app_catalogue(["fitness"], [candidate])[0]
+    assert "Activity Network" in jev_preprocessing._app_catalogue(["fitness"], [candidate])[0]
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles

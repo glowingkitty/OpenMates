@@ -79,10 +79,10 @@ test.describe('Embeds map view public examples', () => {
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-filter-button').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeVisible();
-		const eventbriteFilter = mapView.getByTestId('embeds-map-view-filter-menu')
-			.getByTestId('embeds-map-view-option-provider-eventbrite');
-		await expect(eventbriteFilter).toBeVisible();
-		await expect(eventbriteFilter).toHaveAttribute('aria-checked', 'true');
+		const ExampleTicketsFilter = mapView.getByTestId('embeds-map-view-filter-menu')
+			.getByTestId('embeds-map-view-option-provider-ExampleTickets');
+		await expect(ExampleTicketsFilter).toBeVisible();
+		await expect(ExampleTicketsFilter).toHaveAttribute('aria-checked', 'true');
 		await mapView.getByTestId('embeds-map-view-filter-button').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-menu')).toBeHidden();
 

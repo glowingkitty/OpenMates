@@ -36,8 +36,7 @@ def _native_fixture_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web",
-                                  "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
 async def test_signed_mock_allows_only_isolated_internal_transport(
     monkeypatch: pytest.MonkeyPatch, group: str,
 ) -> None:
@@ -62,8 +61,6 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
             ("POST", "http://api:8000/internal/billing/reservation/release"),
         ]
         image_resolver = ("POST", "http://api:8000/internal/uploads/resolve-image")
-        if group == "shopping_images_web":
-            allowed.append(image_resolver)
         for method, url in allowed:
             response = await httpx.AsyncHTTPTransport.handle_async_request(
                 object(), httpx.Request(method, url),
@@ -88,8 +85,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
             ("POST", "http://api:8000/internal/uploads/resolve-image/other"),
             ("POST", "http://api:8001/internal/uploads/resolve-image"),
         ]
-        if group != "shopping_images_web":
-            blocked.append(image_resolver)
+        blocked.append(image_resolver)
         for method, url in blocked:
             with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
                 await httpx.AsyncHTTPTransport.handle_async_request(
@@ -102,8 +98,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
         deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web",
-                                  "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
 @pytest.mark.parametrize("invalid", [
     {"CI": "false"},
     {"OPENMATES_CI_ISOLATED": "0"},
@@ -132,14 +127,13 @@ def test_signed_mock_rejects_nonmarker_profiles(
         deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web",
-                                  "web_search_web", "web_search_zero_results"])
-def test_only_shopping_upload_replay_accepts_exact_isolated_storage_endpoint(monkeypatch, group):
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "web_search_web", "web_search_zero_results"])
+def test_native_replay_rejects_storage_and_temp_upload_exceptions(monkeypatch, group):
     _native_fixture_environment(monkeypatch)
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://storage.ci.test:9000")
     activate_mock_mode("mock", group, task_id="signed-fixture-task")
     try:
-        expected = group == "shopping_images_web"
+        expected = False
         assert mock_context._allow_isolated_capacity_internal("http://cms:8055/items/chats", "GET") is expected
         assert mock_context._allow_isolated_capacity_internal("http://api:8000/internal/s3/upload-temp-image", "POST") is expected
     finally:
@@ -150,9 +144,9 @@ def test_native_mock_requires_exact_group_and_task(monkeypatch: pytest.MonkeyPat
     _native_fixture_environment(monkeypatch)
     for group, task_id in (("native_cache_tools_v2", "task"), ("diagram_html_web_v2", "task"),
                            ("shopping_images_web_v2", "task"),
-                           ("web_search_web_v2", "task"), ("web_search_zero_results_v2", "task"),
                            ("other_flow", "task"), ("native_cache_tools_v1", None),
                            ("diagram_html_web", None), ("shopping_images_web", None),
+                           ("web_search_web_v2", "task"), ("web_search_zero_results_v2", "task"),
                            ("web_search_web", None), ("web_search_zero_results", None)):
         activate_mock_mode("mock", group, task_id=task_id)
         try:
@@ -161,8 +155,7 @@ def test_native_mock_requires_exact_group_and_task(monkeypatch: pytest.MonkeyPat
             deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["diagram_html_web", "shopping_images_web",
-                                  "web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("group", ["diagram_html_web", "web_search_web", "web_search_zero_results"])
 def test_internal_transport_requires_signed_replay_marker(
     monkeypatch: pytest.MonkeyPatch, group: str,
 ) -> None:
@@ -186,12 +179,27 @@ def test_internal_transport_requires_signed_replay_marker(
     finally:
         deactivate_mock_mode()
 
-
     activate_mock_mode("record", group, task_id="signed-fixture-task")
     try:
         assert not mock_context._allow_isolated_capacity_internal(
             "http://cms:8055/items/user_credits", "GET",
         )
+    finally:
+        deactivate_mock_mode()
+
+
+@pytest.mark.parametrize("method,url", [
+    ("GET", "http://cms:8055/items/chats"),
+    ("POST", "http://api:8000/internal/billing/charge"),
+    ("POST", "http://api:8000/internal/s3/upload-temp-image"),
+    ("DELETE", "http://api:8000/internal/s3/temp-image?s3_key=reverse_search/1234.png"),
+    ("POST", "http://api:8000/internal/uploads/resolve-image"),
+])
+def test_retired_shopping_replay_has_no_internal_transport_allowances(monkeypatch, method, url):
+    _native_fixture_environment(monkeypatch)
+    activate_mock_mode("mock", "shopping_images_web", task_id="retired-fixture-task")
+    try:
+        assert not mock_context._allow_isolated_capacity_internal(url, method)
     finally:
         deactivate_mock_mode()
 

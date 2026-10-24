@@ -18,9 +18,7 @@ from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fie
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.search_collection import SearchResponseItem, collect_search_results
 from backend.apps.social_media.tasks.get_posts_task import (
-    WEBSHARE_UNAVAILABLE_WARNING,
     _annotate_post_embed_refs,
-    _get_webshare_proxy_url,
     _send_embed,
 )
 from backend.apps.social_media.result_payload import build_social_media_task_result
@@ -61,12 +59,9 @@ async def _async_search(task: BaseServiceTask, app_id: str, skill_id: str, argum
             raise ValueError("Missing required task context for social media search embed update")
 
         started = datetime.now(timezone.utc)
-        reddit_proxy_url = await _get_webshare_proxy_url(task)
         results = await collect_search_results(
             arguments.get("requests") or [],
             secrets_manager=task._secrets_manager,
-            reddit_proxy_url=reddit_proxy_url,
-            reddit_proxy_warning=None if reddit_proxy_url else WEBSHARE_UNAVAILABLE_WARNING,
         )
         elapsed_seconds = (datetime.now(timezone.utc) - started).total_seconds()
         total_requests = sum(item.request_count for item in results)

@@ -1,6 +1,6 @@
 /**
  * Preview mock data for ElectronicsComponentEmbedPreview.
- * Shows one TI WEBENCH component/reference-design child card.
+ * Shows one ExampleComponents component/reference-design child card.
  * Access path: /dev/preview/embeds/electronics.
  * Architecture context: docs/architecture/embeds.md.
  */
@@ -8,7 +8,7 @@
 const defaultProps = {
   presentationOnly: true,
   id: "preview-electronics-component-1",
-  provider: "TI WEBENCH",
+  provider: "ExampleComponents",
   part_number: "TPS564257DRLR",
   base_part_number: "TPS564257",
   title: "TPS564257DRLR Buck converter",

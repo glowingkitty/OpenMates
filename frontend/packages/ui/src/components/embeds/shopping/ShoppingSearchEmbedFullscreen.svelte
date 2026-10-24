@@ -72,7 +72,7 @@
     bought_last_month?: string | null;
     provider?: string;
     country?: string;
-    amazon_domain?: string;
+    ExampleRetail_domain?: string;
     attributes?: ProductAttributes;
   }
 
@@ -212,7 +212,7 @@
       bought_last_month: asString(content.bought_last_month) || null,
       provider: asString(content.provider),
       country: asString(content.country),
-      amazon_domain: asString(content.amazon_domain),
+      ExampleRetail_domain: asString(content.ExampleRetail_domain),
       attributes: parseAttributes(content),
     };
   }
@@ -266,11 +266,11 @@
 
   function shoppingProviderLabel(value: string): string {
     const normalized = value.trim().toUpperCase();
-    if (normalized === 'AMAZON') {
-      return 'Amazon';
+    if (normalized === 'ExampleRetail') {
+      return 'ExampleRetail';
     }
-    if (normalized === 'REWE') return 'REWE';
-    if (normalized === 'STOFFE.DE' || normalized === 'STOFFE_DE' || normalized === 'STOFFE') return 'Stoffe.de';
+    if (normalized === 'ExampleGrocer') return 'ExampleGrocer';
+    if (normalized === 'ExampleFabric' || normalized === 'ExampleFabric_DE' || normalized === 'ExampleFabric') return 'ExampleFabric';
     return value;
   }
 

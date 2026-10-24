@@ -654,7 +654,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "business",
     "skill_method_py": "search_trademarks",
     "description_key": "app_skills.business.search_trademarks.description",
-    "description": "Search trademark names for explicit target regions when checking a brand or product name. US searches use the free USPTO public search endpoint. EU, Germany and worldwide searches currently return explicit coverage gaps and manual sources; never treat a missing region, failed search or no matches as legal clearance. Ask for the target market if it is unknown.",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "additionalProperties": false,
@@ -1638,7 +1638,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "electronics",
     "skill_method_py": "search_components",
     "description_key": "electronics.search_components.description",
-    "description": "Use this skill when the user asks to find electronic components, especially power converters or voltage regulators matching input voltage, output voltage, output current, efficiency, BOM cost, footprint, or topology requirements. Currently supports category power_converters via Texas Instruments WEBENCH Power Designer.",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -1735,7 +1735,7 @@ export const APP_SKILL_METADATA = [
                   "small_footprint"
                 ],
                 "default": "balanced",
-                "description": "Optimization goal for WEBENCH ranking."
+                "description": "Optimization goal for component ranking."
               },
               "max_results": {
                 "x-ui": {
@@ -1769,7 +1769,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "events",
     "skill_method_py": "search",
     "description_key": "events.search.description",
-    "description": "Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches \u2014 do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegess\u00e4ule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use",
+    "description": "Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.",
     "schema": {
       "type": "object",
       "properties": {
@@ -1778,15 +1778,10 @@ export const APP_SKILL_METADATA = [
             "basic": false
           },
           "type": "string",
-          "description": "The event provider to use. 'auto' (default) searches general sources in parallel and adds relevant specialist sources for the topic and region. Use a specific provider when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
+          "description": "Official conference schedule provider; general event discovery is unavailable.",
           "enum": [
             "auto",
-            "Meetup",
-            "Luma",
-            "Eventbrite",
-            "Resident Advisor",
-            "Siegess\u00e4ule",
-            "Berlin Philharmonic",
+            "pretalx",
             "GPN24",
             "39C3",
             "38C3",
@@ -1798,7 +1793,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nevent_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress\nschedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
+          "description": "Array of official conference schedule searches. Set conference to GPN24, 39C3, 38C3 or 37C3, or name the conference in query. General city and online discovery are unavailable. IDs are generated when omitted.",
           "items": {
             "type": "object",
             "x-ui": {
@@ -1814,14 +1809,14 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', 'startup', 'networking'). Do NOT include platform or app names such as 'meetup', 'luma', or 'eventbrite' \u2014 these are stripped automatically and reduce result quality.\n"
+                "description": "Optional session topic within the requested known conference. Omit for the full schedule."
               },
               "location": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "string",
-                "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
+                "description": "Optional location text retained for compatibility. A location alone does not enable event discovery; a known conference is required."
               },
               "lat": {
                 "x-ui": {
@@ -1886,22 +1881,17 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "string",
                 "maxLength": 1000,
-                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are scored against both the event topic and this goal. Results with no credible relationship are omitted, so fewer than count can be returned rather than padding the response with irrelevant events.\n"
+                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are scored against both the event topic and this goal. Results with no credible relationship are omitted, so fewer than count can be returned rather than padding the response with irrelevant events. When omitted, the query topic is still checked without expanding provider retrieval or changing the order of retained events.\n"
               },
               "provider": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "description": "Provider for this request. Overrides the top-level provider when set.",
+                "description": "Official conference schedule provider; general event discovery is unavailable.",
                 "enum": [
                   "auto",
-                  "Meetup",
-                  "Luma",
-                  "Eventbrite",
-                  "Resident Advisor",
-                  "Siegess\u00e4ule",
-                  "Berlin Philharmonic",
+                  "pretalx",
                   "GPN24",
                   "39C3",
                   "38C3",
@@ -1916,19 +1906,10 @@ export const APP_SKILL_METADATA = [
                 "items": {
                   "type": "string",
                   "enum": [
-                    "Meetup",
-                    "Luma",
-                    "Eventbrite",
-                    "Resident Advisor",
-                    "Siegess\u00e4ule",
-                    "Berlin Philharmonic",
-                    "GPN24",
-                    "39C3",
-                    "38C3",
-                    "37C3"
+                    "pretalx"
                   ]
                 },
-                "description": "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
+                "description": "Official conference schedule sources only."
               },
               "conference": {
                 "x-ui": {
@@ -1959,7 +1940,7 @@ export const APP_SKILL_METADATA = [
                 "items": {
                   "type": "string"
                 },
-                "description": "Optional tag filters for the Berlin Philharmonic provider. Use when the user asks about classical concerts in Berlin. Known values: Piano, Chamber Music, Jazz, Organ, Modern, Lunch Concerts, Singers, Children and Family, World. Ignored by all other providers.\n"
+                "description": "Reserved tags; no concert source is configured."
               }
             }
           }
@@ -1991,7 +1972,16 @@ export const APP_SKILL_METADATA = [
             "basic": false
           },
           "type": "string",
-          "example": "Example events provider"
+          "example": "Example events provider",
+          "enum": [
+            "auto",
+            "pretalx",
+            "GPN24",
+            "39C3",
+            "38C3",
+            "37C3"
+          ],
+          "description": "Official conference schedule provider; general event discovery is unavailable."
         },
         "results": {
           "x-ui": {
@@ -2020,7 +2010,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "example": "AI community meetup"
+                "example": "AI community community gathering"
               },
               "url": {
                 "x-ui": {
@@ -2041,14 +2031,23 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "example": "Example events provider"
+                "example": "Example events provider",
+                "enum": [
+                  "auto",
+                  "pretalx",
+                  "GPN24",
+                  "39C3",
+                  "38C3",
+                  "37C3"
+                ],
+                "description": "Official conference schedule provider; general event discovery is unavailable."
               },
               "description": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "example": "An example meetup for people working with AI."
+                "example": "An example community gathering for people working with AI."
               },
               "date_start": {
                 "x-ui": {
@@ -2092,7 +2091,7 @@ export const APP_SKILL_METADATA = [
             "example": {
               "id": "example-event",
               "source_id": "example-event",
-              "title": "AI community meetup",
+              "title": "AI community community gathering",
               "url": "https://example.invalid/events/ai",
               "canonical_url": "https://example.invalid/events/ai",
               "provider": "Example events provider",
@@ -2100,7 +2099,7 @@ export const APP_SKILL_METADATA = [
               "date_end": "2026-09-23T20:00:00+02:00",
               "location": "Berlin",
               "event_type": "PHYSICAL",
-              "description": "An example meetup for people working with AI.",
+              "description": "Only known official conference schedules can be searched.",
               "price_amount": 0
             }
           },
@@ -2108,7 +2107,7 @@ export const APP_SKILL_METADATA = [
             {
               "id": "example-event",
               "source_id": "example-event",
-              "title": "AI community meetup",
+              "title": "AI community community gathering",
               "url": "https://example.invalid/events/ai",
               "canonical_url": "https://example.invalid/events/ai",
               "provider": "Example events provider",
@@ -2116,7 +2115,7 @@ export const APP_SKILL_METADATA = [
               "date_end": "2026-09-23T20:00:00+02:00",
               "location": "Berlin",
               "event_type": "PHYSICAL",
-              "description": "An example meetup for people working with AI.",
+              "description": "Only known official conference schedules can be searched.",
               "price_amount": 0
             }
           ]
@@ -2148,7 +2147,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "example": "AI community meetup"
+                "example": "AI community community gathering"
               },
               "url": {
                 "x-ui": {
@@ -2169,14 +2168,23 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "example": "Example events provider"
+                "example": "Example events provider",
+                "enum": [
+                  "auto",
+                  "pretalx",
+                  "GPN24",
+                  "39C3",
+                  "38C3",
+                  "37C3"
+                ],
+                "description": "Official conference schedule provider; general event discovery is unavailable."
               },
               "description": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "example": "An example meetup for people working with AI."
+                "example": "An example community gathering for people working with AI."
               },
               "date_start": {
                 "x-ui": {
@@ -2220,7 +2228,7 @@ export const APP_SKILL_METADATA = [
             "example": {
               "id": "example-event",
               "source_id": "example-event",
-              "title": "AI community meetup",
+              "title": "AI community community gathering",
               "url": "https://example.invalid/events/ai",
               "canonical_url": "https://example.invalid/events/ai",
               "provider": "Example events provider",
@@ -2228,7 +2236,7 @@ export const APP_SKILL_METADATA = [
               "date_end": "2026-09-23T20:00:00+02:00",
               "location": "Berlin",
               "event_type": "PHYSICAL",
-              "description": "An example meetup for people working with AI.",
+              "description": "Only known official conference schedules can be searched.",
               "price_amount": 0
             }
           },
@@ -2236,7 +2244,7 @@ export const APP_SKILL_METADATA = [
             {
               "id": "example-event",
               "source_id": "example-event",
-              "title": "AI community meetup",
+              "title": "AI community community gathering",
               "url": "https://example.invalid/events/ai",
               "canonical_url": "https://example.invalid/events/ai",
               "provider": "Example events provider",
@@ -2244,7 +2252,7 @@ export const APP_SKILL_METADATA = [
               "date_end": "2026-09-23T20:00:00+02:00",
               "location": "Berlin",
               "event_type": "PHYSICAL",
-              "description": "An example meetup for people working with AI.",
+              "description": "Only known official conference schedules can be searched.",
               "price_amount": 0
             }
           ]
@@ -2277,7 +2285,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_locations",
     "description_key": "fitness.search_locations.description",
-    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2387,7 +2395,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_classes",
     "description_key": "fitness.search_classes.description",
-    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "required": [
@@ -2514,7 +2522,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Urban Sports activity name (for example Dance or Yoga) or numeric provider ID."
+                "description": "Fitness activity name (for example Dance or Yoga) or numeric provider ID."
               },
               "venue_id": {
                 "x-ui": {
@@ -2554,7 +2562,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "health",
     "skill_method_py": "search_appointments",
     "description_key": "app_skills.health.search_appointments.description",
-    "description": "Search available medical appointments at German doctors/specialists by speciality and city. Covers any medical booking \u2014 general practitioners, specialists (e.g. dentist, dermatologist, gynecologist), scans and imaging (e.g. MRT/MRI, CT, R\u00f6ntgen, Ultraschall), vaccinations, check-ups, blood tests, and other examinations. Note: \"Termin\" in a medical context means appointment, not event \u2014 route here instead of events-search. Sources: Doctolib, Jameda (Germany only).",
+    "description": "Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2588,13 +2596,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Booking platform to search. \"both\" (default) searches Doctolib and Jameda in parallel and merges results sorted by soonest slot. \"doctolib_de\" for Doctolib Germany only. \"jameda\" for Jameda Germany only (includes ratings, prices, direct booking URLs).\n",
-                "enum": [
-                  "both",
-                  "doctolib_de",
-                  "jameda"
-                ],
-                "default": "both"
+                "description": "Optional source identifier; search is currently unavailable."
               },
               "insurance_sector": {
                 "x-ui": {
@@ -2627,7 +2629,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "integer",
-                "description": "How many days ahead to search for appointments. Must be one of 1, 3, or 7 (Doctolib API caps availability queries at 7 days). Defaults to 7.\n",
+                "description": "Search is currently unavailable without a permitted provider.",
                 "enum": [
                   1,
                   3,
@@ -2672,20 +2674,6 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
-    "app_id": "health",
-    "skill_id": "create_report",
-    "app_namespace_ts": "health",
-    "skill_method_ts": "createReport",
-    "app_namespace_py": "health",
-    "skill_method_py": "create_report",
-    "description_key": "health.create_report.description",
-    "description": "Run this OpenMates app skill.",
-    "schema": {
-      "type": "object",
-      "properties": {}
-    }
-  },
-  {
     "app_id": "home",
     "skill_id": "search",
     "app_namespace_ts": "home",
@@ -2693,7 +2681,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "home",
     "skill_method_py": "search",
     "description_key": "app_skills.home.search.description",
-    "description": "Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc",
+    "description": "Housing search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2718,7 +2706,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Type of listing. \"rent\" for rentals (default), \"buy\" for purchases. Note: WG-Gesucht only has rentals and is skipped for \"buy\".\n",
+                "description": "Search is currently unavailable without a permitted provider.",
                 "enum": [
                   "rent",
                   "buy"
@@ -2730,14 +2718,9 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "array",
-                "description": "Optional list of providers to search. Defaults to all three.\n",
+                "description": "Optional source identifier; search is currently unavailable.",
                 "items": {
-                  "type": "string",
-                  "enum": [
-                    "ImmoScout24",
-                    "Kleinanzeigen",
-                    "WG-Gesucht"
-                  ]
+                  "type": "string"
                 }
               },
               "property_type": {
@@ -2750,7 +2733,7 @@ export const APP_SKILL_METADATA = [
                   "shared_room"
                 ],
                 "default": "apartment",
-                "description": "Entire apartments or shared rooms. Shared rooms use WG-Gesucht."
+                "description": "Search is currently unavailable without a permitted provider."
               },
               "sort": {
                 "x-ui": {
@@ -2762,7 +2745,7 @@ export const APP_SKILL_METADATA = [
                   "newest"
                 ],
                 "default": "price_asc",
-                "description": "Price ascending, or discovery order for monitoring. Newest order is supported by Kleinanzeigen; other providers retain their source order."
+                "description": "Search is currently unavailable without a permitted provider."
               },
               "max_price_eur": {
                 "x-ui": {
@@ -2964,7 +2947,8 @@ export const APP_SKILL_METADATA = [
             "basic": false
           },
           "type": "string",
-          "example": "Example housing provider"
+          "example": "Example housing provider",
+          "description": "Optional source identifier; search is currently unavailable."
         },
         "results": {
           "x-ui": {
@@ -3014,7 +2998,8 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "example": "Example housing provider"
+                "example": "Example housing provider",
+                "description": "Optional source identifier; search is currently unavailable."
               },
               "price": {
                 "x-ui": {
@@ -3166,7 +3151,8 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "example": "Example housing provider"
+                "example": "Example housing provider",
+                "description": "Optional source identifier; search is currently unavailable."
               },
               "price": {
                 "x-ui": {
@@ -3298,7 +3284,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "hosting",
     "skill_method_py": "search_domains",
     "description_key": "app_skills.hosting.search_domains.description",
-    "description": "Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -4563,7 +4549,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "jobs",
     "skill_method_py": "search",
     "description_key": "app_skills.jobs.search.description",
-    "description": "Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Set countries to the countries the user selected, or omit it for the Germany-only [DE] default. Each request may override countries; the legacy country field means one country. Germany auto sources are Bundesagentur f\u00fcr Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that",
+    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.",
     "schema": {
       "type": "object",
       "properties": {
@@ -4585,7 +4571,7 @@ export const APP_SKILL_METADATA = [
           "x-ui": {
             "basic": true
           },
-          "description": "Search these countries by default; omit only when Germany alone is intended."
+          "description": "Select SE for the available source. DE remains accepted but returns an explicit coverage gap."
         },
         "requests": {
           "type": "array",
@@ -4623,7 +4609,7 @@ export const APP_SKILL_METADATA = [
                 "x-ui": {
                   "basic": false
                 },
-                "description": "Legacy singleton country override; do not combine with countries."
+                "description": "Legacy singleton country override; DE is unavailable. Do not combine with countries."
               },
               "countries": {
                 "type": "array",
@@ -4657,7 +4643,7 @@ export const APP_SKILL_METADATA = [
                 "x-ui": {
                   "basic": false
                 },
-                "description": "Radius in km around location. Requires location and is currently supported only by Bundesagentur f\u00fcr Arbeit in Germany.\n"
+                "description": "Radius in km around location. Requires location and is currently unavailable from the configured providers.\n"
               },
               "remote": {
                 "type": "boolean",
@@ -4703,11 +4689,7 @@ export const APP_SKILL_METADATA = [
                 "type": "string",
                 "enum": [
                   "auto",
-                  "Arbeitnow",
-                  "Arbeitsagentur",
-                  "JobTech",
-                  "80,000 Hours",
-                  "Hard Problems"
+                  "JobTech"
                 ],
                 "x-ui": {
                   "basic": false
@@ -4719,11 +4701,7 @@ export const APP_SKILL_METADATA = [
                 "items": {
                   "type": "string",
                   "enum": [
-                    "Arbeitnow",
-                    "Arbeitsagentur",
-                    "JobTech",
-                    "80,000 Hours",
-                    "Hard Problems"
+                    "JobTech"
                   ]
                 },
                 "x-ui": {
@@ -5569,7 +5547,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "models3d",
     "skill_method_py": "search",
     "description_key": "app_skills.models3d.search.description",
-    "description": "Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as \"Find adjustable laptop stand 3D models\" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -5595,12 +5573,9 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "array",
                 "items": {
-                  "type": "string",
-                  "enum": [
-                    "Printables"
-                  ]
+                  "type": "string"
                 },
-                "description": "Optional provider filter. Defaults to Printables."
+                "description": "Optional provider filter. No provider is currently configured."
               },
               "count": {
                 "x-ui": {
@@ -6721,7 +6696,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "shopping",
     "skill_method_py": "search_products",
     "description_key": "app_skills.shopping.search_products.description",
-    "description": "Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl",
+    "description": "Currently unavailable: no authorized provider is configured. Do not promise live search results.",
     "schema": {
       "type": "object",
       "properties": {
@@ -6730,7 +6705,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "Array of product search requests. Each request searches for products matching a query on a compatible shopping provider.\n",
+          "description": "Array of product search requests. Each request searches for products matching a query on a compatible shopping provider. Use separate entries for distinct user requirements, not alternative sorts of one visual requirement.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -6741,24 +6716,12 @@ export const APP_SKILL_METADATA = [
                 "type": "string",
                 "description": "Search query, e.g. \"bio joghurt\", \"coffee grinder\", \"wireless mouse\".\n"
               },
-              "provider": {
-                "x-ui": {
-                  "basic": false
-                },
-                "type": "string",
-                "description": "Product provider. If omitted, inferred from category: grocery routes to REWE, fabrics/sewing_supplies/patterns route to Stoffe.de, and marketplace categories route to Amazon. Invalid explicit provider/category combinations are rejected.\n",
-                "enum": [
-                  "REWE",
-                  "Amazon",
-                  "Stoffe.de"
-                ]
-              },
               "category": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "string",
-                "description": "Product category used for routing and provider compatibility. Fabrics can be searched on Stoffe.de or Amazon. Groceries can be searched on REWE or Amazon. Marketplace categories are Amazon-only.\n",
+                "description": "Optional product category.",
                 "enum": [
                   "grocery",
                   "fabrics",
@@ -6788,7 +6751,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "integer",
-                "description": "Maximum number of products to return (1-20, default 10).",
+                "description": "Final product cap (1-20, default 10). Honor the user's requested maximum, e.g. 5 for \"at most five\". Relevance/reference searches already discover up to 40 candidates internally; a larger final cap does not increase discovery.\n",
                 "minimum": 1,
                 "maximum": 20,
                 "default": 10
@@ -6819,7 +6782,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Sort order for results. REWE supports: relevance, price_asc, price_desc, new. Amazon supports: relevance, price_asc, price_desc, review_rank, newest, best_sellers. Stoffe.de supports: relevance, price_asc, price_desc, new.\n",
+                "description": "Requested result ordering when product search becomes available.",
                 "enum": [
                   "relevance",
                   "price_asc",
@@ -6831,65 +6794,26 @@ export const APP_SKILL_METADATA = [
                 ],
                 "default": "relevance"
               },
-              "service_type": {
-                "x-ui": {
-                  "basic": false
-                },
-                "type": "string",
-                "description": "REWE-only fulfilment type. \"DELIVERY\" for home delivery (default). \"CLICK_AND_COLLECT\" for store pickup. Ignored for Amazon and Stoffe.de.\n",
-                "enum": [
-                  "DELIVERY",
-                  "CLICK_AND_COLLECT"
-                ],
-                "default": "DELIVERY"
-              },
               "country": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "description": "Amazon-only marketplace country code. Price amounts use this marketplace's currency; no currency conversion is performed. Euro marketplaces include de, fr, it, es, and nl. For a euro price limit with no destination specified, use de as the default euro marketplace. Other examples: us (USD), uk (GBP), jp (JPY), ca, au, in, br, mx, sg, se, pl. If the user specifies a destination, preserve that destination; do not silently reinterpret a stated currency. If omitted, country is inferred from user language/locale with fallback to us.\n"
-              },
-              "department": {
-                "x-ui": {
-                  "basic": false
-                },
-                "type": "string",
-                "description": "Amazon-only category filter. Example: electronics, computers, fashion, home, books, sports, toys, beauty, grocery, automotive, health, music, movies, tools, office, pet_supplies, video_games, baby.\n",
-                "enum": [
-                  "electronics",
-                  "computers",
-                  "fashion",
-                  "home",
-                  "books",
-                  "sports",
-                  "toys",
-                  "beauty",
-                  "grocery",
-                  "automotive",
-                  "health",
-                  "music",
-                  "movies",
-                  "tools",
-                  "office",
-                  "pet_supplies",
-                  "video_games",
-                  "baby"
-                ]
+                "description": "Optional destination country code."
               },
               "min_price": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "number",
-                "description": "Amazon-only minimum price filter (client-side after fetch), in the selected marketplace's currency; no conversion is performed. Set country when the user states a currency.\n"
+                "description": "Optional minimum price in the requested currency."
               },
               "max_price": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "number",
-                "description": "Amazon-only maximum price filter (client-side after fetch), in the selected marketplace's currency; no conversion is performed. Set country when the user states a currency, for example de with max_price 150 for a 150-euro ceiling.\n"
+                "description": "Optional maximum price in the requested currency."
               }
             },
             "required": [
@@ -6911,7 +6835,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "social_media",
     "skill_method_py": "get_posts",
     "description_key": "app_skills.social_media.get_posts.description",
-    "description": "Fetch recent social media posts from one or more specific platform pages or profiles. Supports Reddit subreddits, Bluesky profile feeds, and Mastodon public profiles. Use for profile monitoring, community research, and finding conversations to review manually. Costs 10 credits per request.",
+    "description": "Fetch recent social media posts from one or more specific platform pages or profiles. Supports Bluesky profile feeds and Mastodon public profiles. Use for profile monitoring, community research, and finding conversations to review manually. Costs 10 credits per request.",
     "schema": {
       "type": "object",
       "properties": {
@@ -6920,7 +6844,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "Array of social post fetch requests. For Reddit, page is the subreddit name without r/ (for example: privacy, selfhosted, buildinpublic). For Bluesky profile posts, page is the actor handle. For Mastodon, page is user@instance or a public profile URL.\n",
+          "description": "Array of social post fetch requests. For Bluesky profile posts, page is the actor handle. For Mastodon, page is user@instance or a public profile URL.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -6938,24 +6862,22 @@ export const APP_SKILL_METADATA = [
                 "description": "Social platform to fetch from.",
                 "enum": [
                   "bluesky",
-                  "mastodon",
-                  "reddit"
-                ],
-                "default": "reddit"
+                  "mastodon"
+                ]
               },
               "page": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "string",
-                "description": "Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds. For Mastodon, use user@instance or a profile URL."
+                "description": "Platform page/profile identifier. For Bluesky, this is an actor handle for profile feeds. For Mastodon, use user@instance or a profile URL."
               },
               "sort": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "string",
-                "description": "Post listing sort. Reddit supports new/hot/rising/top/comments. Comments means most discussed in the selected time range. Bluesky and Mastodon profile feeds ignore this value.",
+                "description": "Post listing sort. Comments means most discussed in the selected time range. Bluesky and Mastodon profile feeds ignore this value.",
                 "enum": [
                   "new",
                   "hot",
@@ -6970,7 +6892,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Reddit time filter for top/comments sorts.",
+                "description": "Time filter for top/comments sorts.",
                 "enum": [
                   "hour",
                   "day",
@@ -7013,7 +6935,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Reddit comment sort. Bluesky and Mastodon ignore this value.",
+                "description": "Comment sort. Bluesky and Mastodon ignore this value.",
                 "enum": [
                   "confidence",
                   "top",
@@ -7028,7 +6950,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Minimum Reddit score/upvotes to include.",
+                "description": "Minimum post score to include.",
                 "minimum": 0
               },
               "min_comments": {
@@ -7036,7 +6958,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Minimum Reddit comment count to include.",
+                "description": "Minimum comment count to include.",
                 "minimum": 0
               },
               "exclude_stickied": {
@@ -7044,7 +6966,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Exclude stickied Reddit posts.",
+                "description": "Exclude stickied posts.",
                 "default": true
               },
               "exclude_nsfw": {
@@ -7052,7 +6974,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Exclude NSFW Reddit posts.",
+                "description": "Exclude NSFW posts.",
                 "default": true
               },
               "include_self_posts": {
@@ -7060,7 +6982,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Include Reddit text/self posts.",
+                "description": "Include text posts.",
                 "default": true
               },
               "include_link_posts": {
@@ -7068,7 +6990,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Include Reddit link/media posts.",
+                "description": "Include link/media posts.",
                 "default": true
               }
             }
@@ -7116,8 +7038,7 @@ export const APP_SKILL_METADATA = [
                 "enum": [
                   "all",
                   "bluesky",
-                  "mastodon",
-                  "reddit"
+                  "mastodon"
                 ],
                 "default": "all"
               },
@@ -7133,7 +7054,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Optional subreddit/page to restrict Reddit search to, without r/. For Mastodon, optionally provide one extra instance such as fosstodon.org."
+                "description": "Optional extra Mastodon instance such as fosstodon.org."
               },
               "mastodon_instances": {
                 "x-ui": {
@@ -7150,7 +7071,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest. Mastodon public search returns instance-ranked recent results and ignores sort.",
+                "description": "Search sort. Bluesky supports latest/top. Mastodon public search returns instance-ranked recent results and ignores sort.",
                 "enum": [
                   "latest",
                   "top",
@@ -7166,7 +7087,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Reddit time filter for top/comments search.",
+                "description": "Time filter for top/comments search.",
                 "enum": [
                   "hour",
                   "day",
@@ -7216,7 +7137,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Reddit comment sort.",
+                "description": "Comment sort.",
                 "enum": [
                   "confidence",
                   "top",
@@ -7231,7 +7152,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Minimum Reddit score/upvotes to include.",
+                "description": "Minimum post score to include.",
                 "minimum": 0
               },
               "min_comments": {
@@ -7239,7 +7160,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Minimum Reddit comment count to include.",
+                "description": "Minimum comment count to include.",
                 "minimum": 0
               },
               "exclude_stickied": {
@@ -7247,7 +7168,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Exclude stickied Reddit posts.",
+                "description": "Exclude stickied posts.",
                 "default": true
               },
               "exclude_nsfw": {
@@ -7255,7 +7176,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "boolean",
-                "description": "Exclude NSFW Reddit posts.",
+                "description": "Exclude NSFW posts.",
                 "default": true
               }
             },
@@ -7370,7 +7291,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_connections",
     "description_key": "app_skills.travel.search_connections.description",
-    "description": "Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to [\"airplane\"] for flights or [\"train\"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc",
+    "description": "Currently unavailable: no authorized provider is configured. Do not promise live search results.",
     "schema": {
       "type": "object",
       "properties": {
@@ -7457,7 +7378,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "array",
-                "description": "Transport types to search. Supported: \"airplane\" (worldwide via Google Flights), \"train\" (Germany + select European routes via Deutsche Bahn and FlixTrain). IMPORTANT: Set to [\"train\"] when user asks about trains, rail, or Deutsche Bahn.\n",
+                "description": "Requested transport types. Search is currently unavailable.",
                 "items": {
                   "type": "string",
                   "enum": [
@@ -7484,41 +7405,12 @@ export const APP_SKILL_METADATA = [
                   "boat"
                 ]
               },
-              "providers": {
-                "x-ui": {
-                  "basic": false
-                },
-                "type": "array",
-                "description": "Optional provider IDs to search. Use \"google_flights\" for flights, \"deutsche_bahn\" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches, \"flix\" for FlixBus / FlixTrain, and \"transitous\" only for timetable-only public transport routing. If omitted, priced providers for the selected transport method are used, then filtered by countries if provided.\n",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "google_flights",
-                    "deutsche_bahn",
-                    "flix",
-                    "transitous"
-                  ]
-                }
-              },
-              "provider": {
-                "x-ui": {
-                  "basic": false
-                },
-                "type": "string",
-                "description": "Singular provider alias accepted from LLM or CLI callers. Normalized into providers before execution.\n",
-                "enum": [
-                  "google_flights",
-                  "deutsche_bahn",
-                  "flix",
-                  "transitous"
-                ]
-              },
               "countries": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "array",
-                "description": "ISO 3166-1 alpha-2 country codes involved in the route, inferred from origin, destination, and known stops. Country matching is OR: a provider is relevant when it supports at least one listed country. Google Flights is global and remains eligible for airplane searches in all countries.\n",
+                "description": "Optional ISO 3166-1 alpha-2 route country codes.",
                 "items": {
                   "type": "string"
                 }
@@ -7739,7 +7631,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_stays",
     "description_key": "app_skills.travel.search_stays.description",
-    "description": "Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: \"Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence.\" Keep dates, guests, price, class, rating, cancellation, and sort structured.",
+    "description": "Currently unavailable: no authorized provider is configured. Do not promise live search results.",
     "schema": {
       "type": "object",
       "properties": {
@@ -7960,6 +7852,7 @@ export const APP_SKILL_METADATA = [
                 "type": "integer",
                 "enum": [
                   4,
+                  5,
                   6,
                   8
                 ],
@@ -7971,11 +7864,21 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "string",
                 "enum": [
+                  "480p",
                   "720p",
                   "1080p",
                   "4k"
                 ],
                 "default": "720p"
+              },
+              "input_embed_ids": {
+                "type": "array",
+                "maxItems": 1,
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas."
               },
               "seed": {
                 "x-ui": {
@@ -7992,8 +7895,10 @@ export const APP_SKILL_METADATA = [
                 "enum": [
                   "veo-3.1-generate-preview",
                   "veo-3.1-fast-generate-preview",
-                  "veo-3.0-generate-001"
+                  "veo-3.0-generate-001",
+                  "minimax/h3-max-turbo/image-to-video"
                 ],
+                "description": "H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.",
                 "default": "veo-3.1-generate-preview"
               }
             },
@@ -8048,7 +7953,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "videos",
     "skill_method_py": "get_transcript",
     "description_key": "videos.get_transcript.description",
-    "description": "Get the transcript/content of a specific YouTube video URL.",
+    "description": "Get published captions/transcript content for a media.ccc.de talk URL. YouTube transcript retrieval is unavailable. Use this for summaries of media.ccc.de talks. Some talks have no published captions; report that limitation honestly instead of treating the page description as a transcript.",
     "schema": {
       "type": "object",
       "properties": {
@@ -8057,7 +7962,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED: Array of transcript request objects for parallel processing. \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.\nExample for single transcript: {\"requests\": [{\"url\": \"https://youtube.com/watch?v=abc123\"}]}\nExample for multiple transcripts: {\"requests\": [{\"url\": \"https://youtube.com/watch?v=abc123\"}, {\"url\": \"https://youtube.com/watch?v=def456\"}]}\nEach object must contain 'url' (YouTube video URL), and can include optional parameters (languages).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
+          "description": "REQUIRED: Array of transcript request objects for parallel processing. \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.\nExample for single transcript: {\"requests\": [{\"url\": \"https://media.ccc.de/v/talk-one\"}]}\nExample for multiple transcripts: {\"requests\": [{\"url\": \"https://media.ccc.de/v/talk-one\"}, {\"url\": \"https://media.ccc.de/v/talk-two\"}]}\nEach object must contain 'url' (media.ccc.de talk URL), and can include optional parameters (languages).\nmedia.ccc.de example: {\"requests\": [{\"url\": \"https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet\"}]}\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -8067,7 +7972,7 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "string",
                 "format": "uri",
-                "description": "YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)"
+                "description": "Canonical https://media.ccc.de/v/<slug> URL. Retrieves published captions only; some talks have none."
               },
               "languages": {
                 "x-ui": {
@@ -9325,7 +9230,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "web",
     "skill_method_py": "read",
     "description_key": "web.read.description",
-    "description": "Read and extract content from a specific URL or webpage the user provided.",
+    "description": "Web content reading is unavailable until a supported content reader is configured. Do not use this as a fallback for unavailable provider connectors.",
     "schema": {
       "type": "object",
       "properties": {
@@ -9497,7 +9402,7 @@ export class BusinessAppSkills {
     return this.runSkill<T>("business", "company_financials", input, options);
   }
   /**
-   * Search trademark names for explicit target regions when checking a brand or product name. US searches use the free USPTO public search endpoint. EU, Germany and worldwide searches currently return explicit coverage gaps and manual sources; never treat a missing region, failed search or no matches as legal clearance. Ask for the target market if it is unknown.
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: app_skills.business.search_trademarks.description
    * Skill: business/search_trademarks
    */
@@ -9606,7 +9511,7 @@ export class ElectronicsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Use this skill when the user asks to find electronic components, especially power converters or voltage regulators matching input voltage, output voltage, output current, efficiency, BOM cost, footprint, or topology requirements. Currently supports category power_converters via Texas Instruments WEBENCH Power Designer.
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: electronics.search_components.description
    * Skill: electronics/search_components
    */
@@ -9621,7 +9526,7 @@ export class EventsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use
+   * Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.
    * Description key: events.search.description
    * Skill: events/search
    */
@@ -9636,7 +9541,7 @@ export class FitnessAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: fitness.search_classes.description
    * Skill: fitness/search_classes
    */
@@ -9644,7 +9549,7 @@ export class FitnessAppSkills {
     return this.runSkill<T>("fitness", "search_classes", input, options);
   }
   /**
-   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: fitness.search_locations.description
    * Skill: fitness/search_locations
    */
@@ -9659,15 +9564,7 @@ export class HealthAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Run this OpenMates app skill.
-   * Description key: health.create_report.description
-   * Skill: health/create_report
-   */
-  async createReport<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("health", "create_report", input, options);
-  }
-  /**
-   * Search available medical appointments at German doctors/specialists by speciality and city. Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist, gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations, check-ups, blood tests, and other examinations. Note: "Termin" in a medical context means appointment, not event — route here instead of events-search. Sources: Doctolib, Jameda (Germany only).
+   * Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.
    * Description key: app_skills.health.search_appointments.description
    * Skill: health/search_appointments
    */
@@ -9682,7 +9579,7 @@ export class HomeAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc
+   * Housing search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.
    * Description key: app_skills.home.search.description
    * Skill: home/search
    */
@@ -9697,7 +9594,7 @@ export class HostingAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: app_skills.hosting.search_domains.description
    * Skill: hosting/search_domains
    */
@@ -9735,7 +9632,7 @@ export class JobsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search current public job listings in Germany and Sweden. Use this skill for job discovery, including opportunities related to a user's stated impact goal. Set countries to the countries the user selected, or omit it for the Germany-only [DE] default. Each request may override countries; the legacy country field means one country. Germany auto sources are Bundesagentur für Arbeit, Arbeitnow, 80,000 Hours, and Hard Problems; Sweden auto uses JobTech, 80,000 Hours, and Hard Problems. Sources that
+   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.
    * Description key: app_skills.jobs.search.description
    * Skill: jobs/search
    */
@@ -9795,7 +9692,7 @@ export class Models3dAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.
+   * This capability is currently unavailable because no permitted provider is configured.
    * Description key: app_skills.models3d.search.description
    * Skill: models3d/search
    */
@@ -9978,7 +9875,7 @@ export class ShoppingAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl
+   * Currently unavailable: no authorized provider is configured. Do not promise live search results.
    * Description key: app_skills.shopping.search_products.description
    * Skill: shopping/search_products
    */
@@ -9993,7 +9890,7 @@ export class SocialMediaAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Fetch recent social media posts from one or more specific platform pages or profiles. Supports Reddit subreddits, Bluesky profile feeds, and Mastodon public profiles. Use for profile monitoring, community research, and finding conversations to review manually. Costs 10 credits per request.
+   * Fetch recent social media posts from one or more specific platform pages or profiles. Supports Bluesky profile feeds and Mastodon public profiles. Use for profile monitoring, community research, and finding conversations to review manually. Costs 10 credits per request.
    * Description key: app_skills.social_media.get_posts.description
    * Skill: social_media/get-posts
    */
@@ -10047,7 +9944,7 @@ export class TravelAppSkills {
     return this.runSkill<T>("travel", "get_flight", input, options);
   }
   /**
-   * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix, transitous. If no provider is specified, all providers for the selected transport method are searc
+   * Currently unavailable: no authorized provider is configured. Do not promise live search results.
    * Description key: app_skills.travel.search_connections.description
    * Skill: travel/search_connections
    */
@@ -10055,7 +9952,7 @@ export class TravelAppSkills {
     return this.runSkill<T>("travel", "search_connections", input, options);
   }
   /**
-   * Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: "Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence." Keep dates, guests, price, class, rating, cancellation, and sort structured.
+   * Currently unavailable: no authorized provider is configured. Do not promise live search results.
    * Description key: app_skills.travel.search_stays.description
    * Skill: travel/search_stays
    */
@@ -10086,7 +9983,7 @@ export class VideosAppSkills {
     return this.runSkill<T>("videos", "generate", input, options);
   }
   /**
-   * Get the transcript/content of a specific YouTube video URL.
+   * Get published captions/transcript content for a media.ccc.de talk URL. YouTube transcript retrieval is unavailable. Use this for summaries of media.ccc.de talks. Some talks have no published captions; report that limitation honestly instead of treating the page description as a transcript.
    * Description key: videos.get_transcript.description
    * Skill: videos/get_transcript
    */
@@ -10132,7 +10029,7 @@ export class WebAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Read and extract content from a specific URL or webpage the user provided.
+   * Web content reading is unavailable until a supported content reader is configured. Do not use this as a fallback for unavailable provider connectors.
    * Description key: web.read.description
    * Skill: web/read
    */

@@ -64,7 +64,7 @@ steps:
     use_app_skill: events.search
     input:
       requests:
-        - query: AI meetup
+        - query: AI Gathering
           location: Berlin
           count: 1
   - id: ai

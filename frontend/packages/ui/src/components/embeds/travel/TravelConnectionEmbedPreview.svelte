@@ -25,10 +25,6 @@
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
   import { formatTravelFare, type TravelFare } from './fareDisplay';
 
-  const PROVIDER_FAVICONS = [
-    { match: 'deutsche bahn', url: 'https://www.bahn.de/favicon.ico' },
-    { match: 'flix', url: 'https://www.flixbus.com/favicon.ico' },
-  ];
   
   /**
    * Props for travel connection embed preview
@@ -70,7 +66,7 @@
     hasCancellation?: boolean;
     /** Carrier names */
     carriers?: string[];
-    /** Provider used for booking/search, e.g. Deutsche Bahn or FlixBus / FlixTrain */
+    /** Provider used for booking/search, supplied by the stored connection */
     bookingProvider?: string;
     /** Primary provider/logo URL from the connection result */
     airlineLogo?: string;
@@ -165,11 +161,6 @@
 
   let failedCarrierLogos = $state<string[]>([]);
 
-  let providerFaviconUrl = $derived.by(() => {
-    if (airlineLogo) return airlineLogo;
-    const normalizedProvider = (bookingProvider || _carriers[0] || '').toLowerCase();
-    return PROVIDER_FAVICONS.find(provider => normalizedProvider.includes(provider.match))?.url || undefined;
-  });
 
   let carrierLogos = $derived.by(() => {
     if (transportMethod === 'airplane') {
@@ -183,8 +174,8 @@
       return [];
     }
 
-    if (!providerFaviconUrl) return [];
-    return [{ label: bookingProvider || _carriers[0] || 'Provider', url: proxyImage(providerFaviconUrl, MAX_WIDTH_AIRLINE_LOGO) }];
+    if (!airlineLogo) return [];
+    return [{ label: bookingProvider || _carriers[0] || 'Provider', url: proxyImage(airlineLogo, MAX_WIDTH_AIRLINE_LOGO) }];
   });
   
   let realtimeStatus = $derived.by(() => {

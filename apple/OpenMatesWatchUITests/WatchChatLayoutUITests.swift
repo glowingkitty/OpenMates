@@ -311,13 +311,13 @@ extension WatchChatLayoutUITests {
         app.launch()
         let input = app.textFields["watch-message-input"]
         XCTAssertTrue(input.waitForExistence(timeout: 12))
-        XCTAssertEqual(input.value as? String, "Berlin meetup draft")
+        XCTAssertEqual(input.value as? String, "Berlin Gathering draft")
         app.buttons["watch-chat-back"].tap()
         let row = app.buttons["watch-chat-row-watch-ui-test-chat"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         XCTAssertTrue(input.waitForExistence(timeout: 5))
-        XCTAssertEqual(input.value as? String, "Berlin meetup draft")
+        XCTAssertEqual(input.value as? String, "Berlin Gathering draft")
     }
 
     @MainActor
@@ -328,8 +328,8 @@ extension WatchChatLayoutUITests {
         app.launch()
         let heading = app.descendants(matching: .any)["watch-markdown-heading-0"]
         XCTAssertTrue(heading.waitForExistence(timeout: 12))
-        XCTAssertTrue(app.staticTexts["Berlin Meetup"].exists)
-        XCTAssertFalse(app.staticTexts["## Berlin **Meetup**"].exists)
+        XCTAssertTrue(app.staticTexts["Berlin Gathering"].exists)
+        XCTAssertFalse(app.staticTexts["## Berlin **Gathering**"].exists)
         let preview = app.buttons["watch-embed-preview-searchResults"]
         for _ in 0..<4 where !preview.isHittable { app.swipeUp() }
         XCTAssertTrue(preview.exists)
@@ -706,7 +706,7 @@ extension WatchChatLayoutUITests {
         let microphone = app.buttons["watch-audio-record-button"]
         XCTAssertTrue(microphone.waitForExistence(timeout: 12))
         let initialDraft = app.textFields["watch-message-input"].value as? String
-        XCTAssertEqual(initialDraft, "Berlin meetup draft")
+        XCTAssertEqual(initialDraft, "Berlin Gathering draft")
         addUIInterruptionMonitor(withDescription: "Watch recording microphone permission") { alert in
             let allow = alert.buttons["Allow"]
             if allow.exists { allow.tap(); return true }

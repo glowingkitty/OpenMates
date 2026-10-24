@@ -15,7 +15,7 @@ const {
 } = require('./helpers/embed-test-helpers');
 
 const slug = 'jobs-in-germany';
-const providers = ['arbeitnow', 'arbeitsagentur', 'eighty_thousand_hours', 'hard_problems'];
+const providers = ['ExampleJobsD', 'ExampleJobsA', 'ExampleJobsB', 'ExampleJobsC'];
 const example = ALL_EXAMPLE_CHATS.find((chat) => chat.slug === slug);
 
 function field(content: string, name: string): string | null {
@@ -256,11 +256,11 @@ for (const [viewport, size] of [
 				await expect(primary).toHaveAttribute('rel', 'noopener noreferrer');
 				await expect(primary).toHaveAttribute('href', httpsUrl(applyUrl || field(child.content, 'url')));
 				await expect(detail.getByTestId('jobs-detail-body').locator('a, button')).toHaveCount(0);
-				if (field(child.content, 'provider') === 'hard_problems') {
+				if (field(child.content, 'provider') === 'ExampleJobsC') {
 					await expect(detail.getByTestId('jobs-sector-value')).toHaveText('Healthcare');
 					await expect(detail.getByTestId('jobs-role-value')).toHaveText('Product design');
 					await expect(detail.getByTestId('jobs-seniority-value')).toHaveText('Senior');
-					await expect(detail.getByTestId('jobs-description')).toContainText('Urban Sports Club');
+					await expect(detail.getByTestId('jobs-description')).toContainText('ExampleFitness');
 					await expect(detail.getByTestId('jobs-details-warning')).toHaveCount(0);
 				}
 				await testInfo.attach(`jobs-example-${viewport}-${parent.embed_id}-${childId}-detail`, {

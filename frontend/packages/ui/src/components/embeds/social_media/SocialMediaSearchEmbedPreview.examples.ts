@@ -67,11 +67,11 @@ const examples: SocialMediaSearchStoreExample[] = [
     "id": "store-example-social-media-search-2",
     "query": "Remote workshop facilitation tips",
     "query_translation_key": "settings.app_store_examples.social_media.search.2",
-    "provider": "reddit_json",
+    "provider": "ExampleCommunity_json",
     "result_count": 2,
     "status": "finished",
     "results": [{
-      "platform": "reddit",
+      "platform": "ExampleCommunity",
       "page": "r/sampleteams",
       "posts": [
         {
@@ -81,7 +81,7 @@ const examples: SocialMediaSearchStoreExample[] = [
           "published_at": "2026-05-21T09:45:00Z",
           "like_count": 421,
           "reply_count": 68,
-          "url": "https://www.reddit.com/r/sampleteams/comments/example1"
+          "url": "https://example.com/fixture"
         },
         {
           "title": "Async prep before strategy sessions",
@@ -90,7 +90,7 @@ const examples: SocialMediaSearchStoreExample[] = [
           "published_at": "2026-05-20T16:20:00Z",
           "like_count": 137,
           "reply_count": 24,
-          "url": "https://www.reddit.com/r/sampleteams/comments/example2"
+          "url": "https://example.com/fixture"
         }
       ]
     }]

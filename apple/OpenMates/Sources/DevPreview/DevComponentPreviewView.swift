@@ -208,7 +208,7 @@ private struct DevComponentPreviewCanvas: View {
                                latitude: 52.5219, longitude: 13.4132, time: "18:00", price: 0, provider: "Community"),
                 berlinMapEvent(id: "preview-berlin-event-2", title: "Software Demo Evening", venue: "Brandenburg Gate",
                                latitude: 52.5163, longitude: 13.3777, time: "19:00", price: 15, provider: "Community"),
-                berlinMapEvent(id: "preview-berlin-event-3", title: "AI Research Meetup", venue: "Museum Island",
+                berlinMapEvent(id: "preview-berlin-event-3", title: "AI Research Gathering", venue: "Museum Island",
                                latitude: 52.5207, longitude: 13.4010, time: "20:00", price: 30, provider: "Research"),
             ]
         }

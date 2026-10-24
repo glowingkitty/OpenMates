@@ -53,9 +53,8 @@ export const externalLinks = {
     sharedUrls?.urls?.contact?.bluesky || "https://bsky.app/profile/openmates.bsky.social",
   mastodon:
     sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
-  meetup:
-    sharedUrls?.urls?.contact?.meetup ||
-    "https://www.meetup.com/openmates-meetup-group/",
+  // Ordinary community registration pages; these links do not enable discovery providers.
+  meetup: sharedUrls?.urls?.contact?.meetup || "https://www.meetup.com/openmates-meetup-group/",
   luma: "https://luma.com/openmates",
   eventbrite: "https://www.eventbrite.com/o/121655417243",
   pixelfed:

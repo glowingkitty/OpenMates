@@ -263,18 +263,6 @@ class JevDecisionClient:
                 raise DecisionProviderUnavailable("Diagram replay has no decision fixture for this request")
             record_cache_hit()
             return fixture
-        from backend.apps.ai.testing.shopping_images_fixture import active as shopping_fixture_active
-
-        if shopping_fixture_active():
-            from backend.apps.ai.testing.shopping_images_fixture import jev_response
-            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
-
-            fixture = jev_response(state, questions, self._model)
-            if fixture is None:
-                record_blocked_provider_call()
-                raise DecisionProviderUnavailable("Shopping gallery replay has no decision fixture for this request")
-            record_cache_hit()
-            return fixture
         owns_client = self._http_client is None
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
@@ -332,15 +320,6 @@ class JevDecisionClient:
             image_tokens += 600
         if text_tokens + image_tokens > MAX_ESTIMATED_INPUT_TOKENS:
             raise DecisionRequestTooLarge("image decision exceeds the input token budget")
-        from backend.apps.ai.testing.shopping_images_fixture import active as fixture_active, jev_response
-        if fixture_active():
-            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
-            fixture = jev_response(state, questions, self._model)
-            if fixture is None:
-                record_blocked_provider_call()
-                raise DecisionProviderUnavailable("Signed shopping replay has no visual decision fixture")
-            record_cache_hit()
-            return fixture
         assets = {reference: {"type": "image", "format": "jpg",
                               "data_base64": base64.b64encode(content).decode("ascii")}
                   for reference, content in images.items()}

@@ -19,8 +19,8 @@ const defaultProps = {
 			rooms: 2,
 			address: 'Bergmannstr., 10961 Berlin',
 			image_url: '',
-			url: 'https://www.immobilienscout24.de/expose/12345',
-			provider: 'ImmoScout24',
+			url: 'https://example.com/expose/12345',
+			provider: 'ExampleHousingA',
 			listing_type: 'rent'
 		},
 		{
@@ -30,8 +30,8 @@ const defaultProps = {
 			rooms: 1,
 			address: 'Schönhauser Allee, 10439 Berlin',
 			image_url: '',
-			url: 'https://www.wg-gesucht.de/wg-zimmer-in-Berlin.12345.html',
-			provider: 'WG-Gesucht',
+			url: 'https://example.com/fixture',
+			provider: 'ExampleHousingC',
 			listing_type: 'rent'
 		},
 		{
@@ -41,8 +41,8 @@ const defaultProps = {
 			rooms: 3,
 			address: 'Friedrichshain, 10245 Berlin',
 			image_url: '',
-			url: 'https://www.kleinanzeigen.de/s-anzeige/67890',
-			provider: 'Kleinanzeigen',
+			url: 'https://example.com/fixture',
+			provider: 'ExampleHousingB',
 			listing_type: 'rent'
 		}
 	],

@@ -220,7 +220,7 @@ describe("EmbedsMapView", () => {
         return {
           app_id: "events",
           skill_id: "event",
-          title: "AI Founders Meetup",
+          title: "AI Founders Gathering",
           date_start: "2026-08-01T18:00:00Z",
           venue_lat: 52.530247,
           venue_lon: 13.411047,
@@ -265,7 +265,7 @@ describe("EmbedsMapView", () => {
           app_id: "travel",
           skill_id: "search_connections",
           transport_method: "train",
-          source_provider: "deutsche_bahn",
+          source_provider: "example_rail",
           origin: "Bonn Hbf",
           destination: "Muenchen Hbf",
           departure: "2026-08-12 08:27",
@@ -304,7 +304,7 @@ describe("EmbedsMapView", () => {
           app_id: "travel",
           skill_id: "search_connections",
           transport_method: "train",
-          source_provider: "flix",
+          source_provider: "ExampleCoach",
           origin: "Bonn Hbf",
           destination: "Muenchen Hbf",
           departure: "2026-08-12T08:56:00+02:00",
@@ -666,7 +666,7 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent).toContain("Jul 27");
     const calendarItems = target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]');
     expect(calendarItems).toHaveLength(1);
-    expect(calendarItems[0].textContent).toContain("AI Founders Meetup");
+    expect(calendarItems[0].textContent).toContain("AI Founders Gathering");
 
     unmount(component);
     target.remove();
@@ -832,7 +832,7 @@ describe("EmbedsMapView", () => {
     await tick();
 
     for (const option of target.querySelectorAll<HTMLButtonElement>('[data-testid^="embeds-map-view-option-provider-"]')) {
-      if (option.dataset.testid !== 'embeds-map-view-option-provider-deutsche_bahn') option.click();
+      if (option.dataset.testid !== 'embeds-map-view-option-provider-example_rail') option.click();
     }
     await tick();
 

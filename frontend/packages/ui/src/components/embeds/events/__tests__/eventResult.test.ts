@@ -8,7 +8,7 @@ describe('event serialization normalization', () => {
     const raw = { organizer_name: 'Berlin Lingua Hub', organizer_id: 'org-1', organizer_slug: 'berlin-lingua',
       venue_name: 'Community space', venue_address: 'Example Street 1', venue_lat: '52.5', venue_lon: '13.4',
       fee_amount: '0', fee_currency: 'EUR', rsvp_count: '80', is_paid: null,
-      date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'meetup',
+      date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'Gathering',
       source_evidence: { original: true }, cover_url: '/event.webp' };
     expect(normalizeEventResult(raw, 'child-1')).toMatchObject({
       ...raw, embed_id: 'child-1', organizer: { id: 'org-1', name: 'Berlin Lingua Hub', slug: 'berlin-lingua' },
@@ -39,7 +39,7 @@ describe('event serialization normalization', () => {
 // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,events-search.surface-parity
 it('projects event follow-up context without forwarding raw or nested transport metadata', () => {
   const normalized = normalizeEventResult({
-    title: 'Language exchange', description: 'A visible description', date_start: '2026-12-15T18:00:00Z', provider: 'meetup',
+    title: 'Language exchange', description: 'A visible description', date_start: '2026-12-15T18:00:00Z', provider: 'Gathering',
     aes_key: 'raw-private-crypto', files: { original: { s3_key: 'raw-private-storage' } },
     organizer_name: 'Berlin Lingua Hub', organizer_secret: 'flat-private-crypto',
     organizer: { id: 'org', name: 'Berlin Lingua Hub', slug: 'berlin', encryption: 'organizer-private-crypto' },
@@ -49,7 +49,7 @@ it('projects event follow-up context without forwarding raw or nested transport 
   const result = projectVisibleEventResult(normalized);
   expect(normalized).toHaveProperty('aes_key', 'raw-private-crypto');
   expect(normalized.organizer).toHaveProperty('encryption', 'organizer-private-crypto');
-  expect(result).toMatchObject({ embed_id: 'event-child', title: 'Language exchange', description: 'A visible description', provider: 'meetup',
+  expect(result).toMatchObject({ embed_id: 'event-child', title: 'Language exchange', description: 'A visible description', provider: 'Gathering',
     organizer: { id: 'org', name: 'Berlin Lingua Hub', slug: 'berlin' }, venue: { name: 'Venue', lat: 0, lon: 0 },
     fee: { amount: 0, currency: 'EUR' }, rsvp_count: 0, is_paid: false });
   expect(Object.keys(result).sort()).toEqual(['embed_id', 'id', 'provider', 'title', 'description', 'url', 'date_start', 'date_end', 'timezone', 'event_type', 'venue', 'organizer', 'fee', 'rsvp_count', 'is_paid', 'image_url', 'cover_url'].sort());

@@ -201,3 +201,15 @@ chat_failure_delivery:
     given: A terminal chat failure occurs while the admin address is missing, the queue or deduplication store is unavailable, or email transport rejects or ambiguously accepts the notification.
     when: Notification delivery is attempted.
     then: The original chat error still reaches the user promptly, the specific delivery state remains visible without claiming success, and no recursive notification is generated.
+
+public_status:
+  - id: active-provider-groups-only
+    given: The public status service has its current configured service inventory after unsupported integrations are retired.
+    when: A visitor requests /api/status?env=dev.
+    then: The HTTP 200 response contains active groups plus status, last_updated, uptime_pct, tests and incidents; the removed provider-only group is absent.
+    assertion_ids: [operational-monitoring.public-status.existing-response]
+  - id: existing-intraday-responses
+    given: A retained service has a stored response-time check and a test has no runs for the selected date.
+    when: A visitor requests the corresponding service and test intraday URLs, then submits an invalid intraday type.
+    then: The service response preserves its ID and checks, the test response preserves its ID and empty runs, and the invalid type returns HTTP 400.
+    assertion_ids: [operational-monitoring.public-status.existing-response]

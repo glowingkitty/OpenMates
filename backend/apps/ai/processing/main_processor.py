@@ -2010,7 +2010,7 @@ def _validate_skill_provider(
 
     If the provider is not in the skill's providers list (or is None/empty), returns
     the first valid provider from the skill definition. This prevents LLM hallucination
-    (e.g. returning 'Brave Search' for the events skill that only supports 'Meetup').
+    (e.g. returning a search provider for a skill with only schedule providers).
 
     Args:
         provider:                 Provider string from LLM output or metadata (may be wrong)

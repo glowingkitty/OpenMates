@@ -154,13 +154,13 @@ scenarios:
   - id: S-2
     title: Update dry-run reports newly required keys before applying a target
     given:
-      - The installed manifest does not require SECRET__FIRECRAWL__API_KEY.
-      - The target manifest requires SECRET__FIRECRAWL__API_KEY for a newly enabled provider-backed skill.
+      - The installed manifest does not require SECRET__BRAVE__API_KEY.
+      - The target manifest requires SECRET__BRAVE__API_KEY for a newly enabled provider-backed skill.
       - The runtime .env and Vault do not contain that key.
     when:
       - The operator runs openmates server update --dry-run.
     then:
-      - The CLI reports Firecrawl as a newly required provider key.
+      - The CLI reports Brave as a newly required provider key.
       - The output includes env key, Vault path, setup URL, and target release or commit link.
       - No Docker image is pulled or container is replaced.
   - id: S-3
@@ -189,7 +189,7 @@ scenarios:
   - id: S-5
     title: Provider setup URLs are verified before publication
     given:
-      - Provider metadata proposes a get_key_url or docs_url for Brave, Firecrawl, Context7, OpenAI, Anthropic, Google AI Studio, and Mistral.
+      - Provider metadata proposes a get_key_url or docs_url for Brave, Context7, OpenAI, Anthropic, Google AI Studio, and Mistral.
     when:
       - The provider URL audit runs.
     then:
@@ -756,7 +756,6 @@ tasks:
         - AC-7
     expected_files:
       - backend/providers/brave.yml
-      - backend/providers/firecrawl.yml
       - backend/providers/context7.yml
       - backend/providers/openai.yml
       - backend/providers/anthropic.yml

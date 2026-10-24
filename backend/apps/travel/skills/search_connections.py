@@ -1,35 +1,15 @@
-"""
-Search Connections skill for the travel app.
-
-Searches for transport connections (flights and trains) between locations.
-Uses a provider abstraction layer where each transport method is handled
-by a dedicated provider (SerpApiProvider for flights via Google Flights,
-DeutscheBahnProvider for trains via the DB Navigator API).
-
-The skill follows the standard BaseSkill request/response pattern with the
-'requests' array convention used by all OpenMates skills.
-"""
+"""Provider-independent connection schemas and filters; search is unavailable."""
 
 import hashlib
 import json
 import logging
-import os
 import re
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
-from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
-from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
-from backend.apps.travel.providers.flix_provider import FlixProvider
-from backend.apps.travel.providers.transitous_provider import TransitousProvider
-from backend.shared.providers.deutsche_bahn import search_locations
 from backend.shared.providers.geoapify.places import GeoapifyPlacesProvider, GEOAPIFY_SOURCE_LABEL
 
 logger = logging.getLogger(__name__)
@@ -61,7 +41,7 @@ TRANSFER_AMENITY_GROUPS = {
         "categories": ["amenity.toilet"],
     },
 }
-VALID_PROVIDER_IDS = {"google_flights", "deutsche_bahn", "flix", "transitous"}
+VALID_PROVIDER_IDS: set[str] = set()
 VALID_RAIL_PRODUCTS = {
     "high_speed",
     "intercity",
@@ -121,9 +101,7 @@ class SearchConnectionsRequestItem(BaseModel):
     )
     transport_methods: List[str] = Field(
         default=["airplane"],
-        description="Transport types to search. Supported: 'airplane' (worldwide via Google Flights), "
-        "'train' (Germany + select European routes via Deutsche Bahn and FlixTrain), "
-        "'bus' (FlixBus / Greyhound network where available).",
+        description="Requested transport types. Connection search is currently unavailable.",
     )
     transport_method: Optional[str] = Field(
         default=None,
@@ -131,8 +109,7 @@ class SearchConnectionsRequestItem(BaseModel):
     )
     providers: Optional[List[str]] = Field(
         default=None,
-        description="Optional provider IDs to search. Supported: google_flights, deutsche_bahn, flix. "
-        "If omitted, all providers for the selected transport method are used, then filtered by countries if provided.",
+        description="Optional provider IDs. No authorized connection-search provider is configured.",
     )
     provider: Optional[str] = Field(
         default=None,
@@ -250,29 +227,7 @@ class SearchConnectionsRequest(BaseModel):
 # Registry of known transport providers with display metadata.
 # Each provider that can return results should have an entry here.
 # icon_url is used as a favicon in the search preview (like web search favicons).
-PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {
-    "google_flights": {
-        "name": "Google Flights",
-        "icon_url": "https://www.gstatic.com/flights/airline_logos/70px/dark/multi.png",
-    },
-    "deutsche_bahn": {
-        "name": "Deutsche Bahn",
-        "icon_url": "https://www.bahn.de/favicon.ico",
-    },
-    "flix": {
-        "name": "FlixBus / FlixTrain",
-        "icon_url": "https://www.flixbus.com/favicon.ico",
-    },
-    "transitous": {
-        "name": "Transitous",
-        "icon_url": "https://transitous.org/favicon.ico",
-    },
-    # Add new providers here as they are integrated:
-    # "trainline": {
-    #     "name": "Trainline",
-    #     "icon_url": "https://www.thetrainline.com/favicon.ico",
-    # },
-}
+PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {}
 
 
 class SearchConnectionsResponse(BaseModel):
@@ -292,6 +247,8 @@ class SearchConnectionsResponse(BaseModel):
         default_factory=list,
         description="Providers that returned results, each with 'id', 'name', 'icon_url'",
     )
+    provider_required: bool = True
+    available: bool = False
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -303,31 +260,9 @@ class SearchConnectionsResponse(BaseModel):
 # Provider registry
 # ---------------------------------------------------------------------------
 
-def _create_providers(
-    secrets_manager: Optional["SecretsManager"] = None,
-) -> List[BaseTransportProvider]:
-    """
-    Instantiate all available transport providers.
-
-    SerpApiProvider handles flights via Google Flights (comprehensive coverage,
-    real-time pricing, booking links). DeutscheBahnProvider handles trains via
-    the DB Navigator API (German + select European routes, real-time pricing).
-
-    Args:
-        secrets_manager: Optional SecretsManager for providers that need
-            to load API keys from Vault.
-    """
-    providers: List[BaseTransportProvider] = [
-        SerpApiProvider(secrets_manager=secrets_manager),
-        DeutscheBahnProvider(),
-    ]
-    if os.getenv("ENABLE_FLIX_PROVIDER", "true").lower() not in {"0", "false", "no"}:
-        providers.extend([
-            FlixProvider(supported_methods={"bus"}),
-            FlixProvider(supported_methods={"train"}),
-        ])
-    providers.append(TransitousProvider())
-    return providers
+def _create_providers(secrets_manager: Any = None) -> List[BaseTransportProvider]:
+    """No authorized connection-search provider is configured."""
+    return []
 
 
 def _get_providers_for_request(
@@ -354,9 +289,6 @@ def _get_providers_for_request(
     matched: List[BaseTransportProvider] = []
     for provider in all_providers:
         provider_id = getattr(provider, "provider_id", "")
-        if provider_id == "transitous" and not has_provider_filter:
-            logger.info("Skipping opt-in provider transitous because it was not requested")
-            continue
         if has_provider_filter and provider_id not in requested_provider_ids:
             logger.info("Skipping provider %s because it was not requested", provider_id or type(provider).__name__)
             continue
@@ -476,195 +408,17 @@ class SearchConnectionsSkill(BaseSkill):
 
     @classmethod
     def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Resolve selected transport providers before network search starts."""
-        transport_methods = request.get("transport_methods")
-        if not isinstance(transport_methods, list) or not transport_methods:
-            transport_methods = ["airplane"]
+        return {"provider": "", "providers": [], "provider_required": True,
+                "available": False, "query": _request_query_summary(request)}
 
-        requested_providers = request.get("providers")
-        requested_ids = (
-            {
-                str(provider).strip().lower()
-                for provider in requested_providers
-                if str(provider).strip().lower() in VALID_PROVIDER_IDS
-            }
-            if isinstance(requested_providers, list)
-            else set()
-        )
-
-        selected_ids: list[str] = []
-        for method in transport_methods:
-            if method == "airplane":
-                selected_ids.append("google_flights")
-            elif method == "train":
-                selected_ids.extend(["deutsche_bahn", "flix"])
-                if "transitous" in requested_ids:
-                    selected_ids.append("transitous")
-            elif method == "bus":
-                selected_ids.append("flix")
-                if "transitous" in requested_ids:
-                    selected_ids.append("transitous")
-            elif method == "boat":
-                selected_ids.append("transitous")
-
-        if requested_ids:
-            selected_ids = [provider_id for provider_id in selected_ids if provider_id in requested_ids]
-
-        seen: set[str] = set()
-        providers: list[Dict[str, str]] = []
-        for provider_id in selected_ids:
-            if provider_id in seen or provider_id not in PROVIDER_REGISTRY:
-                continue
-            seen.add(provider_id)
-            providers.append({"id": provider_id, **PROVIDER_REGISTRY[provider_id]})
-
-        provider = providers[0]["name"] if len(providers) == 1 else ""
-        return {
-            "provider": provider,
-            "providers": providers,
-            "query": _request_query_summary(request),
-        }
-
-    async def execute(
-        self,
-        requests: List[Dict[str, Any]],
-        secrets_manager: Any = None,
-        **kwargs: Any,
-    ) -> SearchConnectionsResponse:
-        """
-        Execute the search connections skill.
-
-        1. Obtains SecretsManager for API credential access
-        2. Validates the requests array (requires 'legs' field)
-        3. Processes each request via _process_single_request
-        4. Groups results by request ID
-        5. Returns SearchConnectionsResponse
-        """
-        # 1. Get or create SecretsManager
-        secrets_manager, error_response = await self._get_or_create_secrets_manager(
-            secrets_manager=secrets_manager,
-            skill_name="SearchConnectionsSkill",
-            error_response_factory=lambda msg: SearchConnectionsResponse(results=[], error=msg),
-            logger=logger,
-        )
-        if error_response:
-            return error_response
-
-        requests = _normalize_connection_requests(requests)
-
-        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
-            requests=requests,
-            required_fields=["legs"],
-            field_display_names={"legs": "legs"},
-            empty_error_message="No connection search requests provided",
-            logger=logger,
-        )
-        if validation_error:
-            return SearchConnectionsResponse(results=[], error=validation_error)
-        if not validated_requests:
-            return self._build_response_with_errors(
-                response_class=SearchConnectionsResponse,
-                grouped_results=invalid_grouped_results,
-                errors=validation_errors,
-                provider="",
-                providers=[],
-                suggestions=self.FOLLOW_UP_SUGGESTIONS,
-                logger=logger,
-            )
-
-        # 3. Create providers (SerpApiProvider loads its API key from Vault)
-        all_providers = _create_providers(secrets_manager=secrets_manager)
-
-        # 4. Process requests in parallel
-        all_results = await self._process_requests_in_parallel(
-            requests=validated_requests,
-            process_single_request_func=self._process_single_request,
-            skill_name="SearchConnectionsSkill",
-            logger=logger,
-            all_providers=all_providers,
-            secrets_manager=secrets_manager,
-            cache_service=kwargs.get("cache_service"),
-        )
-
-        # 5. Group results by request ID
-        grouped_results, errors = self._group_results_by_request_id(
-            results=all_results,
-            requests=requests,
-            logger=logger,
-        )
-        grouped_results = self._merge_grouped_results_preserving_request_order(
-            grouped_results,
-            invalid_grouped_results,
-            requests,
-        )
-
-        request_by_id = {req.get("id"): req for req in requests}
-        searched_provider_ids: set[str] = set()
-        for group in grouped_results:
-            req = request_by_id.get(group.get("id"))
-            if not req:
-                continue
-            transport_methods = [
-                method
-                for method in req.get("transport_methods", ["airplane"])
-                if method in {"airplane", "train", "bus", "boat"}
-            ] or ["airplane"]
-            matched_providers = _get_providers_for_request(
-                all_providers,
-                transport_methods,
-                requested_providers=req.get("providers"),
-                countries=req.get("countries"),
-            )
-            group_providers: List[Dict[str, str]] = []
-            seen_group_provider_ids: set[str] = set()
-            for provider in matched_providers:
-                metadata = _provider_metadata(provider)
-                if metadata["id"] in seen_group_provider_ids:
-                    continue
-                seen_group_provider_ids.add(metadata["id"])
-                group_providers.append(metadata)
-            searched_provider_ids.update(provider["id"] for provider in group_providers)
-            group["query"] = _request_query_summary(req)
-            group["legs"] = req.get("legs", [])
-            group["transport_methods"] = transport_methods
-            group["providers"] = group_providers
-            group["result_count"] = len(group.get("results", []))
-            self._annotate_empty_result_group(group, req)
-
-        # 6. Determine provider attribution from searched providers first, falling
-        # back to actual results for legacy embeds that lack request metadata.
-        seen_provider_ids: set[str] = set()
-        seen_provider_ids.update(searched_provider_ids)
-        for group in grouped_results:
-            for result in group.get("results", []):
-                sp = result.get("source_provider")
-                if sp:
-                    seen_provider_ids.add(sp)
-
-        # Build providers list with display metadata from the registry
-        providers_list: List[Dict[str, str]] = []
-        for pid in sorted(seen_provider_ids):
-            meta = PROVIDER_REGISTRY.get(pid)
-            if meta:
-                providers_list.append({"id": pid, **meta})
-            else:
-                # Unknown provider — use ID as fallback display name
-                providers_list.append({"id": pid, "name": pid, "icon_url": ""})
-
-        # Legacy provider string for older renderers. Keep it empty when no
-        # provider metadata exists so empty states do not claim a fake source.
-        provider_name = ", ".join(p["name"] for p in providers_list)
-
-        # 7. Build and return response
-        return self._build_response_with_errors(
-            response_class=SearchConnectionsResponse,
-            grouped_results=grouped_results,
-            errors=errors,
-            provider=provider_name,
-            providers=providers_list,
-            suggestions=self.FOLLOW_UP_SUGGESTIONS,
-            logger=logger,
-        )
+    async def execute(self, requests: List[Dict[str, Any]], **kwargs: Any) -> SearchConnectionsResponse:
+        message = "Connection search is unavailable: no authorized provider is configured."
+        groups = [
+            {"id": request.get("id", index), "results": [], "error": message}
+            for index, request in enumerate(requests or [])
+            if isinstance(request, dict)
+        ]
+        return SearchConnectionsResponse(results=groups, error=message)
 
     @staticmethod
     def _annotate_empty_result_group(group: Dict[str, Any], request: Dict[str, Any]) -> None:
@@ -696,274 +450,8 @@ class SearchConnectionsSkill(BaseSkill):
             "Try nearby dates or airports",
         ]
 
-    async def _process_single_request(
-        self,
-        req: Dict[str, Any],
-        request_id: Any,
-        **kwargs: Any,
-    ) -> tuple:
-        """
-        Process a single connection search request.
-
-        Args:
-            req: The request dict (named 'req' to match BaseSkill._process_requests_in_parallel)
-            request_id: The request ID
-            **kwargs: Additional keyword arguments (e.g., all_providers)
-
-        Returns:
-            Tuple of (request_id, results_list, error_string_or_none)
-        """
-        all_providers: List[BaseTransportProvider] = kwargs.get("all_providers", [])
-        secrets_manager = kwargs.get("secrets_manager")
-        cache_service = kwargs.get("cache_service")
-
-        # Extract parameters with defaults
-        legs = req.get("legs", [])
-        transport_methods = req.get("transport_methods", ["airplane"])
-        requested_providers = req.get("providers")
-        countries = req.get("countries")
-        passengers = req.get("passengers", 1)
-        children = req.get("children", 0)
-        infants_in_seat = req.get("infants_in_seat", 0)
-        infants_on_lap = req.get("infants_on_lap", 0)
-        travel_class = req.get("travel_class", "economy")
-        max_results = self._clamp_max_results(req.get("max_results", DEFAULT_MAX_RESULTS))
-        non_stop_only = req.get("non_stop_only", False)
-        max_stops = req.get("max_stops")
-        include_airlines = req.get("include_airlines")
-        exclude_airlines = req.get("exclude_airlines")
-        owned_passes = req.get("owned_passes") if isinstance(req.get("owned_passes"), list) else []
-        pass_only = bool(req.get("pass_only"))
-        rail_products = self._valid_rail_products(req.get("rail_products"))
-        currency = req.get("currency", "EUR")
-        sort_by = req.get("sort_by", "price_asc")
-        min_transfer_minutes, min_transfer_error = self._normalize_min_transfer_minutes(req.get("min_transfer_minutes"))
-        if min_transfer_error:
-            return (request_id, [], min_transfer_error)
-        result_filters = self._extract_result_filters(req)
-        provider_filters = dict(result_filters)
-        if "min_transfer_minutes" in req:
-            provider_filters["min_transfer_minutes"] = min_transfer_minutes
-        filtering_filters = dict(result_filters)
-        filtering_filters["min_transfer_minutes"] = min_transfer_minutes
-        provider_max_results = self._provider_fetch_limit(max_results, provider_filters)
-
-        # Validate legs
-        if not legs or not isinstance(legs, list):
-            return (request_id, [], "No legs provided in request")
-
-        for i, leg in enumerate(legs):
-            if not leg.get("origin"):
-                return (request_id, [], f"Leg {i}: missing 'origin'")
-            if not leg.get("destination"):
-                return (request_id, [], f"Leg {i}: missing 'destination'")
-            if not leg.get("date"):
-                return (request_id, [], f"Leg {i}: missing 'date'")
-
-        provider_legs = [dict(leg) for leg in legs]
-        for key in ("min_departure_time", "max_departure_time"):
-            value = result_filters.get(key)
-            if value and self._parse_time_minutes(value) is None:
-                return (request_id, [], f"{key} must use HH:MM local time")
-        if result_filters.get("min_departure_time"):
-            provider_legs[0]["departure_time"] = str(result_filters["min_departure_time"]).strip()
-        elif result_filters.get("max_departure_time"):
-            provider_legs[0]["departure_time"] = "00:00"
-        if result_filters.get("max_departure_time"):
-            provider_legs[0]["max_departure_time"] = str(result_filters["max_departure_time"]).strip()
-
-        # Validate transport methods
-        valid_methods = {"airplane", "train", "bus", "boat"}
-        transport_methods = [m for m in transport_methods if m in valid_methods]
-        if not transport_methods:
-            transport_methods = ["airplane"]
-
-        # Find matching providers
-        matched_providers = _get_providers_for_request(
-            all_providers,
-            transport_methods,
-            requested_providers=requested_providers,
-            countries=countries,
-        )
-        if not matched_providers:
-            return (request_id, [], f"No providers available for transport methods: {transport_methods}")
-        if pass_only:
-            matched_providers = [
-                provider
-                for provider in matched_providers
-                if getattr(provider, "provider_id", "") == "deutsche_bahn"
-            ]
-            if not matched_providers:
-                return (request_id, [], "No selected providers support pass-only routing")
-
-        # Search across all matched providers and merge results
-        all_connections = []
-        errors = []
-
-        for provider in matched_providers:
-            try:
-                connections = await provider.search_connections(
-                    legs=provider_legs,
-                    passengers=passengers,
-                    children=children,
-                    infants_in_seat=infants_in_seat,
-                    infants_on_lap=infants_on_lap,
-                    travel_class=travel_class,
-                    max_results=provider_max_results,
-                    non_stop_only=non_stop_only,
-                    max_stops=max_stops,
-                    include_airlines=include_airlines,
-                    exclude_airlines=exclude_airlines,
-                    owned_passes=owned_passes,
-                    pass_only=pass_only,
-                    rail_products=rail_products,
-                    min_transfer_minutes=min_transfer_minutes,
-                    cache_service=cache_service,
-                    currency=currency,
-                )
-                all_connections.extend(connections)
-            except Exception as e:
-                provider_name = type(provider).__name__
-                error_msg = f"{provider_name} search failed: {e}"
-                logger.error(error_msg, exc_info=True)
-                errors.append(error_msg)
-
-        if not all_connections and errors:
-            return (request_id, [], "; ".join(errors))
-
-        # If we got results from at least one provider, don't propagate
-        # errors from other providers (partial success is still success).
-        # Only report errors when ALL providers failed (handled above).
-        if all_connections and errors:
-            for err in errors:
-                logger.info(f"Ignoring provider error (other providers succeeded): {err}")
-            errors = []
-
-        # Convert ConnectionResult objects to dicts for the response
-        results = []
-        for connection in all_connections:
-            # Determine trip type from legs
-            num_legs = len(connection.legs)
-            if num_legs == 1:
-                trip_type = "one_way"
-            elif num_legs == 2:
-                trip_type = "round_trip"
-            else:
-                trip_type = "multi_city"
-
-            # Build a flat result dict suitable for embed rendering
-            result_dict: Dict[str, Any] = {
-                "type": "connection",
-                "transport_method": connection.transport_method,
-                "source_provider": connection.source_provider,
-                "trip_type": trip_type,
-                "total_price": connection.total_price,
-                "currency": connection.currency,
-                "bookable_seats": connection.bookable_seats,
-                "last_ticketing_date": connection.last_ticketing_date,
-                "legs": [leg.model_dump() for leg in connection.legs],
-                "hash": self._generate_connection_hash(connection),
-            }
-            fare = self._fare_dict_for_connection(connection)
-            if fare:
-                result_dict["fare"] = fare
-
-            # Add compact summary fields for easy LLM consumption
-            if connection.legs:
-                first_leg = connection.legs[0]
-                last_leg = connection.legs[-1]
-                result_dict["origin"] = first_leg.origin
-                result_dict["destination"] = last_leg.destination if trip_type != "round_trip" else first_leg.destination
-                result_dict["departure"] = first_leg.departure
-                result_dict["arrival"] = first_leg.arrival
-                result_dict["duration"] = first_leg.duration
-                result_dict["stops"] = first_leg.stops
-
-                # Carrier summary (unique carriers across all segments)
-                carriers = set()
-                carrier_codes = set()
-                for leg in connection.legs:
-                    for seg in leg.segments:
-                        carriers.add(seg.carrier)
-                        if seg.carrier_code:
-                            carrier_codes.add(seg.carrier_code)
-                result_dict["carriers"] = list(carriers)
-                result_dict["carrier_codes"] = list(carrier_codes)
-
-                # Booking token: SerpAPI token for on-demand booking URL lookup.
-                # The frontend calls /v1/apps/travel/booking-link with this
-                # token when the user clicks the booking button, avoiding
-                # upfront SerpAPI credit spending on booking lookups.
-                if connection.booking_token:
-                    result_dict["booking_token"] = connection.booking_token
-
-                # Booking context: original SerpAPI search parameters needed
-                # for the booking_token lookup. Stored alongside each result
-                # so the frontend can send them back to the booking-link endpoint.
-                if connection.booking_context:
-                    result_dict["booking_context"] = connection.booking_context
-
-                fare_is_partial = connection.fare_is_partial
-                if fare_is_partial is None and fare:
-                    fare_is_partial = bool(fare.get("is_partial"))
-                if fare_is_partial is not None:
-                    result_dict["fare_is_partial"] = fare_is_partial
-
-                fare_passes_applied = connection.fare_passes_applied or (fare.get("covered_by_passes") if fare else None)
-                if fare_passes_applied:
-                    result_dict["fare_passes_applied"] = fare_passes_applied
-
-                # Booking URL: populated if booking was already resolved
-                # (not used in the on-demand flow, kept for API compatibility)
-                if connection.booking_url:
-                    result_dict["booking_url"] = connection.booking_url
-                    result_dict["booking_provider"] = connection.booking_provider
-
-            # Rich metadata from Google Flights (CO2, airline logo)
-            if connection.airline_logo:
-                result_dict["airline_logo"] = connection.airline_logo
-            if connection.co2_kg is not None:
-                result_dict["co2_kg"] = connection.co2_kg
-            if connection.co2_typical_kg is not None:
-                result_dict["co2_typical_kg"] = connection.co2_typical_kg
-            if connection.co2_difference_percent is not None:
-                result_dict["co2_difference_percent"] = connection.co2_difference_percent
-            if connection.optimization:
-                result_dict["optimization"] = connection.optimization
-            self._annotate_transfer_quality(result_dict, min_transfer_minutes, connection.transfer_quality)
-
-            results.append(result_dict)
-
-        if filtering_filters:
-            results = self._filter_results(results, filtering_filters)
-
-        # Sort results according to the requested sort_by parameter
-        self._sort_results(results, sort_by)
-        results = results[:max_results]
-        results = await self._enrich_transfer_amenities(
-            results,
-            secrets_manager=secrets_manager,
-            cache_service=cache_service,
-        )
-
-        try:
-            results = await sanitize_long_text_fields_in_payload(
-                payload=results,
-                task_id=f"travel_connections_{request_id}",
-                secrets_manager=secrets_manager,
-                cache_service=cache_service,
-            )
-        except Exception as sanitize_error:
-            logger.error(
-                "Connection search content sanitization failed for request %s: %s",
-                request_id,
-                sanitize_error,
-                exc_info=True,
-            )
-            return (request_id, [], "Content sanitization failed")
-
-        error_str = "; ".join(errors) if errors else None
-        return (request_id, results, error_str)
+    async def _process_single_request(self, req: Dict[str, Any], request_id: Any, **kwargs: Any) -> tuple:
+        return (request_id, [], "Connection search is unavailable: no authorized provider is configured.")
 
     # ------------------------------------------------------------------
     # Sorting helpers
@@ -1224,61 +712,14 @@ class SearchConnectionsSkill(BaseSkill):
         return summary
 
     async def _resolve_transfer_coordinates(
-        self,
-        *,
-        cache_service: Any,
-        station: str,
-        latitude: Any,
-        longitude: Any,
+        self, *, cache_service: Any, station: str, latitude: Any, longitude: Any,
     ) -> Optional[Dict[str, float]]:
+        """Only use coordinates supplied with historical transport data."""
         coordinates = self._coerce_coordinates(latitude, longitude)
-        if coordinates:
-            lat, lon = coordinates
-            return {"latitude": lat, "longitude": lon}
-
-        station = station.strip()
-        if not station:
-            return None
-
-        cache_key = self._transfer_coordinate_cache_key(station)
-        cached = await self._cache_get(cache_service, cache_key)
-        if isinstance(cached, dict):
-            coordinates = self._coerce_coordinates(cached.get("latitude"), cached.get("longitude"))
-            if coordinates:
-                lat, lon = coordinates
-                return {"latitude": lat, "longitude": lon}
-
-        try:
-            candidates = await search_locations(station, max_results=5)
-        except Exception as exc:
-            logger.info("DB transfer coordinate lookup failed for %s: %s", station, exc)
-            return None
-
-        match = self._pick_transfer_location(station, candidates)
-        if not match:
-            return None
-        location_coordinates = match.get("coordinates") if isinstance(match, dict) else None
-        if not isinstance(location_coordinates, dict):
-            return None
-        latitude_value = location_coordinates.get("latitude")
-        if latitude_value is None:
-            latitude_value = location_coordinates.get("lat")
-        longitude_value = location_coordinates.get("longitude")
-        if longitude_value is None:
-            longitude_value = location_coordinates.get("lon")
-        if longitude_value is None:
-            longitude_value = location_coordinates.get("lng")
-        coordinates = self._coerce_coordinates(
-            latitude_value,
-            longitude_value,
-        )
         if not coordinates:
             return None
-
         lat, lon = coordinates
-        value = {"latitude": lat, "longitude": lon}
-        await self._cache_set(cache_service, cache_key, value, TRANSFER_STATION_COORDINATE_CACHE_TTL_SECONDS)
-        return value
+        return {"latitude": lat, "longitude": lon}
 
     @classmethod
     def _pick_transfer_location(cls, station: str, candidates: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

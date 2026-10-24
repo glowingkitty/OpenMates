@@ -61,7 +61,6 @@ CLAIM_SOURCES = {
     'arch-infrastructure-logging-behavior': ['backend/core/api/app/utils/setup_logging.py', 'backend/core/api/app/utils/setup_compliance_logging.py', 'backend/core/api/app/utils/log_filters.py'],
     'arch-infrastructure-status-page-behavior': ['backend/status/main.py', 'backend/core/api/app/routes/status_routes.py', 'backend/core/api/app/services/status_aggregator.py', 'backend/core/api/app/services/test_results_service.py'],
     'arch-infrastructure-video-hosting-behavior': ['frontend/packages/ui/src/demo_chats/data/for_everyone.ts', 'frontend/packages/ui/src/components/ChatHeader.svelte'],
-    'arch-integrations-luma-behavior': ['backend/apps/events/providers/luma.py', 'scripts/api_tests/test_luma_api.py'],
     'arch-integrations-media-generation-behavior': ['frontend/apps/web_app/src/routes/dev/media/+page.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/MediaCanvas.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DeviceIframe.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DevicePhone.svelte', 'frontend/apps/web_app/src/routes/dev/media/components/DeviceLaptop.svelte'],
     'arch-messaging-embed-diff-editing-behavior': ['backend/apps/ai/instructions/base_diff_editing_instruction.md', 'backend/apps/ai/tasks/stream_consumer.py', 'backend/core/api/app/services/embed_service.py', 'backend/core/api/app/services/embed_diff_service.py', 'backend/core/directus/schemas/embed_diffs.yml'],
     'arch-messaging-embeds-behavior': ['backend/core/api/app/services/embed_service.py', 'frontend/packages/ui/src/components/embeds/**/*.svelte', 'frontend/packages/ui/src/components/embeds/**/*.ts', 'frontend/packages/ui/src/services/embedResolver.ts', 'frontend/packages/ui/src/services/embedStore.ts'],
@@ -299,9 +298,6 @@ def test_arch_infrastructure_video_hosting_behavior():
     doc_assert('arch-infrastructure-video-hosting-behavior')
     _assert_claim_sources('arch-infrastructure-video-hosting-behavior')
 
-def test_arch_integrations_luma_behavior():
-    doc_assert('arch-integrations-luma-behavior')
-    _assert_claim_sources('arch-integrations-luma-behavior')
 
 def test_arch_integrations_media_generation_behavior():
     doc_assert('arch-integrations-media-generation-behavior')

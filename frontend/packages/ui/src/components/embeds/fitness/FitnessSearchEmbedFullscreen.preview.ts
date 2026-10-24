@@ -8,7 +8,7 @@
 const classResults = [
   {
     id: "appointment-1",
-    provider: "Urban Sports Club",
+    provider: "ExampleFitness",
     appointment_id: "appointment-1",
     name: "Morning Yoga Flow",
     // Synthetic studio illustrations exercise real provider image fields locally.
@@ -23,11 +23,11 @@ const classResults = [
     distance_km: 0.9,
     spots_display: "5 spots left",
     plans_required: ["Classic", "Premium", "Max"],
-    detail_url: "https://urbansportsclub.com/en/class-details/appointment-1",
+    detail_url: "https://example.com/fixture",
   },
   {
     id: "appointment-2",
-    provider: "Urban Sports Club",
+    provider: "ExampleFitness",
     appointment_id: "appointment-2",
     name: "HIIT Strength",
     // A class without its own photo uses the organizing venue image.
@@ -41,18 +41,18 @@ const classResults = [
     distance_km: 0.7,
     spots_display: "3 spots left",
     plans_required: ["Premium", "Max"],
-    detail_url: "https://urbansportsclub.com/en/class-details/appointment-2",
+    detail_url: "https://example.com/fixture",
   },
 ];
 
 const decodedContent = {
   app_id: "fitness",
   skill_id: "search_classes",
-  provider: "Urban Sports Club",
+  provider: "ExampleFitness",
   results: [
     {
       id: "classes",
-      provider: "Urban Sports Club",
+      provider: "ExampleFitness",
       result_count: classResults.length,
       filters: {
         query: "yoga",
@@ -61,7 +61,7 @@ const decodedContent = {
         plan: "all",
         attendance_mode: "onsite",
       },
-      summary: "Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans.",
+      summary: "Found 2 fitness source classes in onsite mode. Searched all fitness source plans.",
       results: classResults,
     },
   ],
@@ -102,10 +102,10 @@ export const variants = {
         results: [
           {
             id: "empty",
-            provider: "Urban Sports Club",
+            provider: "ExampleFitness",
             result_count: 0,
             filters: decodedContent.results[0].filters,
-            summary: "No Urban Sports classes found.",
+            summary: "No fitness source classes found.",
             results: [],
           },
         ],

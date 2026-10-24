@@ -19,12 +19,12 @@ def test_event_quality_filter_excludes_physical_from_online_strict_results() -> 
     events = [
         {"title": "Venue talk", "event_type": "PHYSICAL", "date_start": "2026-06-13T10:00:00+02:00"},
         {
-            "title": "Eventbrite venue-only talk",
+            "title": "Conference venue-only talk",
             "venue": {"name": "Flutgraben", "city": "Berlin"},
             "date_start": "2026-06-13T11:00:00+02:00",
         },
-        {"title": "Luma webinar", "event_type": "online", "date_start": "2026-06-13T12:00:00+02:00"},
-        {"title": "Meetup webinar", "event_type": "ONLINE", "date_start": "2026-06-13T13:00:00+02:00"},
+        {"title": "Source A webinar", "event_type": "online", "date_start": "2026-06-13T12:00:00+02:00"},
+        {"title": "Source B webinar", "event_type": "ONLINE", "date_start": "2026-06-13T13:00:00+02:00"},
     ]
 
     filtered, metadata = SearchSkill._apply_quality_filters(
@@ -35,7 +35,7 @@ def test_event_quality_filter_excludes_physical_from_online_strict_results() -> 
         query="data engineering",
     )
 
-    assert [event["title"] for event in filtered] == ["Luma webinar", "Meetup webinar"]
+    assert [event["title"] for event in filtered] == ["Source A webinar", "Source B webinar"]
     assert all(event["event_type"] == "ONLINE" for event in filtered)
     assert metadata["filtered_out_count"] == 2
     assert metadata["applied_filters"] == ["event_type"]
@@ -87,27 +87,27 @@ def test_event_quality_filter_rejects_unparseable_dates_in_bounded_search() -> N
 def test_event_semantic_deduplication_collapses_cross_provider_copies() -> None:
     events = [
         {
-            "provider": "luma",
+            "provider": "source_a",
             "title": "Physical AI & Humanoid Robotics Workshop",
-            "url": "https://lu.ma/physical-ai",
+            "url": "https://events-a.example/physical-ai",
             "date_start": "2026-10-10T18:00:00+02:00",
         },
         {
-            "provider": "meetup",
+            "provider": "source_b",
             "title": "Physical AI and Humanoid Robotics",
-            "url": "https://meetup.com/events/123",
+            "url": "https://events.example/123",
             "date_start": "2026-10-10T18:30:00+02:00",
         },
         {
-            "provider": "eventbrite",
+            "provider": "Conference",
             "title": "PHYSICAL AI & HUMANOID ROBOTICS WORKSHOP",
-            "url": "https://eventbrite.com/e/456",
+            "url": "https://conference.example/talks/456",
             "date_start": "2026-10-10T18:00:00+02:00",
         },
         {
-            "provider": "luma",
+            "provider": "source_a",
             "title": "AI Founder Night",
-            "url": "https://lu.ma/founders",
+            "url": "https://events-a.example/founders",
             "date_start": "2026-10-10T18:00:00+02:00",
         },
     ]
@@ -115,8 +115,8 @@ def test_event_semantic_deduplication_collapses_cross_provider_copies() -> None:
     deduplicated = SearchSkill._deduplicate_events(events)
 
     assert [event["url"] for event in deduplicated] == [
-        "https://lu.ma/physical-ai",
-        "https://lu.ma/founders",
+        "https://events-a.example/physical-ai",
+        "https://events-a.example/founders",
     ]
 
 

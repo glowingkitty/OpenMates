@@ -100,9 +100,6 @@ clarification:
         It is a message-level presentation block named `embeds_map_view`, not a new
         persisted embed type or a fullscreen-only pattern.
     - question: What compact syntax should the assistant emit for curated results?
-      answer: >
-        Use a fenced block with `title` and `embeds`, where `embeds` is a comma-separated
-        list of readable embed refs such as `ai-founders-meetup-7f3a91`.
     - question: How should full app-skill result sets and selected highlights be represented?
       answer: >
         Use `sources` for parent app-skill embed refs and `highlight` for child refs
@@ -656,18 +653,7 @@ assumptions:
 contracts:
   syntax:
     - name: Curated child embeds
-      example: |
-        ```embeds_map_view
-        title: Berlin AI events
-        embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
-        ```
     - name: Source with highlighted children
-      example: |
-        ```embeds_map_view
-        title: Berlin AI events
-        sources: events-search-12ab34
-        highlight: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
-        ```
     - Only `title`, `embeds`, `sources`, and `highlight` are supported in assistant output.
     - '`embeds`, `sources`, and `highlight` are comma-separated readable refs or full embed IDs.'
   api:

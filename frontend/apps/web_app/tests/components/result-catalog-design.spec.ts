@@ -338,7 +338,7 @@ for (const width of [390, 1000]) {
         await openPreview(page, `${component}Fullscreen`, width, variant || undefined);
         await expect(page.getByTestId('result-embed-content')).toBeVisible();
         if (component.startsWith('hosting')) {
-          await expect(page.getByRole('link', { name: /open on Gandi/i })).toHaveAttribute('href', /^https:\/\/shop\.gandi\.net\//);
+          await expect(page.getByRole('link', { name: /open on ExampleRegistrar/i })).toHaveAttribute('href', /^https:\/\/shop\.ExampleRegistrar\.net\//);
           await expect(page.getByTestId('hosting-domain-registration')).toContainText(variant ? /price unavailable/i : /13[.,]09/);
         } else if (variant) {
           await expect(page.getByTestId('result-embed-content')).toContainText('Example component');
@@ -399,7 +399,7 @@ for (const width of [390, 1000]) {
         await expect(detail.getByTestId('trademark-record-source')).toHaveCount(0);
         await expect(detail.getByTestId('trademark-record-detail')).not.toContainText('Application:');
       } else {
-        await expect(detail.getByTestId('trademark-record-source')).toHaveAttribute('href', /^https:\/\/tsdr\.uspto\.gov\//);
+        await expect(detail.getByTestId('trademark-record-source')).toHaveAttribute('href', /^https:\/\/tsdr\.ExampleTrademarks\.gov\//);
         await detail.locator('summary').click();
         await expect(detail).toContainText('Tote bags.');
       }

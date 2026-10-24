@@ -5,7 +5,6 @@ generated_at: '2026-08-06T13:18:08+00:00'
 range:
   since: '2026-07-28T00:00:00+00:00'
   until: '2026-07-29T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,110 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: app:workflows
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -255,8 +232,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -273,8 +248,6 @@ sections:
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/69274bcaf8c5e1ae.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/ab0a53b11b8edb9a.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/b00681da14e7f8bb.json
-    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/cd6aada8172b8635.json
-    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/efebb7e0d6bf14e4.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/wikipedia/b35c0da5992ca885.json
     - backend/apps/ai/testing/caching_llm_wrapper.py
     - backend/core/docker-compose.yml
@@ -293,8 +266,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -319,8 +290,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -370,8 +339,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
     rationale:
@@ -466,8 +433,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -538,14 +503,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -571,8 +533,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -597,8 +557,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -636,7 +594,6 @@ sections:
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:finance
       source: backend/apps/finance/app.yml
     feature_metadata_changed: false
@@ -662,8 +619,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -689,8 +644,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -904,28 +857,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: false
@@ -1069,42 +1016,36 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     feature_metadata_changed: false
@@ -1166,8 +1107,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1737,8 +1676,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: skip gpt model override in live provider mode'
     commits:
@@ -1758,8 +1695,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: normalize model override provider for billing'
     commits:
@@ -1772,8 +1707,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: normalize raw Playwright import artifacts'
     commits:
@@ -1800,8 +1733,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
   - title: 'test: stabilize model override mention typing'
     commits:
@@ -1863,8 +1794,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: reuse stabilized multi-session send helper'
     commits:
@@ -1905,14 +1834,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'fix: resolve cached stream provider pass through'
@@ -1926,8 +1852,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: preserve cached stream provider await contract'
     commits:
@@ -1940,8 +1864,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: complete Revolut sandbox bank transfer settlement'
     commits:
@@ -1954,7 +1876,6 @@ unreleased_progress:
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:finance
       source: backend/apps/finance/app.yml
   - title: 'fix: reroute image chat google overrides'
@@ -1968,8 +1889,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: accept open daily inspiration chat CTA'
     commits:
@@ -1996,8 +1915,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: stabilize cancelled new chat draft restore'
     commits:
@@ -2129,28 +2046,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - title: 'fix: persist inspiration chats before follow-up sends'
@@ -2241,42 +2152,36 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
   - title: 'fix: unblock deferred image sends'
@@ -2311,8 +2216,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: sync post-processing chat summaries before broadcast'
     commits:
@@ -2394,8 +2297,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: stabilize models3d live mock replay'
@@ -2409,8 +2310,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: normalize model override provider for billing'
@@ -2424,8 +2323,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: harden app skill REST security'
@@ -2439,8 +2336,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     newsletter_ready: false
   - title: 'fix: refresh app-skill embed data before fullscreen'
@@ -2478,8 +2373,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: keep attachment drafts sendable'
@@ -2509,14 +2402,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -2531,8 +2421,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: preserve cached stream provider await contract'
@@ -2546,8 +2434,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: complete Revolut sandbox bank transfer settlement'
@@ -2561,7 +2447,6 @@ marketing_candidates:
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:finance
       source: backend/apps/finance/app.yml
     newsletter_ready: false
@@ -2576,8 +2461,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: persist recovery fallback assistant responses'
@@ -2591,8 +2474,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: stabilize cancelled new chat draft restore'
@@ -2670,28 +2551,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: skill:web:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -2746,42 +2621,36 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     newsletter_ready: false
@@ -2812,8 +2681,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: sync post-processing chat summaries before broadcast'
@@ -2925,8 +2792,6 @@ sources:
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/69274bcaf8c5e1ae.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/ab0a53b11b8edb9a.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/llm__gemini-3.5-flash-lite/b00681da14e7f8bb.json
-    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/cd6aada8172b8635.json
-    - backend/apps/ai/testing/api_cache/models3d_search_web/printables/efebb7e0d6bf14e4.json
     - backend/apps/ai/testing/api_cache/models3d_search_web/wikipedia/b35c0da5992ca885.json
     - backend/apps/ai/testing/caching_llm_wrapper.py
     - backend/core/docker-compose.yml

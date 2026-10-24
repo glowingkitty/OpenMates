@@ -6,7 +6,7 @@
 
   Shows while processing:
   - "Searching for {speciality} in {city}" summary line
-  - "via Doctolib" provider label
+  - "via the stored provider" provider label
 
   Shows when finished:
   - Same summary line
@@ -22,7 +22,6 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /**
    * A single appointment slot result.
@@ -37,7 +36,7 @@
     address?: string;
     insurance?: string;
     telehealth?: boolean;
-    /** Combined Jameda + Google Places rating (weighted average) */
+    /** Combined the stored provider + Google Places rating (weighted average) */
     rating?: number;
     /** Combined review count across rating sources */
     rating_count?: number;
@@ -52,7 +51,7 @@
     speciality?: string;
     /** City name from the skill args (e.g. "Berlin") */
     city?: string;
-    /** Provider platform name, e.g. "Doctolib" */
+    /** Provider platform name, e.g. "the stored provider" */
     provider?: string;
     /** Current processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
@@ -73,6 +72,7 @@
     query: queryProp,
     speciality: specialityProp,
     city: cityProp,
+    provider: providerProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -85,6 +85,7 @@
   let localQuery = $state<string>('');
   let localSpeciality = $state<string>('');
   let localCity = $state<string>('');
+  let localProvider = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<AppointmentResult[]>([]);
@@ -98,6 +99,7 @@
       localQuery = queryProp || '';
       localSpeciality = specialityProp || '';
       localCity = cityProp || '';
+      localProvider = providerProp || '';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -137,6 +139,8 @@
     }
 
     const content = data.decodedContent;
+    if (typeof content.provider_name === 'string') localProvider = content.provider_name;
+    else if (typeof content.provider === 'string') localProvider = content.provider;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       // Fallback: the health skill passes speciality + city as separate fields
@@ -253,17 +257,12 @@
       <!-- Search summary: "Augenarzt in Berlin" -->
       <div class="ds-search-query">{searchSummary}</div>
 
-      <!-- Provider label: "via Doctolib & Jameda" -->
-      <div class="ds-search-provider">
-        <span>{$text('embeds.via')}</span>
-        <img
-          src={getProviderIconUrl('icons/doctolib.svg')}
-          alt="Doctolib"
-          class="provider-logo"
-        />
-        <span>&</span>
-        <span class="provider-name">Jameda</span>
-      </div>
+      {#if localProvider}
+        <div class="ds-search-provider">
+          <span>{$text('embeds.via')}</span>
+          <span class="provider-name">{localProvider}</span>
+        </div>
+      {/if}
 
       <!-- Error state -->
       {#if status === 'error'}
@@ -325,7 +324,7 @@
     line-clamp: 4;
   }
 
-  /* Local augmentation: the "via Doctolib" label hosts a logo + name as flex
+  /* Local augmentation: the "via the stored provider" label hosts a logo + name as flex
      children, so .ds-search-provider needs flex layout on top of the primitive
      typography. Kept here rather than polluting the shared primitive. */
   .ds-search-provider {
@@ -334,11 +333,6 @@
     gap: 5px;
   }
 
-  .ds-search-provider .provider-logo {
-    height: 14px;
-    width: auto;
-    flex-shrink: 0;
-  }
 
   .ds-search-provider .provider-name {
     font-weight: 600;
@@ -348,9 +342,6 @@
     font-size: var(--font-size-xxs);
   }
 
-  .health-search-details.mobile .ds-search-provider .provider-logo {
-    height: 12px;
-  }
 
   .health-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);

@@ -1,48 +1,39 @@
 schema_version: 1
 specification: feature.app-skill.trademark-search@1
-request:
-- id: explicit-input
-  given: A user supplies ADIDAS, US, exact matching and three results.
-  when: They execute Search trademarks.
-  then: The search returns at most three records for that name and US; omitting regions returns a validation error.
+boundary_and_history:
+- id: trademarks-request
+  given: Alice submits two candidate names for US and EU checks.
+  when: No permitted trademark provider is configured.
+  then: The skill reports unavailable and neither region is queried or silently substituted.
   assertion_ids:
   - trademarks.request
-coverage:
-- id: german-gap
-  given: A user requests Germany only and no German provider is configured.
-  when: They search a candidate name.
-  then: The result says Germany is unsupported with an official manual source, and makes no US request or clean-search claim.
+- id: trademarks-coverage
+  given: Alice asks whether a name is clear in Germany.
+  when: The check is unavailable.
+  then: She receives an explicit coverage limitation and no legal-clearance claim.
   assertion_ids:
   - trademarks.coverage
-evidence:
-- id: preliminary-results
-  given: USPTO reports a live ADIDAS registration and the registered goods.
-  when: The user views the result.
-  then: They see the mark, status, classes, goods and USPTO record link together with a preliminary-search limitation.
+- id: trademarks-evidence
+  given: A saved result contains a registered name and its goods description.
+  when: Alice reopens the result.
+  then: The saved evidence and preliminary-search limitation remain visible without a new registry query.
   assertion_ids:
   - trademarks.evidence
-provider:
-- id: limited-access
-  given: USPTO refuses a search with an access check or rate limit.
-  when: The skill handles the response.
-  then: It returns a safe provider error, without retries, proxy use or a misleading empty success.
-  assertion_ids:
-  - trademarks.provider
-parity:
-- id: saved-surfaces
-  given: A successful authenticated search returns US records and an unsupported German region.
-  when: The same input is executed via CLI and both SDKs, then its saved embed is opened.
-  then: Each client preserves records and regional coverage, and web preview and fullscreen expose the coverage gap.
+- id: trademarks-parity
+  given: Alice attempts a check through REST and opens a prior saved result on web.
+  when: The source is unavailable.
+  then: The new call fails visibly while the saved evidence remains readable.
   assertion_ids:
   - trademarks.parity
-naming:
-  - id: natural-intake
-    given: A user starts a fresh chat without a product brief.
-    when: They say Help me find a name for my new product.
-    then: Find a brand name activates and asks a compact question about the missing brief before proposing names.
-    assertion_ids: [brand-naming.activation]
-  - id: shortlist-first
-    given: A user describes a calm budgeting app for US freelancers, wants an English name and selects two finalists from the shortlist.
-    when: They ask to check those finalists.
-    then: The assistant checks domains, web conflicts and US trademarks for those names, then compares the evidence while explaining that no matches are not legal clearance.
-    assertion_ids: [brand-naming.flow]
+- id: brand-naming-activation
+  given: Alice says she needs a calm name for a budgeting app for freelancers.
+  when: The naming focus activates.
+  then: The assistant uses those details without repeating a long intake.
+  assertion_ids:
+  - brand-naming.activation
+- id: brand-naming-flow
+  given: Alice selects two shortlisted names and asks which is legally available.
+  when: Domain and trademark checks are unavailable.
+  then: The assistant states the limits, may present sourced web conflicts, and never claims legal clearance.
+  assertion_ids:
+  - brand-naming.flow

@@ -194,7 +194,7 @@ def test_collect_degraded_rows_rejects_inconsistent_pages(monkeypatch, boundary)
 # contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
 def test_report_prioritizes_errors_without_suppressing_security_or_warning_evidence():
     rows = (
-        [_row("api", "WARNING", "Request failed: GET /internal/config/provider_pricing/serpapi (404)")] * 50
+        [_row("api", "WARNING", "Request failed: GET /internal/config/provider_pricing/unavailable-source (404)")] * 50
         + [_row("api", "ERROR", "Import failed: app module")] * 3
         + [_row("api", "CRITICAL", "Worker failed: unavailable")] * 3
         + [_row("api", "WARNING", "Request failed: authentication rejected (403)")] * 4

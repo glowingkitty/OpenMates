@@ -71,7 +71,7 @@ LLMs fabricate URLs, invent tool results, and make unsupported claims. OpenMates
 
 **Process:**
 - Extracts markdown links (`[text](url)`) from streamed paragraphs
-- Validates each URL via `HEAD` request (fallback to `GET`) through Webshare rotating residential proxy
+- Validates each URL via `HEAD` request (fallback to `GET`)
 - Uses random User-Agent generation and randomized HTTP headers to avoid bot detection
 - Skips localhost patterns and fragment-only URLs
 

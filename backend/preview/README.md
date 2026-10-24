@@ -154,7 +154,7 @@ Detailed health with cache statistics.
 
 ## Configuration
 
-Set environment variables as needed. The preview server uses the `PREVIEW_` prefix for most settings, but reuses the main backend's `SECRET__WEBSHARE__*` credentials for proxy configuration.
+Set environment variables as needed. The preview server uses the `PREVIEW_` prefix for most settings.
 
 ### Core Settings
 
@@ -177,18 +177,7 @@ Set environment variables as needed. The preview server uses the `PREVIEW_` pref
 | `PREVIEW_VALIDATE_REFERER` | true | Enable Referer header validation |
 | `PREVIEW_ALLOWED_REFERERS` | see below | Allowed Referer patterns |
 
-### Webshare Proxy (RECOMMENDED)
-
-For reliable metadata fetching, configure Webshare rotating residential proxy. Without a proxy, many websites will block direct server requests.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SECRET__WEBSHARE__PROXY_USERNAME` | (empty) | Webshare username (same as main backend) |
-| `SECRET__WEBSHARE__PROXY_PASSWORD` | (empty) | Webshare password (same as main backend) |
-| `PREVIEW_USE_PROXY_FOR_METADATA` | true | Use proxy for HTML/metadata fetching |
-| `PREVIEW_USE_PROXY_FOR_IMAGES` | false | Use proxy for image fetching |
-
-Get credentials from: https://webshare.io/
+Metadata and image requests use direct HTTP. Access denials are returned without proxy retries.
 
 ### YouTube API (For Video Metadata)
 
@@ -211,12 +200,6 @@ To enable YouTube video metadata extraction, configure a YouTube Data API v3 key
 - Free tier: 10,000 units/day
 - `videos.list` costs: 1 unit per request
 - With 24-hour caching: ~10,000 unique videos/day
-
-**Note:** The preview server accepts credentials in two formats:
-- `SECRET__WEBSHARE__PROXY_USERNAME` / `SECRET__WEBSHARE__PROXY_PASSWORD` (same as main backend, for shared `.env`)
-- `PREVIEW_WEBSHARE_USERNAME` / `PREVIEW_WEBSHARE_PASSWORD` (preview-specific with prefix)
-
-The first format matching will be used.
 
 ### Content Sanitization (Prompt Injection Protection)
 

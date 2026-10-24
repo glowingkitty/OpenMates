@@ -56,13 +56,6 @@ async def download_public_image(url: str) -> bytes:
     if (len(url) > 4096 or parsed.scheme != "https" or not parsed.hostname
             or parsed.username or parsed.password or parsed.port not in (None, 443)):
         raise ValueError("Unsupported product image URL")
-    # This Stoffe.de tenant migrated its image CDN with a same-path 301. Map
-    # only that verified alias before the normal public-DNS and pinned-IP checks.
-    # Result gallery URLs stay provider supplied; arbitrary redirects stay denied.
-    if (parsed.hostname == "cdn02.plentymarkets.com"
-            and parsed.path.startswith("/5rtbqcd0flq3/item/images/")):
-        url = str(httpx.URL(url).copy_with(host="cdn02.plentyone.com"))
-        parsed = urlsplit(url)
     hostname = parsed.hostname.encode("idna").decode("ascii")
     addresses = await asyncio.wait_for(
         asyncio.get_running_loop().getaddrinfo(hostname, 443, type=socket.SOCK_STREAM), timeout=1.0,

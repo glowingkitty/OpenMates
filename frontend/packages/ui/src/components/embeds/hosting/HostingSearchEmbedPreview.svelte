@@ -58,7 +58,7 @@
   {#snippet details()}
     <div class="search-summary" data-testid="hosting-search-preview">
       <div class="query" title={current.query || ''}>{current.query || $text('embeds.hosting.search_domains.title')}</div>
-      <div class="provider">{$text('embeds.hosting.search_domains.provider_via').replace('{provider}', current.provider || 'Gandi')}</div>
+      <div class="provider">{$text('embeds.hosting.search_domains.provider_via').replace('{provider}', current.provider || '')}</div>
       {#if currentStatus === 'processing'}
         <p>{$text('embeds.hosting.search_domains.processing')}</p>
       {:else if currentStatus === 'cancelled'}

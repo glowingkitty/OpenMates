@@ -1545,12 +1545,6 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=600),  # Every 10 minutes
         'options': {'queue': 'server_stats'},  # Route to server_stats queue
     },
-    'update-leaderboard-daily': {
-        'task': 'leaderboard.update_daily',
-        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM UTC
-        'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
-        # Fetches all categories (overall, coding, math, creative) for Best-of aliases
-    },
     # Daily test run — replaced by a system crontab entry (see crontab -l).
     # The crontab runs scripts/run-tests-daily.sh directly on the host at 03:00 UTC,
     # eliminating the Celery Beat → Celery task → admin sidecar → docker+chroot

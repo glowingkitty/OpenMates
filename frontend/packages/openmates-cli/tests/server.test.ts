@@ -1484,18 +1484,18 @@ describe("server preflight and Caddy planning", () => {
         SECRET__OPENAI__API_KEY: "IMPORTED_TO_VAULT",
         SECRET__ANTHROPIC__API_KEY: "sk-ant-inline",
         SECRET__BRAVE__API_KEY: "",
-        SECRET__FIRECRAWL__API_KEY: "IMPORTED_TO_VAULT",
+        SECRET__CONTEXT7__API_KEY: "IMPORTED_TO_VAULT",
         DATABASE_PASSWORD: "kept-in-env",
       },
       vaultPresence: {
         SECRET__OPENAI__API_KEY: "present",
-        SECRET__FIRECRAWL__API_KEY: "missing",
+        SECRET__CONTEXT7__API_KEY: "missing",
       },
     });
 
-    assert.deepEqual(summary.importedSecretEnvKeys, ["SECRET__FIRECRAWL__API_KEY", "SECRET__OPENAI__API_KEY"]);
+    assert.deepEqual(summary.importedSecretEnvKeys, ["SECRET__CONTEXT7__API_KEY", "SECRET__OPENAI__API_KEY"]);
     assert.deepEqual(summary.importedVaultPresent, ["SECRET__OPENAI__API_KEY"]);
-    assert.deepEqual(summary.importedVaultMissing, ["SECRET__FIRECRAWL__API_KEY"]);
+    assert.deepEqual(summary.importedVaultMissing, ["SECRET__CONTEXT7__API_KEY"]);
     assert.deepEqual(summary.inlineSecretEnvKeys, ["SECRET__ANTHROPIC__API_KEY"]);
     assert.deepEqual(summary.emptySecretEnvKeys, ["SECRET__BRAVE__API_KEY"]);
   });
@@ -1548,11 +1548,11 @@ describe("server preflight and Caddy planning", () => {
     const initial = "DATABASE_NAME=directus\nSECRET__BRAVE__API_KEY=old\n";
 
     const updated = upsertEnvValue(initial, "SECRET__BRAVE__API_KEY", "new-secret");
-    const added = upsertEnvValue(updated, "SECRET__FIRECRAWL__API_KEY", "firecrawl-secret");
+    const added = upsertEnvValue(updated, "SECRET__BRAVE__API_KEY", "brave-secret");
     const removed = unsetEnvValue(added, "SECRET__BRAVE__API_KEY");
 
     assert.match(updated, /SECRET__BRAVE__API_KEY=new-secret/);
-    assert.match(added, /SECRET__FIRECRAWL__API_KEY=firecrawl-secret/);
+    assert.match(added, /SECRET__BRAVE__API_KEY=brave-secret/);
     assert.doesNotMatch(removed, /SECRET__BRAVE__API_KEY=/);
     assert.match(removed, /DATABASE_NAME=directus/);
   });

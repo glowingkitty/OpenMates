@@ -254,7 +254,7 @@ async def execute_skill(
     in-process call so a runaway skill cannot block the worker indefinitely.
 
     Retries still help because most "skill failure" cases are external (the
-    skill itself opens HTTP/SSL connections to YouTube, REWE, etc.). On retry,
+    skill itself opens HTTP/SSL connections to supported upstream APIs). On retry,
     those external services may route through a different proxy IP.
 
     Args:

@@ -10,7 +10,7 @@
   "assets": [
     {
       "name": "events-desktop.webp",
-      "actual_url": "https://app.dev.openmates.org/#chat-id=example-ai-workshops-meetups-berlin",
+      "actual_url": "https://example.com/fixture",
       "display_url": "openmates.org",
       "raw_capture": "events-desktop-raw.png",
       "raw_sha256": "9d03337df54e4357f278a2216ae205d399b7311e1aff88c852313711d8eb70f4",

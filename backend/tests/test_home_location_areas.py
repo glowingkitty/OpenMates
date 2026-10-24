@@ -28,14 +28,14 @@ def region(name="Berlin", basis="city", bbox=None):
     ({"address": "Near Alexanderplatz 12, Berlin"}, False),
     ({"address": "5 minutes from Ostbahnhof, Berlin"}, False),
 ])
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 def test_published_address_requires_a_house_not_a_postcode(listing, expected):
     assert areas.has_exact_address(listing) is expected
 
 
 @pytest.mark.parametrize("latitude", [-65, -20, 0, 20, 52, 65])
 @pytest.mark.parametrize("longitude", [-150, -100, -50, 0, 13, 40, 70, 100, 130, 170])
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 def test_sixty_extents_are_enclosed(latitude, longitude):
     bbox = [longitude - .3, latitude - .2, longitude + .3, latitude + .2]
     area = areas.area_from_feature(region(bbox=bbox), basis="city", source="fixture")
@@ -46,7 +46,7 @@ def test_sixty_extents_are_enclosed(latitude, longitude):
     assert area["basis"] == "city" and area["radius_m"] > 20000
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 def test_extent_handles_dateline_and_rejects_points_without_extent():
     area = areas.area_from_feature(region(bbox=[179.8, -17.8, -179.8, -17.6]), basis="city", source="fixture")
     assert abs(area["longitude"]) == 180
@@ -57,7 +57,7 @@ def test_extent_handles_dateline_and_rejects_points_without_extent():
     assert areas.area_from_feature({"properties": "malformed", "geometry": []}, basis="city", source="fixture") is None
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 def test_numeric_allowances_and_walking_are_conservative_not_model_radii():
     feature = {"properties": {"lat": 52.5, "lon": 13.4, "name": "Station X"}}
     clue = {"anchor_name": "Station X", "relation": "distance", "quantity": 500,
@@ -70,7 +70,7 @@ def test_numeric_allowances_and_walking_are_conservative_not_model_radii():
     assert areas.clue_area({**clue, "relation": "near", "quantity": None}, feature, source="fixture", checked_at=None) is None
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 def test_geo_match_must_match_the_advertised_address_and_anchor_type():
     listing = {"address": "Example Street 12, Berlin"}
     feature = {"properties": {"city": "Paris", "street": "Other Street", "housenumber": "99"}}
@@ -101,7 +101,7 @@ async def enrich(items):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_coordinates_without_address_become_city_circle_and_retain_original(geo):
     item = {"latitude": 52.49, "longitude": 13.42, "location_precision": "building", "location_approximate": False}
     await enrich([item])
@@ -112,7 +112,7 @@ async def test_coordinates_without_address_become_city_circle_and_retain_origina
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_unrelated_building_cannot_turn_an_address_into_a_wrong_city_pin(geo):
     geo.geocode_address.return_value = Result(status="ok", places=[{
         "properties": {"city": "Paris", "street": "Other Street", "housenumber": "99",
@@ -127,7 +127,7 @@ async def test_unrelated_building_cannot_turn_an_address_into_a_wrong_city_pin(g
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_district_precedes_city_and_exact_address_stays_precise(geo):
     async def lookup(query):
         feature = region("Kreuzberg", "district", [13.35, 52.47, 13.45, 52.52]) if "Kreuzberg" in query else region()
@@ -143,7 +143,7 @@ async def test_district_precedes_city_and_exact_address_stays_precise(geo):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_refinement_failure_and_deadline_retain_city_circle(geo, monkeypatch):
     async def slow(*args, **kwargs):
         await asyncio.sleep(1)
@@ -156,7 +156,7 @@ async def test_refinement_failure_and_deadline_retain_city_circle(geo, monkeypat
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain(geo, monkeypatch):
     clue = {"anchor_name": "Station X", "anchor_type": "station", "relation": "distance", "quantity": 500, "unit": "m", "evidence_quote": "500 m from Station X"}
     monkeypatch.setattr(home, "extract_location_clues", AsyncMock(return_value={"status": "ok", "clues": [clue]}))
@@ -175,7 +175,7 @@ async def test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain(ge
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_unclassified_station_geocode_requires_typed_places_confirmation(geo, monkeypatch):
     clue = {"anchor_name": "Berlin Ostbahnhof", "anchor_type": "station", "relation": "distance", "quantity": 600, "unit": "m", "evidence_quote": "600 m from Berlin Ostbahnhof"}
     monkeypatch.setattr(home, "extract_location_clues", AsyncMock(return_value={"status": "ok", "clues": [clue]}))
@@ -192,7 +192,7 @@ async def test_unclassified_station_geocode_requires_typed_places_confirmation(g
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_candidate_cap_still_downgrades_unaddressed_building_claims(geo, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_CANDIDATES", 0)
     item = {"latitude": 52.5, "longitude": 13.4, "location_precision": "building", "location_approximate": False}

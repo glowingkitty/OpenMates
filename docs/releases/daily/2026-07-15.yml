@@ -5,13 +5,12 @@ generated_at: '2026-07-21T10:45:30+00:00'
 range:
   since: '2026-07-15T00:00:00+00:00'
   until: '2026-07-16T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 127
+  total_commits: 126
   section_counts:
-    features: 12
+    features: 11
     bug_fixes: 66
     improvements: 0
     docs: 10
@@ -30,76 +29,57 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -156,8 +136,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -194,15 +172,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -263,15 +237,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -298,35 +268,6 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'feat: finalize Printables models3d search'
-    section: features
-    commits:
-    - 357ddc35c
-    authored_at: '2026-07-15T12:12:35+00:00'
-    changed_paths:
-    - backend/apps/models3d/app.yml
-    - backend/apps/models3d/skills/search_skill.py
-    - backend/shared/providers/models3d_catalogs.py
-    - backend/tests/test_models3d_search_providers.py
-    - backend/tests/test_models3d_search_skill.py
-    - docs/specs/models3d-search/spec.yml
-    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
-    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-    - frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
-    - scripts/sdk_cli_parity_live_smoke.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
   - title: 'feat: expose app skill example chats in cli'
     section: features
@@ -388,15 +329,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -517,15 +454,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -583,15 +516,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -650,15 +579,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -702,15 +627,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -785,15 +706,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -889,15 +806,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1149,22 +1062,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1205,22 +1112,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1470,15 +1371,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1600,15 +1497,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1752,8 +1645,6 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -2130,15 +2021,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2201,15 +2088,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2447,22 +2330,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2485,22 +2362,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2523,22 +2394,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2562,22 +2427,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2601,15 +2460,11 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2632,22 +2487,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -2670,22 +2519,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -3016,15 +2859,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: wait for native chat sync parity'
     commits:
@@ -3037,15 +2876,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: Deploy scoped Models3D fullscreen stabilization
     commits:
@@ -3100,15 +2935,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: stabilize models3d child fullscreen opens'
     commits:
@@ -3128,15 +2959,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: open registered grouped child fullscreens directly'
     commits:
@@ -3170,15 +2997,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: clarify Proton Bridge paid plan requirement'
     commits:
@@ -3219,15 +3042,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: fail fast on Proton Bridge plan blocker'
     commits:
@@ -3268,15 +3087,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: use Proton Bridge add flow'
     commits:
@@ -3443,8 +3258,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: relax models3d example card assertion'
     commits:
@@ -3464,15 +3277,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'chore: clarify agent session coordination'
     commits:
@@ -3499,15 +3308,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: allow native chat API through Caddy'
     commits:
@@ -3569,22 +3374,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: remove GPT-5.6 model support'
     commits:
@@ -3604,22 +3403,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: retry watch chat fetches'
     commits:
@@ -3632,22 +3425,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: prefer numbered Apple live accounts'
     commits:
@@ -3660,22 +3447,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'docs: require CLI-first example chats'
     commits:
@@ -3695,22 +3476,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: load Apple live credentials from temp file'
     commits:
@@ -3723,22 +3498,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: pass credentials to Apple unit tests'
     commits:
@@ -3751,15 +3520,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: fix watch live smoke harness'
     commits:
@@ -3772,22 +3537,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'docs: record models3d web verification'
     commits:
@@ -3807,22 +3566,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: verify application preview interactivity'
     commits:
@@ -3851,13 +3604,6 @@ unreleased_progress:
     section: bug_fixes
     release_status: dev_only
     communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
     related_features: []
   - title: 'fix: route runnable app prompts to application previews'
     commits:
@@ -3912,15 +3658,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: trim models3d cli payload'
     commits:
@@ -4024,15 +3766,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: use e2b-compatible preview toolchain'
     commits:
@@ -4094,15 +3832,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: hydrate webhook chat owner for recovery'
     commits:
@@ -4129,15 +3863,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: retry webhook chat delivery on stale sockets'
     commits:
@@ -4185,8 +3915,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'test: expose application preview wrapper'
     commits:
@@ -4292,27 +4020,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: use admin Directus access for native chat reads'
     commits:
     - 70e5e4ade
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
     release_status: dev_only
     communication_status: dev_only
     related_features: []
@@ -4334,15 +4051,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'feat: add task workflow app-skill CLI embeds'
     commits:
@@ -4355,15 +4068,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: enable application preview start by default'
     commits:
@@ -4390,8 +4099,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: register application embed previews'
     commits:
@@ -4414,15 +4121,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: Deploy scoped Models3D fullscreen stabilization
@@ -4452,15 +4155,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: stabilize models3d child fullscreen opens'
@@ -4482,15 +4181,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: open registered grouped child fullscreens directly'
@@ -4624,8 +4319,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: improve Apple native debugging workflow'
@@ -4639,15 +4332,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'feat: extend workflow runtime contracts'
@@ -4661,15 +4350,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: use admin Directus access for SDK chat list'
@@ -4699,22 +4384,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: compile watch retry fallback'
@@ -4728,31 +4407,17 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-    newsletter_ready: false
-  - title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
     newsletter_ready: false
   - title: 'fix: route runnable app prompts to application previews'
     commits:
@@ -4805,15 +4470,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: trim models3d cli payload'
@@ -4875,15 +4536,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: use e2b-compatible preview toolchain'
@@ -4945,15 +4602,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: render nested CLI app-skill errors'
@@ -4975,15 +4628,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: retry webhook chat delivery on stale sockets'
@@ -5013,8 +4662,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: register application embed previews'
@@ -6023,7 +5670,6 @@ sources:
   - sha: 357ddc35c9ed37c80df2698ac888e2f7994e6ff0
     short_sha: 357ddc35c
     authored_at: '2026-07-15T12:12:35+00:00'
-    subject: 'feat: finalize Printables models3d search'
     in_main: false
     in_dev: true
     changed_paths:
@@ -6718,8 +6364,7 @@ llm_summary:
       - 3b312927a
     release_status: dev_only
   unreleased_progress:
-  - text: Models3D search was finalized with Printables catalog support and a new search skill.
-    evidence:
+  - evidence:
       commits:
       - 357ddc35c
       - efbc47bd7

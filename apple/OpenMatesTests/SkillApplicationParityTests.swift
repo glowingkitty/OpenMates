@@ -897,7 +897,7 @@ final class SkillApplicationParityTests: XCTestCase {
           "type": "event",
           "status": "finished",
           "data": {
-            "title": "Swift meetup",
+            "title": "Swift Gathering",
             "date_start": "2026-09-24T18:00:00Z",
             "event_type": "PHYSICAL",
             "venue_city": "Berlin",
@@ -909,7 +909,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(record.type, EmbedType.eventsEvent.rawValue)
         XCTAssertEqual(EmbedType.normalized(rawValue: "event"), .eventsEvent)
         let summary = EventResultSummary(embedId: record.id, data: try XCTUnwrap(record.rawData))
-        XCTAssertEqual(summary.title, "Swift meetup")
+        XCTAssertEqual(summary.title, "Swift Gathering")
         XCTAssertEqual(summary.shortLocation, "Berlin, Germany")
     }
 
@@ -1045,9 +1045,9 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(DevEmbedPreviewFixtures.quoteText(for: search),
                        "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.")
         let appointment = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "health-appointment"))
-        let jameda = try XCTUnwrap(DevEmbedPreviewFixtures.variants(for: appointment).first { $0.name == "jameda" })
-        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["provider_platform"]?.value as? String, "Jameda")
-        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["name"]?.value as? String, "Dr. Markus Reinholz")
+        let ExampleClinicB = try XCTUnwrap(DevEmbedPreviewFixtures.variants(for: appointment).first { $0.name == "ExampleClinicB" })
+        XCTAssertEqual(ExampleClinicB.skill.primaryEmbed.rawData?["provider_platform"]?.value as? String, "ExampleClinicB")
+        XCTAssertEqual(ExampleClinicB.skill.primaryEmbed.rawData?["name"]?.value as? String, "Dr. Markus Reinholz")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

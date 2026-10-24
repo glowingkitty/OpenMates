@@ -287,18 +287,12 @@ skills:
       expose_get: false
       expose_post: false
     preprocessor_hint: >
-      Search for images by text description or find visually similar images using reverse image search.
-      Use text mode (query) when the user asks to "find images of X", "search for X images", or wants
-      to discover images matching a description.
-      Use reverse image search (file_path) when the user uploads an image and asks to "find similar
-      images", "find where this image appears", "reverse image search this", or wants to find
-      visually matching content. Pass the exact embed_ref (filename) from the toon block.
-      Each search result image can itself be used as input to images-search for further reverse search.
+      Search for images by text description using query. Use when the user asks to
+      find images by topic or visual description. Reverse image search is unavailable.
     class_path: |
       backend.apps.images.skills.search_skill.SearchSkill
     providers:
       - Brave Search
-      - Google
     tool_schema:
       type: object
       properties:
@@ -308,10 +302,8 @@ skills:
           type: array
           description: |
             REQUIRED: Array of image search request objects (up to 5 parallel searches).
-            Each object must contain either 'query' (text search) or 'file_path'
-            (reverse image search with an embed_ref from the conversation).
+            Each object must contain 'query' for text image search.
             Example text search: {"requests": [{"query": "golden retriever puppies"}]}
-            Example reverse search: {"requests": [{"file_path": "my_photo.jpg"}]}
           items:
             type: object
             properties:
@@ -322,16 +314,6 @@ skills:
                 description: |
                   Text description of images to search for (e.g. "sunset over mountains").
                   Use this for discovering images by topic or visual description.
-                  Mutually exclusive with file_path.
-              file_path:
-                x-ui:
-                  basic: false
-                type: string
-                description: |
-                  The original filename (embed_ref) of an image in the conversation to
-                  reverse-search. Use the exact embed_ref value from the toon block.
-                  Works for uploaded images AND for image search result embeds.
-                  Mutually exclusive with query.
               count:
                 x-ui:
                   basic: true
@@ -352,6 +334,8 @@ skills:
                 type: string
                 description: Language code for search (default "en").
                 default: "en"
+            required:
+              - query
       required:
         - requests
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)

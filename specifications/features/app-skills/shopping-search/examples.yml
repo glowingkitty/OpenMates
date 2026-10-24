@@ -1,36 +1,21 @@
 schema_version: 1
 specification: feature.app-skill.shopping-search@2
-
-galleries:
-  - id: preserve-supplied-photos
-    given: Stoffe.de supplies several photos for a priced fabric, while Amazon supplies one search thumbnail for another product.
-    when: Shopping returns the products.
-    then: Each keeps its price, purchase link and all supplied photos in order, without fetching paid Amazon details.
-
-references:
-  - id: three-owner-images-and-excess
-    given: Alice references three images she uploaded or generated; her fresh upload has disappeared from cache.
-    when: Shopping resolves the images, or Alice submits a fourth reference.
-    then: Her fresh upload is recovered only within its original 24-hour window; a foreign or expired image is denied before decryption, and four references are rejected before product retrieval.
-
-comparison:
-  - id: match-fabric-appearance-and-facts
-    given: Alice wants cotton fabric resembling three dark blue floral reference photos; a store supplies forty candidates with prices, descriptions and multiple photos.
-    when: Shopping compares at most three supplied photos per candidate using bounded Jev batches, even if Alice did not separately provide relevance_criteria.
-    then: Visually conflicting or weak matches scoring below two are removed, stronger matches come first, complete galleries remain available, and no result claims exact identity or unstated composition.
-  - id: relevant-late-candidate-and-final-limit
-    given: Alice asks for three matching products; the best match is the thirty-ninth of forty products available from the store, while another store supplies fewer products.
-    when: Shopping retrieves candidates and ranks them against her stated requirements or reference images.
-    then: It considers the late match before returning at most three products, compares no more than forty candidates in eight bounded batches, and reports the actual comparison count when fewer products are available.
-
-fallback:
-  - id: unavailable-comparison-and-neutral-search
-    given: Some product photos are unreadable or an image decision is incomplete; another Shopping request supplies no reference images.
-    when: Shopping prepares the results.
-    then: Unassessed products retain their prices and are explicitly unavailable for visual comparison, the group reports partial or unavailable status, and the assistant does not claim visual verification; the request without references retains ordinary text search behavior.
-
-privacy:
-  - id: untrusted-photos-and-private-context
-    given: A product photo contains instructions and a second product points to a private network address; Alice's reference image contains private metadata.
-    when: Shopping prepares the comparison.
-    then: It treats the photo instructions as untrusted evidence, rejects the private download, strips image metadata, and sends Jev only the necessary images and purchase evidence without chat history, identifiers or keys; a provider outage does not forward private images to the text-only router.
+boundary_and_history:
+- id: shopping-search-products-supplied-gallery
+  given: A saved product contains a primary photo and three supplied gallery images.
+  when: Alice reopens the card.
+  then: Its price and stored gallery remain available without a product-source request.
+  assertion_ids:
+  - shopping-search.products.supplied-gallery
+- id: shopping-search-relevance-truthful-fallback
+  given: A saved product was never visually assessed.
+  when: Alice opens it while product search is unavailable.
+  then: It remains unassessed and a new search reports unavailable rather than claiming a match.
+  assertion_ids:
+  - shopping-search.relevance.truthful-fallback
+- id: shopping-search-privacy-minimized
+  given: Alice supplies an uploaded reference with a new product query.
+  when: Product discovery has no permitted provider.
+  then: The query fails visibly without disclosing or decrypting that image for a product integration.
+  assertion_ids:
+  - shopping-search.privacy.minimized

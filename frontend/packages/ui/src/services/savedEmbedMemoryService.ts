@@ -125,12 +125,6 @@ function parseEventVenue(content: Record<string, unknown>): string {
 
 function getEventProviderLabel(provider: string | undefined): string {
   switch (provider?.toLowerCase()) {
-    case 'meetup': return 'Meetup';
-    case 'luma': return 'Luma';
-    case 'eventbrite': return 'Eventbrite';
-    case 'classictic': return 'Classictic';
-    case 'berlin_philharmonic': return 'Berlin Philharmonic';
-    case 'bachtrack': return 'Bachtrack';
     default: return provider || '';
   }
 }

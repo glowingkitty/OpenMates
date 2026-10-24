@@ -12,7 +12,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 async function expectExampleChatVisible(page: any) {
 	await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
 	await expect(page.getByTestId('user-message-content').filter({
-		hasText: 'Find 3D-printable Benchy and phone stand models on Printables'
+		hasText: 'Find 3D-printable Benchy and phone stand models on ExampleModels'
 	})).toBeVisible({ timeout: 15000 });
 	await expect(page.getByTestId('message-assistant').filter({
 		hasText: 'The 3DBenchy Collection'
@@ -21,6 +21,7 @@ async function expectExampleChatVisible(page: any) {
 }
 
 test.describe('Example chat logout preservation', () => {
+	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('keeps a static example chat open when logout cleanup runs', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 

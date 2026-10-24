@@ -107,11 +107,6 @@ from the 19.813-second API-to-final response measurement.
 
 ## Quality and limits
 
-The final optimized request retained the strong Stoffe.de fabric match
-SKU 68090083 at 3.02/4, and a broader lemon-themed alternative, SKU 68090790,
-at 2.01/4. The latter does not meet a strict stripe requirement. The approved floor
-of two permits partial alternatives; it was not silently raised.
-
 Independent review found unsupported rejection reasons and visual details in the
 first answer, despite correct counts, score scale and composition caveats. A second
 live Gemini run took 23.284 seconds and correctly limited its rejection explanation

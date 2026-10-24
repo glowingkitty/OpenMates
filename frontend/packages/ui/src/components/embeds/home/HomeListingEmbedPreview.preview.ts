@@ -15,8 +15,8 @@ const defaultProps = {
 	address: 'Bergmannstr. 12, 10961 Berlin',
   city: 'Berlin',
 	image_url: '/store-examples/home-1.webp',
-	url: 'https://www.immobilienscout24.de/expose/12345',
-	provider: 'ImmoScout24',
+	url: 'https://example.com/expose/12345',
+	provider: 'ExampleHousingA',
 	listing_type: 'rent',
   lat: 52.49, lon: 13.42, location_precision: 'district', location_approximate: true,
   location_area: {latitude: 52.49, longitude: 13.42, radius_m: 1200, basis: 'district'},
@@ -36,7 +36,7 @@ export const variants = {
   brokenImage: {...defaultProps, image_url: 'data:image/png;base64,invalid-image'},
   noImage: {...defaultProps, image_url: ''},
   chat: {...defaultProps, resultContext: 'chat' as const},
-	/** WG-Gesucht room listing */
+	/** ExampleHousingC room listing */
 	wgRoom: {
 		embed_id: 'preview-listing-wg',
 		title: 'Gemütliches WG-Zimmer in Prenzlauer Berg',
@@ -45,14 +45,14 @@ export const variants = {
 		rooms: 1,
 		address: 'Schönhauser Allee, 10439 Berlin',
 		image_url: '',
-		url: 'https://www.wg-gesucht.de/wg-zimmer-in-Berlin.12345.html',
-		provider: 'WG-Gesucht',
+		url: 'https://example.com/fixture',
+		provider: 'ExampleHousingC',
 		listing_type: 'rent',
 		onSelect: () => console.log('[Preview] result expanded')
 	},
 
-	/** Kleinanzeigen listing */
-	kleinanzeigen: {
+	/** ExampleHousingB listing */
+	ExampleHousingB: {
 		embed_id: 'preview-listing-ka',
 		title: 'Helle 3-Zimmer-Altbauwohnung mit Balkon und EBK',
 		price_label: '1.200 EUR/month',
@@ -60,8 +60,8 @@ export const variants = {
 		rooms: 3,
 		address: 'Friedrichshain, 10245 Berlin',
 		image_url: '',
-		url: 'https://www.kleinanzeigen.de/s-anzeige/67890',
-		provider: 'Kleinanzeigen',
+		url: 'https://example.com/fixture',
+		provider: 'ExampleHousingB',
 		listing_type: 'rent',
 		onSelect: () => console.log('[Preview] result expanded')
 	},
@@ -76,8 +76,8 @@ export const variants = {
 		address: 'Leopoldstr., 80802 München',
     city: 'München',
 		image_url: '',
-		url: 'https://www.immobilienscout24.de/expose/99999',
-		provider: 'ImmoScout24',
+		url: 'https://example.com/expose/99999',
+		provider: 'ExampleHousingA',
 		listing_type: 'buy',
 		onSelect: () => console.log('[Preview] result expanded')
 	},
@@ -88,8 +88,8 @@ export const variants = {
 		title: 'Wohnung zur Miete',
 		price_label: 'Price on request',
 		address: 'Berlin',
-		url: 'https://www.kleinanzeigen.de/s-anzeige/00000',
-		provider: 'Kleinanzeigen',
+		url: 'https://example.com/fixture',
+		provider: 'ExampleHousingB',
 		listing_type: 'rent',
 		onSelect: () => console.log('[Preview] result expanded')
 	}

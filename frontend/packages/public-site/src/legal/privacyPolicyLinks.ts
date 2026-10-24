@@ -45,7 +45,6 @@ export const privacyPolicyLinks = {
   elevenLabs: "https://elevenlabs.io/privacy-policy", // verified 2026-08-09
 
   // Group E — 3D model generation
-  printables: "https://www.prusa3d.com/page/privacy-policy_231258/",
   hi3d: "https://docs.hi3d.ai/en/api/resources/privacy-policy", // verified 2026-07-11
 
   // Group F — Code and developer tools
@@ -56,52 +55,29 @@ export const privacyPolicyLinks = {
 
   // Group F — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
-  firecrawl: "https://www.firecrawl.dev/privacy-policy",
   iconify: "https://iconify.design/privacy/", // verified 2026-07-18
-  webshare: "https://www.webshare.io/privacy-policy",
-  gandi: "https://www.gandi.net/en/contracts/privacy-policy", // verified 2026-10-01
   googleMaps: "https://privacy.google.com/",
   geoapify: "https://www.geoapify.com/privacy-policy/", // verified 2026-07-30
   wikimedia: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy", // verified 2026-08-28
   youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
   mediaCCC: "https://media.ccc.de/about.html#privacy", // verified 2026-10-21
-  googleLens: "https://policies.google.com/privacy",
 
   // Group G — Travel
-  serpapi: "https://serpapi.com/legal#privacy-policy", // embedded in legal page — verified 2026-04-14
   flightradar24: "https://www.flightradar24.com/terms-and-conditions",
-  deutscheBahn: "https://int.bahn.de/en/privacy",
-  flix: "https://www.flixbus.com/privacy-policy",
-  transitous: "https://transitous.org/privacy/",
 
   // Group H — Events
-  meetup: "https://www.meetup.com/privacy/",
-  luma: "https://lu.ma/privacy-policy",
-  residentAdvisor: "https://ra.co/about/privacy",
-  eventbrite:
-    "https://www.eventbrite.com/help/en-us/articles/460838/eventbrite-privacy-policy/",
-  siegessaeule: "https://www.iubenda.com/privacy-policy/27039210",
-  berlinPhilharmonic: "https://www.berliner-philharmoniker.de/en/privacy/",
 
   // Group I — Health
-  doctolib: "https://www.doctolib.de/terms/privacy",
-  jameda: "https://www.jameda.de/datenschutz/",
 
   // Group I2 — Fitness
-  urbanSportsClub: "https://urbansportsclub.com/en/privacy-policy",
 
   // Group J — Shopping
-  rewe: "https://www.rewe.de/service/datenschutz/",
-  amazon:
-    "https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ", // verified via official search result 2026-05-24
-  stoffe: "https://www.stoffe.de/privacy-policy/",
 
   // Group J2 — Connected services
   googleCalendar: "https://policies.google.com/privacy",
 
   // Group J3 — Public company data
   secEdgar: "https://www.sec.gov/about/privacy-information",
-  uspto: "https://www.uspto.gov/privacy-policy", // verified 2026-10-11
 
   // Group J4 — Weather
   openMeteo: "https://open-meteo.com/en/terms",
@@ -111,28 +87,19 @@ export const privacyPolicyLinks = {
   edamam: "https://www.edamam.com/privacy/", // verified 2026-06-13
 
   // Group L — Electronics
-  tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy.html",
 
   // Group M — Mail
   protonmail: "https://proton.me/legal/privacy", // verified 2026-07-15
 
   // Group N — Home and housing
-  immoscout24: "https://www.immobilienscout24.de/agb/datenschutz.html",
-  kleinanzeigen: "https://themen.kleinanzeigen.de/datenschutzerklaerung/",
-  wgGesucht: "https://www.wg-gesucht.de/datenschutz.html",
 
   // Group N2 — Jobs; provider notices verified 2026-10-13
-  arbeitsagentur: "https://www.arbeitsagentur.de/datenschutz",
   jobtech: "https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter",
-  arbeitnow: "https://www.arbeitnow.com/privacy",
-  eightyThousandHours: "https://80000hours.org/privacy-policy/",
-  hardProblems: "https://www.hardproblems.com/privacy",
 
   // Group O — Community
   discord: "https://discord.com/privacy",
 
   // Group P — Social media
-  reddit: "https://www.reddit.com/policies/privacy-policy",
   bluesky: "https://bsky.social/about/support/privacy-policy",
   mastodon: "https://joinmastodon.org/privacy-policy",
 } as const;

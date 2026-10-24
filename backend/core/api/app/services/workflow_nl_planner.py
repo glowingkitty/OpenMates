@@ -552,7 +552,7 @@ class WorkflowNLPlanner:
         payload = {
             "task": "Extract only the NEW event-search topics the user wants to ADD to this selected workflow. "
                     "Return one short topical query per distinct topic (for example AI and queer community are two queries). "
-                    "Omit provider words such as meetup, Luma and Eventbrite from queries. Do not include an existing query. "
+                    "Keep source selectors in the providers field instead of the query. Do not include an existing query. "
                     "Set location only when the user explicitly names a city in this edit, otherwise use an empty string. "
                     "Set online_only only when the user explicitly requests virtual or online events. "
                     "Return an empty queries array if the request does not clearly add event-search topics.",

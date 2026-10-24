@@ -604,7 +604,7 @@ class EmbedService:
         )["preview_starting_registration"]
         return {
             "id": group.get("id"), "query": group.get("query") or request_metadata.get("query", ""),
-            "provider": "Gandi", "country": group.get("country") or request_metadata.get("country", "DE"),
+            "provider": group.get("provider") or request_metadata.get("provider") or "Unknown", "country": group.get("country") or request_metadata.get("country", "DE"),
             "currency": group.get("currency") or request_metadata.get("currency", "EUR"),
             "checked_at": group.get("checked_at"), "partial": bool(group.get("partial")),
             "warnings": [warning for warning in group.get("warnings", []) if isinstance(warning, str)],

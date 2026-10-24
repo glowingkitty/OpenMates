@@ -18,132 +18,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -207,7 +184,6 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: platform:projects
@@ -215,7 +191,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: keep workspace header aligned with Project and Workflow detail'
@@ -242,7 +217,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: persist daily CI coordinator across cron and reboot'
@@ -269,7 +243,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: restore daily CI discovery and notifications'
@@ -365,8 +338,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: finish workflow editor interactions and test feedback'
@@ -382,8 +353,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: include explicitly named AI model families'
@@ -399,8 +368,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: keep Project file view controls at root'
@@ -417,7 +384,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: keep worktree timer on current control plane'
@@ -443,8 +409,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: reject unsupported workflow delivery channels'
@@ -460,8 +424,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: remove workspace AI undo button'
@@ -477,8 +439,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: reorder workflow nodes and use typed skill inputs'
@@ -494,50 +454,36 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: retire stale worktrees after seven days'
@@ -563,8 +509,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'perf: batch workflow Vault encryption'
@@ -580,8 +524,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'perf: batch workflow authoring events'
@@ -597,8 +539,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'perf: reduce workflow authoring round trips'
@@ -614,8 +554,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'perf: retry uncertain workflow Jev decision'
@@ -631,8 +569,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'perf: reuse selected workflow during AI edits'
@@ -648,8 +584,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'test: admit profile image recovery to isolated uploads CI'
@@ -755,8 +689,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: extend registry workflow plans and streamed previews'
@@ -772,8 +704,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: open workflow generation fullscreen immediately'
@@ -789,8 +719,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: record generic workflow authoring comparison'
@@ -806,8 +734,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: stream independently validated workflow authoring nodes'
@@ -823,8 +749,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: test compact workflow authoring with streamed Gemini output'
@@ -840,8 +764,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: validate compact workflow JSON plans on the server'
@@ -857,8 +779,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: align workflow generation routing and preserve safe failure diagnostics'
@@ -874,8 +794,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: bound workflow provider grammar complexity'
@@ -891,8 +809,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: constrain authoring steps to selected skill grammar'
@@ -908,8 +824,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: constrain generated workflow schedules by their type'
@@ -925,8 +839,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: constrain workflow authoring JSON transport'
@@ -942,8 +854,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: constrain workflow construction to V2 contracts'
@@ -959,8 +869,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: guard compact workflow dates and branch continuations'
@@ -976,8 +884,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: keep workflow provider schemas within supported constraints'
@@ -993,8 +899,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: preserve workflow navigation caching with current editor'
@@ -1010,8 +914,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: price assistant speech at provider cost'
@@ -1027,8 +929,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
     title: 'fix: raise isolated CI capacity to ten concurrent jobs'
@@ -1054,8 +954,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: use Gemini 3.8 when Jev workflow decisions fail'
@@ -1071,8 +969,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: use Gemini structured response MIME enum'
@@ -1088,8 +984,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: use valid compact workflow JSON and forecast data'
@@ -1105,15 +999,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: validate complete workflow headers before freezing streamed previews'
@@ -1129,8 +1019,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: validate workflow schedule fields and avoid redundant AI steps'
@@ -1146,8 +1034,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'perf: skip redundant initial workflow cancellation database read'
@@ -1163,8 +1049,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'test: align workflow run checks with accessible controls'
@@ -1180,8 +1064,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'test: stabilize navigation and workflow search fixtures'
@@ -1197,8 +1079,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'chore(ci): admit image and music component checks'
@@ -1254,28 +1134,22 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:read
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:web:read
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - date: '2026-10-01'
@@ -1292,15 +1166,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
   - date: '2026-10-01'
     title: 'fix: archive inactive worktrees before seven-day cleanup'
@@ -1337,7 +1207,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: preserve legacy task links during status updates'
@@ -1363,8 +1232,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: repair workflow generation per node and treat Jev hints as advisory'
@@ -1380,8 +1247,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: restore automatic assistant speech playback'
@@ -1397,8 +1262,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
     title: 'test: enable Hosting Workflow CI worker'
@@ -1424,8 +1287,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'test: register isolated notification email fixtures'
@@ -1481,8 +1342,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: compact guest header only when controls overlap'
@@ -1528,8 +1387,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: show direct skill results inline and keep Apps libraries parent-only'
@@ -1745,28 +1602,22 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
   - date: '2026-10-04'
@@ -1793,8 +1644,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: preserve missing artifact version recovery'
@@ -1820,8 +1669,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: respect explicit focus before automatic planning'
@@ -1837,8 +1684,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: restore bounded saved-reference API after recovery repair'
@@ -1949,21 +1794,16 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-09-28'
@@ -2000,14 +1840,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-09-28'
@@ -2044,14 +1881,12 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:file:file
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:file
       source: backend/apps/file/app.yml
     - id: platform:projects
@@ -2059,14 +1894,12 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'feat: add GPT-6.1 Sol support'
@@ -2082,8 +1915,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'feat: search saved and recent embeds from the composer'
@@ -2109,8 +1940,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: open generated workflow and dock editor composer'
@@ -2126,8 +1955,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: open saved embed memory when content is unreadable'
@@ -2153,8 +1980,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: recover workflow voice edits and fullscreen embeds'
@@ -2170,15 +1995,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: render inline ratio formulas in chats'
@@ -2205,7 +2026,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: reserve parent subchat synthesis before billing'
@@ -2221,8 +2041,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'perf: correct workflow voice instructions with fast providers'
@@ -2238,8 +2056,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'security: harden pairing, authentication, and recovery'
@@ -2255,22 +2071,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: redesign workflow AI authoring and checks'
@@ -2286,15 +2096,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
@@ -2310,22 +2116,16 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: correct workflow composer import and Safari tint'
@@ -2341,8 +2141,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: publish Apple parity web support and previews'
@@ -2358,28 +2156,24 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     - id: platform:projects
@@ -2387,7 +2181,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: render recent chats on workspace return and serialize task actions'
@@ -2404,14 +2197,11 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: restore Apple chat and workspace parity'
@@ -2427,22 +2217,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'perf: cache recent workspaces and load task details by ID'
@@ -2459,28 +2243,23 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'perf: publish recent chats before route reads and preserve task navigation'
@@ -2497,14 +2276,11 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'feat: add Apps workspace and direct skill forms'
@@ -2520,173 +2296,110 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
-  - date: '2026-10-01'
-    title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'feat: add Hosting workflows and domain search embeds'
     commits:
@@ -2701,29 +2414,22 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix(apple): improve parity and remove Stripe support payments'
@@ -2739,36 +2445,28 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix(apple): recover sessions and correct chat and embed regressions'
@@ -2784,15 +2482,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: Remove cleared draft-only shells across web clients'
@@ -2828,8 +2522,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'fix: keep Safari tint strip clear of header tabs'
@@ -2855,14 +2547,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
@@ -2899,8 +2588,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: sign storage uploads with SigV4 and bound permanent failures'
@@ -2936,8 +2623,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: unify workspace layouts and workflow delivery'
@@ -2953,8 +2638,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'chore: record sidebar verification and native follow-up'
@@ -3010,15 +2693,12 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: add nested chat sidebar navigation and running chat visibility'
@@ -3035,7 +2715,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: align terminal workspaces with the web app'
@@ -3061,43 +2740,32 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: publish Hosting domain search example and complete SDK graph reads'
@@ -3123,29 +2791,21 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: align Hosting embeds with shared layouts'
@@ -3161,7 +2821,6 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -3218,21 +2877,17 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
@@ -3249,15 +2904,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: finish Project chat file verification and preflight rejection handling'
@@ -3303,8 +2954,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: preserve Project candidates in web chat routing'
@@ -3331,7 +2980,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project focus through chat send'
@@ -3348,7 +2996,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project mentions and routing across chat initialization'
@@ -3374,15 +3021,12 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve standard Hosting domain card dimensions'
@@ -3398,7 +3042,6 @@ themes:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -3455,49 +3098,39 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:create-or-modify
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - date: '2026-10-03'
@@ -3515,7 +3148,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'fix: align terminal chat sidebar with web navigation'
@@ -3551,21 +3183,17 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - date: '2026-10-03'
@@ -3602,42 +3230,32 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
@@ -3654,91 +3272,70 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:projects
@@ -3746,27 +3343,23 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - date: '2026-10-04'
@@ -3794,14 +3387,11 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: publish Apple offline, speech and parity improvements'
@@ -3817,36 +3407,28 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:plans
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: restore phased focus across synced chat turns'
@@ -3898,14 +3480,12 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'docs: record live landing workflow edit timing'
@@ -3961,15 +3541,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'feat: add Jev workflow authoring CLI pilot'
@@ -3985,8 +3561,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: connect explicit Project sources without repository scan'
@@ -4012,8 +3586,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: page Project files and search across the Project'
@@ -4030,7 +3602,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: preserve workflow input stop during batching'
@@ -4046,15 +3617,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: require password and email proof for account deletion'
@@ -4081,14 +3648,12 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: search Project filenames in CLI files command'
@@ -4124,21 +3689,17 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
@@ -4156,14 +3717,11 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: show validated workflow nodes with Stop and partial recovery'
@@ -4179,8 +3737,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: apply Jev workflow schedule timezones safely'
@@ -4196,8 +3752,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: guard natural-language workflow edits and scheduling'
@@ -4213,8 +3767,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: interpret spoken workflow corrections as final requirements'
@@ -4230,8 +3782,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: preserve imported workflows during AI edits'
@@ -4247,8 +3797,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: preserve workflow intent and speed durable stop checks'
@@ -4264,8 +3812,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: serialize workflow session graphs with public edge keys'
@@ -4281,8 +3827,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'docs: record streamed workflow authoring and billing proof'
@@ -4308,8 +3852,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: isolate CLI publish test sessions'
@@ -4335,15 +3877,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: normalize workflow export filenames'
@@ -4389,15 +3927,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: unblock current CLI release publishing'
@@ -4433,28 +3967,22 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - date: '2026-10-03'
@@ -4492,7 +4020,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'fix(ci): build CLI before selected unit checks'
@@ -4749,7 +4276,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: bind active passkey signup to email proof'
@@ -4785,8 +4311,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: include core capabilities in recent AI model context'
@@ -4802,8 +4326,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: authorize remote Project writes by stable device'
@@ -4820,7 +4342,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: bind Project writes to authenticated session device'
@@ -4846,8 +4367,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: restore mobile Login button text'
@@ -4879,7 +4398,6 @@ themes:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: fence pair approval when request token changes'
@@ -4980,15 +4498,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'docs: optimize Apple TestFlight release workflow'
@@ -5024,15 +4538,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: patch vulnerable JavaScript and Rust dependencies'
@@ -5068,15 +4578,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: isolate Mac Rust runtime and preserve bridge inputs'
@@ -5117,8 +4623,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'test: verify recent model catalogue answers on dev'
@@ -5134,8 +4638,6 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
     title: 'fix: update PyJWT to the patched 2.15.1 release'
@@ -5241,8 +4743,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 marketing_candidates:
   newsletter:
@@ -5300,14 +4800,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-09-28'
@@ -5364,8 +4861,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'feat: search saved and recent embeds from the composer'
@@ -5421,8 +4916,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: include core capabilities in recent AI model context'
@@ -5438,8 +4931,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: include explicitly named AI model families'
@@ -5455,8 +4946,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: open saved embed memory when content is unreadable'
@@ -5482,8 +4971,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: render inline ratio formulas in chats'
@@ -5519,8 +5006,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: search Project filenames in CLI files command'
@@ -5546,8 +5031,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-30'
     title: 'feat: add ElevenLabs v4 speech models'
@@ -5563,21 +5046,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
@@ -5614,8 +5093,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
     title: 'fix: render canonical Teams settings icons'
@@ -5627,44 +5104,6 @@ marketing_candidates:
     newsletter_ready: true
     user_facing: true
     related_features: []
-  - date: '2026-10-01'
-    title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'fix: Remove cleared draft-only shells across web clients'
     commits:
@@ -5699,8 +5138,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'fix: acknowledge normalized storage writes and stabilize provider probes'
@@ -5716,15 +5153,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
   - date: '2026-10-01'
     title: 'fix: isolate CLI publish test sessions'
@@ -5790,14 +5223,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
@@ -5874,8 +5304,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
     title: 'fix: restore image-mode monitoring and background worker coverage'
@@ -5942,21 +5370,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-09-28'
@@ -5984,7 +5407,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: correct connected Project file browsing'
@@ -6000,7 +5422,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: platform:projects
@@ -6008,7 +5429,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: dedupe streamed anonymous replies'
@@ -6045,7 +5465,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: recover failed assistant replies and alert on failed chats'
@@ -6061,14 +5480,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-09-28'
@@ -6096,7 +5512,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: restore anonymous child embed persistence'
@@ -6122,14 +5537,12 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:file:file
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:file
       source: backend/apps/file/app.yml
     - id: platform:projects
@@ -6137,14 +5550,12 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: restore daily CI discovery and notifications'
@@ -6171,14 +5582,12 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-28'
     title: 'fix: restore readable nightly test overview'
@@ -6204,15 +5613,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'feat: add GPT-6.1 Sol support'
@@ -6228,8 +5633,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'feat: add Jev workflow authoring CLI pilot'
@@ -6245,8 +5648,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'feat: include GPT-6.1 Sol in Apple catalog'
@@ -6262,15 +5663,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'feat: search saved and recent embeds from the composer'
@@ -6296,8 +5693,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: bind active passkey signup to email proof'
@@ -6343,8 +5738,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: ground AI model answers in current catalogue'
@@ -6360,8 +5753,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: include core capabilities in recent AI model context'
@@ -6377,8 +5768,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: include explicitly named AI model families'
@@ -6394,8 +5783,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: keep Project file view controls at root'
@@ -6412,7 +5799,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: make workflow edits and template updates work in dev'
@@ -6428,8 +5814,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: open generated workflow and dock editor composer'
@@ -6445,8 +5829,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: open saved embed memory when content is unreadable'
@@ -6473,7 +5855,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: prefer cross-provider recovery for empty chat answers'
@@ -6489,8 +5870,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: recover workflow voice edits and fullscreen embeds'
@@ -6506,15 +5885,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: remove workspace AI undo button'
@@ -6530,8 +5905,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: render inline ratio formulas in chats'
@@ -6557,50 +5930,36 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/finance/app.yml
     - id: app:fitness
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/fitness/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: app:travel
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/travel/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: repair Tasks workspace layout and interactions'
@@ -6617,7 +5976,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: require password and email proof for account deletion'
@@ -6643,8 +6001,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'fix: restore Project Files search and file actions'
@@ -6661,14 +6017,12 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: restore reliable personal profile pictures'
@@ -6685,7 +6039,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-29'
     title: 'fix: search Project filenames in CLI files command'
@@ -6711,8 +6064,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-09-29'
     title: 'perf: correct workflow voice instructions with fast providers'
@@ -6728,8 +6079,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: add ElevenLabs v4 speech models'
@@ -6745,21 +6094,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
@@ -6777,14 +6122,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: open workflow generation fullscreen immediately'
@@ -6800,8 +6142,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: redesign workflow AI authoring and checks'
@@ -6817,15 +6157,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: register independent Watch push targets'
@@ -6851,8 +6187,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
@@ -6868,22 +6202,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: apply Jev workflow schedule timezones safely'
@@ -6899,8 +6227,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: correct workflow composer import and Safari tint'
@@ -6916,8 +6242,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: fence pair approval when request token changes'
@@ -6943,8 +6267,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: preserve workflow intent and speed durable stop checks'
@@ -6960,8 +6282,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: preserve workflow navigation caching with current editor'
@@ -6977,8 +6297,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: price assistant speech at provider cost'
@@ -6994,8 +6312,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
   - date: '2026-09-30'
     title: 'fix: publish Apple parity web support and previews'
@@ -7011,28 +6327,24 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     - id: platform:projects
@@ -7040,7 +6352,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: render canonical Teams settings icons'
@@ -7067,14 +6378,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: restore Apple chat and workspace parity'
@@ -7090,22 +6398,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: serialize workflow session graphs with public edge keys'
@@ -7121,8 +6423,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: sign iOS app with native shared-link domains'
@@ -7138,15 +6438,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'fix: use valid compact workflow JSON and forecast data'
@@ -7162,15 +6458,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/weather/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'perf: cache recent workspaces and load task details by ID'
@@ -7187,28 +6479,23 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-09-30'
     title: 'perf: publish recent chats before route reads and preserve task navigation'
@@ -7225,14 +6512,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'feat: add Apps workspace and direct skill forms'
@@ -7248,173 +6532,110 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:audio:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:speak
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:music:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: embed:videos:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:audio:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:audio:speak
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: skill:code:image_to_html
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: skill:images:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: skill:music:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:music
       source: backend/apps/music/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: skill:videos:generate
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
-  - date: '2026-10-01'
-    title: 'feat: add Gandi domain search to Hosting APIs'
-    commits:
-    - 76b0f34b3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: embed:hosting:search_domains
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
-    - id: skill:hosting:search_domains
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:hosting
-      source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'feat: add Hosting workflows and domain search embeds'
     commits:
@@ -7429,29 +6650,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:hosting
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'feat: monitor website changes through workflow checks'
@@ -7467,28 +6681,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     - id: embed:web:read
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:web:read
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - date: '2026-10-01'
@@ -7505,36 +6713,28 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix(apple): recover sessions and correct chat and embed regressions'
@@ -7550,15 +6750,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: Remove cleared draft-only shells across web clients'
@@ -7594,8 +6790,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/hosting/app.yml
   - date: '2026-10-01'
     title: 'fix: acknowledge normalized storage writes and stabilize provider probes'
@@ -7611,15 +6805,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:books
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/books/app.yml
   - date: '2026-10-01'
     title: 'fix: guard unsafe workflow skills and validate output contracts'
@@ -7635,8 +6825,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: isolate CLI publish test sessions'
@@ -7682,15 +6870,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: normalize workflow export filenames'
@@ -7727,7 +6911,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: preserve anonymous results when answer budget is exhausted'
@@ -7743,14 +6926,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
@@ -7817,8 +6997,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: restore Apps layout, login return and credentialed skill requests'
@@ -7844,8 +7022,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-01'
     title: 'fix: restore image-mode monitoring and background worker coverage'
@@ -7871,8 +7047,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: show workflow text cursors in light and dark mode'
@@ -7888,8 +7062,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: stabilize archive tasks and production host updates'
@@ -7915,15 +7087,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: unblock current CLI release publishing'
@@ -7949,8 +7117,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: unify workspace layouts and workflow delivery'
@@ -7966,8 +7132,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-01'
     title: 'fix: validate satellite updates with IPv4 health probes'
@@ -7993,28 +7157,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:workflows:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - date: '2026-10-02'
@@ -8031,8 +7189,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: add chat project activity APIs and title generation'
@@ -8048,15 +7204,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: add nested chat sidebar navigation and running chat visibility'
@@ -8073,7 +7226,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: align terminal workspaces with the web app'
@@ -8099,43 +7251,32 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: publish Hosting domain search example and complete SDK graph reads'
@@ -8161,29 +7302,21 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: align Hosting embeds with shared layouts'
@@ -8199,7 +7332,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -8227,7 +7359,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: bind Project writes to authenticated session device'
@@ -8303,21 +7434,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
@@ -8334,15 +7461,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: exclude websocket tracing from encrypted project commits'
@@ -8418,8 +7541,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: preserve Project candidates in web chat routing'
@@ -8446,7 +7567,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project focus during automatic coding-plan routing'
@@ -8462,8 +7582,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: preserve Project focus through chat send'
@@ -8480,7 +7598,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project mentions and routing across chat initialization'
@@ -8506,15 +7623,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve standard Hosting domain card dimensions'
@@ -8530,7 +7644,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -8587,8 +7700,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: show direct skill results inline and keep Apps libraries parent-only'
@@ -8624,49 +7735,39 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:create-or-modify
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - date: '2026-10-03'
@@ -8684,7 +7785,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'feat: render linked chats in Project folders'
@@ -8701,7 +7801,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'fix: align terminal chat sidebar with web navigation'
@@ -8747,21 +7846,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - date: '2026-10-03'
@@ -8798,28 +7893,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
   - date: '2026-10-04'
@@ -8836,42 +7925,32 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
@@ -8888,91 +7967,70 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:projects
@@ -8980,27 +8038,23 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - date: '2026-10-04'
@@ -9038,14 +8092,11 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: preserve focus phase evidence after research'
@@ -9061,8 +8112,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: preserve missing artifact version recovery'
@@ -9088,8 +8137,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: publish Apple offline, speech and parity improvements'
@@ -9105,36 +8152,28 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:plans
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: respect explicit focus before automatic planning'
@@ -9150,8 +8189,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: restore bounded saved-reference API after recovery repair'
@@ -9259,8 +8296,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: add chat project activity APIs and title generation'
@@ -9276,15 +8311,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: add nested chat sidebar navigation and running chat visibility'
@@ -9301,7 +8333,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: align terminal workspaces with the web app'
@@ -9327,43 +8358,32 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'feat: publish Hosting domain search example and complete SDK graph reads'
@@ -9389,29 +8409,21 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:apple-watch
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: align Hosting embeds with shared layouts'
@@ -9427,7 +8439,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -9455,7 +8466,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: bind Project writes to authenticated session device'
@@ -9531,21 +8541,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
@@ -9562,15 +8568,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: declare generated local model linker archives'
@@ -9586,15 +8588,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: exclude websocket tracing from encrypted project commits'
@@ -9680,8 +8678,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: preserve Project candidates in web chat routing'
@@ -9708,7 +8704,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project focus during automatic coding-plan routing'
@@ -9724,8 +8719,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: preserve Project focus through chat send'
@@ -9742,7 +8735,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve Project mentions and routing across chat initialization'
@@ -9768,15 +8760,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-02'
     title: 'fix: preserve session CORS for encrypted Project file endpoints'
@@ -9802,7 +8791,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
   - date: '2026-10-02'
@@ -9859,8 +8847,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-02'
     title: 'fix: show direct skill results inline and keep Apps libraries parent-only'
@@ -10046,49 +9032,39 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:workflows
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:create-or-modify
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: embed:workflows:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:workflows:run
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:workflows
       source: backend/apps/workflows/app.yml
   - date: '2026-10-03'
@@ -10106,7 +9082,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'feat: render linked chats in Project folders'
@@ -10123,7 +9098,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-03'
     title: 'fix(ci): build CLI before selected unit checks'
@@ -10189,21 +9163,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: skill:health:search_appointments
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
   - date: '2026-10-03'
@@ -10460,28 +9430,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:maps
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
   - date: '2026-10-04'
@@ -10498,42 +9462,32 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:jobs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:projects
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
@@ -10550,91 +9504,70 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:docs
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/docs/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: app:models3d
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/models3d/app.yml
     - id: app:music
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/music/app.yml
     - id: app:social_media
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/social_media/app.yml
     - id: app:videos
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:mail:email
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:mail:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:mail
       source: backend/apps/mail/app.yml
     - id: embed:videos:create
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     - id: platform:projects
@@ -10642,27 +9575,23 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:teams
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:videos:create
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - date: '2026-10-04'
@@ -10720,14 +9649,11 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: preserve focus phase evidence after research'
@@ -10743,8 +9669,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: preserve missing artifact version recovery'
@@ -10770,8 +9694,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: publish Apple offline, speech and parity improvements'
@@ -10787,36 +9709,28 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:plans
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
     - id: platform:tasks
       kind: platform
       default_enabled: false
       effective_enabled: false
       override: disabled
-      parent_id: null
       source: platform
   - date: '2026-10-04'
     title: 'fix: respect explicit focus before automatic planning'
@@ -10832,8 +9746,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - date: '2026-10-04'
     title: 'fix: restore bounded saved-reference API after recovery repair'
@@ -10980,11 +9892,6 @@ sources:
   - docs/releases/daily/2026-10-03.yml
   - docs/releases/daily/2026-10-04.yml
 llm_summary:
-  overview: OpenMates expanded its core AI and hosting capabilities this week, introducing support for the GPT-6.1 Sol model
-    and ElevenLabs v4 speech models. The chat composer was enhanced with the ability to search saved and recent embeds, while
-    the Hosting app added Gandi domain search integration. Significant effort was also directed toward security hardening
-    for signups and account management, alongside extensive infrastructure work to support upcoming agentic storage and workflow
-    features.
   released_changes:
   - text: Support for the GPT-6.1 Sol model was added across the backend and web application.
     evidence:
@@ -11001,8 +9908,7 @@ llm_summary:
       commits:
       - bc0615e12
     release_status: released_main
-  - text: Gandi domain search was integrated into the Hosting APIs, allowing users to check domain availability directly.
-    evidence:
+  - evidence:
       commits:
       - 76b0f34b3
     release_status: released_main
@@ -11175,8 +10081,7 @@ llm_summary:
         commits:
         - bc0615e12
       reason: New high-quality speech models are available for immediate use.
-    - text: Domain name searching via Gandi integration in the Hosting app.
-      evidence:
+    - evidence:
         commits:
         - 76b0f34b3
       reason: Introduces a concrete new capability for the released Hosting app.
@@ -11231,8 +10136,7 @@ llm_summary:
     evidence:
       commits:
       - bc0615e12
-  - idea: Demonstrate finding a new project domain using the Gandi search skill.
-    priority: medium
+  - priority: medium
     reason: Concrete new utility that is easy to visualize in a short clip.
     evidence:
       commits:

@@ -520,10 +520,10 @@ provider_groups:
         privacy_policy: https://groq.com/privacy-policy
         location: US
         used_for:
-          - server-side sanitization of external content (search results, scraped web pages) before inclusion in chat responses
+          - server-side sanitization of external content (search results) before inclusion in chat responses
           - safety classification of audio.speak text before ElevenLabs text-to-speech generation
         data_shared:
-          - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization
+          - External content retrieved from search providers (Brave) for processing and sanitization
           - Text requested for audio.speak text-to-speech when that skill is invoked
           - No user identifiers; Groq does not know which user requested each piece of content or speech sample
       alibaba:
@@ -617,18 +617,9 @@ provider_groups:
   # =====================================================================
   model_generation:
     description: >
-      These providers are only used when you search for an existing public 3D
-      model or invoke a 3D model generation skill. If you never use the 3D
-      models app, none of your data is shared with them.
+      This provider is only used when you invoke a 3D model generation skill. If you never
+      generate 3D models, none of your data is shared with it.
     providers:
-      printables:
-        privacy_policy: https://www.prusa3d.com/page/privacy-policy_231258/
-        location: EU (Czech Republic)
-        used_for:
-          - searching the public Printables 3D model catalog
-        data_shared:
-          - 3D model search query and result limit
-          - Note: Shared server-side without OpenMates user identifiers
       hi3d:
         privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy  # verified 2026-07-11
         location: China
@@ -705,10 +696,11 @@ provider_groups:
   # =====================================================================
   web_and_search:
     description: >
-      These providers are only used when you invoke a web, videos, news,
-      web-read, design icon search, or hosting domain search skill. Depending
-      on the provider, they may receive the search query, requested URL, domain
-      name, or public icon identifier, but no OpenMates user identifier.
+      These providers are only used when you invoke supported web, video,
+      news, web-read, design icon search or public-content retrieval skills.
+      Depending on the provider, they receive the search query, requested
+      public URL, public content identifier or icon identifier needed for
+      the operation, without an OpenMates user identifier.
     providers:
       brave:
         privacy_policy: https://brave.com/privacy/
@@ -721,15 +713,6 @@ provider_groups:
           - Search queries entered by users
           - Country and language preferences for localized results
           - Note: All data is shared without user identifiers
-      firecrawl:
-        privacy_policy: https://www.firecrawl.dev/privacy-policy
-        location: US
-        used_for:
-          - web read skill (scraping and extracting content from web pages)
-        data_shared:
-          - URLs of web pages requested
-          - Full content of the scraped pages
-          - Note: All data is shared without user identifiers
       iconify:
         privacy_policy: https://iconify.design/privacy/  # verified 2026-07-18
         location: Global
@@ -739,27 +722,6 @@ provider_groups:
           - Icon search queries
           - Icon collection prefix and icon name when fetching SVG previews
           - Note: Shared server-side by OpenMates without user identifiers; clients do not call Iconify directly
-      webshare:
-        privacy_policy: https://www.webshare.io/privacy-policy
-        location: US
-        used_for:
-          - rotating proxy for requests that would otherwise be blocked by the upstream service
-          - used by the videos get-transcript skill (proxied to YouTube)
-          - used by the health search-appointments skill (proxied to Doctolib and Jameda — see Group H)
-          - fallback proxy for the hosting search-domains skill (proxied to Gandi when direct access fails)
-        data_shared:
-          - Destination host and connection metadata for HTTPS CONNECT requests
-          - Request URLs for other requests routed to external services
-          - Note: For Gandi HTTPS CONNECT fallback, Webshare cannot read the encrypted domain query; no OpenMates user identifier is sent
-      gandi:
-        privacy_policy: https://www.gandi.net/en/contracts/privacy-policy # verified 2026-10-01
-        location: France
-        used_for:
-          - hosting search-domains skill (domain availability and indicative registration and renewal prices)
-        data_shared:
-          - Domain names or search keywords requested
-          - Country and currency preferences for localized prices
-          - Note: Sent server-side over HTTPS without an OpenMates user identifier or Gandi credentials
       google_maps:
         privacy_policy: https://privacy.google.com/
         location: US
@@ -799,43 +761,19 @@ provider_groups:
         privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
         location: US
         used_for:
-          - YouTube transcript retrieval via the videos get-transcript skill
+          - official YouTube Data API metadata enrichment for video search results
         data_shared:
-          - YouTube video URLs
-          - Requested transcript language preferences
-          - Note: Routed without OpenMates user identifiers
-      google_lens:
-        privacy_policy: https://policies.google.com/privacy
-        location: US
-        used_for:
-          - reverse-image search through Google Lens, brokered by SerpAPI
-        data_shared:
-          - A short-lived URL to a decrypted copy of the selected image
-          - Optional text refinement query
-          - Note: SerpAPI and Google can retrieve the image during the short-lived URL window; no OpenMates user identifier is included
-
+          - Public video identifiers and requested metadata fields
+          - Note: Requests are sent server-side without OpenMates user identifiers or chat contents
   # =====================================================================
   # Group G — Travel. Only used when you invoke a travel skill.
   # =====================================================================
   travel:
     description: >
-      These providers are only used when you invoke a travel skill (flight
-      search, hotel search, flight tracking). If you never use the travel
-      app, none of your data is shared with them.
+      This provider is used only for supported flight tracking. Requests include the flight
+      number and departure date needed for the selected operation, without OpenMates user
+      identifiers.
     providers:
-      serpapi:
-        privacy_policy: https://serpapi.com/legal#privacy-policy
-        location: US
-        used_for:
-          - flight search (via Google Flights)
-          - hotel search (via Google Hotels)
-          - Amazon product search
-          - reverse-image search (via Google Lens)
-        data_shared:
-          - Flight and hotel search queries (origin, destination, dates, preferences)
-          - Product search queries and localization filters
-          - A short-lived URL to a decrypted copy of an image, plus any optional refinement query, for reverse-image search
-          - Note: Shared without user identifiers
       flightradar24:
         privacy_policy: https://www.flightradar24.com/terms-and-conditions
         location: EU
@@ -844,32 +782,6 @@ provider_groups:
         data_shared:
           - IATA flight numbers and departure dates
           - Note: Shared without user identifiers
-      deutsche_bahn:
-        privacy_policy: https://int.bahn.de/en/privacy
-        location: EU
-        used_for:
-          - train connection search through Deutsche Bahn public data
-        data_shared:
-          - Train search queries, origin, destination, and dates
-          - Note: Shared without user identifiers
-      flix:
-        privacy_policy: https://www.flixbus.com/privacy-policy
-        location: EU
-        used_for:
-          - intercity bus and rail connection search through FlixBus and FlixTrain public data
-        data_shared:
-          - Connection search queries, origin, destination, and dates
-          - Note: Shared without user identifiers
-      transitous:
-        privacy_policy: https://transitous.org/privacy/
-        location: EU (Germany)
-        used_for:
-          - timetable-only public transport routing across supported European regions
-        data_shared:
-          - Origin and destination station or location queries
-          - Travel date, time, transport modes, and route options
-          - Note: Shared server-side without OpenMates user identifiers; Transitous states that request URLs and server request metadata are kept in logs for up to 2 days
-
   # =====================================================================
   # Group H — Events. Only used when you invoke the events skill.
   # Only providers that receive a user query or query-derived fields are listed.
@@ -878,141 +790,37 @@ provider_groups:
   # =====================================================================
   events:
     description: >
-      These providers are only used when you invoke the events search skill.
-      The specific set of providers called depends on the city and event type
-      you search for.
-    providers:
-      meetup:
-        privacy_policy: https://www.meetup.com/privacy/
-        location: US
-        used_for:
-          - events search skill (Meetup.com event listings)
-        data_shared:
-          - Event search queries (city, category, dates)
-          - Note: Shared without user identifiers
-      luma:
-        privacy_policy: https://lu.ma/privacy-policy
-        location: US
-        used_for:
-          - events search skill (Luma event listings)
-        data_shared:
-          - Event search queries
-          - Note: Shared without user identifiers
-      resident_advisor:
-        privacy_policy: https://ra.co/about/privacy
-        location: UK
-        used_for:
-          - events search skill (Resident Advisor electronic music event listings)
-        data_shared:
-          - Event search queries
-          - Note: Shared without user identifiers
-      eventbrite:
-        privacy_policy: https://www.eventbrite.com/help/en-us/articles/460838/eventbrite-privacy-policy/
-        location: US
-        used_for:
-          - public Eventbrite event search and event-page retrieval
-        data_shared:
-          - Event search query, city, category, dates, and requested result count
-          - Note: Shared server-side without OpenMates user identifiers
-      siegessaeule:
-        privacy_policy: https://www.iubenda.com/privacy-policy/27039210
-        location: EU (Germany)
-        used_for:
-          - Berlin LGBTQ+ event listings through Siegessäule's public GraphQL service
-        data_shared:
-          - Date range and, when applicable, a matching event section/category
-          - Note: Routed through Webshare without OpenMates user identifiers; free-text filtering that does not map to a category happens locally
-      berlin_philharmonic:
-        privacy_policy: https://www.berliner-philharmoniker.de/en/privacy/
-        location: EU (Germany)
-        used_for:
-          - Berlin classical concert search through the Berliner Philharmoniker public calendar
-        data_shared:
-          - Concert search query, date filters, tags, and result count
-          - Note: Shared server-side without OpenMates user identifiers
+      Official conference schedule exports are fetched as fixed public files and searched
+      locally. Schedule hosts receive the selected public schedule request, without your search
+      query or an OpenMates user identifier.
+    providers: {}
 
   # =====================================================================
-  # Group I — Health. Only used when you invoke the appointment-search
-  # skill. Special-category data disclosure.
+  # Group I — Health appointment search availability.
   # =====================================================================
   health:
     description: >
-      These upstream services are reached through the Webshare rotating proxy
-      (see Group E) only when you invoke the health app's appointment-search
-      skill. The queries you send — for example "dermatologist in Berlin next
-      Tuesday" — are transmitted without user identifiers, but the content of
-      the query itself can imply a health concern. By invoking the skill you
-      consent to this transmission under GDPR Art. 9(2)(a) (explicit consent
-      for special-category data processing).
-    providers:
-      doctolib:
-        privacy_policy: https://www.doctolib.de/terms/privacy
-        location: EU
-        used_for:
-          - doctor and specialist appointment search in supported EU regions
-        data_shared:
-          - Speciality, city, and date range (implicitly health-related)
-          - Note: Transmitted via Webshare proxy without user identifiers
-      jameda:
-        privacy_policy: https://www.jameda.de/datenschutz/
-        location: EU
-        used_for:
-          - doctor and specialist appointment search in Germany
-        data_shared:
-          - Speciality, city, and date range (implicitly health-related)
-          - Note: Transmitted via Webshare proxy without user identifiers
+      Appointment search is currently unavailable. No appointment-search query is sent to an
+      external appointment provider.
+    providers: {}
 
   # =====================================================================
-  # Group I2 — Fitness. Only used when you invoke the fitness Urban Sports
-  # location or class search skills.
+  # Group I2 — Fitness search availability.
   # =====================================================================
   fitness:
     description: >
-      This provider is only used when you invoke the fitness app's Urban Sports
-      location or class search skills. We query public logged-out discovery pages
-      and do not send OpenMates user identifiers or Urban Sports credentials.
-    providers:
-      urban_sports_club:
-        privacy_policy: https://urbansportsclub.com/en/privacy-policy
-        location: EU
-        used_for:
-          - fitness location search through Urban Sports Club public listings
-          - fitness class availability search through Urban Sports Club public listings
-        data_shared:
-          - Fitness search queries, city, address or coordinates, radius, dates, and plan filters
-          - Note: Shared without user identifiers
+      Fitness location and class search are currently unavailable. No fitness-search query is
+      sent to an external fitness provider.
+    providers: {}
 
   # =====================================================================
   # Group J — Shopping. Only used when you invoke the shopping skill.
   # =====================================================================
   shopping:
     description: >
-      These providers are only used when you invoke the shopping search skill.
-    providers:
-      rewe:
-        privacy_policy: https://www.rewe.de/service/datenschutz/
-        location: EU
-        used_for:
-          - live product and price lookups at REWE (German grocery retailer)
-        data_shared:
-          - Product search queries
-          - Note: Shared without user identifiers
-      amazon:
-        privacy_policy: https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ  # verified via official search result 2026-05-24
-        location: US
-        used_for:
-          - live product and price lookups at Amazon
-        data_shared:
-          - Product search queries
-          - Note: Shared without user identifiers
-      stoffe:
-        privacy_policy: https://www.stoffe.de/privacy-policy/
-        location: EU (Germany)
-        used_for:
-          - fabric, sewing-supply, and pattern search through the Stoffe.de public storefront API
-        data_shared:
-          - Product search query, category, sorting, pagination, and compatible shipping-country filters
-          - Note: Shared server-side without OpenMates user identifiers
+      Product search is currently unavailable. No product-search query is sent to an external
+      retail provider.
+    providers: {}
 
   # =====================================================================
   # Group J2 — Connected services. Only used after the user connects an
@@ -1042,17 +850,9 @@ provider_groups:
   # =====================================================================
   business_data:
     description: >
-      These public-data providers are used when you request company financial
-      information or a trademark search.
+      This public-data provider is used only when you request company financial information
+      through the supported company-data skill.
     providers:
-      uspto:
-        privacy_policy: https://www.uspto.gov/privacy-policy
-        location: US
-        used_for:
-          - public US trademark applications and registrations
-        data_shared:
-          - Candidate names, status, spelling-match and Nice-class filters
-          - Note: Requests are sent server-side without OpenMates user identifiers or chat history
       sec_edgar:
         privacy_policy: https://www.sec.gov/about/privacy-information
         location: US
@@ -1113,17 +913,9 @@ provider_groups:
   # =====================================================================
   electronics:
     description: >
-      These providers are only used when you invoke the electronics component
-      search skill for live component and reference-design lookups.
-    providers:
-      ti_webench:
-        privacy_policy: https://www.ti.com/legal/terms-conditions/privacy-policy.html
-        location: US
-        used_for:
-          - power converter component and reference-design lookups via TI WEBENCH
-        data_shared:
-          - Power requirements such as input voltage, output voltage, output current, temperature, isolation, and optimization goal
-          - Note: Shared without user identifiers
+      Component and reference-design search are currently unavailable. No electronics-search
+      query is sent to an external component provider.
+    providers: {}
 
   # =====================================================================
   # Group M — Mail. Only used when you connect or search mail.
@@ -1151,54 +943,19 @@ provider_groups:
   # =====================================================================
   home:
     description: >
-      These providers are only used when you invoke the home app's housing search
-      skill. If you never search for housing, none of your data is shared with them.
-    providers:
-      immoscout24:
-        privacy_policy: https://www.immobilienscout24.de/agb/datenschutz.html
-        location: EU
-        used_for:
-          - German housing search results
-        data_shared:
-          - Housing search queries, locations, filters, and listing pages requested
-          - Note: Shared without user identifiers
-      kleinanzeigen:
-        privacy_policy: https://themen.kleinanzeigen.de/datenschutzerklaerung/
-        location: EU
-        used_for:
-          - German classified housing search results
-        data_shared:
-          - Housing search queries, locations, filters, and listing pages requested
-          - Note: Shared without user identifiers
-      wg_gesucht:
-        privacy_policy: https://www.wg-gesucht.de/datenschutz.html
-        location: EU
-        used_for:
-          - German shared-apartment and rental search results
-        data_shared:
-          - Housing search queries, locations, filters, and listing pages requested
-          - Note: Shared without user identifiers
+      Housing search is currently unavailable. No housing-search query is sent to an external
+      housing provider.
+    providers: {}
 
   # =====================================================================
   # Group N2 — Jobs. Only used when you invoke the jobs search skill.
   # =====================================================================
   jobs:
     description: >
-      These providers are only used when you search for jobs. Depending on the
-      selected source, OpenMates sends your job query, location, and applicable
-      filters to the German Federal Employment Agency or Sweden's JobTech API.
-      Arbeitnow supplies a public feed; OpenMates applies your search filters
-      to that feed locally. These requests do not transmit OpenMates user
-      identifiers, CVs, or account credentials.
+      The Swedish Public Employment Service JobTech API is used only when you request supported
+      job searches. OpenMates sends the selected job query, location and applicable filters
+      without OpenMates user identifiers, CVs or account credentials.
     providers:
-      arbeitsagentur:
-        privacy_policy: https://www.arbeitsagentur.de/datenschutz  # verified 2026-10-13
-        location: EU (Germany)
-        used_for:
-          - German Federal Employment Agency public vacancy search and job details
-        data_shared:
-          - Selected job keywords, location and radius, publication window, and supported offer and work-time filters; remote preference is applied locally
-          - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
       jobtech:
         privacy_policy: https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter  # verified 2026-10-13
         location: EU (Sweden)
@@ -1207,24 +964,25 @@ provider_groups:
         data_shared:
           - Selected job keywords, named location, remote preference, publication window, and requested result count
           - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
-      arbeitnow:
-        privacy_policy: https://www.arbeitnow.com/privacy  # verified 2026-10-13
-        location: EU (Germany)
-        used_for:
-          - Public job advertisement feed for German job search
-        data_shared:
-          - The public feed is fetched server-side; user keywords, location, and filters are applied locally and are not sent to Arbeitnow
-          - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
-
   # =====================================================================
   # Group O — Community and developer channels. Only used if you choose
   # to use them.
   # =====================================================================
   community:
     description: >
-      These providers are only involved if you choose to join our community
-      or developer channels.
+      These providers are involved only if you choose to join our community, use developer
+      channels or open an event registration page. External pages receive the information you
+      choose to provide under their own privacy policies.
     providers:
+      luma:
+        privacy_policy: https://lu.ma/privacy-policy
+        location: US
+        used_for:
+          - optional event registration when you open an OpenMates event RSVP link
+        data_shared:
+          - Browser connection information when you open the external registration page
+          - Registration information you choose to submit directly on that page
+          - Note: OpenMates does not send chat contents or search queries through these RSVP links
       discord:
         privacy_policy: https://discord.com/privacy
         location: US
@@ -1248,14 +1006,6 @@ provider_groups:
       get-posts or search skills. They receive public profile, page, or search
       queries without an OpenMates user identifier.
     providers:
-      reddit:
-        privacy_policy: https://www.reddit.com/policies/privacy-policy
-        location: US
-        used_for:
-          - public Reddit post retrieval and search
-        data_shared:
-          - Subreddit names, public post URLs, and search queries
-          - Note: Shared without user identifiers
       bluesky:
         privacy_policy: https://bsky.social/about/support/privacy-policy
         location: US

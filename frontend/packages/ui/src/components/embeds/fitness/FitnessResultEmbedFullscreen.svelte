@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
 
-  Detail fullscreen for one Urban Sports Club location or class child embed.
+  Detail fullscreen for one fitness location or class child embed.
   Uses EntryWithMapTemplate so Fitness drill-down follows the same unified
   fullscreen contract as Events and Maps entries.
 -->
@@ -61,7 +61,7 @@
   let markers = $derived(mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, title }] : []);
   let subtitle = $derived.by(() => {
     if (skillId === 'search_classes') return [result.date, result.time_range, result.venue_name].map(asText).filter(Boolean).join(' · ');
-    return address || 'Urban Sports Club';
+    return address || '';
   });
 
   function timeFromRange(value: unknown, index: 0 | 1): string {
@@ -116,7 +116,7 @@
 </script>
 
 <ResultEmbedFullscreen appId="fitness" {skillId} skillIconName="fitness" embedHeaderTitle={title} embedHeaderSubtitle={subtitle} result={visibleContext} media={imageUrl && failedImage !== imageUrl ? resultMedia : undefined} {onClose} currentEmbedId={embedId} {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext} onCalendar={calendarStart ? handleAddToCalendar : undefined} {mapCenter} mapMarkers={markers}>
-  {#snippet embedHeaderCta()}{#if detailUrl}<EmbedHeaderCtaButton label={$text('embeds.fitness.open_provider').replace('{provider}', 'Urban Sports')} href={detailUrl} testId="fitness-open-urban-sports" />{/if}{/snippet}
+  {#snippet embedHeaderCta()}{#if detailUrl}<EmbedHeaderCtaButton label={$text('embeds.fitness.open_provider').replace('{provider}', asText(result.provider_name) || asText(result.provider))} href={detailUrl} testId="fitness-open-provider" />{/if}{/snippet}
   {#snippet summary()}
     {#if distance !== undefined}<ResultEmbedInfo icon="map-pin" label={$text('result_embed.distance')} value={`${distance.toFixed(2)} km`}><p>{distance.toFixed(2)} km</p></ResultEmbedInfo>{/if}
     {#if result.spots_display}<ResultEmbedInfo icon="users" label={$text('result_embed.spots')} value={asText(result.spots_display)}><p>{asText(result.spots_display)}</p></ResultEmbedInfo>{/if}

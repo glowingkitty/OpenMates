@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 /* eslint-disable @typescript-eslint/no-require-imports */
 /** Seed genuine owned encrypted history and embed groups through the paired CLI, without inference. */
 const { execFileSync } = require('node:child_process');
@@ -78,9 +79,9 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 				}
 				if(!historyReady)throw Error('Encrypted chat history did not sync: '+lastObservation);
 				const parent={app_id:appId,skill_id:'search',status:'finished',query:'${QUERY}',
-					provider:eventFixture?'luma':'Brave Search',embed_ids:childIds.join('|'),result_count:childIds.length};
+					provider:eventFixture?'ExampleEvents':'Brave Search',embed_ids:childIds.join('|'),result_count:childIds.length};
 				const child=eventFixture?{type:'event_result',app_id:'events',skill_id:'search',
-					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'luma',
+					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'ExampleEvents',
 					url:'https://example.com/events/barcamp',date_start:'2026-11-14T09:00:00+01:00',is_paid:false,
 					venue:{name:'Original encrypted event venue',address:'Original fixture street 12',city:'Berlin'},
 					organizer:{name:'Historical event fixture'},description:'Recovered encrypted event details'}

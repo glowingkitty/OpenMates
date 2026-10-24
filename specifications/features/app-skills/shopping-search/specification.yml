@@ -3,42 +3,39 @@ id: feature.app-skill.shopping-search
 version: 2
 status: draft
 title: Shopping Product Search and Reference Images
-summary: Shopping returns purchasable products with supplied photos and compares their appearance and stated facts with up to three reference images.
+summary: Product discovery is unavailable; saved product identities, prices, galleries and visual-evaluation uncertainty
+  remain readable.
+
 inherits: [architecture.app-skill-execution@1]
 
 scope:
   includes:
-    - Existing REWE, Amazon and Stoffe.de search, structured product and price results, supplied photo galleries, and optional visual comparison.
-    - Uploaded or generated conversation references and authenticated API or CLI upload UUIDs, with equivalent request and result semantics across clients.
-    - Inherited app-skills.search-relevance.optional-and-inferred, app-skills.search-relevance.bounded-and-conditional and app-skills.search-relevance.safe-finalization govern ordinary text ranking; this bundle owns the additional visual mode.
+  - Explicit unavailable behavior for new product discovery through the shared provider boundary.
+  - Generic saved product result and photo-gallery rendering without replacement source retrieval.
   excludes:
-    - Image-search supplementation, extra paid product-detail enrichment, purchases, exact-identity guarantees and inferred unseen qualities.
+  - Image-search supplementation, extra paid product-detail enrichment, purchases, exact-identity guarantees and
+    inferred unseen qualities.
 
 assertions:
-  - id: shopping-search.products.supplied-gallery
-    type: invariant
-    must: Products preserve their structured identity, price and purchase link, image_url primary photo, and ordered deduplicated image_urls containing all supplied photos. Missing photos remain missing. Amazon search thumbnails do not trigger extra paid detail requests.
-    depends_on: [examples.galleries]
-  - id: shopping-search.references.authorized
-    type: security
-    must: Each request accepts at most three uploaded or generated image references; excess references are rejected before retrieval. Conversation references resolve server-side, and authenticated direct callers may submit their upload UUIDs. Ownership is verified before decryption. Cache recovery preserves the original fresh upload's 24-hour expiry.
-    depends_on: [examples.references]
-  - id: shopping-search.relevance.visual-and-text
-    type: behavior
-    must: Nonempty references activate Shopping's visual comparison even without relevance_criteria. Jev compares available product photos and stated descriptions or attributes with the references and purchase goal; scores below two out of four are filtered and remaining evaluated matches are ordered by score. Similarity never proves exact identity, composition or unseen quality.
-    depends_on: [examples.comparison]
-  - id: shopping-search.relevance.bounded
-    type: invariant
-    must: Relevance-enabled searches request up to forty candidates before filtering, subject to provider availability, while preserving the caller's final result limit. Visual comparison uses at most forty retrieved candidates and three supplied photos per candidate, in at most eight batches with three concurrent Jev calls. Downloads, decoded pixels and optional comparison time are bounded so comparison failure preserves a successful search. All supplied gallery photos remain in the result. Ordinary searches without relevance requirements or references keep their requested retrieval limit.
-    depends_on: [examples.comparison]
-  - id: shopping-search.relevance.truthful-fallback
-    type: behavior
-    must: Unreadable images and unavailable or incomplete decisions preserve unassessed products with visual_match unavailable and truthful visual_evaluation group status, including empty results. The assistant never calls these products visually verified. Empty references preserve the inherited ordinary search and text relevance behavior.
-    depends_on: [examples.fallback]
-  - id: shopping-search.privacy.minimized
-    type: privacy
-    must: Product text and images remain untrusted. Jev receives only bounded purchase evidence and metadata-free resized images, without chat history, image-location or transport metadata, private embed IDs, owner metadata or encryption material. Public image downloads reject private networks, redirects and credentials and pin validated DNS addresses. Private images never use the text-only router fallback.
-    depends_on: [examples.privacy]
+- id: shopping-search.products.supplied-gallery
+  type: invariant
+  must: Saved product results preserve identity, price, source link, primary image and ordered deduplicated supplied
+    gallery. Missing photos remain missing; opening history never triggers product-detail discovery or replacement
+    integration.
+  depends_on:
+  - examples.boundary_and_history
+- id: shopping-search.relevance.truthful-fallback
+  type: behavior
+  must: Saved product visual assessments retain their original evaluated, unavailable or unassessed state. Neither
+    history rendering nor an unavailable new search claims a fresh visual comparison or visually verified match.
+  depends_on:
+  - examples.boundary_and_history
+- id: shopping-search.privacy.minimized
+  type: privacy
+  must: New unavailable product searches fail before private image resolution, provider disclosure or visual inference.
+    Saved product text and images remain untrusted and preserve inherited access, encryption and output-safety boundaries.
+  depends_on:
+  - examples.boundary_and_history
 
 applies_to:
   rest_api: {required: true}
@@ -57,4 +54,10 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [galleries, references, comparison, fallback, privacy]
+  required_groups:
+  - boundary_and_history
+
+approval_source:
+  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
+    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
+  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.

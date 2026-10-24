@@ -6,7 +6,7 @@ import { admitLandingExample, type LandingViewport } from './landing-app-example
 const { test, expect } = require('./helpers/cookie-audit');
 
 for (const viewport of ['phone', 'laptop'] as LandingViewport[]) {
-  // contract-test: direct surface=gui.web assertions=public-example-chats.admission.reviewed-complete,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,home-search.images.complete-gallery,home-search.web.map-and-filter,home-search.listings.rich-provider-evidence,home-search.vision.evidence-and-conflicts,home-search.neighborhood.sourced-facts
+  // contract-test: direct surface=gui.web assertions=public-example-chats.admission.reviewed-complete,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,home-search.images.complete-gallery,home-search.web.map-and-filter,home-search.listings.rich-provider-evidence,app-skills.history.renderable
   test(`home replacement admits its real apartment search and rich results on ${viewport}`, async (
     { page, request }: { page: Page; request: APIRequestContext }, testInfo: TestInfo
   ) => {

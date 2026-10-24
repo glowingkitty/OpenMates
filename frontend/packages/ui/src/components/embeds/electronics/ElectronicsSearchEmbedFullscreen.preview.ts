@@ -8,7 +8,7 @@
 const sampleResults = [
   {
     embed_id: "preview-electronics-component-1",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     part_number: "TPS564257DRLR",
     base_part_number: "TPS564257",
     title: "TPS564257DRLR Buck converter",
@@ -18,7 +18,7 @@ const sampleResults = [
     control_mode: "D-CAP3",
     product_url: "https://www.ti.com/product/TPS564257",
     datasheet_url: "https://www.ti.com/lit/gpn/tps564257",
-    description: "Compact synchronous buck converter reference design from TI WEBENCH.",
+    description: "Compact synchronous buck converter reference design from ExampleComponents.",
     bom_cost_usd: 0.47,
     bom_count: 11,
     efficiency_percent: 92.4,
@@ -33,7 +33,7 @@ const sampleResults = [
   },
   {
     embed_id: "preview-electronics-component-2",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     part_number: "TPS563257DRLR",
     base_part_number: "TPS563257",
     title: "TPS563257DRLR Buck converter",
@@ -52,7 +52,7 @@ const sampleResults = [
 
 const defaultProps = {
   query: "12V to 3.3V buck converter at 3A",
-  provider: "TI WEBENCH",
+  provider: "ExampleComponents",
   status: "finished" as const,
   results: sampleResults,
   onClose: () => {},
@@ -63,14 +63,14 @@ export default defaultProps;
 export const variants = {
   processing: {
     query: "24V to 5V isolated converter",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     status: "processing" as const,
     results: [],
     onClose: () => {},
   },
   error: {
     query: "invalid converter search",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     status: "error" as const,
     results: [],
     onClose: () => {},

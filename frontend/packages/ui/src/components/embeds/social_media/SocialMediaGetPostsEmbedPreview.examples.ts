@@ -67,11 +67,11 @@ const examples: SocialMediaGetPostsStoreExample[] = [
     "id": "store-example-social-media-get-posts-2",
     "query": "r/sampletravel",
     "query_translation_key": "settings.app_store_examples.social_media.get_posts.2",
-    "provider": "reddit_json",
+    "provider": "ExampleCommunity_json",
     "result_count": 2,
     "status": "finished",
     "results": [{
-      "platform": "reddit",
+      "platform": "ExampleCommunity",
       "page": "r/sampletravel",
       "posts": [
         {
@@ -81,7 +81,7 @@ const examples: SocialMediaGetPostsStoreExample[] = [
           "published_at": "2026-05-18T13:12:00Z",
           "like_count": 302,
           "reply_count": 51,
-          "url": "https://www.reddit.com/r/sampletravel/comments/example1"
+          "url": "https://example.com/fixture"
         },
         {
           "title": "Quiet museum mornings",
@@ -90,7 +90,7 @@ const examples: SocialMediaGetPostsStoreExample[] = [
           "published_at": "2026-05-15T07:55:00Z",
           "like_count": 176,
           "reply_count": 19,
-          "url": "https://www.reddit.com/r/sampletravel/comments/example2"
+          "url": "https://example.com/fixture"
         }
       ]
     }]

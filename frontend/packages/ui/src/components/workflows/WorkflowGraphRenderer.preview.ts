@@ -209,7 +209,7 @@ const eventsSearchCapability: Capability = {
       test_allowed: true,
       test_example_input: {
         requests: [
-          { query: "OpenMates meetup Berlin", location: "Berlin", count: 3 },
+          { query: "OpenMates Gathering Berlin", location: "Berlin", count: 3 },
         ],
       },
     },
@@ -221,12 +221,12 @@ const eventsSearchCapability: Capability = {
           type: "string",
           enum: [
             "auto",
-            "Meetup",
-            "Luma",
-            "Eventbrite",
-            "Resident Advisor",
-            "Siegessäule",
-            "Berlin Philharmonic",
+            "Gathering",
+            "ExampleEvents",
+            "ExampleTickets",
+            "ExampleConcerts",
+            "ExampleCulture",
+            "ExampleOrchestra",
             "GPN24",
             "39C3",
             "38C3",
@@ -269,12 +269,12 @@ const eventsSearchCapability: Capability = {
                 type: "string",
                 enum: [
                   "auto",
-                  "Meetup",
-                  "Luma",
-                  "Eventbrite",
-                  "Resident Advisor",
-                  "Siegessäule",
-                  "Berlin Philharmonic",
+                  "Gathering",
+                  "ExampleEvents",
+                  "ExampleTickets",
+                  "ExampleConcerts",
+                  "ExampleCulture",
+                  "ExampleOrchestra",
                   "GPN24",
                   "39C3",
                   "38C3",
@@ -286,12 +286,12 @@ const eventsSearchCapability: Capability = {
                 items: {
                   type: "string",
                   enum: [
-                    "Meetup",
-                    "Luma",
-                    "Eventbrite",
-                    "Resident Advisor",
-                    "Siegessäule",
-                    "Berlin Philharmonic",
+                    "Gathering",
+                    "ExampleEvents",
+                    "ExampleTickets",
+                    "ExampleConcerts",
+                    "ExampleCulture",
+                    "ExampleOrchestra",
                     "GPN24",
                     "39C3",
                     "38C3",
@@ -325,7 +325,7 @@ const eventsSearchCapability: Capability = {
             type: "object",
             properties: {
               id: { type: "string", example: "example-event", "x-ui": { basic: false } },
-              title: { type: "string", example: "AI community meetup", "x-ui": { basic: true } },
+              title: { type: "string", example: "AI community Gathering", "x-ui": { basic: true } },
               url: {
                 type: "string",
                 example: "https://example.invalid/events/ai",
@@ -338,7 +338,7 @@ const eventsSearchCapability: Capability = {
               },
               description: {
                 type: "string",
-                example: "An example meetup for people working with AI.",
+                example: "An example Gathering for people working with AI.",
                 "x-ui": { basic: false },
               },
               date_start: {
@@ -658,7 +658,7 @@ export const variants = {
       metadata: {
         ...eventsSearchCapability.metadata,
         output_schema: { type: 'object', properties: {
-          results: { type: 'array', title: 'Results', 'x-ui': { basic: true }, example: [{ title: 'Community meetup', url: 'https://example.com/event', date_start: '2026-10-01', location: 'Berlin' }], items: { type: 'object', properties: {
+          results: { type: 'array', title: 'Results', 'x-ui': { basic: true }, example: [{ title: 'Community Gathering', url: 'https://example.com/event', date_start: '2026-10-01', location: 'Berlin' }], items: { type: 'object', properties: {
             title: { type: 'string', title: 'Title', 'x-ui': { basic: true } },
             url: { type: 'string', title: 'URL' }, location: { type: 'string', title: 'Location' },
           } } },

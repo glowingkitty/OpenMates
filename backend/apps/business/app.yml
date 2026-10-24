@@ -146,16 +146,12 @@ skills:
     icon_image: business.svg
     api_config: {expose_get: true, expose_post: true}
     preprocessor_hint: >
-      Search trademark names for explicit target regions when checking a brand or
-      product name. US searches use the free USPTO public search endpoint. EU,
-      Germany and worldwide searches currently return explicit coverage gaps and
-      manual sources; never treat a missing region, failed search or no matches
-      as legal clearance. Ask for the target market if it is unknown.
+      This capability is currently unavailable because no permitted provider is configured.
     class_path: backend.apps.business.skills.search_trademarks.SearchTrademarksSkill
     pricing: {fixed: 1}
     external_data: true
-    providers:
-      - {name: USPTO, no_api_key: true}
+    provider_required: true
+    providers: []
     suggestions_follow_up_requests:
       - "Compare another name"
       - "Search similar spellings"

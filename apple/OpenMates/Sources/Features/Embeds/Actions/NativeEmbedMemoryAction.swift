@@ -53,8 +53,7 @@ struct NativeEmbedMemoryConfig: Equatable {
             let venue = d["venue"] as? [String: Any] ?? Dictionary(uniqueKeysWithValues: ["name", "address", "city", "state", "country"].map { ($0, d["venue_\($0)"] ?? "") })
             let location = joined([text("name", in: venue), text("address", in: venue),
                                    joined([text("city", in: venue), text("state", in: venue), text("country", in: venue)], separator: ", ")], separator: "\n")
-            let providers = ["meetup": "Meetup", "luma": "Luma", "eventbrite": "Eventbrite", "classictic": "Classictic", "berlin_philharmonic": "Berlin Philharmonic", "bachtrack": "Bachtrack"]
-            assign(["title": title, "provider": providers[text("provider").lowercased()] ?? text("provider"), "url": text("url"),
+            assign(["title": title, "provider": first(text("provider_name"), text("provider")), "url": text("url"),
                     "date_start": text("date_start"), "date_end": text("date_end"),
                     "location": text("event_type") == "ONLINE" ? AppStrings.localized("embeds.online_event") : location, "notes": ""])
         case .healthAppointment:

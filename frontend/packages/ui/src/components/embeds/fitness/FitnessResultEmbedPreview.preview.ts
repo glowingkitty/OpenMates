@@ -1,5 +1,5 @@
 /**
- * Preview fixtures for a single Urban Sports fitness result card.
+ * Preview fixtures for a single fitness source fitness result card.
  *
  * These direct component props cover both location and class registry aliases
  * used by the generated embed registry and generic component preview route.

@@ -194,7 +194,7 @@ def create_http_client(category: str, **httpx_kwargs: Any) -> httpx.AsyncClient:
             response = await client.get("https://api.search.brave.com/...")
 
     Args:
-        category: API category for cache organization (e.g., "brave", "doctolib")
+        category: API category for cache organization (e.g., "brave", "public_catalog")
         **httpx_kwargs: Additional kwargs passed to httpx.AsyncClient
     """
     if os.getenv("MOCK_EXTERNAL_APIS") == "true":

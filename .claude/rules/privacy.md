@@ -46,5 +46,4 @@ Before adding or updating any `privacy_policy:` URL in `privacy_policy.yml` or `
 - Mistral: `https://legal.mistral.ai/terms/privacy-policy` (not mistral.ai/privacy-policy)
 - fal.ai: `https://fal.ai/legal/privacy-policy` (not fal.ai/privacy-policy)
 - Recraft: `https://www.recraft.ai/privacy` (not recraft.ai/privacy-policy)
-- SerpApi: `https://serpapi.com/legal#privacy-policy` (embedded in terms page)
 - Revolut Business: `https://www.revolut.com/en-LT/legal/privacy/` (Lithuania entity)

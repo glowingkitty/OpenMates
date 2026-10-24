@@ -2,7 +2,7 @@
 #
 # Unit tests for Social Media search dispatch and provider routing.
 # These tests keep topic search async behavior covered without a live worker or
-# network access to Reddit/Bluesky.
+# network access to social platforms.
 
 import sys
 from types import ModuleType
@@ -11,10 +11,8 @@ import pytest
 from pydantic import ValidationError
 
 from backend.apps.social_media import search_collection  # noqa: E402
-from backend.shared.providers.bluesky.public import BlueskyPost, BlueskyResult  # noqa: E402
+from backend.shared.providers.bluesky.public import BlueskyResult  # noqa: E402
 from backend.shared.providers.mastodon.public import MastodonPost, MastodonResult  # noqa: E402
-from backend.shared.providers.reddit.json import RedditSearchSort  # noqa: E402
-from backend.shared.providers.reddit.rss import RedditRssPost, RedditRssResult  # noqa: E402
 
 
 @pytest.fixture
@@ -49,7 +47,7 @@ class FakeSecretsManager:
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_search_request_rejects_too_many_comments():
     with pytest.raises(ValidationError):
-        search_collection.SearchRequestItem(platform="reddit", query="privacy ai", comments_limit=6)
+        search_collection.SearchRequestItem(platform="bluesky", query="privacy ai", comments_limit=6)
 
 
 class _FakeTaskSignature:
@@ -151,133 +149,6 @@ async def test_search_partial_dispatch_reports_only_accepted_jobs(search_skill_c
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
-async def test_collect_search_results_defaults_to_all_supported_platforms(monkeypatch):
-    captured = {}
-
-    async def fake_search_posts(query: str, **kwargs):
-        captured["bluesky_query"] = query
-        captured["bluesky_kwargs"] = kwargs
-        return BlueskyResult(
-            page=query,
-            sort="top",
-            request_count=1,
-            posts=[
-                BlueskyPost(
-                    id="at://did:plc:abc/app.bsky.feed.post/3abcxyz",
-                    page=query,
-                    title="A useful post",
-                    body="A useful post about privacy AI.",
-                    author="openmates.bsky.social",
-                    url="https://bsky.app/profile/openmates.bsky.social/post/3abcxyz",
-                )
-            ],
-        )
-
-    async def fake_search_reddit_posts_json(query: str, **kwargs):
-        captured["reddit_query"] = query
-        captured["reddit_kwargs"] = kwargs
-        return RedditRssResult(
-            page=query,
-            sort="new",
-            request_count=1,
-            posts=[
-                RedditRssPost(
-                    id="abc123",
-                    page=query,
-                    title="Reddit post",
-                    body="A Reddit post about privacy AI.",
-                    author="/u/example",
-                    url="https://www.reddit.com/r/privacy/comments/abc123/post/",
-                )
-            ],
-        )
-
-    async def fake_search_mastodon_posts(query: str, **kwargs):
-        captured["mastodon_query"] = query
-        captured["mastodon_kwargs"] = kwargs
-        return MastodonResult(
-            page="mastodon.social",
-            sort="latest",
-            request_count=1,
-            posts=[
-                MastodonPost(
-                    id="mastodon-123",
-                    page="mastodon.social",
-                    title="Mastodon post",
-                    body="A Mastodon post about privacy AI.",
-                    author="openmates@mastodon.social",
-                    url="https://mastodon.social/@openmates/123",
-                )
-            ],
-        )
-
-    monkeypatch.setattr(search_collection, "search_posts", fake_search_posts)
-    monkeypatch.setattr(search_collection, "search_reddit_posts_json", fake_search_reddit_posts_json)
-    monkeypatch.setattr(search_collection, "search_mastodon_posts", fake_search_mastodon_posts)
-
-    results = await search_collection.collect_search_results(
-        [{"query": "privacy ai", "page": "privacy", "sort": "comments", "time_range": "week", "limit": 5}],
-        secrets_manager=FakeSecretsManager(),
-        reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
-    )
-
-    assert [result.platform for result in results] == ["bluesky", "mastodon", "reddit"]
-    assert captured["bluesky_query"] == "privacy ai"
-    assert captured["bluesky_kwargs"]["sort"] == "comments"
-    assert captured["bluesky_kwargs"]["limit"] == 5
-    assert isinstance(captured["bluesky_kwargs"]["secrets_manager"], FakeSecretsManager)
-    assert captured["mastodon_query"] == "privacy ai"
-    assert captured["mastodon_kwargs"]["instances"] == ["privacy"]
-    assert captured["mastodon_kwargs"]["limit"] == 5
-    assert captured["reddit_query"] == "privacy ai"
-    assert captured["reddit_kwargs"]["proxy_url"] == "http://user-rotate:pass@p.webshare.io:80/"
-    assert captured["reddit_kwargs"]["page"] == "privacy"
-    assert captured["reddit_kwargs"]["sort"] == RedditSearchSort.COMMENTS
-    assert results[0].posts[0].author == "openmates.bsky.social"
-    assert results[1].posts[0].author == "openmates@mastodon.social"
-    assert results[2].posts[0].author == "/u/example"
-
-
-@pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypatch):
-    async def fake_search_reddit_posts_json(query: str, **kwargs):
-        return RedditRssResult(page=query, sort="new", request_count=1, errors=["json failed"])
-
-    async def fake_search_reddit_posts(query: str, **kwargs):
-        return RedditRssResult(
-            page=query,
-            sort="new",
-            request_count=1,
-            posts=[
-                RedditRssPost(
-                    id="abc123",
-                    page=query,
-                    title="Fallback post",
-                    body="Fallback body.",
-                    author="/u/example",
-                    url="https://www.reddit.com/r/privacy/comments/abc123/post/",
-                )
-            ],
-        )
-
-    monkeypatch.setattr(search_collection, "search_reddit_posts_json", fake_search_reddit_posts_json)
-    monkeypatch.setattr(search_collection, "search_reddit_posts", fake_search_reddit_posts)
-
-    results = await search_collection.collect_search_results(
-        [{"platform": "reddit", "query": "privacy ai", "sort": "new", "limit": 5}],
-        reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
-    )
-
-    assert results[0].provider == "Reddit"
-    assert results[0].posts[0].title == "Fallback post"
-    assert "Reddit temporarily used a fallback source." in results[0].warnings
-    assert "json failed" in results[0].warnings
-    assert results[0].errors == []
-
-
-@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_collect_search_results_searches_mastodon_with_extra_instances(monkeypatch):
     captured = {}
@@ -338,17 +209,6 @@ async def test_collect_search_results_rejects_unsupported_platform():
 
     assert results[0].posts == []
     assert results[0].errors == ["Unsupported social search platform: threads"]
-
-
-@pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_collect_search_results_soft_skips_unavailable_reddit_for_all_search():
-    results = await search_collection.collect_search_results([{"platform": "all", "query": "privacy ai", "limit": 5}])
-
-    reddit_result = next(result for result in results if result.platform == "reddit")
-    assert reddit_result.posts == []
-    assert reddit_result.errors == []
-    assert reddit_result.warnings == [search_collection.REDDIT_PROXY_REQUIRED_WARNING]
 
 
 @pytest.mark.asyncio

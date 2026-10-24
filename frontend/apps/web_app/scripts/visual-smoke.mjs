@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Playwright visual smoke helper for deployed OpenMates routes.
-// Captures laptop and mobile screenshots without spending Firecrawl credits.
+// Captures laptop and mobile screenshots using the existing browser runner.
 // Automated checks catch hard failures; screenshot review is still required for a pass.
 // Use scripts/tests.py for acceptance tests and sessions.py visual-smoke for evidence.
 // Dependency-light worktrees fall back to scripts/playwright_visual_smoke.py.

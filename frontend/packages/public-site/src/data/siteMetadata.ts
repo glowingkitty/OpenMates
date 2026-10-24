@@ -8,8 +8,8 @@ export const socialLinks: Array<{label: string; href: string; iconUrl: string}> 
   { label: 'Mastodon', href: 'https://mastodon.social/@OpenMates', iconUrl: '/icons/mastodon.svg' },
   { label: 'Discord', href: 'https://discord.gg/bHtkxZB5cc', iconUrl: '/icons/discord.svg' },
   { label: 'Instagram', href: 'https://instagram.com/openmates_official', iconUrl: '/icons/instagram.svg' },
+  { label: 'Community events', href: 'https://www.meetup.com/openmates-meetup-group/', iconUrl: '/icons/event.svg' },
   { label: 'Pixelfed', href: 'https://pixelfed.social/@openmates', iconUrl: '/icons/pixelfed.svg' },
-  { label: 'Meetup', href: 'https://www.meetup.com/openmates-meetup-group/', iconUrl: '/icons/meetup.svg' },
   { label: 'Signal', href: 'https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq', iconUrl: '/icons/signal.svg' }
 ];
 

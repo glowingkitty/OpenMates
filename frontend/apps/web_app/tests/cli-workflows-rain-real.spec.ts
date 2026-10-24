@@ -16,7 +16,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 test.describe('CLI Workflows rain YAML lifecycle', () => {
  test.setTimeout(360_000);
  // contract-test: direct surface=cli assertions=workflows-ui.identity.automatic-category-icon,workflows.surface.semantic-parity,cli.output.actionable-readable,cli.surface.semantic-parity,workflows.activation.reachable-side-effect,workflows.chat-delivery.client-encrypted
- test('saves a draft, runs while disabled, delivers encrypted results and deletes run history', async ({ page }: { page: any }) => {
+test('saves a draft, runs while disabled, delivers encrypted results and deletes run history', async ({ page }: { page: any }) => {
   skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
   const apiUrl = workflowApiUrl();
   const homeDir = createWorkflowCliHome('workflow-rain');

@@ -20,7 +20,7 @@ export const ready = (async () => {
     [rootId, 'app_skill_use', { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Preview search', count: 2 }] }, embed_ids: childIds, result_count: 2 }],
     [emptyId, 'app_skill_use', { app_id: 'web', skill_id: 'search', embed_ids: [], result_count: 0 }],
     [trademarkId, 'app_skill_use', { app_id: 'business', skill_id: 'search_trademarks', query: 'Proposed name', status: 'finished',
-      embed_ids: [], result_count: 0, matches: [], coverage: [{ region: 'US', status: 'searched' }], provider: 'USPTO' }],
+      embed_ids: [], result_count: 0, matches: [], coverage: [{ region: 'US', status: 'searched' }], provider: 'ExampleTrademarks' }],
     ...childIds.map((id, index) => [id, 'search_result', { type: 'search_result', app_id: 'web', skill_id: 'search', title: `Preview page ${index + 1}`, url: `https://example.test/${index + 1}`, description: 'A normal website result preview.' }]),
   ] as Array<[string, 'app_skill_use' | 'search_result', Record<string, unknown>]>) {
     await embedStore.putEncrypted(`embed:${id}`, { embed_id: id, status: 'finished', is_private: true, encrypted_type: await encryptWithEmbedKey(type, key), encrypted_content: await encryptWithEmbedKey(JSON.stringify(content), key), createdAt: Date.now(), updatedAt: Date.now() }, type as EmbedType, undefined, { app_id: content.app_id as string, skill_id: content.skill_id as string });

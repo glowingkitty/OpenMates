@@ -78,7 +78,7 @@ struct HostingDomainModel {
         let unicode = HostingFields.text(raw, "domain_unicode")
         name = unicode.isEmpty ? ascii : unicode
         availability = HostingDomainAvailability(rawValue: HostingFields.text(raw, "availability")) ?? .unknown
-        provider = HostingFields.text(raw, "provider", fallback: "Gandi")
+        provider = HostingFields.text(raw, "provider_name", fallback: HostingFields.text(raw, "provider"))
         currency = HostingFields.text(raw, "currency", fallback: "EUR")
         country = HostingFields.text(raw, "country")
         premium = raw["premium"]?.value as? Bool == true
@@ -87,12 +87,12 @@ struct HostingDomainModel {
         renewalTiers = EmbedFieldReader.dictionaryArray(raw, key: "renewal_tiers").map { HostingDomainTier(raw: $0) }
         checkedAt = ISO8601DateFormatter().date(from: HostingFields.text(raw, "checked_at"))
             ?? { let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return formatter.date(from: HostingFields.text(raw, "checked_at")) }()
-        providerURL = Self.safeGandiURL(HostingFields.text(raw, "provider_url"))
+        providerURL = Self.safeProviderURL(HostingFields.text(raw, "provider_url"))
     }
 
-    static func safeGandiURL(_ value: String) -> URL? {
+    static func safeProviderURL(_ value: String) -> URL? {
         guard let url = URL(string: value), url.scheme?.lowercased() == "https",
-              url.host?.lowercased() == "shop.gandi.net" else { return nil }
+              let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else { return nil }
         return url
     }
 }
@@ -121,7 +121,7 @@ struct HostingSearchModel {
         self.embed = embed
         let raw = embed.rawData ?? [:]
         query = HostingFields.text(raw, "query")
-        provider = HostingFields.text(raw, "provider", fallback: "Gandi")
+        provider = HostingFields.text(raw, "provider_name", fallback: HostingFields.text(raw, "provider"))
         currency = HostingFields.text(raw, "currency", fallback: "EUR")
         country = HostingFields.text(raw, "country")
         checkedCount = EmbedFieldReader.int(raw, keys: ["checked_count"]) ?? 0

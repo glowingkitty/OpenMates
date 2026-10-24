@@ -2360,7 +2360,7 @@ async def _check_external_service_http(
     server is still running.  Only 5xx errors indicate actual problems.
 
     Args:
-        service_id: Redis key suffix (e.g. "serpapi", "firecrawl").
+        service_id: Redis key suffix (e.g. "youtube", "google_maps").
         url: Full URL to probe.
         display_name: Human-readable name for log messages.
         method: HTTP method ("HEAD" or "GET").
@@ -2436,20 +2436,13 @@ async def _check_external_service_http(
 
 EXTERNAL_HTTP_SERVICES: list[Dict[str, Any]] = [
     # Search & Data
-    {"service_id": "serpapi", "url": "https://serpapi.com", "display_name": "SerpAPI"},
-    {"service_id": "firecrawl", "url": "https://api.firecrawl.dev", "display_name": "Firecrawl"},
     {"service_id": "youtube", "url": "https://www.googleapis.com/youtube/v3", "display_name": "YouTube Data API"},
     {"service_id": "google_maps", "url": "https://places.googleapis.com", "display_name": "Google Maps/Places"},
     # Image & Media
     {"service_id": "fal", "url": "https://fal.run", "display_name": "FAL (Flux)"},
     {"service_id": "recraft", "url": "https://external.api.recraft.ai", "display_name": "Recraft"},
-    # Events & Health
-    {"service_id": "doctolib", "url": "https://www.doctolib.de", "display_name": "Doctolib"},
-    {"service_id": "meetup", "url": "https://www.meetup.com", "display_name": "Meetup"},
-    {"service_id": "luma", "url": "https://api2.luma.com", "display_name": "Luma Events"},
     # Travel
     {"service_id": "travelpayouts", "url": "https://api.travelpayouts.com", "display_name": "Travelpayouts"},
-    {"service_id": "transitous", "url": "https://api.transitous.org", "display_name": "Transitous"},
     {"service_id": "flightradar24", "url": "https://fr24api.flightradar24.com", "display_name": "FlightRadar24"},
 ]
 

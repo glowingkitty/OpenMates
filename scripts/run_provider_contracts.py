@@ -2,12 +2,13 @@
 """
 scripts/run_provider_contracts.py
 
-Daily contract probe runner for every reverse-engineered / scraped provider.
+Contract probe runner for configured providers.
+
+No live probes are currently configured. The default invocation reports that
+no checks executed and does not start a container or contact any provider.
 
 Why this is separate from `scripts/tests.py run --daily`:
-  * These probes need Vault secrets (Webshare proxy credentials) and a non-
-    datacenter IP to avoid anti-bot 403s — both are only available inside
-    `app-ai-worker`, not in the GHA pytest runner.
+  * Probes use the isolated provider test environment.
   * They hit real third-party endpoints, so they must never run on every PR.
 
 What it does:
@@ -20,11 +21,12 @@ What it does:
      writes a nightly report for the daily meeting, and dispatches one admin
      email per day for the same broken-provider set.
 
-Exit code: 0 = all passed/skipped, 1 = at least one provider failed.
+Exit code: 0 = checks passed/skipped or none configured, 1 = provider failure,
+2 = an explicitly requested provider has no configured probe.
 
 Usage:
   python3 scripts/run_provider_contracts.py
-  python3 scripts/run_provider_contracts.py --provider doctolib   # single
+  python3 scripts/run_provider_contracts.py --provider example   # single
 """
 
 from __future__ import annotations
@@ -47,6 +49,9 @@ REPORT_DIR = PROJECT_ROOT / "test-results"
 CONTAINER = "app-ai-worker"
 CONTAINER_TESTS_PATH = "/app/backend/tests/provider_contracts"
 CONTAINER_REPORT_PATH = "/tmp/provider-contracts.json"
+# Add a probe only with documented API permission and its dedicated contract test.
+# An explicit registry prevents files left in an older container from being run.
+CONFIGURED_PROVIDER_PROBES: dict[str, str] = {}
 EMAIL_STATE_PATH = REPORT_DIR / "provider-contracts-email-state.json"
 INTERNAL_API_URL = os.getenv("INTERNAL_API_URL", "http://localhost:8000")
 
@@ -57,16 +62,20 @@ def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
 
 def _run_probes(provider: str | None) -> tuple[int, dict]:
     """Invoke pytest inside the worker and return (exit_code, report_dict)."""
+    if provider is not None and provider not in CONFIGURED_PROVIDER_PROBES:
+        print("[provider-contracts] requested provider has no configured probe", file=sys.stderr)
+        return 2, {"status": "not_configured", "error": "Requested provider has no configured probe", "tests": []}
+    selected = ([CONFIGURED_PROVIDER_PROBES[provider]] if provider is not None
+                else list(CONFIGURED_PROVIDER_PROBES.values()))
+    if not selected:
+        return 0, {"status": "not_configured", "tests": [], "summary": {"collected": 0, "total": 0}}
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-
-    test_path = CONTAINER_TESTS_PATH
-    if provider:
-        test_path = f"{CONTAINER_TESTS_PATH}/test_{provider}_contract.py"
+    test_paths = [f"{CONTAINER_TESTS_PATH}/{filename}" for filename in selected]
 
     pytest_cmd = [
         "docker", "exec", CONTAINER,
         "python", "-m", "pytest",
-        test_path,
+        *test_paths,
         "-m", "provider_contract",
         "-v", "--tb=short", "--color=no",
         f"--json-report-file={CONTAINER_REPORT_PATH}",
@@ -97,7 +106,7 @@ def _summarise(report: dict) -> dict:
     per_provider: dict[str, dict] = {}
     for test in report.get("tests", []):
         node = test.get("nodeid", "")
-        # Example: backend/tests/provider_contracts/test_doctolib_contract.py::test_doctolib_listing_has_window_place
+        # Example: backend/tests/provider_contracts/test_example_contract.py::test_result_shape
         try:
             filename = node.split("::")[0].rsplit("/", 1)[-1]
         except (IndexError, ValueError):
@@ -188,7 +197,7 @@ def _write_email_state(today: str, broken: list[dict]) -> None:
 
 def _format_broken_provider_summary(broken: list[dict]) -> str:
     lines = [
-        "Provider contract probes found broken reverse-engineered providers in the last daily run.",
+        "Provider contract probes found broken configured providers in the last daily run.",
         "",
     ]
     for row in broken:
@@ -255,7 +264,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--provider",
-        help="Run a single provider's contract test (e.g. 'doctolib')",
+        help="Run a single provider's contract test (e.g. 'example')",
         default=None,
     )
     args = parser.parse_args()
@@ -263,6 +272,15 @@ def main() -> int:
     exit_code, report = _run_probes(args.provider)
     if not report:
         return exit_code or 1
+
+    if report.get("status") == "not_configured":
+        if exit_code:
+            return exit_code
+        message = "No provider contract probes configured; no checks executed."
+        write_nightly_report(job="provider-contracts", status="skipped", summary=message,
+                             details={"configured_providers": [], "checks_executed": 0})
+        print(f"[provider-contracts] {message}")
+        return 0
 
     per_provider = _summarise(report)
     _print_table(per_provider)
@@ -292,7 +310,7 @@ def main() -> int:
             job="provider-contracts",
             status="error",
             summary=(
-                f"{len(broken)} reverse-engineered provider(s) BROKEN: {names}. "
+                f"{len(broken)} configured provider(s) BROKEN: {names}. "
                 f"{len(passing)} passing, {len(stubs)} TODO stubs."
             ),
             details={"broken": broken, "passing": [r["provider"] for r in passing], "stubs": [r["provider"] for r in stubs]},
@@ -313,7 +331,7 @@ def main() -> int:
         job="provider-contracts",
         status="ok" if passing else "warning",
         summary=(
-            f"{len(passing)} reverse-engineered provider(s) passing contract probes; "
+            f"{len(passing)} configured provider(s) passing contract probes; "
             f"{len(stubs)} TODO stubs waiting for implementation."
         ),
         details={"passing": [r["provider"] for r in passing], "stubs": [r["provider"] for r in stubs]},

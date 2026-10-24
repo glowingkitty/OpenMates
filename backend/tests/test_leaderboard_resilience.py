@@ -206,45 +206,16 @@ def test_empty_refresh_cannot_replace_cache_or_provider_ranking(tmp_path, monkey
     assert stored[leaderboard_tasks.LEADERBOARD_CACHE_KEY] == VALID_DATA
 
 
-def test_queued_refreshes_share_one_provider_slot(monkeypatch, leaderboard_tasks):
-    owners = {}
-    provider_calls = []
+def test_queued_refreshes_are_unavailable_without_provider_or_cache_mutation(monkeypatch, leaderboard_tasks):
+    def forbidden(*args, **kwargs):
+        pytest.fail("Retired collection tasks must not initialize cache or call providers")
 
-    class FakeClient:
-        async def set(self, key, value, *, ex, nx):
-            assert ex == leaderboard_tasks.LEADERBOARD_REFRESH_COOLDOWN
-            assert nx is True
-            if key in owners:
-                return False
-            owners[key] = value
-            return True
-
-        async def get(self, key):
-            return owners.get(key)
-
-    class FakeCacheService:
-        @property
-        async def client(self):
-            return FakeClient()
-
-        async def close(self):
-            pass
-
-    async def aggregate(_category):
-        provider_calls.append(1)
-        return VALID_DATA
-
-    async def update_cache(_data):
-        return True
-
-    monkeypatch.setattr(leaderboard_tasks, "CacheService", FakeCacheService)
-    monkeypatch.setattr(leaderboard_tasks, "_aggregate_leaderboard_async", aggregate)
-    monkeypatch.setattr(leaderboard_tasks, "_update_cache_async", update_cache)
-
+    monkeypatch.setattr(leaderboard_tasks, "CacheService", forbidden)
+    monkeypatch.setattr(leaderboard_tasks, "_aggregate_leaderboard_async", forbidden)
+    monkeypatch.setattr(leaderboard_tasks, "_update_cache_async", forbidden)
     results = [leaderboard_tasks.update_leaderboard_daily.run() for _ in range(12)]
-    assert results[0]["success"] is True
-    assert all(result.get("skipped") for result in results[1:])
-    assert len(provider_calls) == 1
+    assert all(result["success"] is False and result["skipped"] is True for result in results)
+    assert all(result["error"] == "No supported leaderboard data source is configured." for result in results)
 
 
 def test_failed_refresh_owner_can_retry_but_backlog_cannot(monkeypatch, leaderboard_tasks):

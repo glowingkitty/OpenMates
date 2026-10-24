@@ -4,8 +4,7 @@ Base transport provider abstraction for the travel app.
 Defines unified data models (ConnectionResult, LegResult, SegmentResult,
 PriceCalendarEntry) and the abstract BaseTransportProvider class that all
 transport providers must implement. This enables a clean separation between
-the skill layer and individual provider APIs (SerpAPI/Google Flights for
-flights, Travelpayouts for price calendars, Transitous for trains/buses, etc.).
+the skill layer and provider APIs.
 """
 
 import logging
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 class SegmentResult(BaseModel):
     """A single segment within a leg (e.g., one flight in a connecting itinerary)."""
 
-    carrier: str = Field(description="Carrier/operator name (e.g., 'Lufthansa', 'Deutsche Bahn')")
+    carrier: str = Field(description="Carrier/operator name (e.g., 'Lufthansa')")
     carrier_code: Optional[str] = Field(default=None, description="IATA carrier code (e.g., 'LH')")
     number: Optional[str] = Field(default=None, description="Flight/train number (e.g., 'LH2472', 'ICE 1234')")
     mode: Optional[str] = Field(default=None, description="Transport mode for this segment, such as train, bus, tram, subway, ferry, walk, bike, or airplane")
@@ -59,7 +58,7 @@ class SegmentResult(BaseModel):
     # Daytime indicators for time badge color coding (sunrise/sunset-aware)
     departure_is_daytime: Optional[bool] = Field(default=None, description="True if departure is between sunrise and sunset at the airport")
     arrival_is_daytime: Optional[bool] = Field(default=None, description="True if arrival is between sunrise and sunset at the airport")
-    # Rich metadata from Google Flights via SerpAPI
+    # Optional carrier and environmental metadata
     airplane: Optional[str] = Field(default=None, description="Aircraft type (e.g., 'Airbus A321neo', 'Boeing 787')")
     airline_logo: Optional[str] = Field(default=None, description="URL to airline logo image")
     legroom: Optional[str] = Field(default=None, description="Legroom info (e.g., '29 in', '32 in')")
@@ -119,7 +118,7 @@ class ConnectionResult(BaseModel):
     """A single connection option returned by a transport provider."""
 
     transport_method: str = Field(description="Transport type: 'airplane', 'train', 'bus', 'boat'")
-    source_provider: Optional[str] = Field(default=None, description="Provider that returned this result (e.g., 'google_flights', 'deutsche_bahn')")
+    source_provider: Optional[str] = Field(default=None, description="Provider that returned this result")
     total_price: Optional[str] = Field(default=None, description="Total price as string (e.g., '245.50')")
     currency: Optional[str] = Field(default=None, description="Price currency code (e.g., 'EUR')")
     bookable_seats: Optional[int] = Field(default=None, description="Number of remaining bookable seats")
@@ -128,11 +127,11 @@ class ConnectionResult(BaseModel):
     booking_provider: Optional[str] = Field(default=None, description="Name of the booking provider (e.g., 'Lufthansa')")
     booking_token: Optional[str] = Field(
         default=None,
-        description="SerpAPI booking token for on-demand booking URL lookup via /v1/apps/travel/booking-link"
+        description="Historical provider booking token"
     )
     booking_context: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Original SerpAPI search parameters needed for booking_token lookup "
+        description="Historical provider booking context "
         "(departure_id, arrival_id, outbound_date, return_date, type, currency, gl, adults, travel_class)"
     )
     fare_is_partial: Optional[bool] = Field(
@@ -151,7 +150,7 @@ class ConnectionResult(BaseModel):
     # Country codes for route header flag emojis (ISO 3166-1 alpha-2)
     origin_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of origin airport")
     destination_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of final destination airport")
-    # Rich metadata from Google Flights via SerpAPI
+    # Optional carrier and environmental metadata
     airline_logo: Optional[str] = Field(default=None, description="URL to primary airline logo image")
     co2_kg: Optional[int] = Field(default=None, description="CO2 emissions in kg for this connection")
     co2_typical_kg: Optional[int] = Field(default=None, description="Typical CO2 emissions in kg for this route")

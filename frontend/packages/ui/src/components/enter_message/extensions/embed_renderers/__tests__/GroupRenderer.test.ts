@@ -102,12 +102,12 @@ describe('GroupRenderer', () => {
         container, content, embedData: { embed_id: 'event-child', type: 'event', status: 'finished' },
         decodedContent: { title: 'Language exchange', organizer_name: 'Berlin Lingua Hub', organizer_id: 'org-1',
           venue_name: 'Community space', venue_lat: '52.5', venue_lon: '13.4', fee_amount: '0', fee_currency: 'EUR',
-          rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'meetup' },
+          rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'Gathering' },
       });
       expect(svelteMountMocks.mount).toHaveBeenCalledWith(EventEmbedPreview, expect.objectContaining({ props: expect.objectContaining({
         id: 'event-child', event: expect.objectContaining({ embed_id: 'event-child', organizer: expect.objectContaining({name: 'Berlin Lingua Hub'}),
           venue: expect.objectContaining({name: 'Community space', lat: 52.5, lon: 13.4}), fee: expect.objectContaining({amount: 0, currency: 'EUR'}),
-          rsvp_count: 80, timezone: 'Europe/Berlin', provider: 'meetup' }),
+          rsvp_count: 80, timezone: 'Europe/Berlin', provider: 'Gathering' }),
       }) }));
     } finally { disposeEmbedTree(container); container.remove(); }
   });

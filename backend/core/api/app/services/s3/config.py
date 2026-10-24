@@ -214,17 +214,8 @@ BUCKETS = {
         'lifecycle_policy': None,
         'cache_control': 'private, max-age=31536000, immutable',
     },
-    # Temporary images bucket for reverse image search (Google Lens via SerpAPI).
-    # Plaintext (decrypted) user images are uploaded here for a very short time so
-    # SerpAPI's Google Lens fetcher can retrieve them. The bucket is PRIVATE; each
-    # upload is handed to SerpAPI as a 15-minute presigned URL so only that single
-    # HTTP fetch can resolve the object. The skill deletes the object immediately
-    # after the search completes; the 1-day lifecycle policy is a safety net for
-    # cases where the delete call fails.
-    # GDPR audit finding C6 (docs/architecture/compliance/gdpr-audit.md): this was
-    # previously public-read which exposed decrypted user images to anyone with the
-    # URL for up to 24h. Switched to private + presigned URLs on 2026-04-08.
-    # See: backend/apps/images/skills/search_skill.py → _upload_temp_image
+    # Retain the private temporary-image bucket for existing objects and their
+    # one-day expiration policy. No upload endpoint or active consumer remains.
     'temp_images': {
         'name': 'openmates-temp-images',
         'dev_name': 'dev-openmates-temp-images',

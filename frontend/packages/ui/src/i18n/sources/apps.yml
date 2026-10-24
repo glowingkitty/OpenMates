@@ -2055,15 +2055,15 @@ events.description:
   ru: Открывайте митапы, конференции и местные события.
   ja: ミートアップ、カンファレンス、地元のイベントを発見。
   ko: 밋업, 컨퍼런스 및 지역 이벤트를 발견하세요.
-  it: Scopri meetup, conferenze ed eventi locali.
-  tr: Meetup, konferans ve yerel etkinlikleri keşfedin.
-  vi: Khám phá meetup, hội nghị và sự kiện địa phương.
-  id: Temukan meetup, konferensi & acara lokal.
+  it: Scopri Gathering, conferenze ed eventi locali.
+  tr: Gathering, konferans ve yerel etkinlikleri keşfedin.
+  vi: Khám phá Gathering, hội nghị và sự kiện địa phương.
+  id: Temukan Gathering, konferensi & acara lokal.
   pl: Odkryj meetupy, konferencje i lokalne wydarzenia.
   nl: Ontdek meetups, conferenties en lokale evenementen.
   ar: اكتشف اللقاءات والمؤتمرات والفعاليات المحلية.
   hi: मीटअप, सम्मेलन और स्थानीय इवेंट खोजें।
-  th: ค้นพบ meetup การประชุม และกิจกรรมท้องถิ่น
+  th: ค้นพบ Gathering การประชุม และกิจกรรมท้องถิ่น
   cs: Objevujte meetupy, konference a místní události.
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: גלה מיטאפים, כנסים ואירועים מקומיים.
@@ -2103,15 +2103,15 @@ events.search.description:
   ru: Найдите митапы, конференции и события рядом.
   ja: 近くのミートアップ、カンファレンス、イベントを探す。
   ko: 근처 밋업, 컨퍼런스, 이벤트를 찾으세요.
-  it: Trova meetup, conferenze ed eventi locali.
-  tr: Yakınındaki meetup, konferans ve etkinlikleri bul.
-  vi: Tìm meetup, hội nghị và sự kiện địa phương.
-  id: Temukan meetup, konferensi, dan acara lokal.
+  it: Trova Gathering, conferenze ed eventi locali.
+  tr: Yakınındaki Gathering, konferans ve etkinlikleri bul.
+  vi: Tìm Gathering, hội nghị và sự kiện địa phương.
+  id: Temukan Gathering, konferensi, dan acara lokal.
   pl: Znajdź meetupy, konferencje i lokalne wydarzenia.
   nl: Vind meetups, conferenties en lokale evenementen.
   ar: اعثر على لقاءات ومؤتمرات وأحداث محلية.
   hi: स्थानीय मीटअप, कॉन्फ्रेंस और इवेंट खोजें।
-  th: ค้นหา meetup การประชุม และกิจกรรมใกล้ๆ
+  th: ค้นหา Gathering การประชุม และกิจกรรมใกล้ๆ
   cs: Najděte meetupy, konference a místní akce.
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.

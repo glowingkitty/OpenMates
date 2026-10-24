@@ -18,7 +18,7 @@ claims:
 
 ## What It Does
 
-**Search** finds job offers by role, countries and location. Germany searches include Bundesagentur für Arbeit and Arbeitnow; Sweden searches include the public employment service's JobTech API. 80,000 Hours and Hard Problems add meaningful and impact-focused jobs for both countries. You can compare several searches in one request and optionally filter by remote work, employment type or posting age.
+**Search** finds job offers by role, countries and location. Sweden searches use the public employment service's JobTech API. Germany search is currently unavailable. You can compare several searches in one request and optionally filter by remote work, employment type or posting age.
 
 Results include the employer, workplace, description and original listing link. Open a search result to browse its job cards, then open a card for the full listing and application link. Salary and remote status are shown only when the source supplies them. A hybrid-work mention does not establish that a job is fully remote.
 

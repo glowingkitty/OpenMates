@@ -278,7 +278,7 @@ function formatWorkflowEmbedPreviewLines(c: Record<string, unknown>, fallbackSho
  * and for skill embeds shown between user/assistant messages.
  *
  * Format:
- *   ┌─ [✓] events/search  · "AI"  via Meetup
+ *   ┌─ [✓] events/search  · "AI"  via Gathering
  *   │  + 10 events
  *   └─ openmates embeds show e37b83eb
  */
@@ -583,13 +583,13 @@ function trademarkLines(content: Record<string, unknown>, fullscreen = false): s
   const matches = rows(data.matches);
   const coverage = rows(data.coverage);
   const count = typeof data.result_count === 'number' ? data.result_count : matches.length;
-  const lines = [`Records: ${count} · ${text(data.provider) || 'USPTO'}`, 'Preliminary name search'];
+  const lines = [`Records: ${count} · ${text(data.provider) || ''}`, 'Preliminary name search'];
   const labels: Record<string, string> = { searched: 'Checked', partial: 'Partial', unsupported: 'Not searched', error: 'Search failed' };
   const source = (value: unknown): string | null => {
     try {
       const url = new URL(text(value));
       return url.protocol === 'https:' && !url.username && !url.password && (!url.port || url.port === '443')
-        && ['tsdr.uspto.gov', 'tmsearch.uspto.gov', 'www.tmdn.org', 'register.dpma.de', 'www.wipo.int'].includes(url.hostname) ? url.href : null;
+        && ['www.tmdn.org', 'register.dpma.de', 'www.wipo.int'].includes(url.hostname) ? url.href : null;
     } catch { return null; }
   };
   if (!fullscreen) {

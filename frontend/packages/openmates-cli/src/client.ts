@@ -13000,7 +13000,7 @@ export class OpenMatesClient {
   /**
    * Look up a booking URL for a flight using its booking_token.
    *
-   * Calls POST /v1/apps/travel/booking-link which resolves the SerpAPI
+   * Calls POST /v1/apps/travel/booking-link which resolves the stored provider
    * booking_token to a direct airline/OTA booking URL. Costs 25 credits.
    *
    * @see TravelConnectionEmbedFullscreen.svelte — handleLoadBookingLink()

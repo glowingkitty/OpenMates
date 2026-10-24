@@ -28,8 +28,6 @@ The retained Core16 `62549591a0` observation reached the first visible answer at
 
 The explicit safety marker reports 401 ms. Billing itself spans 452 ms; the wider table interval includes result normalization and preparation. Embed work spans 2.320 seconds, including 2.100 seconds for ten serial child embeds, followed by the parent. Eleven embeds perform three CMS recovery transactions each: 33 POSTs. Observed stage-boundary envelopes across those embeds total 162 ms through Vault encryption completion, 389 ms through fresh Project classification reads, 1.592 seconds through recovery-transaction completion, and 125 ms for remaining publication/boundary work. These envelopes are not exclusive CPU or network measurements.
 
-The providers already run concurrently. Within the 3.116-second tool-selection-to-completion interval, dispatch adds 37 ms and provider setup adds 52 ms. Luma reports 1.022 seconds, Meetup 1.567 seconds and Eventbrite 2.271 seconds. The fanout completes 2.289 seconds after routing; the remaining 738 ms contains filtering and finalist-detail hydration, including two Luma detail responses. Exact exclusive hydration time is unavailable. No separate ranking-model request is observed in this interval, but a dedicated ranking boundary was not logged. Calling the full 13.716 seconds "events search time" would therefore misattribute most of the delay.
-
 Potential improvements require a current-source measurement before their gains can be claimed:
 
 | Candidate | Reason and constraint | Expected benefit hypothesis |

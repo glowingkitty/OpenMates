@@ -13,8 +13,8 @@
 const sampleEvent = {
   embed_id: "preview-event-fullscreen-1",
   id: "evt-preview-1",
-  provider: "meetup",
-  title: "AI & Machine Learning Berlin Meetup – Spring Edition",
+  provider: "Gathering",
+  title: "AI & Machine Learning Berlin Gathering – Spring Edition",
   description:
     "Join us for an evening of talks on large language models, RAG architectures, " +
     "and deploying AI to production. Speakers from leading Berlin AI companies.\n\n" +
@@ -22,7 +22,7 @@ const sampleEvent = {
     "- 19:45 Talk 2: RAG Architectures\n- 20:30 Networking\n\n" +
     "This is a beginner-friendly event — no prior ML experience required. " +
     "Light refreshments will be provided. [Read the event guide](https://example.com/event-guide).",
-  url: "https://www.meetup.com/example-ai-berlin/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-03-15T19:00:00+01:00",
   date_end: "2026-03-15T22:00:00+01:00",
   timezone: "Europe/Berlin",
@@ -50,13 +50,13 @@ const sampleEvent = {
 const sampleOnlineEvent = {
   embed_id: "preview-event-fullscreen-online",
   id: "evt-preview-online",
-  provider: "meetup",
+  provider: "Gathering",
   title: "TypeScript Deep Dive: Advanced Patterns for Scalable Apps",
   description:
     "A live online session covering generic constraints, conditional types, " +
     "mapped types, and module augmentation.\n\n" +
     "Suitable for developers with 1+ year of TypeScript experience.",
-  url: "https://www.meetup.com/example-webdev-online/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-03-20T18:00:00Z",
   date_end: "2026-03-20T20:00:00Z",
   timezone: "UTC",
@@ -72,13 +72,13 @@ const sampleOnlineEvent = {
 const samplePaidEvent = {
   embed_id: "preview-event-fullscreen-paid",
   id: "evt-preview-paid",
-  provider: "meetup",
+  provider: "Gathering",
   title: "Product Management Summit – London 2026",
   description:
     "Two-day conference covering product strategy, user research, and growth tactics.\n\n" +
     "Day 1: Strategy & Research\nDay 2: Growth & Execution\n\n" +
     "Includes workshop sessions, keynote talks, and networking lunch.",
-  url: "https://www.meetup.com/example-pm-london/events/preview",
+  url: "https://example.com/fixture",
   date_start: "2026-04-05T09:00:00+01:00",
   date_end: "2026-04-06T17:00:00+01:00",
   timezone: "Europe/London",
@@ -130,7 +130,7 @@ export const variants = {
   },
   formattedHtml: {
     data: { decodedContent: { ...sampleEvent,
-      description: '<p>Join our <strong>Book Lovers Social meetup!</strong></p><p>Today’s speaker: <em>Matt Damon</em>.</p><ol><li>Read the <a href="https://example.com/reading">reading guide</a>.</li><li>Share your favourite chapter.</li></ol><p>Bring questions.<br>Everyone is welcome.</p><script>window.__eventDescriptionUnsafe = true</script><a href="javascript:alert(1)">Unsafe link</a><img src="/event-description-must-not-load.png" onerror="alert(1)">',
+      description: '<p>Join our <strong>Book Lovers Social Gathering!</strong></p><p>Today’s speaker: <em>Matt Damon</em>.</p><ol><li>Read the <a href="https://example.com/reading">reading guide</a>.</li><li>Share your favourite chapter.</li></ol><p>Bring questions.<br>Everyone is welcome.</p><script>window.__eventDescriptionUnsafe = true</script><a href="javascript:alert(1)">Unsafe link</a><img src="/event-description-must-not-load.png" onerror="alert(1)">',
     } }, onClose: () => {},
   },
   overnightTimezone: {

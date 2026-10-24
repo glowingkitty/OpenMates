@@ -72,6 +72,8 @@ async function expectAssistantInterpretation(page: any): Promise<void> {
 test.describe('App: Social Media / Skills: get-posts and search', () => {
 	test.setTimeout(360_000);
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.surface.semantic-parity
+
 	test('Web chat triggers social media search with post embeds', async ({ page }: { page: any }) => {
 		test.slow();
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -84,7 +86,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Search social media on Reddit for privacy. Use the Social Media Search skill and summarize what you find.',
+			'Search social media on Mastodon for privacy. Use the Social Media Search skill and summarize what you find.',
 			'social_media_search_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-search');
@@ -105,6 +107,8 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'social-media-search');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.surface.semantic-parity
+
 	test('Web chat triggers social media get-posts with post embeds', async ({ page }: { page: any }) => {
 		test.slow();
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -117,7 +121,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Use only the Social Media Get posts skill to fetch recent posts from the Reddit subreddit privacy. Platform reddit, page privacy, limit 10. Do not use web search. Then summarize the posts.',
+			'Use only the Social Media Get posts skill to fetch recent posts from @Mastodon@mastodon.social. Platform Mastodon, limit 10. Do not use web search. Then summarize the posts.',
 			'social_media_get_posts_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-get-posts');

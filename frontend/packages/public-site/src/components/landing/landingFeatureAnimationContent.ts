@@ -6,8 +6,8 @@ export const featureAnimationCopy = {
   "en": {
     "actionable_event_user_message": "Find music meetups in Amsterdam",
     "actionable_event_assistant_message": "Of course, here you go:",
-    "actionable_event_title": "Amsterdam Music Meetup",
-    "actionable_event_open_luma": "Open on Luma",
+    "actionable_event_title": "Amsterdam Music Gathering",
+    "actionable_event_open_provider": "Open on event website",
     "actionable_event_venue": "A gathering by the canal",
     "actionable_event_in_person": "In person",
     "actionable_event_rsvps": "RSVPs",
@@ -30,8 +30,8 @@ export const featureAnimationCopy = {
   "de": {
     "actionable_event_user_message": "Finde Musik-Meetups in Amsterdam",
     "actionable_event_assistant_message": "Natürlich, hier bitte:",
-    "actionable_event_title": "Amsterdam Musik-Meetup",
-    "actionable_event_open_luma": "Auf Luma öffnen",
+    "actionable_event_title": "Amsterdam Musik-Gathering",
+    "actionable_event_open_provider": "Auf event website öffnen",
     "actionable_event_venue": "Ein Treffen am Kanal",
     "actionable_event_in_person": "Vor Ort",
     "actionable_event_rsvps": "Zusagen",
@@ -57,7 +57,7 @@ export const actionableStages = [
   { id: "user-request", durationMs: 1800 },
   { id: "assistant-response", durationMs: 1800 },
   { id: "event-preview", durationMs: 2700 },
-  { id: "luma-cta", durationMs: 2200 },
+  { id: "provider-cta", durationMs: 2200 },
 ] as const;
 
 export const privacyStages = [

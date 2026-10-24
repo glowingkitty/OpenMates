@@ -4,14 +4,14 @@
   Fullscreen detail view for a single appointment slot.
   Uses the shared ResultEmbedFullscreen layout with a wide map and compact facts.
 
-  Shows map when gps_coordinates are available (Doctolib provides gpsPoint).
+  Shows map when gps_coordinates are available (the stored provider provides gpsPoint).
   Falls back to details-only layout when no coordinates.
 
   Shows:
   - Appointment slot datetime (prominent)
   - Doctor name, speciality, address
   - Telehealth/insurance badges
-  - "Book on Doctolib" CTA linking to the practice_url
+  - "Book on the stored provider" CTA linking to the practice_url
 
   See docs/architecture/embeds.md
 -->
@@ -63,7 +63,7 @@
     practice_url?: string;
     provider?: string;
     provider_platform?: string;
-    // Jameda-specific fields (null for Doctolib results)
+    // the stored provider-specific fields (null for the stored provider results)
     booking_url?: string;
     rating?: number;
     rating_count?: number;

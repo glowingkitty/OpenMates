@@ -873,27 +873,27 @@ message_2:
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1
-  en: Search for recent discussions about Mastodon 5.0 on Reddit
-  de: Suche nach aktuellen Diskussionen über Mastodon 5.0 auf Reddit
-  zh: 搜索 Reddit 上近期关于 Mastodon 5.0 的讨论
-  es: Busca discusiones recientes sobre Mastodon 5.0 en Reddit
-  fr: Recherche les discussions récentes sur Mastodon 5.0 sur Reddit
-  pt: Pesquisar discussões recentes sobre o Mastodon 5.0 no Reddit
-  ru: Найти недавние обсуждения Mastodon 5.0 на Reddit
-  ja: RedditでMastodon 5.0に関する最近の議論を検索する
-  ko: Reddit에서 Mastodon 5.0에 관한 최근 토론 검색하기
-  it: Cerca discussioni recenti su Mastodon 5.0 su Reddit
-  tr: Reddit'te Mastodon 5.0 hakkındaki güncel tartışmaları ara
-  vi: Tìm kiếm các thảo luận gần đây về Mastodon 5.0 trên Reddit
-  id: Cari diskusi terbaru tentang Mastodon 5.0 di Reddit
+  en: Search for recent discussions about Mastodon 5.0 on ExampleCommunity
+  de: Suche nach aktuellen Diskussionen über Mastodon 5.0 auf ExampleCommunity
+  zh: 搜索 ExampleCommunity 上近期关于 Mastodon 5.0 的讨论
+  es: Busca discusiones recientes sobre Mastodon 5.0 en ExampleCommunity
+  fr: Recherche les discussions récentes sur Mastodon 5.0 sur ExampleCommunity
+  pt: Pesquisar discussões recentes sobre o Mastodon 5.0 no ExampleCommunity
+  ru: Найти недавние обсуждения Mastodon 5.0 на ExampleCommunity
+  ja: ExampleCommunityでMastodon 5.0に関する最近の議論を検索する
+  ko: ExampleCommunity에서 Mastodon 5.0에 관한 최근 토론 검색하기
+  it: Cerca discussioni recenti su Mastodon 5.0 su ExampleCommunity
+  tr: ExampleCommunity'te Mastodon 5.0 hakkındaki güncel tartışmaları ara
+  vi: Tìm kiếm các thảo luận gần đây về Mastodon 5.0 trên ExampleCommunity
+  id: Cari diskusi terbaru tentang Mastodon 5.0 di ExampleCommunity
   pl: Wyszukaj najnowsze dyskusje o Mastodon 5.0 na Reddicie
-  nl: Zoek naar recente discussies over Mastodon 5.0 op Reddit
-  ar: ابحث عن مناقشات حديثة حول Mastodon 5.0 على Reddit
-  hi: Reddit पर Mastodon 5.0 के बारे में हालिया चर्चाएं खोजें
-  th: ค้นหาการสนทนาล่าสุดเกี่ยวกับ Mastodon 5.0 บน Reddit
-  cs: Vyhledej nedávné diskuze o Mastodonu 5.0 na Redditu
-  sv: Sök efter nyligen förda diskussioner om Mastodon 5.0 på Reddit
-  he: חיפוש דיונים אחרונים על Mastodon 5.0 ב-Reddit
+  nl: Zoek naar recente discussies over Mastodon 5.0 op ExampleCommunity
+  ar: ابحث عن مناقشات حديثة حول Mastodon 5.0 على ExampleCommunity
+  hi: ExampleCommunity पर Mastodon 5.0 के बारे में हालिया चर्चाएं खोजें
+  th: ค้นหาการสนทนาล่าสุดเกี่ยวกับ Mastodon 5.0 บน ExampleCommunity
+  cs: Vyhledej nedávné diskuze o Mastodonu 5.0 na ExampleCommunityu
+  sv: Sök efter nyligen förda diskussioner om Mastodon 5.0 på ExampleCommunity
+  he: חיפוש דיונים אחרונים על Mastodon 5.0 ב-ExampleCommunity
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2

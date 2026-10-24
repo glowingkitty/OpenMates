@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Compare Firecrawl and Brave search results on a fixed query set.
+Inspect Brave search results on a fixed query set.
 
 This is an exploratory provider-quality harness, not a product benchmark command.
 It reads provider keys from Vault when run inside the API container, or from
@@ -22,10 +22,9 @@ import httpx
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.brave.brave_search import _get_brave_api_key_candidates
-from backend.shared.providers.firecrawl.firecrawl_scrape import _get_firecrawl_api_key
 
 
-Provider = Literal["firecrawl", "brave"]
+Provider = Literal["brave"]
 
 DEFAULT_QUERIES: list[dict[str, str]] = [
     {"id": "factual-regulatory", "kind": "web", "query": "EU AI Act enforcement timeline 2026 GPAI obligations August 2026"},
@@ -42,7 +41,6 @@ DEFAULT_QUERIES: list[dict[str, str]] = [
 
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 BRAVE_NEWS_URL = "https://api.search.brave.com/res/v1/news/search"
-FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search"
 
 
 @dataclass
@@ -86,75 +84,6 @@ async def _get_secrets_manager() -> SecretsManager:
     return secrets_manager
 
 
-async def _search_firecrawl(
-    client: httpx.AsyncClient,
-    api_key: str,
-    query_item: dict[str, str],
-    limit: int,
-) -> SearchComparisonResult:
-    started = time.perf_counter()
-    kind = query_item["kind"]
-    query = query_item["query"]
-    payload: dict[str, Any] = {
-        "query": query,
-        "limit": limit,
-        "sources": [{"type": kind}],
-        "highlights": True,
-    }
-
-    try:
-        response = await client.post(
-            FIRECRAWL_SEARCH_URL,
-            json=payload,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        )
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        response.raise_for_status()
-        data = response.json()
-        results = data.get("data", {}).get(kind, []) or []
-        top_results = []
-        for result in results[:3]:
-            excerpt = result.get("description") if kind == "web" else result.get("snippet")
-            compact_excerpt = _compact_text(excerpt)
-            top_results.append(
-                {
-                    "title": result.get("title"),
-                    "url": result.get("url"),
-                    "date": result.get("date"),
-                    "excerpt": compact_excerpt,
-                    "excerpt_chars": len(compact_excerpt),
-                    "term_overlap": _term_overlap_score(query, compact_excerpt),
-                    "position": result.get("position"),
-                }
-            )
-        credits_used = data.get("creditsUsed")
-        return SearchComparisonResult(
-            provider="firecrawl",
-            query_id=query_item["id"],
-            kind=kind,
-            query=query,
-            ok=True,
-            latency_ms=latency_ms,
-            result_count=len(results),
-            estimated_provider_cost_usd=None,
-            provider_credits_used=credits_used if isinstance(credits_used, int) else None,
-            top_results=top_results,
-        )
-    except Exception as exc:  # noqa: BLE001 - exploratory script should capture all provider failures.
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        return SearchComparisonResult(
-            provider="firecrawl",
-            query_id=query_item["id"],
-            kind=kind,
-            query=query,
-            ok=False,
-            latency_ms=latency_ms,
-            result_count=0,
-            estimated_provider_cost_usd=None,
-            provider_credits_used=None,
-            top_results=[],
-            error=str(exc),
-        )
 
 
 async def _search_brave(
@@ -248,14 +177,12 @@ async def _search_brave(
 
 async def run(args: argparse.Namespace) -> dict[str, Any]:
     providers: list[Provider]
-    if args.provider == "both":
-        providers = ["firecrawl", "brave"]
-    else:
-        providers = [args.provider]
+    if args.provider != "brave":
+        raise ValueError("No supported search comparison source is configured for this provider.")
+    providers = ["brave"]
 
     secrets_manager = await _get_secrets_manager()
     try:
-        firecrawl_key = await _get_firecrawl_api_key(secrets_manager) if "firecrawl" in providers else None
         brave_keys = await _get_brave_api_key_candidates(secrets_manager) if "brave" in providers else []
     finally:
         close = getattr(secrets_manager, "close", None)
@@ -269,25 +196,6 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     results: list[SearchComparisonResult] = []
     async with httpx.AsyncClient(timeout=timeout) as client:
         for query_item in queries:
-            if "firecrawl" in providers:
-                if firecrawl_key:
-                    results.append(await _search_firecrawl(client, firecrawl_key, query_item, args.limit))
-                else:
-                    results.append(
-                        SearchComparisonResult(
-                            provider="firecrawl",
-                            query_id=query_item["id"],
-                            kind=query_item["kind"],
-                            query=query_item["query"],
-                            ok=False,
-                            latency_ms=0,
-                            result_count=0,
-                            estimated_provider_cost_usd=None,
-                            provider_credits_used=None,
-                            top_results=[],
-                            error="Firecrawl API key not configured",
-                        )
-                    )
             if "brave" in providers:
                 if brave_keys:
                     results.append(await _search_brave(client, brave_keys, query_item, args.limit))
@@ -329,15 +237,14 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         "results": [asdict(result) for result in results],
         "notes": [
             "Brave cost estimate uses public Search pricing: $5 per 1,000 successful requests.",
-            "Firecrawl search provider credits are reported from API creditsUsed when available; Search is billed at 2 credits per 10 results before optional scraping.",
             "term_overlap is a crude lexical heuristic for triage, not a final quality score.",
         ],
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare Firecrawl and Brave search provider output on fixed queries.")
-    parser.add_argument("--provider", choices=["both", "firecrawl", "brave"], default="both")
+    parser = argparse.ArgumentParser(description="Inspect supported search provider output on fixed queries.")
+    parser.add_argument("--provider", choices=["brave"], default="brave")
     parser.add_argument("--query-count", type=int, default=10, choices=range(1, len(DEFAULT_QUERIES) + 1))
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=30.0)

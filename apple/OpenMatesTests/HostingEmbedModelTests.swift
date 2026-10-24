@@ -126,10 +126,10 @@ final class HostingEmbedModelTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=hosting-domains.results.partial-and-safe,hosting-domains.embeds.parent-child
-    func testGandiCTARequiresExactHTTPSOriginAndWireAliasesHaveNativeRegistration() {
-        XCTAssertNotNil(HostingDomainModel.safeGandiURL("https://shop.gandi.net/en/domain/suggest?search=cedar.test"))
-        for value in ["http://shop.gandi.net/", "javascript:alert(1)", "https://shop.gandi.net.evil.test/", "https://evil.test/shop.gandi.net", "https://shop.gandi.net@evil.test/"] {
-            XCTAssertNil(HostingDomainModel.safeGandiURL(value))
+    func testProviderCTARequiresHTTPSWithoutCredentialsAndWireAliasesHaveNativeRegistration() {
+        XCTAssertNotNil(HostingDomainModel.safeProviderURL("https://example.com/fixture"))
+        for value in ["http://example.com/domain", "javascript:alert(1)", "https://user:password@example.com/domain", "not a URL", "https:domain"] {
+            XCTAssertNil(HostingDomainModel.safeProviderURL(value))
         }
         XCTAssertEqual(AppleComposerRendererRegistry.shared.descriptor(for: "hosting-domain")?.family, .hostingDomain)
         XCTAssertEqual(AppleComposerRendererRegistry.shared.descriptor(for: "hosting-domain-group")?.family, .group(childType: "hosting-domain"))

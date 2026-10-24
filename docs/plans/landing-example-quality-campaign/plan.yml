@@ -933,10 +933,6 @@ tasks:
   title: Remove rejected examples and integrate approved landing set
   status: in_progress
   kind: shared_fix
-  acceptance: Own registry/slide mapping/deletions/get-docs metadata. Remove urban sports, dermatology, PDF encryption,
-    product-launch mindmap, old career, get-docs, bad video examples as instructed; remove missing learning ID.
-    Preserve acceptable local-AI compression and Svelte examples outside landing. Disable get-docs using sparse
-    default_enabled false, absent in settings. Coordinate replacements; registry writes only after candidates approved.
   owner: null
   key: fix-catalog
   phase: working_tasks

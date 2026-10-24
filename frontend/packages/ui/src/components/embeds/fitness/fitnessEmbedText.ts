@@ -1,5 +1,5 @@
 /**
- * Text-only renderers for Fitness Urban Sports search embeds.
+ * Text-only renderers for Fitness fitness source search embeds.
  * Used by copy-to-clipboard, markdown export, and CLI rendering.
  */
 

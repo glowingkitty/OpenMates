@@ -4731,18 +4731,17 @@ async def _validate_paragraph_urls(
     Collects broken URLs in the provided list (thread-safe append).
     This runs asynchronously and doesn't block streaming.
     
-    Uses Webshare proxy and random user agents for anti-detection if secrets_manager
-    is provided. This helps avoid datacenter IP blocking by websites.
+    Uses direct HTTP validation without residential proxy retries.
     
     Args:
         paragraph: The paragraph text to validate
         task_id: Task ID for logging
         broken_urls_collector: List to collect broken URLs (will be appended to)
         log_prefix: Log prefix for consistent logging
-        secrets_manager: Optional SecretsManager for Webshare proxy credentials
+        secrets_manager: Compatibility context for URL validation
     """
     try:
-        # Validate URLs in this paragraph using proxy and random user agents
+        # Validate URLs in this paragraph using direct HTTP requests
         validation_results = await validate_urls_in_paragraph(
             paragraph, task_id, secrets_manager=secrets_manager
         )
@@ -9895,7 +9894,7 @@ async def _consume_main_processing_stream(
                             # Start background task to validate URLs in this paragraph
                             # This runs asynchronously and doesn't block streaming
                             # Broken URLs will be collected and processed after streaming completes
-                            # Uses Webshare proxy and random user agents for anti-detection
+                            # Uses direct HTTP URL validation
                             validation_task = asyncio.create_task(
                                 _validate_paragraph_urls(
                                     paragraph=chunk,

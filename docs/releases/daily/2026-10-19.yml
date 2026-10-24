@@ -5,7 +5,6 @@ generated_at: '2026-10-20T00:20:34+00:00'
 range:
   since: '2026-10-19T00:00:00+00:00'
   until: '2026-10-20T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -207,8 +183,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -223,15 +197,11 @@ sections:
     authored_at: '2026-10-19T13:21:47+00:00'
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
-    - backend/apps/ai/testing/api_cache/shopping_images_web/rewe/d3b67e02aea54956.json
     - backend/apps/ai/testing/caching_llm_wrapper.py
     - backend/apps/ai/testing/shopping_images_fixture.py
     - backend/apps/ai/utils/app_skill_result_groups.py
     - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/amazon_provider.py
     - backend/apps/shopping/providers/product_images.py
-    - backend/apps/shopping/providers/rewe_provider.py
-    - backend/apps/shopping/providers/stoffe_provider.py
     - backend/apps/shopping/skills/search_products.py
     - backend/apps/shopping/visual_ranking.py
     - backend/core/api/app/routes/apps_api.py
@@ -242,10 +212,8 @@ sections:
     - backend/shared/testing/mock_context.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_native_cache_mock_transport.py
-    - backend/tests/test_shopping_amazon_provider.py
     - backend/tests/test_shopping_images_fixture.py
     - backend/tests/test_shopping_product_images.py
-    - backend/tests/test_shopping_stoffe_provider.py
     - backend/tests/test_shopping_visual_metadata.py
     - backend/tests/test_shopping_visual_ranking.py
     - docs/apis/typesafe-subq-data-handling-assessment.md
@@ -278,28 +246,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     feature_metadata_changed: true
@@ -417,28 +379,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:ai:decide
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
@@ -557,8 +513,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -614,8 +568,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -647,28 +599,22 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     feature_metadata_changed: false
@@ -719,21 +665,16 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     feature_metadata_changed: true
@@ -770,8 +711,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: true
     rationale:
@@ -817,15 +756,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     feature_metadata_changed: true
     rationale:
@@ -932,21 +867,16 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -990,8 +920,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: restore Project commits and ordered offline draft acknowledgements'
     commits:
@@ -1004,8 +932,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: preserve Gemini cloud defaults for image chats'
     commits:
@@ -1018,28 +944,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
   - title: 'feat: generate voice-call chat titles and summaries'
@@ -1053,8 +973,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: show shopping galleries and ground visual match explanations'
     commits:
@@ -1067,21 +985,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
   - title: 'fix: reuse shopping image references across turns'
@@ -1095,8 +1008,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: match shopping products against reference images'
     commits:
@@ -1109,28 +1020,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
   - title: 'fix: coalesce chat admissions and repair completion recovery'
@@ -1144,15 +1049,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
   - title: 'fix: simplify guest requests and color developer examples'
     commits:
@@ -1186,28 +1087,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:ai:decide
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'fix: restore queued chat and workflow processing after release'
@@ -1221,21 +1116,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   unknown_release_status: []
@@ -1251,8 +1141,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: show shopping galleries and ground visual match explanations'
     commits:
@@ -1265,21 +1153,16 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
   - title: 'fix: reuse shopping image references across turns'
@@ -1293,8 +1176,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: match shopping products against reference images'
     commits:
@@ -1307,28 +1188,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
   - title: 'fix: coalesce chat admissions and repair completion recovery'
@@ -1342,15 +1217,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
   - title: 'feat: add free anonymous AI decisions and SDK access'
     commits:
@@ -1363,28 +1234,22 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:ai:decide
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
 marketing_candidates:
@@ -1401,8 +1266,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: restore Project commits and ordered offline draft acknowledgements'
@@ -1416,8 +1279,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: preserve Gemini cloud defaults for image chats'
@@ -1431,28 +1292,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     newsletter_ready: false
@@ -1467,8 +1322,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: show shopping galleries and ground visual match explanations'
@@ -1482,21 +1335,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     newsletter_ready: false
@@ -1511,8 +1359,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'feat: match shopping products against reference images'
@@ -1526,28 +1372,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:shopping:search_products
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     - id: skill:shopping:search_products
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:shopping
       source: backend/apps/shopping/app.yml
     newsletter_ready: false
@@ -1562,15 +1402,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:web
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/web/app.yml
     newsletter_ready: false
   - title: 'fix: simplify guest requests and color developer examples'
@@ -1600,28 +1436,22 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     - id: skill:ai:decide
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -1636,21 +1466,16 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -1934,15 +1759,11 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
-    - backend/apps/ai/testing/api_cache/shopping_images_web/rewe/d3b67e02aea54956.json
     - backend/apps/ai/testing/caching_llm_wrapper.py
     - backend/apps/ai/testing/shopping_images_fixture.py
     - backend/apps/ai/utils/app_skill_result_groups.py
     - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/amazon_provider.py
     - backend/apps/shopping/providers/product_images.py
-    - backend/apps/shopping/providers/rewe_provider.py
-    - backend/apps/shopping/providers/stoffe_provider.py
     - backend/apps/shopping/skills/search_products.py
     - backend/apps/shopping/visual_ranking.py
     - backend/core/api/app/routes/apps_api.py
@@ -1953,10 +1774,8 @@ sources:
     - backend/shared/testing/mock_context.py
     - backend/tests/test_apps_api.py
     - backend/tests/test_native_cache_mock_transport.py
-    - backend/tests/test_shopping_amazon_provider.py
     - backend/tests/test_shopping_images_fixture.py
     - backend/tests/test_shopping_product_images.py
-    - backend/tests/test_shopping_stoffe_provider.py
     - backend/tests/test_shopping_visual_metadata.py
     - backend/tests/test_shopping_visual_ranking.py
     - docs/apis/typesafe-subq-data-handling-assessment.md

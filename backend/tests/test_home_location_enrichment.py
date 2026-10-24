@@ -83,7 +83,8 @@ async def test_ambiguous_address_uses_city_fallback_without_precise_distances(pr
     provider.search_places.assert_not_awaited()
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.neighborhood.sourced-facts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_requested_categories_only_with_freshness_and_partial_empty_coverage(provider):
     items = [listing()]
     await run(items, {"relevance_criteria": "Near a park, groceries and public transport"})
@@ -96,7 +97,7 @@ async def test_requested_categories_only_with_freshness_and_partial_empty_covera
     assert provider.search_places.await_count == 3
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.water.distance-and-access
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_polygon_shoreline_is_measured_not_water_centroid(provider):
     feature = point(lon=13.45, categories=["natural.water"])
     feature["geometry"] = {"type": "Polygon", "coordinates": [[[13.401, 52.519], [13.5, 52.519], [13.5, 52.521], [13.401, 52.521], [13.401, 52.519]]]}
@@ -111,7 +112,7 @@ async def test_polygon_shoreline_is_measured_not_water_centroid(provider):
     provider.walking_route.assert_not_awaited()
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.water.distance-and-access
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_water_representative_point_and_street_location_never_imply_shoreline(provider):
     provider.search_places.return_value = GeoapifyPlacesSearchResult(status="ok", places=[point()])
     items = [listing(), listing(location_precision="street")]
@@ -124,7 +125,7 @@ async def test_water_representative_point_and_street_location_never_imply_shorel
     assert street["distance_method"] == "unknown"
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.water.distance-and-access
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_only_explicit_public_pier_geometry_allows_provider_walking_route(provider):
     pier = point(datasource={"raw": {"man_made": "pier", "access": "public"}})
     pier["geometry"] = {"type": "LineString", "coordinates": [[13.401, 52.52], [13.402, 52.52]]}
@@ -143,7 +144,8 @@ async def test_only_explicit_public_pier_geometry_allows_provider_walking_route(
     assert home._public_waterfront_target(pier, (52.52, 13.4)) is None
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.neighborhood.sourced-facts
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_quota_exhaustion_preserves_listings_and_unknown_coverage(provider):
     provider.search_places.return_value = GeoapifyPlacesSearchResult(status="quota_exhausted")
     items = [listing(title="Useful apartment")]
@@ -153,7 +155,8 @@ async def test_quota_exhaustion_preserves_listings_and_unknown_coverage(provider
     assert any("quota_exhausted" in warning for warning in warnings)
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_call_candidate_and_concurrency_limits(provider, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_CANDIDATES", 4)
     monkeypatch.setattr(home, "MAX_LOCATION_REQUESTS", 5)
@@ -176,7 +179,8 @@ async def test_call_candidate_and_concurrency_limits(provider, monkeypatch):
     assert any("candidate limit" in warning for warning in warnings)
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_total_timeout_cancels_work_and_exposes_partial_coverage(provider, monkeypatch):
     monkeypatch.setattr(home, "LOCATION_TIMEOUT_SECONDS", 0.01)
 
@@ -191,7 +195,8 @@ async def test_total_timeout_cancels_work_and_exposes_partial_coverage(provider,
     assert all(item["neighborhood"]["coverage"]["water"]["status"] == "timed_out" for item in items)
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_address_provider_uses_shared_budget_hashed_cache_and_actual_result_types(monkeypatch):
     cache = type("Cache", (), {})()
     values = {}
@@ -220,7 +225,8 @@ async def test_address_provider_uses_shared_budget_hashed_cache_and_actual_resul
     assert transport.await_count == 1
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.water.distance-and-access
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_route_provider_is_metered_cached_and_uses_walking_mode(monkeypatch):
     values = {}
     cache = type("Cache", (), {})()
@@ -257,7 +263,7 @@ async def test_building_result_with_street_match_is_not_apartment_precision(prov
     assert items[0]["location"]["approximate"] is True
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.water.distance-and-access
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_pier_polygon_is_not_water_shoreline(provider):
     feature = point(categories=["man_made.pier"])
     feature["geometry"] = {"type": "Polygon", "coordinates": [[[13.401, 52.519], [13.402, 52.519], [13.402, 52.521], [13.401, 52.519]]]}
@@ -271,7 +277,7 @@ async def test_pier_polygon_is_not_water_shoreline(provider):
 async def test_provider_initialized_unknown_default_does_not_prevent_exact_address_geocode(provider):
     from backend.shared.providers.housing.details import defaults, location
 
-    item = defaults({"provider": "ImmoScout24", "address": "Example Street 123, Berlin"})
+    item = defaults({"provider": "Example source", "address": "Example Street 123, Berlin"})
     location(item, {"street": "Example Street", "houseNumber": "123", "city": "Berlin"})
     # Older normalized records used True for an unknown point. This is not an
     # explicit provider declaration and has neither coordinates nor a source.
@@ -291,13 +297,13 @@ async def test_provider_initialized_unknown_default_does_not_prevent_exact_addre
 @pytest.mark.parametrize("declaration", [
     {"location_approximation_declared": True},
     {"approximate": True},
-    {"location_source": "ImmoScout24", "location_approximate": True},
-    {"location": {"approximate": True, "source": "ImmoScout24"}},
+    {"location_source": "Example source", "location_approximate": True},
+    {"location": {"approximate": True, "source": "Example source"}},
 ])
 async def test_intentionally_approximate_full_address_stays_approximate(provider, declaration):
     from backend.shared.providers.housing.details import defaults
 
-    item = defaults({"provider": "ImmoScout24", "address": "Example Street 123, Berlin", **declaration})
+    item = defaults({"provider": "Example source", "address": "Example Street 123, Berlin", **declaration})
     provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
         status="ok", places=[point(result_type="building", rank={"confidence": 1, "match_type": "full_match"})],
     )
@@ -317,7 +323,7 @@ async def test_provider_point_root_source_matches_normalized_location(provider):
 async def test_raw_provider_approximate_declaration_without_coordinates_survives_geocode(provider):
     from backend.shared.providers.housing.details import defaults, location
 
-    item = defaults({"provider": "ImmoScout24", "address": "Example Street 123, Berlin"})
+    item = defaults({"provider": "Example source", "address": "Example Street 123, Berlin"})
     location(item, {"street": "Example Street", "houseNumber": "123", "city": "Berlin", "approximate": True})
     assert item["latitude"] is None
     assert item["location_approximation_declared"] is True
@@ -333,7 +339,7 @@ async def test_raw_provider_approximate_declaration_without_coordinates_survives
 async def test_known_city_fallback_does_not_block_source_grounded_street_geocoding(provider):
     item = listing(address="Witzlebenstraße, 14057, Charlottenburg", location_precision="street",
                    longitude=13.405, location_approximate=True, location_source="city_lookup",
-                   location={"status": "candidate_limit", "precision": "street", "source": "WG-Gesucht", "method": "unknown"})
+                   location={"status": "candidate_limit", "precision": "street", "source": "Example source", "method": "unknown"})
     provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
         status="ok", places=[point(lon=13.29, lat=52.51, result_type="street", rank={"confidence": 0.99, "match_type": "match_by_street"})],
     )
@@ -349,10 +355,10 @@ async def test_known_city_fallback_does_not_block_source_grounded_street_geocodi
 async def test_city_fallback_outside_candidate_budget_keeps_city_provenance(provider, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_CANDIDATES", 0)
     item = listing(location_precision="street", location_source="city_lookup", location_approximate=True,
-                   location={"precision": "street", "source": "WG-Gesucht", "method": "unknown"})
+                   location={"precision": "street", "source": "Example source", "method": "unknown"})
     await run([item], {"neighborhood_categories": ["water"]})
     assert item["location_precision"] == item["location"]["precision"] == "city"
-    assert item["location_source"] == item["location"]["source"] != "WG-Gesucht"
+    assert item["location_source"] == item["location"]["source"] != "Example source"
     assert item["location"]["method"] == "city_fallback"
     assert item["location"]["approximate"] is True
     provider.geocode_address.assert_not_awaited()
@@ -361,15 +367,16 @@ async def test_city_fallback_outside_candidate_budget_keeps_city_provenance(prov
 
 # contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_real_provider_point_at_city_center_is_never_guessed_to_be_fallback(provider):
-    item = listing(longitude=13.405, location_precision="district", location_approximate=True, location_source="WG-Gesucht")
+    item = listing(longitude=13.405, location_precision="district", location_approximate=True, location_source="Example source")
     await run([item])
     assert item["longitude"] == 13.405
-    assert item["location_source"] == "WG-Gesucht"
+    assert item["location_source"] == "Example source"
     assert item["location_precision"] == "district"
     provider.geocode_address.assert_not_awaited()
 
 
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_coordinates_use_finite_budget_before_optional_category_calls(provider, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_REQUESTS", 3)
     async def matched_address(query):

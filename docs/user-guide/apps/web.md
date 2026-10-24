@@ -14,16 +14,16 @@ claims:
 
 # Web
 
-> Search the web for current information and read the full content of any website.
+> Search the web for current information.
 
 ## What It Does
 
-The Web app gives your digital team mates the ability to search the internet and read web pages. It is the go-to app for finding up-to-date information like prices, weather, sports scores, stock prices, and general facts.
+The Web app gives your digital team mates the ability to search the internet. It is the go-to app for finding up-to-date information like prices, weather, sports scores, stock prices, and general facts.
 
 **Available skills:**
 
 - **Search** -- Runs a web search and shows results with titles, descriptions, and links. You can search for multiple topics at once (up to 5 in parallel).
-- **Read** -- Opens a web page and reads its full text content so your mate can summarise it, answer questions about it, or extract key points.
+Page reading is currently unavailable. Search results include links you can open directly.
 
 **Focus mode (in development):**
 
@@ -32,7 +32,6 @@ The Web app gives your digital team mates the ability to search the internet and
 ## How to Use It
 
 - Ask any question about current information: "What is the weather in Berlin?"
-- Paste a link and ask your mate to read it: "Summarise this article: https://example.com/article"
 - Compare multiple things: "Compare the prices of the iPhone 16 and Galaxy S25"
 - Your mate will automatically choose web search when it needs up-to-date information.
 

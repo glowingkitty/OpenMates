@@ -7,7 +7,7 @@ export function searchResultMapMarkers<T extends { embed_id: string }>(results: 
   for (const result of results) {
     if (markers.length >= 60) break;
     const record = result as Record<string, unknown>;
-    const home = options.home || ['ImmoScout24', 'Kleinanzeigen', 'WG-Gesucht'].includes(String(record.provider));
+    const home = options.home || record.type === 'home_listing' || 'location_precision' in record;
     const title = typeof record.title === 'string' ? record.title : typeof record.name === 'string' ? record.name : undefined;
     if (home) {
       const geometry = homeMapGeometry(record);

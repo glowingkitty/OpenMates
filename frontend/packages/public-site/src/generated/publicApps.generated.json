@@ -1,29 +1,5 @@
 [
   {
-    "id": "events",
-    "iconUrl": "/icons/event.svg",
-    "gradient": "var(--color-app-events)",
-    "capability": {
-      "type": "skill",
-      "id": "search"
-    },
-    "exampleChatId": "example-ai-workshops-meetups-berlin",
-    "promptEn": "Find events",
-    "promptDe": "Finde Veranstaltungen"
-  },
-  {
-    "id": "travel",
-    "iconUrl": "/icons/travel.svg",
-    "gradient": "var(--color-app-travel)",
-    "capability": {
-      "type": "skill",
-      "id": "search_connections"
-    },
-    "exampleChatId": "example-deutschlandticket-train-fare-breakdown",
-    "promptEn": "Find train connections",
-    "promptDe": "Finde Zugverbindungen"
-  },
-  {
     "id": "code",
     "iconUrl": "/icons/coding.svg",
     "gradient": "var(--color-app-code)",
@@ -34,30 +10,6 @@
     "exampleChatId": "example-habit-garden-web-application",
     "promptEn": "Create a web app",
     "promptDe": "Erstelle eine Web-App"
-  },
-  {
-    "id": "home",
-    "iconUrl": "/icons/home.svg",
-    "gradient": "var(--color-app-home)",
-    "capability": {
-      "type": "skill",
-      "id": "search"
-    },
-    "exampleChatId": "example-furnished-apartments-berlin",
-    "promptEn": "Find apartments",
-    "promptDe": "Finde Wohnungen"
-  },
-  {
-    "id": "health",
-    "iconUrl": "/icons/heart.svg",
-    "gradient": "var(--color-app-health)",
-    "capability": {
-      "type": "skill",
-      "id": "search_appointments"
-    },
-    "exampleChatId": "example-berlin-english-speaking-gp",
-    "promptEn": "Find doctor appointments",
-    "promptDe": "Finde Arzttermine"
   },
   {
     "id": "social_media",
@@ -84,18 +36,6 @@
     "promptDe": "Entwirf eine E-Mail"
   },
   {
-    "id": "jobs",
-    "iconUrl": "/icons/jobs.svg",
-    "gradient": "var(--color-app-jobs)",
-    "capability": {
-      "type": "skill",
-      "id": "search"
-    },
-    "exampleChatId": "example-jobs-in-germany",
-    "promptEn": "Find jobs in Germany",
-    "promptDe": "Finde Jobs in Deutschland"
-  },
-  {
     "id": "web",
     "iconUrl": "/icons/web.svg",
     "gradient": "var(--color-app-web)",
@@ -118,18 +58,6 @@
     "exampleChatId": "example-berlin-weather-bike-commute",
     "promptEn": "Check the weather",
     "promptDe": "Prüfe das Wetter"
-  },
-  {
-    "id": "shopping",
-    "iconUrl": "/icons/shopping.svg",
-    "gradient": "var(--color-app-shopping)",
-    "capability": {
-      "type": "skill",
-      "id": "search_products"
-    },
-    "exampleChatId": "example-air-fryers-amazon-germany",
-    "promptEn": "Find products online",
-    "promptDe": "Finde Produkte online"
   },
   {
     "id": "nutrition",
@@ -216,18 +144,6 @@
     "promptDe": "Erstelle einen Sound"
   },
   {
-    "id": "videos",
-    "iconUrl": "/icons/videos.svg",
-    "gradient": "var(--color-app-videos)",
-    "capability": {
-      "type": "skill",
-      "id": "get_transcript"
-    },
-    "exampleChatId": "example-ted-talk-transcript-summary",
-    "promptEn": "Summarize this video",
-    "promptDe": "Fasse dieses Video zusammen"
-  },
-  {
     "id": "books",
     "iconUrl": "/icons/book.svg",
     "gradient": "var(--color-app-books)",
@@ -262,42 +178,6 @@
     "exampleChatId": "example-dashboard-sidebar-svg-icons",
     "promptEn": "Find icons",
     "promptDe": "Finde Icons"
-  },
-  {
-    "id": "electronics",
-    "iconUrl": "/icons/pcbdesign.svg",
-    "gradient": "var(--color-app-electronics)",
-    "capability": {
-      "type": "skill",
-      "id": "search_components"
-    },
-    "exampleChatId": "example-buck-converters-24v-5v",
-    "promptEn": "Find electronic components",
-    "promptDe": "Finde elektronische Bauteile"
-  },
-  {
-    "id": "hosting",
-    "iconUrl": "/icons/server.svg",
-    "gradient": "var(--color-app-hosting)",
-    "capability": {
-      "type": "skill",
-      "id": "search_domains"
-    },
-    "exampleChatId": "example-social-app-name-domain",
-    "promptEn": "Find available domains",
-    "promptDe": "Finde verfügbare Domains"
-  },
-  {
-    "id": "models3d",
-    "iconUrl": "/icons/3dmodels.svg",
-    "gradient": "var(--color-app-models3d)",
-    "capability": {
-      "type": "skill",
-      "id": "search"
-    },
-    "exampleChatId": "example-printable-benchy-phone-stand",
-    "promptEn": "Find 3D models",
-    "promptDe": "Finde 3D-Modelle"
   },
   {
     "id": "music",

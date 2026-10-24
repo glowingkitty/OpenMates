@@ -46,7 +46,7 @@ for (const [viewport, size] of [
 		const parent = parents.first();
 		await parent.scrollIntoViewIfNeeded();
 		await expect(parent.locator('[data-app-icon="hosting"]').first()).toBeVisible();
-		await expect(parent).toContainText('Gandi');
+		await expect(parent).toContainText('ExampleRegistrar');
 		await expect(parent.getByTestId('embed-status-value')).toHaveCount(0);
 		await testInfo.attach(`hosting-example-${viewport}-preview`, {
 			body: await parent.screenshot(),
@@ -83,9 +83,9 @@ for (const [viewport, size] of [
 		await expect(detail.getByTestId('hosting-domain-back')).toHaveCount(0);
 		await expect(detail.getByRole('button', { name: /back to results/i })).toHaveCount(0);
 		await expect(detail.getByTestId('hosting-domain-ascii')).toHaveText(/\.[a-z]+$/);
-		await expect(detail.getByRole('link', { name: /Gandi/ })).toHaveAttribute(
+		await expect(detail.getByRole('link', { name: /ExampleRegistrar/ })).toHaveAttribute(
 			'href',
-			/^https:\/\/shop\.gandi\.net\//
+			/^https:\/\/shop\.ExampleRegistrar\.net\//
 		);
 		const bounds = await detail.getByTestId('hosting-domain-details').boundingBox();
 		expect(bounds).toBeTruthy();

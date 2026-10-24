@@ -43,13 +43,13 @@
     insurance?: string;
     /** Whether the doctor offers telehealth consultations */
     telehealth?: boolean;
-    /** Combined Jameda + Google Places rating (weighted average) */
+    /** Combined the stored provider + Google Places rating (weighted average) */
     rating?: number;
     /** Combined review count across rating sources */
     ratingCount?: number;
-    /** Service price in EUR (from Jameda) */
+    /** Service price in EUR (from the stored provider) */
     price?: number;
-    /** Provider platform: "Doctolib" | "Jameda" */
+    /** Provider platform: "the stored provider" | "the stored provider" */
     providerPlatform?: string;
     /** Number of additional alternate slots available for this doctor */
     additionalSlotCount?: number;

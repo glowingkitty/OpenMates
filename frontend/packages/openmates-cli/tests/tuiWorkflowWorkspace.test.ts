@@ -229,15 +229,15 @@ describe("workflow workspace", () => {
   // contract-test: direct surface=cli assertions=workflows-ui.template.centered-in-place-editor
   it("exposes events search request, date and provider fields at each nested path", async () => {
     const action = { id: "events", type: "app_skill_action" as const, config: {
-      app_id: "events", skill_id: "search", input: { requests: [{ query: "Meetup", location: "Berlin", count: 3,
-        start_date: { ref: "$nodes.start.output.date" }, end_date: "2026-10-31", providers: ["Meetup"] }] },
+      app_id: "events", skill_id: "search", input: { requests: [{ query: "Gathering", location: "Berlin", count: 3,
+        start_date: { ref: "$nodes.start.output.date" }, end_date: "2026-10-31", providers: ["Gathering"] }] },
     } };
     const source: WorkflowDetail = { ...workflow, graph: { ...graph, nodes: [...graph.nodes, action] } };
     const capability: WorkflowCapability = { type: "app_skill", id: "events.search", title: "Search", enabled: true,
       metadata: { app_id: "events", skill_id: "search", input_schema: { type: "object", properties: { requests: { type: "array", items: {
         type: "object", properties: {
           query: { type: "string" }, location: { type: "string" }, count: { type: "integer", minimum: 1, maximum: 50 },
-          start_date: { type: "string" }, end_date: { type: "string" }, providers: { type: "array", items: { type: "string", enum: ["Meetup", "Luma"] } },
+          start_date: { type: "string" }, end_date: { type: "string" }, providers: { type: "array", items: { type: "string", enum: ["Gathering", "ExampleEvents"] } },
         },
       } } } } } };
     const form = buildWorkflowNodeForm(source, action, [capability]);
@@ -245,12 +245,12 @@ describe("workflow workspace", () => {
     for (const path of ["query", "location", "count", "start_date", "end_date", "providers.0"])
       assert.ok(paths.includes(`config.input.requests.0.${path}`), path);
     assert.equal(form.fields.find((field) => field.name === "config.input.requests.0.start_date")?.valueType, "object");
-    form.fields.find((field) => field.name === "config.input.requests.0.providers.0")!.value = "Luma";
+    form.fields.find((field) => field.name === "config.input.requests.0.providers.0")!.value = "ExampleEvents";
     const client = { updateWorkflow: async (_id: string, payload: { graph: WorkflowGraph }) => ({ ...source, graph: payload.graph }) };
     const saved = await submitWorkflowNodeForm(client as never, source, form);
     const request = ((saved.graph.nodes.find((node) => node.id === "events")?.config?.input as Record<string, unknown>).requests as Record<string, unknown>[])[0]!;
     assert.deepEqual(request.start_date, { ref: "$nodes.start.output.date" });
-    assert.deepEqual(request.providers, ["Luma"]);
+    assert.deepEqual(request.providers, ["ExampleEvents"]);
     assert.equal(workflowNodeColor(action), "#a20000");
   });
 

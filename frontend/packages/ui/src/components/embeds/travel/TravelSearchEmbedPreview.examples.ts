@@ -1,5 +1,5 @@
 /**
- * Real Google Flights (SerpAPI) data. Legs + segments preserved so the child fullscreen can render the route map with real airport coordinates.
+ * Real Google Flights (ExampleSearch) data. Legs + segments preserved so the child fullscreen can render the route map with real airport coordinates.
  */
 
 export interface TravelSearchConnectionsStoreExample {

@@ -743,7 +743,7 @@ class BaseSkill:
             response_class: The response class to instantiate (e.g., ReadResponse, SearchResponse)
             grouped_results: List of grouped results (from _group_results_by_request_id)
             errors: List of error message strings
-            provider: Provider name (e.g., "Firecrawl", "Brave Search")
+            provider: Provider name (e.g., "Brave Search", "Google")
             suggestions: Optional list of follow-up suggestions
             logger: Logger instance for logging
             **response_kwargs: Additional keyword arguments to pass to response_class constructor
@@ -756,7 +756,7 @@ class BaseSkill:
                 response_class=ReadResponse,
                 grouped_results=grouped_results,
                 errors=errors,
-                provider="Firecrawl",
+                provider="Brave Search",
                 suggestions=suggestions,
                 logger=logger
             )

@@ -309,7 +309,7 @@ function discoverProvidersForAppSkill(appSkill) {
 /**
  * Map provider name from app.yml to provider ID (provider YAML filename).
  *
- * @param {string} providerName - Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl", "YouTube")
+ * @param {string} providerName - Provider name from app.yml (e.g., "Brave", "Google", "YouTube")
  * @param {string} appId - App ID for context (e.g., "maps" for Google Maps)
  * @returns {string|null} Provider ID (lowercase, matches provider YAML filename) or null if unknown
  */
@@ -604,6 +604,14 @@ function parseAppYaml(appId, filePath) {
           continue;
         }
 
+        // Required-provider skills without a configured source cannot execute.
+        if (skill.provider_required === true && !(skill.providers?.length > 0)) {
+          console.log(
+            `[generate-apps-metadata]   Skipping skill without providers: ${appId}.${skill.id}`,
+          );
+          continue;
+        }
+
         // Auto-prepend "app_skills." prefix to skill translation keys if not already present
         const skillMetadata = {
           id: (skill.id || "").trim(),
@@ -629,7 +637,7 @@ function parseAppYaml(appId, filePath) {
 
         if (Array.isArray(skill.providers) && skill.providers.length > 0) {
           // Use explicitly defined providers if present
-          // Providers can be plain strings ("Brave") or objects ({name: "SerpAPI", display_name: "Google"})
+          // Providers can be plain strings ("Brave") or objects ({name: "ExampleSearch", display_name: "Google"})
           // Use display_name for user-facing UI; fall back to name if not set
           skillProviders = skill.providers
             .map((p) => {

@@ -13,7 +13,6 @@
     "copy-message-flow.spec.ts": {"classification": "manual_missing_cache"},
     "incognito-mode.spec.ts": {"classification": "legacy_mock"},
     "skill-code-search-repos.spec.ts": {"classification": "manual_missing_cache"},
-    "skill-fitness-urban-sports.spec.ts": {"classification": "manual_missing_cache"},
     "skill-health-appointments.spec.ts": {"classification": "manual_missing_cache"},
     "skill-home-search.spec.ts": {"classification": "manual_missing_cache"},
     "skill-images-search.spec.ts": {"classification": "manual_missing_cache"},

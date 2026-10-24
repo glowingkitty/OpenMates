@@ -757,7 +757,7 @@ def build_app_detail(
     """
     Build detailed app data for the /v1/status/apps?app=<id> endpoint.
 
-    Shows the app's own skill providers (Brave, Google, REWE, etc.) — NOT global LLM providers.
+    Shows the app's own skill providers (Brave, Google, etc.) — NOT global LLM providers.
     Each skill lists its providers from the app's Redis health data.
     """
     app_data = health_data.get("apps", {}).get(app_id)

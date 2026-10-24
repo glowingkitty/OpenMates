@@ -12,7 +12,7 @@ from backend.shared.python_utils import search_relevance
 
 def _event(identity: str, title: str, day: int) -> dict[str, Any]:
     return {
-        "id": identity, "title": title, "provider": "luma",
+        "id": identity, "title": title, "provider": "pretalx",
         "url": f"https://example.invalid/events/{identity}",
         "date_start": f"2030-10-{day:02d}T18:00:00+02:00",
         "event_type": "PHYSICAL",
@@ -55,17 +55,15 @@ def event_search(monkeypatch):
                 for key in questions
             })
 
-    monkeypatch.setattr(search_skill.SearchSkill, "_search_luma", provider)
     monkeypatch.setattr(search_skill.SearchSkill, "_search_pretalx", provider)
-    monkeypatch.setattr(search_skill.SearchSkill, "_enrich_finalists", staticmethod(enrich))
     monkeypatch.setattr(search_relevance, "JevDecisionClient", DecisionClient)
     skill = object.__new__(search_skill.SearchSkill)
-    request = {"query": "AI meetup", "location": "Berlin", "lat": 52.52,
-               "lon": 13.405, "provider": "luma", "count": 3}
+    request = {"query": "AI", "location": "Berlin", "lat": 52.52,
+               "lon": 13.405, "conference": "39C3", "provider": "pretalx", "count": 3}
     return skill, request, capture
 
 
-# contract-test: direct surface=rest_api assertions=events-search.relevance.evidence-ranking,events-search.relevance.activation,events-search.enrichment.deferred
+# contract-test: supporting surface=rest_api assertions=events-search.relevance.evidence-ranking,events-search.relevance.activation
 @pytest.mark.anyio
 @pytest.mark.parametrize("criteria", [None, "", "   "])
 async def test_plain_topic_filters_unrelated_candidates_without_changing_order(event_search, criteria):
@@ -77,7 +75,6 @@ async def test_plain_topic_filters_unrelated_candidates_without_changing_order(e
     assert error is None
     assert [event["id"] for event in results] == ["builders", "learning"]
     assert capture["provider_counts"] == [3]  # no larger provider request for a plain search
-    assert capture["enriched"] == [["builders", "learning"]]
     assert len(capture["decisions"]) == 1
     decision = capture["decisions"][0]
     assert decision["profile"] == "events_topic"
@@ -94,7 +91,6 @@ async def test_plain_topic_returns_empty_instead_of_padding(event_search):
     _, results, error, *_ = await skill._process_single_search_request(request, "no-fit", object())
     assert error is None
     assert results == []
-    assert capture["enriched"] == [[]]
 
 
 # contract-test: direct surface=rest_api assertions=events-search.relevance.safe-fallback

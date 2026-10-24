@@ -8,7 +8,7 @@ export const ACTIONABLE_STAGE_SEQUENCE = [
   { id: 'user-request', durationMs: 1800 },
   { id: 'assistant-response', durationMs: 1800 },
   { id: 'event-preview', durationMs: 2700 },
-  { id: 'luma-cta', durationMs: 2200 },
+  { id: 'provider-cta', durationMs: 2200 },
 ] as const;
 
 export type ActionableStage = (typeof ACTIONABLE_STAGE_SEQUENCE)[number]['id'];

@@ -834,7 +834,7 @@
         persistBookingUrlInEmbed(data.booking_url, data.booking_provider || primaryCarrier);
       } else {
         // No booking link found — show Google Flights fallback
-        console.log('No booking link available from SerpAPI');
+        console.log('No booking link available from ExampleSearch');
         bookingState = 'error';
         notificationStore.error(
           $text('embeds.booking_link_failed')

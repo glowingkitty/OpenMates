@@ -36,7 +36,7 @@
     title,
     part_number,
     base_part_number,
-    provider = 'TI WEBENCH',
+    provider = '',
     topology = null,
     package: packageName = null,
     regulator_type = null,

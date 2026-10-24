@@ -4,8 +4,8 @@
   Fullscreen detail view for a single event (child embed drill-down).
   Uses ResultEmbedFullscreen for responsive map + detail card layout.
 
-  Shows map when venue has lat/lon coordinates (Meetup events).
-  Falls back to details-only layout when no coordinates (Classictic, online events).
+  Shows map when venue has lat/lon coordinates (physical events).
+  Falls back to details-only layout when no coordinates (online events).
 
   See docs/architecture/embeds.md
 -->
@@ -152,37 +152,9 @@
     } catch { return `${currency} ${amount}`; }
   });
 
-  /**
-   * Map backend provider slugs to human-readable display names.
-   * Providers: meetup, luma, classictic, berlin_philharmonic, bachtrack
-   */
-  function getProviderLabel(provider: string | undefined): string {
-    switch (provider?.toLowerCase()) {
-      case 'meetup':              return 'Meetup';
-      case 'luma':                return 'Luma';
-      case 'eventbrite':          return 'Eventbrite';
-      case 'classictic':          return 'Classictic';
-      case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':           return 'Bachtrack';
-      default:                    return provider || '';
-    }
-  }
 
-  function getCtaPrefix(provider: string | undefined): 'register' | 'book' | 'open' {
-    const normalizedProvider = provider?.toLowerCase() || '';
 
-    if (['luma', 'eventbrite', 'meetup'].includes(normalizedProvider)) {
-      return 'register';
-    }
-
-    if (['classictic', 'berlin_philharmonic', 'bachtrack', 'ticketmaster', 'eventim', 'dice'].includes(normalizedProvider)) {
-      return 'book';
-    }
-
-    return 'open';
-  }
-
-  let providerLabel  = $derived(getProviderLabel(event.provider));
+  let providerLabel  = $derived(event.provider || '');
   let eventImageUrl = $derived.by(() => {
     const rawImageUrl = event.image_url || event.cover_url;
     return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_HEADER_IMAGE) : '';
@@ -190,9 +162,6 @@
   let openButtonText = $derived.by(() => {
     if (!providerLabel) return '';
 
-    const ctaPrefix = getCtaPrefix(event.provider);
-    if (ctaPrefix === 'register') return `Register on ${providerLabel}`;
-    if (ctaPrefix === 'book') return `Book on ${providerLabel}`;
 
     return $text('embeds.open_on_provider').replace('{provider}', providerLabel);
   });

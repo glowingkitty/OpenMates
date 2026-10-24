@@ -1,7 +1,7 @@
 # backend/tests/test_edamam_recipe_provider.py
 #
 # Contract tests for the Edamam-backed Nutrition recipe provider.
-# These tests pin the provider behavior before replacing the older REWE search:
+# These tests pin the provider behavior for the supported recipe search:
 # one search request should fetch rich fields, filter missing instructions,
 # paginate only when necessary, normalize inconsistent steps, and expose errors.
 
@@ -70,6 +70,7 @@ def _hit(label: str, instructions: list[str] | None, url: str | None = None) -> 
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_search_requests_instruction_fields_and_filters_missing_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,6 +107,7 @@ async def test_search_requests_instruction_fields_and_filters_missing_steps(
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_search_paginates_only_when_needed_and_preserves_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -137,6 +139,7 @@ async def test_search_paginates_only_when_needed_and_preserves_fields(
     assert calls[1]["params"]["field"].count("instructionLines") == 1
 
 
+# contract-test: infrastructure
 def test_normalize_instruction_lines_splits_combined_step_markers() -> None:
     instructions = provider.normalize_instruction_lines(
         [
@@ -154,6 +157,7 @@ def test_normalize_instruction_lines_splits_combined_step_markers() -> None:
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_search_maps_rate_limit_to_provider_error(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_get(self: httpx.AsyncClient, url: str, **kwargs: Any) -> FakeResponse:
         return FakeResponse({"status": "error", "message": "Limits exceeded"}, status_code=429)

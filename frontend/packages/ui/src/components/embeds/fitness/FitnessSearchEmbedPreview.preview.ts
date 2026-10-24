@@ -1,14 +1,14 @@
 /**
  * Preview mock data for FitnessSearchEmbedPreview.
  *
- * Provides stable Urban Sports Club class/location payloads for the dev embed
+ * Provides stable ExampleFitness class/location payloads for the dev embed
  * showcase at /dev/preview/embeds/fitness.
  */
 
 const sampleResults = [
   {
     id: "appointment-1",
-    provider: "Urban Sports Club",
+    provider: "ExampleFitness",
     appointment_id: "appointment-1",
     name: "Morning Yoga Flow",
     category: "Yoga",
@@ -20,11 +20,11 @@ const sampleResults = [
     distance_km: 0.9,
     spots_display: "5 spots left",
     plans_required: ["Classic", "Premium", "Max"],
-    detail_url: "https://urbansportsclub.com/en/class-details/appointment-1",
+    detail_url: "https://example.com/fixture",
   },
   {
     id: "appointment-2",
-    provider: "Urban Sports Club",
+    provider: "ExampleFitness",
     appointment_id: "appointment-2",
     name: "HIIT Strength",
     category: "HIIT",
@@ -36,7 +36,7 @@ const sampleResults = [
     distance_km: 0.7,
     spots_display: "3 spots left",
     plans_required: ["Premium", "Max"],
-    detail_url: "https://urbansportsclub.com/en/class-details/appointment-2",
+    detail_url: "https://example.com/fixture",
   },
 ];
 
@@ -44,8 +44,8 @@ const defaultProps = {
   id: "preview-fitness-search-classes",
   skillId: "search_classes" as const,
   query: "yoga near Sorauer Str. 12",
-  provider: "Urban Sports Club",
-  summary: "Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans.",
+  provider: "ExampleFitness",
+  summary: "Found 2 fitness source classes in onsite mode. Searched all fitness source plans.",
   filters: {
     query: "yoga",
     address: "Sorauer Str. 12, Berlin",
@@ -74,8 +74,8 @@ export const variants = {
     id: "preview-fitness-search-locations",
     skillId: "search_locations" as const,
     query: "HIIT near Sorauer Str. 12",
-    provider: "Urban Sports Club",
-    summary: "Found 1 Urban Sports locations. Searched all Urban Sports plans.",
+    provider: "ExampleFitness",
+    summary: "Found 1 fitness source locations. Searched all fitness source plans.",
     filters: {
       query: "HIIT",
       address: "Sorauer Str. 12, Berlin",
@@ -86,14 +86,14 @@ export const variants = {
     results: [
       {
         id: "beat81-paul-lincke-ufer",
-        provider: "Urban Sports Club",
+        provider: "ExampleFitness",
         venue_id: "beat81-paul-lincke-ufer",
         name: "BEAT81 - Paul-Lincke-Ufer",
         address: "Paul-Lincke-Ufer 19, 10999 Berlin",
         distance_km: 0.7,
         disciplines: ["HIIT", "Strength"],
         plans_required: ["Premium", "Max"],
-        url: "https://urbansportsclub.com/en/venues/beat81-paul-lincke-ufer",
+        url: "https://example.com/fixture",
       },
     ],
     result_count: 1,

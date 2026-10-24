@@ -36,9 +36,9 @@ describe('composer embed suggestions', () => {
   it('searches every saved embed memory regardless of date and deduplicates IDs', () => {
     const entriesByApp = new Map<string, Record<string, Array<{ id: string; item_value: Record<string, unknown>; updated_at: number }>>>([['events', {
       saved_events: [
-        { id: 'old-memory', item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 1 },
-        { id: 'new-memory', item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 2 },
-        { id: 'other-memory', item_value: { embed_id: 'other-event', title: 'Munich meetup' }, updated_at: 3 },
+        { id: 'old-memory', item_value: { embed_id: 'old-event', title: 'Berlin design Gathering', location: 'Berlin' }, updated_at: 1 },
+        { id: 'new-memory', item_value: { embed_id: 'old-event', title: 'Berlin design Gathering', location: 'Berlin' }, updated_at: 2 },
+        { id: 'other-memory', item_value: { embed_id: 'other-event', title: 'Munich Gathering' }, updated_at: 3 },
       ],
     }], ['health', {
       appointments: [
@@ -47,11 +47,11 @@ describe('composer embed suggestions', () => {
     }]]);
     const state = { entriesByApp };
     expect(searchSavedEmbedMemories(state, 'berlin')).toEqual([expect.objectContaining({
-      embedId: 'old-event', title: 'Berlin design meetup',
+      embedId: 'old-event', title: 'Berlin design Gathering',
       settingsPath: 'apps/events/settings_memories/saved_events/entry/new-memory',
     })]);
-    expect(searchSavedEmbedMemories(state, 'meetup')).toHaveLength(2);
-    expect(searchSavedEmbedMemories(state, 'meetup', 1)).toHaveLength(1);
+    expect(searchSavedEmbedMemories(state, 'Gathering')).toHaveLength(2);
+    expect(searchSavedEmbedMemories(state, 'Gathering', 1)).toHaveLength(1);
     expect(searchSavedEmbedMemories(state, 'cardiology')[0]?.embedId).toBe('appointment');
   });
 
@@ -68,23 +68,23 @@ describe('composer embed suggestions', () => {
       };
       const index = Number(ref.replace('embed:event-', ''));
       if (!Number.isInteger(index) || index < 0 || index >= 50) return null;
-      return { type: 'events-event', status: 'finished', content: JSON.stringify({ title: `Distinct meetup ${index}`, venue_city: 'Berlin' }) };
+      return { type: 'events-event', status: 'finished', content: JSON.stringify({ title: `Distinct Gathering ${index}`, venue_city: 'Berlin' }) };
     });
     const chat = {
       chat_id: 'chat-1', title: 'Other chat', created_at: 100,
       last_edited_overall_timestamp: 100,
     } as Chat;
     const { search, invalidateChatSearchIndex } = await import('../searchService');
-    const result = await search('Distinct meetup 49', [chat], (key) => key, [], true, false, undefined, true);
-    expect(result.embeds).toEqual([expect.objectContaining({ embedId: 'event-49', title: 'Distinct meetup 49', chatId: 'chat-1' })]);
+    const result = await search('Distinct Gathering 49', [chat], (key) => key, [], true, false, undefined, true);
+    expect(result.embeds).toEqual([expect.objectContaining({ embedId: 'event-49', title: 'Distinct Gathering 49', chatId: 'chat-1' })]);
     expect(mocks.getEmbed).toHaveBeenCalledTimes(51);
 
-    const warmResult = await search('Distinct meetup 48', [chat], (key) => key, [], true, false, undefined, true);
+    const warmResult = await search('Distinct Gathering 48', [chat], (key) => key, [], true, false, undefined, true);
     expect(warmResult.embeds[0]?.embedId).toBe('event-48');
     expect(mocks.getEmbed).toHaveBeenCalledTimes(51);
 
     invalidateChatSearchIndex('chat-1');
-    await search('Distinct meetup 48', [chat], (key) => key, [], true, false, undefined, true);
+    await search('Distinct Gathering 48', [chat], (key) => key, [], true, false, undefined, true);
     expect(mocks.getEmbed).toHaveBeenCalledTimes(102);
   });
 

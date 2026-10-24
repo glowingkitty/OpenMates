@@ -1070,7 +1070,7 @@ struct Models3DSearchParentRenderer: View {
     }
 
     private var provider: String {
-        EmbedFieldReader.string(data, keys: ["provider"]) ?? "Printables"
+        EmbedFieldReader.string(data, keys: ["provider"]) ?? ""
     }
 
     var body: some View {
@@ -2711,7 +2711,7 @@ private struct FitnessSearchGroup {
 
         provider = (hasGroupedResults ? firstGroup.string("provider") : nil)
             ?? EmbedFieldReader.string(data, keys: ["provider"])
-            ?? "Urban Sports Club"
+            ?? ""
         query = EmbedFieldReader.string(data, keys: ["query", "location", "address", "city", "title"])
         summary = (hasGroupedResults ? firstGroup.string("summary") : nil)
             ?? EmbedFieldReader.string(data, keys: ["summary"])
@@ -2754,7 +2754,7 @@ private struct FitnessResultSummary: Identifiable {
     init(index: Int, data: [String: Any]) {
         rawData = data
         id = data.string("id") ?? "fitness-result-\(index)"
-        name = data.string("name") ?? data.string("venue_name") ?? "Urban Sports result"
+        name = data.string("name") ?? data.string("venue_name") ?? "fitness source result"
         venueName = data.string("venue_name")
         address = data.string("address")
             ?? data.string("venue_address")

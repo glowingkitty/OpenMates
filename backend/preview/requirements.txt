@@ -26,9 +26,6 @@ validators==0.34.0
 # Security - prevent SSRF attacks
 ipaddress>=1.0.23
 
-# Anti-detection - random User-Agent generation
-user-agents==2.2.0
-
 # Environment and configuration
 python-dotenv==1.2.2
 pydantic==2.10.4

@@ -116,7 +116,7 @@ _SKILL_FIXTURES: tuple[
         "web.read",
         {"requests": [{"url": "https://example.org/one"}, {"url": "https://example.org/two"}]},
         {
-            "provider": "Firecrawl",
+            "provider": "Stored reader",
             "results": [
                 {"id": "request-1", "results": [{"url": "https://example.org/one", "title": "First", "markdown": "First page text."}]},
                 {"id": "request-2", "results": [{"url": "https://example.org/two", "title": "Second", "markdown": "Second page text."}]},
@@ -202,8 +202,8 @@ def _declared_schema(capability_id: str) -> dict[str, Any]:
 
 @pytest.mark.parametrize(
     ("capability_id", "skill_request", "raw", "expected"),
-    _SKILL_FIXTURES,
-    ids=[fixture[0] for fixture in _SKILL_FIXTURES],
+    [fixture for fixture in _SKILL_FIXTURES if fixture[0] != "web.read"],
+    ids=[fixture[0] for fixture in _SKILL_FIXTURES if fixture[0] != "web.read"],
 )
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_skill_output_values_match_declared_schema_and_preserve_useful_data(
@@ -233,12 +233,6 @@ def test_skill_output_values_match_declared_schema_and_preserve_useful_data(
     elif capability_id == "web.search":
         assert output["results"][0]["title"] == "OpenMates"
         assert output["results"][0]["canonical_url"] == "https://openmates.org/"
-    elif capability_id == "web.read":
-        assert "Source: https://example.org/one" in output["text"]
-        assert "Source: https://example.org/two" in output["text"]
-        assert "First page text." in output["text"]
-        assert "Second page text." in output["text"]
-        assert [page["markdown"] for page in output["results"]] == ["First page text.", "Second page text."]
     elif capability_id == "events.search":
         assert output["events"] == output["results"]
         assert output["results"][0]["source_id"] == "event-1"
@@ -253,6 +247,28 @@ def test_skill_output_values_match_declared_schema_and_preserve_useful_data(
     assert not errors, f"{capability_id} output violates declared schema: " + "; ".join(
         f"{'.'.join(map(str, error.path)) or '<root>'}: {error.message}" for error in errors
     )
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_historical_read_results_remain_readable_without_an_executable_workflow_reader() -> None:
+    from backend.apps.web.skills.read_skill import ReadResponse
+
+    capability_id, skill_request, raw, expected = next(
+        fixture for fixture in _SKILL_FIXTURES if fixture[0] == "web.read"
+    )
+    capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(capability_id)
+    assert not capability.enabled
+    assert capability.reason == "WORKFLOW_SKILL_NOT_REGISTERED"
+    stored = ReadResponse.model_validate(raw)
+    assert stored.results == raw["results"]
+    output = _normalize_skill_output("web", "read", skill_request, raw)
+    for field, value in expected.items():
+        assert output[field] == value
+    assert "Source: https://example.org/one" in output["text"]
+    assert "Source: https://example.org/two" in output["text"]
+    assert "First page text." in output["text"]
+    assert "Second page text." in output["text"]
+    assert [page["markdown"] for page in output["results"]] == ["First page text.", "Second page text."]
 
 
 @pytest.mark.parametrize(

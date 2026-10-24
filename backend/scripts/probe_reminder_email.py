@@ -155,7 +155,7 @@ async def run():
         contexts = [
             {'version': 1, 'kind': 'chat', 'title': 'Weekend in Berlin',
              'summary': 'Review the museum itinerary and train reservations.', 'category': 'travel', 'icon': 'Train'},
-            {'version': 1, 'kind': 'event', 'title': 'Berlin Philharmonic evening',
+            {'version': 1, 'kind': 'event', 'title': 'Evening concert',
              'description': 'Doors open at 18:30. Bring the booking confirmation.', 'summary': 'Saved concert details',
              'starts_at': '2027-03-20T19:00:00Z', 'ends_at': '2027-03-20T21:00:00Z',
              'timezone': 'Europe/Berlin', 'location': 'Philharmonie Berlin', 'app_id': 'events',

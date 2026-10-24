@@ -1,5 +1,5 @@
 """Deterministic tests of public, bounded and strictly grounded Mercury clues."""
-# contract-test-file: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test-file: supporting surface=rest_api assertions=home-search.location.precision,home-search.output.safe-and-truthful
 
 import asyncio
 import json
@@ -45,7 +45,8 @@ def provider(monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_one_structured_bounded_call_with_usage_and_public_data_only(provider):
     result = await clues.extract_location_clues({
         "city": "Berlin", "description": "500 m from Alexanderplatz. mail me at agent@example.org or +49 30 12345678 https://private.example/x",
@@ -68,7 +69,7 @@ async def test_one_structured_bounded_call_with_usage_and_public_data_only(provi
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable,home-search.location.precision
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
 async def test_input_bound_preserves_advertised_locality(provider):
     provider.response([])
     await clues.extract_location_clues({"city": "Berlin", "district": "Mitte", "description": "x" * 20000}, secrets_manager=None)
@@ -135,7 +136,8 @@ async def test_invalid_or_truncated_completion_is_not_no_clues(provider, content
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_positive_and_negative_cache_ttl_usage_and_text_invalidation(provider):
     values = {}
     cache = SimpleNamespace(get=AsyncMock(side_effect=lambda key: values.get(key)))
@@ -160,7 +162,8 @@ async def test_positive_and_negative_cache_ttl_usage_and_text_invalidation(provi
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_disabled_empty_and_provider_outage_do_not_cache(provider):
     cache = SimpleNamespace(get=AsyncMock(return_value=None), set=AsyncMock())
     provider.complete.side_effect = InceptionError("private provider details")
@@ -170,7 +173,8 @@ async def test_disabled_empty_and_provider_outage_do_not_cache(provider):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_disabled_switch_performs_no_credential_or_cache_calls(provider, monkeypatch):
     monkeypatch.setenv("HOME_LOCATION_REFINEMENT_ENABLED", "false")
     cache = SimpleNamespace(get=AsyncMock(), set=AsyncMock())
@@ -180,7 +184,8 @@ async def test_disabled_switch_performs_no_credential_or_cache_calls(provider, m
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_deadline_includes_key_lookup(provider, monkeypatch):
     monkeypatch.setattr(clues, "EXTRACTION_TIMEOUT_SECONDS", 0.01)
 
@@ -193,7 +198,8 @@ async def test_deadline_includes_key_lookup(provider, monkeypatch):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_inflight_dedup_and_cancellation_preserve_other_waiter(provider):
     started, release = asyncio.Event(), asyncio.Event()
     original = provider.complete.return_value
@@ -219,7 +225,8 @@ async def test_inflight_dedup_and_cancellation_preserve_other_waiter(provider):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_inflight_usage_is_counted_once(provider):
     listing = {"city": "Berlin", "description": "500 m from Alexanderplatz"}
     results = await asyncio.gather(*(clues.extract_location_clues(listing, secrets_manager=None) for _ in range(3)))
@@ -229,7 +236,8 @@ async def test_inflight_usage_is_counted_once(provider):
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_cache_failure_still_attempts_provider_and_does_not_leak_details(provider, caplog):
     cache = SimpleNamespace(get=AsyncMock(side_effect=RuntimeError("private-cache-data")),
                             set=AsyncMock(side_effect=RuntimeError("private-cache-data")))
@@ -241,7 +249,8 @@ async def test_cache_failure_still_attempts_provider_and_does_not_leak_details(p
 
 
 @pytest.mark.asyncio
-# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_last_waiter_cancellation_cancels_provider(provider):
     started, cancelled = asyncio.Event(), asyncio.Event()
 

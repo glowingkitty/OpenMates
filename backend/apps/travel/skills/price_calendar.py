@@ -5,9 +5,7 @@ Returns the cheapest cached flight prices for every day of a given month
 on a route, using the Travelpayouts (Aviasales) free month-matrix API.
 
 Ideal for a "when is it cheapest to fly?" heatmap overview. Prices are
-cached (~48h old) search history data — NOT live fares. For real-time
-pricing and booking links, the user should follow up with the
-search_connections skill for a specific date.
+cached (~48h old) search history data, not live fares or booking offers.
 
 This is a non-composite skill: it returns a single embed per request
 containing the full month's data array (no child embeds).
@@ -20,7 +18,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.travel.providers.serpapi_provider import _resolve_iata_code
+from backend.apps.travel.providers.airport_codes import resolve_iata_code
 from backend.apps.travel.providers.travelpayouts_provider import TravelpayoutsProvider
 
 logger = logging.getLogger(__name__)
@@ -208,11 +206,11 @@ class PriceCalendarSkill(BaseSkill):
             return (request_id, [], "Missing 'month' in request")
 
         # Resolve city names to IATA codes
-        origin_iata = _resolve_iata_code(origin_raw)
+        origin_iata = resolve_iata_code(origin_raw)
         if not origin_iata:
             return (request_id, [], f"Could not resolve origin '{origin_raw}' to IATA code")
 
-        destination_iata = _resolve_iata_code(destination_raw)
+        destination_iata = resolve_iata_code(destination_raw)
         if not destination_iata:
             return (request_id, [], f"Could not resolve destination '{destination_raw}' to IATA code")
 

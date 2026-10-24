@@ -194,13 +194,13 @@ test('Jobs parent shows singleton location and selected countries from parent me
   await waitForComponentPreview(page);
   const preview = page.getByTestId('jobs-search-preview');
   await expect(preview.getByTestId('jobs-search-scope')).toHaveText('Berlin · DE, SE');
-  await expect(preview).toContainText('Arbeitsagentur, Arbeitnow, 80,000 Hours, Hard Problems, JobTech');
-  await expect(preview).not.toContainText('eighty_thousand_hours');
+  await expect(preview).toContainText('ExampleJobsA, ExampleJobsD, ExampleJobsB, ExampleJobsC, JobTech');
+  await expect(preview).not.toContainText('ExampleJobsB');
   await expect(preview.getByTestId('jobs-result-card')).toHaveCount(0);
 
   await page.goto('/dev/preview/embeds/jobs/JobsSearchEmbedFullscreen?chrome=0&theme=light&variant=multiCountry');
   await waitForComponentPreview(page);
   const fullscreen = page.getByTestId('jobs-search-fullscreen');
   await expect(fullscreen).toContainText('Berlin · DE, SE');
-  await expect(fullscreen).toContainText('Arbeitsagentur, Arbeitnow, 80,000 Hours, Hard Problems, JobTech');
+  await expect(fullscreen).toContainText('ExampleJobsA, ExampleJobsD, ExampleJobsB, ExampleJobsC, JobTech');
 });

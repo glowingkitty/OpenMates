@@ -2140,7 +2140,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Doctolib";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -2291,7 +2291,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "Power converters";
-    const provider = decodedContent?.provider || "TI WEBENCH";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -2511,7 +2511,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render home search embed using Svelte component (home/search skill).
-   * Shows housing listings from ImmoScout24, Kleinanzeigen, and WG-Gesucht.
+   * Shows housing listings from stored housing providers.
    */
   private renderHomeSearchComponent(
     attrs: EmbedNodeAttributes,
@@ -2683,7 +2683,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Printables";
+    const provider = decodedContent?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||

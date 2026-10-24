@@ -23,6 +23,7 @@ scope:
     - Immediate deduplicated Discord and email alerts for urgent incidents, plus recovery notifications.
     - Real-data dev delivery tests for email and Discord before production rollout.
     - Delivery receipts and stale-report detection for the monitoring system itself.
+    - Existing public status API response shape and active service labels after provider retirement.
   excludes:
     - Raw chat, message, embed, prompt, file, user, payment-method, or encrypted payload content.
     - Grafana as a required delivery or dashboard dependency.
@@ -172,10 +173,15 @@ assertions:
     must: Daily status, urgent transitions, payment-readiness incidents, degraded-service reports, and recovery notices resolve one canonical environment-specific operations destination first and use the legacy smoke destination only as an explicit fallback; production sends a daily all-clear even when no issue is active, and missing destination configuration is itself visible.
     depends_on: [models.OperatorNotificationConfig, models.AlertEvent, examples.canonical_operations_channel]
 
+  - id: operational-monitoring.public-status.existing-response
+    type: behavior
+    must: The existing public status API returns the configured active service groups and aggregate status, last-updated time, uptime, tests and incidents for the selected environment. Retired provider groups are not advertised as active. Its intraday endpoint preserves the selected service or test identity, returns checks or runs respectively, and rejects an invalid intraday type with HTTP 400. This backfills existing read-only response behavior without adding collection, authentication or monitoring capabilities.
+    depends_on: [examples.public_status]
+
 applies_to:
   rest_api:
-    required: false
-    role: No new public or developer API is required; operational collection stays internal or host-local.
+    required: true
+    role: Existing read-only public status responses only; operational collection stays internal or host-local.
   cli:
     required: true
     parity: semantic
@@ -196,4 +202,8 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [chat_failure_triggers, chat_failure_limits, chat_failure_delivery, daily_snapshots, self_host_activation, delivery_tests, urgent_alerts, privacy_boundaries, environment_isolation]
+  required_groups: [chat_failure_triggers, chat_failure_limits, chat_failure_delivery, daily_snapshots, self_host_activation, delivery_tests, urgent_alerts, privacy_boundaries, environment_isolation, public_status]
+
+approval_source:
+  instruction: The user-approved provider-boundary removal includes accurate active status labels. The coordinator authorized this compact backfill of existing public status responses on 2026-10-24; no new runtime semantics or separate exact-fingerprint approval is claimed.
+  review_status: Included in the coordinator Plan-backed approval batch for the already accepted scope.

@@ -2435,7 +2435,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search Components Template: Default processingerror Props Inline Link The assistant found 12V to 3.3V buck converter for you. Quote Block Found 10 TI WEBENCH buck converter designs. Top pick: TPS564257DRLR. electronics Group \u2014 Small 1 variant \u00b7 horizontal scroll default 12V to 3.3V buck converter at 3A via TI WEBENCH 2 components 92.4% Efficiency Search components Fullscreen clipped inline \u00b7 1 variant 12V to 3.3V buck converter at 3A via TI WEBENCH TPS564257DRLR Buck / SOT-563 Efficiency 92.4% B",
+        "visibleText": "Search Components Template: Default processingerror Props Inline Link The assistant found 12V to 3.3V buck converter for you. Quote Block Found 10 ExampleComponents buck converter designs. Top pick: TPS564257DRLR. electronics Group \u2014 Small 1 variant \u00b7 horizontal scroll default 12V to 3.3V buck converter at 3A via ExampleComponents 2 components 92.4% Efficiency Search components Fullscreen clipped inline \u00b7 1 variant 12V to 3.3V buck converter at 3A via ExampleComponents TPS564257DRLR Buck / SOT-563 Efficiency 92.4% B",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -2506,7 +2506,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "12V to 3.3V buck converter at 3A via TI WEBENCH 2 components 92.4% Efficiency Search components",
+            "visibleText": "12V to 3.3V buck converter at 3A via ExampleComponents 2 components 92.4% Efficiency Search components",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -2563,7 +2563,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR",
+            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -2619,7 +2619,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter TI WEBENCH TPS563257DRLR",
+            "visibleText": "TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter ExampleComponents TPS563257DRLR",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -2675,7 +2675,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "12V to 3.3V buck converter at 3A via TI WEBENCH TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter TI WEBENCH TPS563257DRLR Report Issue Share chat Close",
+        "visibleText": "12V to 3.3V buck converter at 3A via ExampleComponents TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter ExampleComponents TPS563257DRLR Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -2761,7 +2761,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Component Template: Default compact Props Inline Link The assistant found TPS564257DRLR for you. Quote Block TPS564257DRLR - Buck converter, 92.4% efficiency, 0.47 USD BOM. electronics Group \u2014 Small 2 variants \u00b7 horizontal scroll default TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR compact TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 11 Converter TI WEBENCH TPS563",
+        "visibleText": "Component Template: Default compact Props Inline Link The assistant found TPS564257DRLR for you. Quote Block TPS564257DRLR - Buck converter, 92.4% efficiency, 0.47 USD BOM. electronics Group \u2014 Small 2 variants \u00b7 horizontal scroll default TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR compact TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 11 Converter ExampleComponents TPS563",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -2831,7 +2831,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR",
+            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -2887,7 +2887,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 11 Converter TI WEBENCH TPS563257DRLR",
+            "visibleText": "TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 11 Converter ExampleComponents TPS563257DRLR",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -2943,7 +2943,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR",
+            "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -2999,7 +2999,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "TPS564257DRLR Buck / SOT-563 / TI WEBENCH Open on TI WEBENCH TI WEBENCH TPS564257DRLR Compact synchronous buck converter reference design from TI WEBENCH. Product page Datasheet Performance Efficiency 92.4%BOM cost 0.47 USDBOM parts 11Footprint 89.6 mm2Frequency 650,000 HzOutput current 4 AOutput ripple 0.01 Vpp Electrical Input voltage 4.5 V - 17 VOutput voltage 0.6 V - 7 VTopology BuckRegulator type ConverterControl mode D-CAP3Isolated No Report Issue Share chat Close",
+        "visibleText": "TPS564257DRLR Buck / SOT-563 / ExampleComponents Open on ExampleComponents ExampleComponents TPS564257DRLR Compact synchronous buck converter reference design from ExampleComponents. Product page Datasheet Performance Efficiency 92.4%BOM cost 0.47 USDBOM parts 11Footprint 89.6 mm2Frequency 650,000 HzOutput current 4 AOutput ripple 0.01 Vpp Electrical Input voltage 4.5 V - 17 VOutput voltage 0.6 V - 7 VTopology BuckRegulator type ConverterControl mode D-CAP3Isolated No Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -3078,7 +3078,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Event Template: Default onlinepaid Props Inline Link The assistant found AI & ML Berlin Meetup for you. Quote Block AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin. events Group \u2014 Small 3 variants \u00b7 horizontal scroll default Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition online Mar 20 6:00 PM Online Online 87 RSVPs Meetup TypeScript Deep Dive: Advanced Patterns for Scalable Apps paid Apr 5 8:00 AM London, Unit",
+        "visibleText": "Event Template: Default onlinepaid Props Inline Link The assistant found AI & ML Berlin Gathering for you. Quote Block AI & Machine Learning Berlin Gathering. March 15, 19:00 at Factory Berlin. events Group \u2014 Small 3 variants \u00b7 horizontal scroll default Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition online Mar 20 6:00 PM Online Online 87 RSVPs Gathering TypeScript Deep Dive: Advanced Patterns for Scalable Apps paid Apr 5 8:00 AM London, Unit",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -3154,7 +3154,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition",
+            "visibleText": "Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3210,7 +3210,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Mar 20 6:00 PM Online Online 87 RSVPs Meetup TypeScript Deep Dive: Advanced Patterns for Scalable Apps",
+            "visibleText": "Mar 20 6:00 PM Online Online 87 RSVPs Gathering TypeScript Deep Dive: Advanced Patterns for Scalable Apps",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3266,7 +3266,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Apr 5 8:00 AM London, United Kingdom In Person \u00a325.00 Meetup Product Management Summit \u2013 London 2026",
+            "visibleText": "Apr 5 8:00 AM London, United Kingdom In Person \u00a325.00 Gathering Product Management Summit \u2013 London 2026",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3322,7 +3322,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "AI & Machine Learning Berlin Meetup \u2013 Spring Edition Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition",
+            "visibleText": "AI & Machine Learning Berlin Gathering \u2013 Spring Edition Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3378,7 +3378,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "AI & Machine Learning Berlin Meetup \u2013 Spring Edition Sun, Mar 15 \u00b7 6:00 PM \u00b7 Berlin, Germany Register on Meetup +\u2212 Leaflet | \u00a9 OpenStreetMap In Person Free 142 RSVPs Meetup Date & Time Sunday, March 15, 20266:00 PM to 9:00 PM Location Factory Berlin Rheinsberger Str. 76-77 Berlin, Germany Organizer AI Berlin Community About Join us for an evening of talks on large language models, RAG architectures, and deploying AI to production. Speakers from leading Berlin AI companies. Schedule: 18:30 Doors ",
+        "visibleText": "AI & Machine Learning Berlin Gathering \u2013 Spring Edition Sun, Mar 15 \u00b7 6:00 PM \u00b7 Berlin, Germany Register on Gathering +\u2212 Leaflet | \u00a9 OpenStreetMap In Person Free 142 RSVPs Gathering Date & Time Sunday, March 15, 20266:00 PM to 9:00 PM Location Factory Berlin Rheinsberger Str. 76-77 Berlin, Germany Organizer AI Berlin Community About Join us for an evening of talks on large language models, RAG architectures, and deploying AI to production. Speakers from leading Berlin AI companies. Schedule: 18:30 Doors ",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -3459,7 +3459,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search Template: Default processingerror Props Inline Link The assistant found AI meetups in Berlin for you. Quote Block Found 3 upcoming AI & tech events in Berlin this month. events Group \u2014 Small 1 variant \u00b7 horizontal scroll default AI meetups in Berlin via + 3 more Search Fullscreen clipped inline \u00b7 3 variants defaultwithNavigationnoResults AI meetups in Berlin via Meetup Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition Mar 20 6:0",
+        "visibleText": "Search Template: Default processingerror Props Inline Link The assistant found AI meetups in Berlin for you. Quote Block Found 3 upcoming AI & tech events in Berlin this month. events Group \u2014 Small 1 variant \u00b7 horizontal scroll default AI meetups in Berlin via + 3 more Search Fullscreen clipped inline \u00b7 3 variants defaultwithNavigationnoResults AI meetups in Berlin via Gathering Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition Mar 20 6:0",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -3590,7 +3590,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition",
+            "visibleText": "Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3646,7 +3646,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Mar 20 6:00 PM Online Online 87 RSVPs Meetup Web Dev Online: TypeScript Deep Dive",
+            "visibleText": "Mar 20 6:00 PM Online Online 87 RSVPs Gathering Web Dev Online: TypeScript Deep Dive",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3702,7 +3702,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Meetup Product Management Summit \u2013 London",
+            "visibleText": "Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Gathering Product Management Summit \u2013 London",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -3758,7 +3758,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "AI meetups in Berlin via Meetup Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition Mar 20 6:00 PM Online Online 87 RSVPs Meetup Web Dev Online: TypeScript Deep Dive Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Meetup Product Management Summit \u2013 London Report Issue Share chat Close",
+        "visibleText": "AI meetups in Berlin via Gathering Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition Mar 20 6:00 PM Online Online 87 RSVPs Gathering Web Dev Online: TypeScript Deep Dive Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Gathering Product Management Summit \u2013 London Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -4107,7 +4107,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Classes Template: Default processinglocations Props Inline Link The assistant found Yoga classes near Sorauer Str. 12 for you. Quote Block Found 3 Urban Sports classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg. fitness Group \u2014 Small 2 variants \u00b7 horizontal scroll default Urban Sports Club Search classes Sorauer Str. 12, Berlin 2 classes Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Pa",
+        "visibleText": "Classes Template: Default processinglocations Props Inline Link The assistant found Yoga classes near Sorauer Str. 12 for you. Quote Block Found 3 fitness source classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg. fitness Group \u2014 Small 2 variants \u00b7 horizontal scroll default ExampleFitness Search classes Sorauer Str. 12, Berlin 2 classes Found 2 fitness source classes in onsite mode. Searched all fitness source plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Pa",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -4192,7 +4192,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Urban Sports Club Search classes Sorauer Str. 12, Berlin 2 classes Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
+            "visibleText": "ExampleFitness Search classes Sorauer Str. 12, Berlin 2 classes Found 2 fitness source classes in onsite mode. Searched all fitness source plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
             "childTestIds": [
               "fitness-search-preview",
               "fitness-search-result-count",
@@ -4252,7 +4252,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Urban Sports Club Search locations Sorauer Str. 12, Berlin 1 locations Found 1 Urban Sports locations. Searched all Urban Sports plans. BEAT81 - Paul-Lincke-Ufer 2 kmPlan: all Search locations",
+            "visibleText": "ExampleFitness Search locations Sorauer Str. 12, Berlin 1 locations Found 1 fitness source locations. Searched all fitness source plans. BEAT81 - Paul-Lincke-Ufer 2 kmPlan: all Search locations",
             "childTestIds": [
               "fitness-search-preview",
               "fitness-search-result-count",
@@ -4428,7 +4428,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search classes Urban Sports Club \u00b7 Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
+        "visibleText": "Search classes ExampleFitness \u00b7 Found 2 fitness source classes in onsite mode. Searched all fitness source plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
         "childTestIds": [
           "fitness-search-fullscreen",
           "embed-header-title",
@@ -4518,7 +4518,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Appointment Template: Default telehealthjamedajamedaNoPricemobileJameda Props Inline Link The assistant found Dr. Mueller appointment \u2014 Apr 3 for you. Quote Block Appointment confirmed with Dr. Mueller on April 3 at 10:30 AM. health Group \u2014 Small 5 variants \u00b7 horizontal scroll default Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12 public Dr. Sophie M\u00fcller telehealth Sun, Apr 5 \u00b7 02:00 PM Prof. Dr. Klaus Weber Cardiologist Leopoldstra\u00dfe 45 Telehealth private Prof. Dr.",
+        "visibleText": "Appointment Template: Default telehealthExampleClinicBExampleClinicBNoPricemobileExampleClinicB Props Inline Link The assistant found Dr. Mueller appointment \u2014 Apr 3 for you. Quote Block Appointment confirmed with Dr. Mueller on April 3 at 10:30 AM. health Group \u2014 Small 5 variants \u00b7 horizontal scroll default Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12 public Dr. Sophie M\u00fcller telehealth Sun, Apr 5 \u00b7 02:00 PM Prof. Dr. Klaus Weber Cardiologist Leopoldstra\u00dfe 45 Telehealth private Prof. Dr.",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -4711,14 +4711,14 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 120 \u20ac Jameda Dr. Markus Reinholz",
+            "visibleText": "Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 120 \u20ac ExampleClinicB Dr. Markus Reinholz",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-health-appointment-jameda",
+              "data-embed-id": "preview-health-appointment-ExampleClinicB",
               "data-app-id": "health",
               "data-skill-id": "appointment",
               "data-status": "finished",
@@ -4767,14 +4767,14 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Fri, Apr 3 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2, 20253 Hamburg 4.8 \u2605 Jameda public Konrad Witkowski",
+            "visibleText": "Fri, Apr 3 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2, 20253 Hamburg 4.8 \u2605 ExampleClinicB public Konrad Witkowski",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-health-appointment-jameda-no-price",
+              "data-embed-id": "preview-health-appointment-ExampleClinicB-no-price",
               "data-app-id": "health",
               "data-skill-id": "appointment",
               "data-status": "finished",
@@ -4823,14 +4823,14 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Fri, Apr 3 \u00b7 10:30 AM Beatrice Kochanek Frauen\u00e4rztin / Gyn\u00e4kologin Aachener Str. 56, 50674 K\u00f6ln 5.0 \u2605 80 \u20ac Jameda public Beatrice Kochanek",
+            "visibleText": "Fri, Apr 3 \u00b7 10:30 AM Beatrice Kochanek Frauen\u00e4rztin / Gyn\u00e4kologin Aachener Str. 56, 50674 K\u00f6ln 5.0 \u2605 80 \u20ac ExampleClinicB public Beatrice Kochanek",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-health-appointment-mobile-jameda",
+              "data-embed-id": "preview-health-appointment-mobile-ExampleClinicB",
               "data-app-id": "health",
               "data-skill-id": "appointment",
               "data-status": "finished",
@@ -4935,7 +4935,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller \u00b7 Ophthalmologist Open on Doctolib +\u2212 Leaflet | \u00a9 OpenStreetMap Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 1280539 Munich public These times may no longer be available. Check current availability on Doctolib. Report Issue Close",
+        "visibleText": "Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller \u00b7 Ophthalmologist Open on ExampleClinicA +\u2212 Leaflet | \u00a9 OpenStreetMap Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 1280539 Munich public These times may no longer be available. Check current availability on ExampleClinicA. Report Issue Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -5015,7 +5015,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search Template: Default processingerrorsingleResult Props Inline Link The assistant found Cardiologists near Munich for you. Quote Block Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9. health Group \u2014 Small 2 variants \u00b7 horizontal scroll default Ophthalmologist in Munich via & Jameda 3 appointments available from Fri, Apr 3 Search appointments singleResult Neurologist in Hamburg via & Jameda 1 appointment available from Fri, Apr 3 Search appointments Fullscreen clipped inli",
+        "visibleText": "Search Template: Default processingerrorsingleResult Props Inline Link The assistant found Cardiologists near Munich for you. Quote Block Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9. health Group \u2014 Small 2 variants \u00b7 horizontal scroll default Ophthalmologist in Munich via & ExampleClinicB 3 appointments available from Fri, Apr 3 Search appointments singleResult Neurologist in Hamburg via & ExampleClinicB 1 appointment available from Fri, Apr 3 Search appointments Fullscreen clipped inli",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -5099,7 +5099,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Ophthalmologist in Munich via & Jameda 3 appointments available from Fri, Apr 3 Search appointments",
+            "visibleText": "Ophthalmologist in Munich via & ExampleClinicB 3 appointments available from Fri, Apr 3 Search appointments",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -5156,7 +5156,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Neurologist in Hamburg via & Jameda 1 appointment available from Fri, Apr 3 Search appointments",
+            "visibleText": "Neurologist in Hamburg via & ExampleClinicB 1 appointment available from Fri, Apr 3 Search appointments",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -5213,7 +5213,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac Jameda Dr. Markus Reinholz",
+            "visibleText": "Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac ExampleClinicB Dr. Markus Reinholz",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -5381,7 +5381,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2, 20253 Hamburg 4.8 \u2605 (46) Jameda Konrad Witkowski",
+            "visibleText": "Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2, 20253 Hamburg 4.8 \u2605 (46) ExampleClinicB Konrad Witkowski",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -5493,7 +5493,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search appointments Ophthalmologist in Munich Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac Jameda Dr. Markus Reinholz Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12, 80539 Munich public Dr. Sophie M\u00fcller Fri, Apr 3 \u00b7 02:00 PM Prof. Dr. Klaus Weber Ophthalmologist Leopoldstra\u00dfe 45, 80802 Munich Telehealth private Prof. Dr. Klaus Weber Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2,",
+        "visibleText": "Search appointments Ophthalmologist in Munich Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac ExampleClinicB Dr. Markus Reinholz Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12, 80539 Munich public Dr. Sophie M\u00fcller Fri, Apr 3 \u00b7 02:00 PM Prof. Dr. Klaus Weber Ophthalmologist Leopoldstra\u00dfe 45, 80802 Munich Telehealth private Prof. Dr. Klaus Weber Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2,",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -6097,7 +6097,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Listing Template: Default wgRoomkleinanzeigenbuyListingminimal Props Inline Link The assistant found Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg for you. Quote Block 850 EUR/month \u2014 55 m\u00b2, 2 rooms, Bergmannstr., Berlin-Kreuzberg home Group \u2014 Small 5 variants \u00b7 horizontal scroll default 850 EUR/month Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg Bergmannstr. 12, 10961 Berlin 55 m\u00b2 \u00b7 2 rooms Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg wgRoom 500 EUR/month Gem\u00fctliches WG-Zimmer in Prenzlauer Berg Sch\u00f6nhauser Allee, 10439",
+        "visibleText": "Listing Template: Default wgRoomExampleHousingBbuyListingminimal Props Inline Link The assistant found Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg for you. Quote Block 850 EUR/month \u2014 55 m\u00b2, 2 rooms, Bergmannstr., Berlin-Kreuzberg home Group \u2014 Small 5 variants \u00b7 horizontal scroll default 850 EUR/month Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg Bergmannstr. 12, 10961 Berlin 55 m\u00b2 \u00b7 2 rooms Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg wgRoom 500 EUR/month Gem\u00fctliches WG-Zimmer in Prenzlauer Berg Sch\u00f6nhauser Allee, 10439",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -6513,7 +6513,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg 850 EUR/month Open on immobilienscout24.de Location Bergmannstr. 12, 10961 Berlin 55 m\u00b2 2 rooms Rent ImmoScout24 Report Issue Share chat Close",
+        "visibleText": "Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg 850 EUR/month Open on ExampleHousingA.de Location Bergmannstr. 12, 10961 Berlin 55 m\u00b2 2 rooms Rent ExampleHousingA Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -13678,7 +13678,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search Template: Default processingerroramazon Props Inline Link The assistant found Wireless headphones under 100 EUR for you. Quote Block Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR. shopping Group \u2014 Small 2 variants \u00b7 horizontal scroll default bio joghurt via REWE 3 products from \u20ac1,39 Search amazon noise cancelling headphones via Amazon 2 products from \u20ac249,00 Search Fullscreen clipped inline \u00b7 2 variants defaultamazon bio joghurt via REWE Bio Vollmilch-Jo",
+        "visibleText": "Search Template: Default processingerrorExampleRetail Props Inline Link The assistant found Wireless headphones under 100 EUR for you. Quote Block Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR. shopping Group \u2014 Small 2 variants \u00b7 horizontal scroll default bio joghurt via ExampleGrocer 3 products from \u20ac1,39 Search ExampleRetail noise cancelling headphones via ExampleRetail 2 products from \u20ac249,00 Search Fullscreen clipped inline \u00b7 2 variants defaultExampleRetail bio joghurt via ExampleGrocer Bio Vollmilch-Jo",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -13759,7 +13759,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "bio joghurt via REWE 3 products from \u20ac1,39 Search",
+            "visibleText": "bio joghurt via ExampleGrocer 3 products from \u20ac1,39 Search",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -13816,7 +13816,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "noise cancelling headphones via Amazon 2 products from \u20ac249,00 Search",
+            "visibleText": "noise cancelling headphones via ExampleRetail 2 products from \u20ac249,00 Search",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -13824,7 +13824,7 @@
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-shopping-search-amazon",
+              "data-embed-id": "preview-shopping-search-ExampleRetail",
               "data-app-id": "shopping",
               "data-skill-id": "search_products",
               "data-status": "finished",
@@ -13985,7 +13985,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Griechischer Joghurt 10% Fett REWE Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett",
+            "visibleText": "Griechischer Joghurt 10% Fett ExampleGrocer Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -14041,7 +14041,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Skyr Natur 0,2% Fett REWE Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett",
+            "visibleText": "Skyr Natur 0,2% Fett ExampleGrocer Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle"
@@ -14097,7 +14097,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "bio joghurt via REWE Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 500g (0,28 \u20ac/100g) Bio Bio Vollmilch-Joghurt Naturell Demeter Bio-Joghurt mild Andechser Natur 2,49 \u20ac 500g (0,50 \u20ac/100g) BioVegetarisch Demeter Bio-Joghurt mild Griechischer Joghurt 10% Fett REWE Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett Skyr Natur 0,2% Fett REWE Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett Report Issue Share chat Close",
+        "visibleText": "bio joghurt via ExampleGrocer Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 500g (0,28 \u20ac/100g) Bio Bio Vollmilch-Joghurt Naturell Demeter Bio-Joghurt mild Andechser Natur 2,49 \u20ac 500g (0,50 \u20ac/100g) BioVegetarisch Demeter Bio-Joghurt mild Griechischer Joghurt 10% Fett ExampleGrocer Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett Skyr Natur 0,2% Fett ExampleGrocer Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -14189,7 +14189,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Result Template: Default amazonstoffenoPrice Props Inline Link The assistant found Bio Vollmilch-Joghurt Naturell for you. Quote Block Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR. shopping Group \u2014 Small 4 variants \u00b7 horizontal scroll default Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac 500g (0,28 \u20ac/100g) \u2605 4.6 (832) BioVegetarisch Bio Vollmilch-Joghurt Naturell amazon Sony WH-1000XM5 Wireless Noise Cancelling Headphones Sony \u20ac279.00 \u20ac329,00 500g (0,28 \u20ac/100g) \u2605 4.7 (3,842) Prime",
+        "visibleText": "Result Template: Default ExampleRetailExampleFabricnoPrice Props Inline Link The assistant found Bio Vollmilch-Joghurt Naturell for you. Quote Block Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR. shopping Group \u2014 Small 4 variants \u00b7 horizontal scroll default Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac 500g (0,28 \u20ac/100g) \u2605 4.6 (832) BioVegetarisch Bio Vollmilch-Joghurt Naturell ExampleRetail Sony WH-1000XM5 Wireless Noise Cancelling Headphones Sony \u20ac279.00 \u20ac329,00 500g (0,28 \u20ac/100g) \u2605 4.7 (3,842) Prime",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -14328,7 +14328,7 @@
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-shopping-result-amazon",
+              "data-embed-id": "preview-shopping-result-ExampleRetail",
               "data-app-id": "shopping",
               "data-skill-id": "search_products",
               "data-status": "finished",
@@ -14384,7 +14384,7 @@
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-shopping-result-stoffe",
+              "data-embed-id": "preview-shopping-result-ExampleFabric",
               "data-app-id": "shopping",
               "data-skill-id": "search_products",
               "data-status": "finished",
@@ -14545,7 +14545,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Bio Vollmilch-Joghurt Naturell Weihenstephan Open on REWE \ud83d\uded2 Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac Sale 500g (0,28 \u20ac/100g) \u2605 4.6 (832) Lieferung heute 500+ mal im letzten Monat gekauft BioVegetarischRegional Product ID rewe-12345 Molkereiprodukte > Joghurt Report Issue Share chat Close",
+        "visibleText": "Bio Vollmilch-Joghurt Naturell Weihenstephan Open on ExampleGrocer \ud83d\uded2 Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac Sale 500g (0,28 \u20ac/100g) \u2605 4.6 (832) Lieferung heute 500+ mal im letzten Monat gekauft BioVegetarischRegional Product ID ExampleGrocer-12345 Molkereiprodukte > Joghurt Report Issue Share chat Close",
         "childTestIds": [
           "embed-fullscreen-overlay",
           "embed-header-title",
@@ -16922,7 +16922,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Connection Template: Default multiStoproundTripprocessingerrordeutscheBahnflixTrain Props Inline Link The assistant found MUC to LHR direct flight for you. Quote Block Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22. travel Group \u2014 Small 5 variants \u00b7 horizontal scroll default EUR 189 | One way Munich (MUC) \u2192 London Heathrow (LHR) 08:30 AM \u2192 10:00 AM Sun, Mar 15 \u00b7 2h 30m \u00b7 Direct 4 seats left MUC \u2192 LHR multiStop EUR 245.50 | One way Munich (MUC) \u2192 London Gatwick (LGW) 02:15 PM \u2192 05",
+        "visibleText": "Connection Template: Default multiStoproundTripprocessingerrorexampleRailExampleCoach Props Inline Link The assistant found MUC to LHR direct flight for you. Quote Block Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22. travel Group \u2014 Small 5 variants \u00b7 horizontal scroll default EUR 189 | One way Munich (MUC) \u2192 London Heathrow (LHR) 08:30 AM \u2192 10:00 AM Sun, Mar 15 \u00b7 2h 30m \u00b7 Direct 4 seats left MUC \u2192 LHR multiStop EUR 245.50 | One way Munich (MUC) \u2192 London Gatwick (LGW) 02:15 PM \u2192 05",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -17305,7 +17305,7 @@
             ],
             "data": {
               "data-testid": "embed-preview",
-              "data-embed-id": "preview-travel-connection-flix",
+              "data-embed-id": "preview-travel-connection-ExampleCoach",
               "data-app-id": "travel",
               "data-skill-id": "connection",
               "data-status": "finished",
@@ -21511,7 +21511,7 @@
         "tagName": "section",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Read Template: Default processingerror Props Inline Link The assistant found Migrating from Svelte 4 to 5 for you. Quote Block Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements. web Group \u2014 Small 1 variant \u00b7 horizontal scroll default Complete Guide to Migrating from Svelte 4 to Svelte 5 via Firecrawl Read Fullscreen clipped inline \u00b7 2 variants defaultwithNavigation Complete Guide to Migrating from Svelte 4 to Svelte 5 Open on svelte.dev No content a",
+        "visibleText": "Read Template: Default processingerror Props Inline Link The assistant found Migrating from Svelte 4 to 5 for you. Quote Block Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements. web Group \u2014 Small 1 variant \u00b7 horizontal scroll default Complete Guide to Migrating from Svelte 4 to Svelte 5  Read Fullscreen clipped inline \u00b7 2 variants defaultwithNavigation Complete Guide to Migrating from Svelte 4 to Svelte 5 Open on svelte.dev No content a",
         "childTestIds": [
           "skill-label",
           "dt-heading",
@@ -21574,7 +21574,7 @@
             "tagName": "div",
             "role": "button",
             "ariaLabel": null,
-            "visibleText": "Complete Guide to Migrating from Svelte 4 to Svelte 5 via Firecrawl Read",
+            "visibleText": "Complete Guide to Migrating from Svelte 4 to Svelte 5  Read",
             "childTestIds": [
               "embed-basic-infos-bar",
               "app-icon-circle",
@@ -24048,7 +24048,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "12V to 3.3V buck converter at 3A via TI WEBENCH 2 components 92.4% Efficiency Search components",
+        "visibleText": "12V to 3.3V buck converter at 3A via ExampleComponents 2 components 92.4% Efficiency Search components",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle",
@@ -24111,7 +24111,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "12V to 3.3V buck converter at 3A via TI WEBENCH TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter TI WEBENCH TPS563257DRLR Report Issue Share chat Close",
+        "visibleText": "12V to 3.3V buck converter at 3A via ExampleComponents TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR TPS563257DRLR Buck / SOT-563 Efficiency 91.8% BOM cost 0.43 USD Footprint 84.2 mm2 BOM parts 10 Converter ExampleComponents TPS563257DRLR Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -24241,7 +24241,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "AI meetups in Berlin via Meetup Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition Mar 20 6:00 PM Online Online 87 RSVPs Meetup Web Dev Online: TypeScript Deep Dive Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Meetup Product Management Summit \u2013 London Report Issue Share chat Close",
+        "visibleText": "AI meetups in Berlin via Gathering Mar 15 7:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition Mar 20 6:00 PM Online Online 87 RSVPs Gathering Web Dev Online: TypeScript Deep Dive Apr 5 9:00 AM London, United Kingdom In Person \u00a325.00 Gathering Product Management Summit \u2013 London Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -24465,7 +24465,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Urban Sports Club Search classes Sorauer Str. 12, Berlin 2 classes Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
+        "visibleText": "ExampleFitness Search classes Sorauer Str. 12, Berlin 2 classes Found 2 fitness source classes in onsite mode. Searched all fitness source plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
         "childTestIds": [
           "fitness-search-preview",
           "fitness-search-result-count",
@@ -24531,7 +24531,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search classes Urban Sports Club \u00b7 Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
+        "visibleText": "Search classes ExampleFitness \u00b7 Found 2 fitness source classes in onsite mode. Searched all fitness source plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -24602,7 +24602,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Urban Sports Club Search classes Sorauer Str. 12, Berlin 2 classes Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
+        "visibleText": "ExampleFitness Search classes Sorauer Str. 12, Berlin 2 classes Found 2 fitness source classes in onsite mode. Searched all fitness source plans. Morning Yoga Flow Yoga Studio KreuzbergHIIT Strength BEAT81 - Paul-Lincke-Ufer 3 kmPlan: allonsite Search classes",
         "childTestIds": [
           "fitness-search-preview",
           "fitness-search-result-count",
@@ -24668,7 +24668,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search classes Urban Sports Club \u00b7 Found 2 Urban Sports classes in onsite mode. Searched all Urban Sports plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
+        "visibleText": "Search classes ExampleFitness \u00b7 Found 2 fitness source classes in onsite mode. Searched all fitness source plans. 2026-07-10 \u00b7 07:30 - 08:30 \u00b7 Yoga Studio Kreuzberg 0.90 km 5 spots left Classic, Premium, Max Morning Yoga Flow 2026-07-10 \u00b7 18:00 - 19:00 \u00b7 BEAT81 - Paul-Lincke-Ufer 0.70 km 3 spots left Premium, Max HIIT Strength Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -24739,7 +24739,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Ophthalmologist in Munich via & Jameda 3 appointments available from Fri, Apr 3 Search appointments",
+        "visibleText": "Ophthalmologist in Munich via & ExampleClinicB 3 appointments available from Fri, Apr 3 Search appointments",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle",
@@ -24802,7 +24802,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search appointments Ophthalmologist in Munich Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac Jameda Dr. Markus Reinholz Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12, 80539 Munich public Dr. Sophie M\u00fcller Fri, Apr 3 \u00b7 02:00 PM Prof. Dr. Klaus Weber Ophthalmologist Leopoldstra\u00dfe 45, 80802 Munich Telehealth private Prof. Dr. Klaus Weber Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2,",
+        "visibleText": "Search appointments Ophthalmologist in Munich Fri, Apr 3 \u00b7 08:00 AM Dr. Markus Reinholz Hautarzt / Dermatologe Frauenplatz 11, 80331 M\u00fcnchen 5.0 \u2605 (125) 120 \u20ac ExampleClinicB Dr. Markus Reinholz Fri, Apr 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 12, 80539 Munich public Dr. Sophie M\u00fcller Fri, Apr 3 \u00b7 02:00 PM Prof. Dr. Klaus Weber Ophthalmologist Leopoldstra\u00dfe 45, 80802 Munich Telehealth private Prof. Dr. Klaus Weber Sat, Apr 4 \u00b7 09:30 AM Konrad Witkowski Zahnarzt Hoheluftchaussee 2,",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -25898,7 +25898,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Search 0 models found \u00b7 via Printables Search Processing...",
+        "visibleText": "Search 0 models found \u00b7 via ExampleModels Search Processing...",
         "childTestIds": [
           "models3d-search-preview",
           "embed-basic-infos-bar",
@@ -25961,7 +25961,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Search via Printables No results found Report Issue Share chat Close",
+        "visibleText": "Search via ExampleModels No results found Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -26785,7 +26785,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "bio joghurt via REWE 3 products from \u20ac1,39 Search",
+        "visibleText": "bio joghurt via ExampleGrocer 3 products from \u20ac1,39 Search",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle",
@@ -26848,7 +26848,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "bio joghurt via REWE Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 500g (0,28 \u20ac/100g) Bio Bio Vollmilch-Joghurt Naturell Demeter Bio-Joghurt mild Andechser Natur 2,49 \u20ac 500g (0,50 \u20ac/100g) BioVegetarisch Demeter Bio-Joghurt mild Griechischer Joghurt 10% Fett REWE Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett Skyr Natur 0,2% Fett REWE Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett Report Issue Share chat Close",
+        "visibleText": "bio joghurt via ExampleGrocer Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 500g (0,28 \u20ac/100g) Bio Bio Vollmilch-Joghurt Naturell Demeter Bio-Joghurt mild Andechser Natur 2,49 \u20ac 500g (0,50 \u20ac/100g) BioVegetarisch Demeter Bio-Joghurt mild Griechischer Joghurt 10% Fett ExampleGrocer Bio 1,89 \u20ac 400g (0,47 \u20ac/100g) BioVegetarisch Griechischer Joghurt 10% Fett Skyr Natur 0,2% Fett ExampleGrocer Beste Wahl 0,99 \u20ac 450g (0,22 \u20ac/100g) Vegetarisch Skyr Natur 0,2% Fett Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -28743,7 +28743,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Complete Guide to Migrating from Svelte 4 to Svelte 5 via Firecrawl Read",
+        "visibleText": "Complete Guide to Migrating from Svelte 4 to Svelte 5  Read",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle",
@@ -30140,7 +30140,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter TI WEBENCH TPS564257DRLR",
+        "visibleText": "TPS564257DRLR Buck / SOT-563 Efficiency 92.4% BOM cost 0.47 USD Footprint 89.6 mm2 BOM parts 11 Converter ExampleComponents TPS564257DRLR",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle"
@@ -30202,7 +30202,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Component TI WEBENCH TI WEBENCH Component Performance Electrical Input voltage -Output voltage - Report Issue Share chat Close",
+        "visibleText": "Component ExampleComponents ExampleComponents Component Performance Electrical Input voltage -Output voltage - Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -30386,7 +30386,7 @@
         "tagName": "div",
         "role": "button",
         "ariaLabel": null,
-        "visibleText": "Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Meetup AI & Machine Learning Berlin Meetup \u2013 Spring Edition",
+        "visibleText": "Mar 15 6:00 PM Berlin, Germany In Person 142 RSVPs Gathering AI & Machine Learning Berlin Gathering \u2013 Spring Edition",
         "childTestIds": [
           "embed-basic-infos-bar",
           "app-icon-circle"
@@ -30448,7 +30448,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "AI & Machine Learning Berlin Meetup \u2013 Spring Edition Sun, Mar 15 \u00b7 6:00 PM \u00b7 Berlin, Germany Register on Meetup +\u2212 Leaflet | \u00a9 OpenStreetMap In Person Free 142 RSVPs Meetup Date & Time Sunday, March 15, 20266:00 PM to 9:00 PM Location Factory Berlin Rheinsberger Str. 76-77 Berlin, Germany Organizer AI Berlin Community About Join us for an evening of talks on large language models, RAG architectures, and deploying AI to production. Speakers from leading Berlin AI companies. Schedule: 18:30 Doors ",
+        "visibleText": "AI & Machine Learning Berlin Gathering \u2013 Spring Edition Sun, Mar 15 \u00b7 6:00 PM \u00b7 Berlin, Germany Register on Gathering +\u2212 Leaflet | \u00a9 OpenStreetMap In Person Free 142 RSVPs Gathering Date & Time Sunday, March 15, 20266:00 PM to 9:00 PM Location Factory Berlin Rheinsberger Str. 76-77 Berlin, Germany Organizer AI Berlin Community About Join us for an evening of talks on large language models, RAG architectures, and deploying AI to production. Speakers from leading Berlin AI companies. Schedule: 18:30 Doors ",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -30698,7 +30698,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Urban Sports result Urban Sports result Report Issue Share chat Close",
+        "visibleText": "fitness source result fitness source result Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "fitness-result-fullscreen",
@@ -30822,7 +30822,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Urban Sports result Urban Sports result Report Issue Share chat Close",
+        "visibleText": "fitness source result fitness source result Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "fitness-result-fullscreen",
@@ -31065,7 +31065,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller \u00b7 Ophthalmologist Open on Doctolib +\u2212 Leaflet | \u00a9 OpenStreetMap Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 1280539 Munich public These times may no longer be available. Check current availability on Doctolib. Report Issue Close",
+        "visibleText": "Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller \u00b7 Ophthalmologist Open on ExampleClinicA +\u2212 Leaflet | \u00a9 OpenStreetMap Friday, April 3 \u00b7 10:30 AM Dr. Sophie M\u00fcller Ophthalmologist Maximilianstra\u00dfe 1280539 Munich public These times may no longer be available. Check current availability on ExampleClinicA. Report Issue Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -31189,7 +31189,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg 850 EUR/month Open on immobilienscout24.de Location Bergmannstr. 12, 10961 Berlin 55 m\u00b2 2 rooms Rent ImmoScout24 Report Issue Share chat Close",
+        "visibleText": "Sch\u00f6ne 2-Zimmer-Wohnung in Kreuzberg 850 EUR/month Open on ExampleHousingA.de Location Bergmannstr. 12, 10961 Berlin 55 m\u00b2 2 rooms Rent ExampleHousingA Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",
@@ -32809,7 +32809,7 @@
         "tagName": "div",
         "role": null,
         "ariaLabel": null,
-        "visibleText": "Bio Vollmilch-Joghurt Naturell Weihenstephan Open on REWE \ud83d\uded2 Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac Sale 500g (0,28 \u20ac/100g) \u2605 4.6 (832) Lieferung heute 500+ mal im letzten Monat gekauft BioVegetarischRegional Product ID rewe-12345 Molkereiprodukte > Joghurt Report Issue Share chat Close",
+        "visibleText": "Bio Vollmilch-Joghurt Naturell Weihenstephan Open on ExampleGrocer \ud83d\uded2 Bio Vollmilch-Joghurt Naturell Weihenstephan 1,39 \u20ac 1,79 \u20ac Sale 500g (0,28 \u20ac/100g) \u2605 4.6 (832) Lieferung heute 500+ mal im letzten Monat gekauft BioVegetarischRegional Product ID ExampleGrocer-12345 Molkereiprodukte > Joghurt Report Issue Share chat Close",
         "childTestIds": [
           "embed-header-title",
           "embed-header-subtitle",

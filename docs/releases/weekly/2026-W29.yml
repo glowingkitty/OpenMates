@@ -18,88 +18,66 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -164,7 +142,6 @@ themes:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'feat: add workflow graph tabs to CLI TUI'
@@ -660,8 +637,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: advertise only pending workflow chat deliveries'
@@ -677,8 +652,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: broadcast chat title updates'
@@ -901,16 +874,6 @@ themes:
     user_facing: true
     related_features: []
   - date: '2026-07-15'
-    title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-07-15'
     title: 'feat: stabilize models3d generation preview'
     commits:
     - c7d928935
@@ -944,15 +907,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: allow empty draft preflight metadata'
@@ -998,22 +957,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: correct models3d example embed previews'
@@ -1039,15 +992,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: hydrate webhook chat owner for recovery'
@@ -1113,8 +1062,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: resolve example child embed fullscreens'
@@ -1170,15 +1117,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: send webhook chat plaintext once'
@@ -1244,22 +1187,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: write Apple chat parity manifest by default'
@@ -1275,15 +1212,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: add chat rendering parity harness'
@@ -1299,15 +1232,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: add watch live chat smoke'
@@ -1323,22 +1252,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: cover example chat logout preservation'
@@ -1374,22 +1297,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: isolate models3d example verification'
@@ -1415,22 +1332,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: prefer numbered Apple live accounts'
@@ -1446,22 +1357,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: relax models3d example card assertion'
@@ -1487,22 +1392,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: retry watch chat fetches'
@@ -1518,22 +1417,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: stabilize models3d example fullscreen check'
@@ -1589,15 +1482,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: Fix app skill child fullscreen routing
@@ -1663,15 +1552,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: fallback api-key chat cli to ai ask'
@@ -1837,15 +1722,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: use sdk chat for api-key cli sends'
@@ -1871,15 +1752,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: pin chat parity account slots'
@@ -1895,15 +1772,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: stabilize Apple opened chat parity harness'
@@ -1919,15 +1792,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: stabilize opened chat parity oracle'
@@ -1983,8 +1852,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: add watch remote message initializer'
@@ -2000,22 +1867,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: allow shared encrypted embed assets'
@@ -2051,22 +1912,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: extract chat view lifecycle handlers'
@@ -2082,15 +1937,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: extract chat view request handlers'
@@ -2106,15 +1957,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: finalize CLI PDF embeds with chat context'
@@ -2140,22 +1987,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: make recovery terminal persistence idempotent'
@@ -2201,15 +2042,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: refetch partial sync message caches'
@@ -2245,22 +2082,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: render watch embed previews'
@@ -2276,22 +2107,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: retry recovery persistence conflicts'
@@ -2317,15 +2142,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: simplify chat view disappear modifier'
@@ -2341,15 +2162,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: split chat view body'
@@ -2365,15 +2182,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: stabilize CLI PDF chat context'
@@ -2419,15 +2232,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: wait for PDF embed data before send'
@@ -2473,15 +2282,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: avoid focusing offscreen Apple chat composer'
@@ -2527,22 +2332,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: return fake watch inline embed message'
@@ -2558,22 +2357,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: return watch inline embed fixture message'
@@ -2589,22 +2382,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: scope multi-tab decrypt errors to active chat'
@@ -2680,8 +2467,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'feat: add design icon search example'
@@ -2747,8 +2532,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: consume merged draft chat cache'
@@ -2864,8 +2647,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: notify recovered background chats'
@@ -2971,8 +2752,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: retry chat preflight timeouts'
@@ -3148,16 +2927,6 @@ themes:
     title: 'test: dismiss notifications before chat sidebar toggle'
     commits:
     - 6d1a8f8eb
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-07-18'
-    title: 'test: expect map fullscreen for urban sports link'
-    commits:
-    - c211fbb04
     section: tests
     release_status: dev_only
     communication_status: not_user_facing
@@ -3914,7 +3683,6 @@ themes:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: route workflow celery tasks'
@@ -3980,15 +3748,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: complete task job recovery flow'
@@ -4224,15 +3988,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: surface workflow runs on task board'
@@ -4248,8 +4008,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: verify task workflow app-skill contracts'
@@ -4265,15 +4023,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix(cli): keep recovery persist on durable preflight version'
@@ -4839,8 +4593,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: make design icon exports native downloads'
@@ -5036,8 +4788,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'fix: bind embed preview click handlers explicitly'
@@ -6803,8 +6553,6 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: preserve Tasks create payload batches'
@@ -6986,7 +6734,6 @@ themes:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: adapt workflow ai ask requests'
@@ -7003,7 +6750,6 @@ themes:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: keep OpenCode edit coordination warning-only'
@@ -7029,15 +6775,12 @@ themes:
       kind: app
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: make daily Playwright dispatch reliable'
@@ -7064,7 +6807,6 @@ themes:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'test: pass signup invite secret to password flow'
@@ -7170,15 +6912,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: add workflow version history translations'
@@ -7204,15 +6942,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: pass vault key to workflow search'
@@ -7228,15 +6962,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: accept Proton Bridge CI banner'
@@ -7372,15 +7102,11 @@ themes:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'docs: normalize business example evidence fields'
@@ -7911,15 +7637,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: pass Apple parity test credentials remotely'
@@ -7935,15 +7657,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: pass credentials to Apple unit tests'
@@ -7959,15 +7677,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: Record Apple fullscreen TestFlight evidence
@@ -7993,15 +7707,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: cover Apple fullscreen embed route stack'
@@ -8017,15 +7727,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'docs: add Apple App Store license exception'
@@ -8051,15 +7757,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: security
   item_count: 4
@@ -8169,7 +7871,6 @@ marketing_candidates:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'feat: add workflow graph tabs to CLI TUI'
@@ -8425,8 +8126,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'feat: add workflow SDK runtime parity'
@@ -8452,15 +8151,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: allow encrypted task retry ciphertext drift'
@@ -8856,15 +8551,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: expose app skill example chats in cli'
@@ -8890,26 +8581,12 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-  - date: '2026-07-15'
-    title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
   - date: '2026-07-15'
     title: 'feat: improve Apple native debugging workflow'
     commits:
@@ -8924,15 +8601,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: stabilize models3d generation preview'
@@ -8958,8 +8631,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: verify task workflow app-skill contracts'
@@ -8975,15 +8646,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix(cli): keep recovery persist on durable preflight version'
@@ -9039,15 +8706,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: allow sdk auth for application previews'
@@ -9103,22 +8766,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: correct models3d example embed previews'
@@ -9154,15 +8811,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: expose cli task update drain'
@@ -9188,15 +8841,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: keep legacy result fullscreens local'
@@ -9272,15 +8921,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: preserve example chats during logout'
@@ -9376,8 +9021,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: resolve example child embed fullscreens'
@@ -9443,15 +9086,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: shim application preview hmr client'
@@ -9587,22 +9226,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: Fix app skill child fullscreen routing
@@ -9648,15 +9281,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'feat: add Apple UI parity program gates'
@@ -9692,15 +9321,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: add typed app skill CLI commands'
@@ -9976,15 +9601,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: use sdk chat for api-key cli sends'
@@ -10040,8 +9661,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: accept rotating test cleanup api key'
@@ -10067,22 +9686,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: allow dev cleanup api key without test env hashes'
@@ -10138,22 +9751,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: decrypt SDK task helpers'
@@ -10179,15 +9786,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: extract chat view request handlers'
@@ -10203,15 +9806,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: finalize CLI PDF embeds with chat context'
@@ -10247,22 +9846,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: keep CLI upload embed ids stable'
@@ -10308,8 +9901,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: persist active recovery completions'
@@ -10365,15 +9956,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: refetch partial sync message caches'
@@ -10409,22 +9996,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: render watch embed previews'
@@ -10440,22 +10021,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: reuse robust login in CLI PDF spec'
@@ -10491,15 +10066,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: simplify chat view disappear modifier'
@@ -10515,15 +10086,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: split chat view body'
@@ -10539,15 +10106,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: stabilize CLI PDF chat context'
@@ -10613,15 +10176,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: use native docx download links'
@@ -10687,8 +10246,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'feat: add account export v1 web archive flow'
@@ -10774,8 +10331,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: consume merged draft chat cache'
@@ -10831,8 +10386,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: fetch public design icons without credentials'
@@ -11188,8 +10741,6 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'fix: avoid business financial content snippet collision'
@@ -11465,15 +11016,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'fix: open draft-only chats on chat surface'
@@ -11962,7 +11509,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'feat: add workflow graph tabs to CLI TUI'
@@ -11999,7 +11545,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: adapt workflow ai ask requests'
@@ -12016,7 +11561,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: add models3d embed surfaces'
@@ -12162,15 +11706,12 @@ unreleased_progress:
       kind: app
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: let recovery finalize normal completions'
@@ -12287,7 +11828,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: retry authenticated chat deep links'
@@ -12344,7 +11884,6 @@ unreleased_progress:
       default_enabled: false
       effective_enabled: true
       override: enabled
-      parent_id: null
       source: platform
   - date: '2026-07-13'
     title: 'fix: seal recovery mock replay completions'
@@ -12700,8 +12239,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'feat: add workflow SDK runtime parity'
@@ -12727,15 +12264,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: add models3d translations'
@@ -12761,8 +12294,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-14'
     title: 'fix: allow encrypted task retry ciphertext drift'
@@ -13588,15 +13119,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: expose app skill example chats in cli'
@@ -13622,26 +13149,12 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-  - date: '2026-07-15'
-    title: 'feat: finalize Printables models3d search'
-    commits:
-    - 357ddc35c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
   - date: '2026-07-15'
     title: 'feat: improve Apple native debugging workflow'
     commits:
@@ -13656,15 +13169,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: stabilize models3d generation preview'
@@ -13690,8 +13199,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'feat: verify task workflow app-skill contracts'
@@ -13707,15 +13214,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix(cli): keep recovery persist on durable preflight version'
@@ -13781,15 +13284,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: allow empty draft preflight metadata'
@@ -13875,22 +13374,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: correct models3d example embed previews'
@@ -13956,15 +13449,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: expose cli task update drain'
@@ -14010,15 +13499,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: hydrate webhook chat owner for recovery'
@@ -14094,15 +13579,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: pass vault context to app skills'
@@ -14128,15 +13609,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: preload models3d result fullscreen'
@@ -14252,8 +13729,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: resolve example child embed fullscreens'
@@ -14319,15 +13794,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: send webhook chat plaintext once'
@@ -14483,22 +13954,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'fix: write Apple chat parity manifest by default'
@@ -14514,15 +13979,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: accept Proton Bridge CI banner'
@@ -14558,15 +14019,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: add live Proton Bridge smoke'
@@ -14592,22 +14049,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: align Proton connector capability labels'
@@ -14693,22 +14144,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: isolate models3d example verification'
@@ -14734,22 +14179,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: normalize Proton Bridge prompt output'
@@ -14775,15 +14214,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: prefer numbered Apple live accounts'
@@ -14799,22 +14234,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: preserve Proton Bridge auth diagnostics'
@@ -14850,22 +14279,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: retry watch chat fetches'
@@ -14881,22 +14304,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-15'
     title: 'test: scope Proton Bridge prompt waits'
@@ -14982,15 +14399,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: Fix app skill child fullscreen routing
@@ -15046,15 +14459,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: Unify embed fullscreen routing
@@ -15210,15 +14619,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: add typed app skill CLI commands'
@@ -15534,15 +14939,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'fix: use sdk chat for api-key cli sends'
@@ -15598,15 +14999,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: cover Apple fullscreen embed route stack'
@@ -15622,15 +15019,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: cover privacy pii settings deep links'
@@ -15666,15 +15059,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: recognize loaded API key settings view'
@@ -15750,15 +15139,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-16'
     title: 'test: stabilize opened chat parity oracle'
@@ -15874,8 +15259,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: accept rotating test cleanup api key'
@@ -15901,22 +15284,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: allow dev cleanup api key without test env hashes'
@@ -15992,22 +15369,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: decrypt SDK task helpers'
@@ -16033,15 +15404,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: extract chat view request handlers'
@@ -16057,15 +15424,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: finalize CLI PDF embeds with chat context'
@@ -16111,22 +15474,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: keep CLI upload embed ids stable'
@@ -16182,8 +15539,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: persist active recovery completions'
@@ -16259,15 +15614,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: refetch partial sync message caches'
@@ -16333,22 +15684,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: render watch embed previews'
@@ -16364,22 +15709,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: retry recovery persistence conflicts'
@@ -16425,15 +15764,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: simplify chat view disappear modifier'
@@ -16449,15 +15784,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: split chat view body'
@@ -16473,15 +15804,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: stabilize CLI PDF chat context'
@@ -16567,15 +15894,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'fix: use native docx download links'
@@ -16661,15 +15984,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: avoid focusing offscreen Apple chat composer'
@@ -16715,22 +16034,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: patch metadata sync scheduler binding'
@@ -16766,22 +16079,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: return watch inline embed fixture message'
@@ -16797,22 +16104,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-17'
     title: 'test: scope multi-tab decrypt errors to active chat'
@@ -17038,8 +16339,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'feat: add account export v1 web archive flow'
@@ -17175,8 +16474,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: consume merged draft chat cache'
@@ -17242,8 +16539,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: expose pending draft chat upserts'
@@ -17389,8 +16684,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: notify recovered background chats'
@@ -17566,8 +16859,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'fix: retry chat preflight timeouts'
@@ -17843,15 +17134,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/workflows/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-18'
     title: 'test: avoid closing open chat sidebar'
@@ -17967,16 +17254,6 @@ unreleased_progress:
     title: 'test: dismiss notifications before mindmap download'
     commits:
     - 73e286e82
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-07-18'
-    title: 'test: expect map fullscreen for urban sports link'
-    commits:
-    - c211fbb04
     section: tests
     release_status: dev_only
     communication_status: not_user_facing
@@ -18427,8 +17704,6 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'fix: add tasks app translations'
@@ -18764,15 +18039,11 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-07-19'
     title: 'fix: open draft-only chats on chat surface'

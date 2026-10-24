@@ -9,9 +9,9 @@ range:
   to_ref: origin/main
   assume_released: false
 summary:
-  total_commits: 47
+  total_commits: 46
   section_counts:
-    features: 8
+    features: 7
     bug_fixes: 25
     improvements: 0
     docs: 1
@@ -29,73 +29,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -160,28 +140,6 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - commit is reachable from main
-  - title: 'feat: show Stoffe shopping result details'
-    section: features
-    commits:
-    - 594b055a4
-    authored_at: '2026-05-19T22:42:39+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.preview.ts
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
   - title: 'feat: select code run dependency installs'
     section: features
     commits:
@@ -202,26 +160,6 @@ sections:
     user_facing: true
     related_features: []
     feature_metadata_changed: false
-    rationale:
-    - classified as new features from commit subject/path rules
-    - contains user-facing product paths
-    - commit is reachable from main
-  - title: 'feat: add Stoffe.de shopping provider'
-    section: features
-    commits:
-    - 991eb90f3
-    authored_at: '2026-05-19T22:24:26+00:00'
-    changed_paths:
-    - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/stoffe_provider.py
-    - backend/apps/shopping/skills/search_products.py
-    - backend/tests/test_shopping_stoffe_provider.py
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
@@ -308,7 +246,6 @@ sections:
     authored_at: '2026-05-19T23:49:54+00:00'
     changed_paths:
     - backend/apps/shopping/skills/search_products.py
-    - backend/tests/test_shopping_stoffe_provider.py
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
@@ -388,7 +325,6 @@ sections:
     authored_at: '2026-05-19T21:14:59+00:00'
     changed_paths:
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
     release_status: released_main
@@ -1026,13 +962,6 @@ unreleased_progress:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'feat: add Stoffe.de shopping provider'
-    commits:
-    - 991eb90f3
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'feat: add code run sandbox execution'
     commits:
     - cb584b78d
@@ -1070,23 +999,9 @@ marketing_candidates:
     release_status: released_main
     communication_status: ready_for_public_communication
     related_features: []
-  - title: 'feat: show Stoffe shopping result details'
-    commits:
-    - 594b055a4
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
   - title: 'feat: select code run dependency installs'
     commits:
     - d679a87bc
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-  - title: 'feat: add Stoffe.de shopping provider'
-    commits:
-    - 991eb90f3
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1264,25 +1179,9 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
     newsletter_ready: true
-  - title: 'feat: show Stoffe shopping result details'
-    commits:
-    - 594b055a4
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
   - title: 'feat: select code run dependency installs'
     commits:
     - d679a87bc
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    related_features: []
-    newsletter_ready: true
-  - title: 'feat: add Stoffe.de shopping provider'
-    commits:
-    - 991eb90f3
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -1463,7 +1362,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/shopping/skills/search_products.py
-    - backend/tests/test_shopping_stoffe_provider.py
     related_feature_ids: []
   - sha: 8956fce2ae7c29681a8251374f6374a1dfbaf497
     short_sha: 8956fce2a
@@ -1528,20 +1426,6 @@ sources:
     - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
     - frontend/packages/ui/src/services/codeRunService.ts
     related_feature_ids: []
-  - sha: 594b055a45c1fe375db2db86ef29692b434fa8fb
-    short_sha: 594b055a4
-    authored_at: '2026-05-19T22:42:39+00:00'
-    subject: 'feat: show Stoffe shopping result details'
-    in_main: true
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.preview.ts
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedPreview.svelte
-    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
-    - frontend/packages/ui/src/i18n/sources/embeds.yml
-    related_feature_ids: []
   - sha: d679a87bcc70eb0fe1afea34d92f12a84556145f
     short_sha: d679a87bc
     authored_at: '2026-05-19T22:35:16+00:00'
@@ -1561,14 +1445,11 @@ sources:
   - sha: 991eb90f3633a3bc708b08a414fdab02dbd57bf1
     short_sha: 991eb90f3
     authored_at: '2026-05-19T22:24:26+00:00'
-    subject: 'feat: add Stoffe.de shopping provider'
     in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/shopping/app.yml
-    - backend/apps/shopping/providers/stoffe_provider.py
     - backend/apps/shopping/skills/search_products.py
-    - backend/tests/test_shopping_stoffe_provider.py
     related_feature_ids: []
   - sha: 7811a35fa16dfb7367c4a55e29b3d2ea2e6ff6da
     short_sha: 7811a35fa
@@ -1606,7 +1487,6 @@ sources:
     in_dev: true
     changed_paths:
     - backend/apps/travel/skills/search_connections.py
-    - backend/shared/providers/deutsche_bahn.py
     - backend/tests/test_travel_search_connections.py
     - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
     related_feature_ids: []
@@ -2007,9 +1887,6 @@ sources:
     - backend/core/api/app/services/directus/directus.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates introduced a major new code execution sandbox, upgraded its primary AI model to Gemini 3.5 Flash, and
-    expanded shopping capabilities with Stoffe.de integration. The update also includes significant stability fixes for chat
-    synchronization and travel searches.
   released_changes:
   - text: OpenMates added a secure sandbox for code execution, allowing users to run code, select specific files or dependencies
       for the run, and cancel active executions via a new header CTA.
@@ -2026,8 +1903,7 @@ llm_summary:
       commits:
       - 8956fce2a
     release_status: released_main
-  - text: The shopping assistant now supports Stoffe.de as a provider, including detailed fullscreen result views.
-    evidence:
+  - evidence:
       commits:
       - 991eb90f3
       - 594b055a4
@@ -2107,8 +1983,7 @@ llm_summary:
         commits:
         - 8956fce2a
       reason: Significant model upgrade for AI processing and daily inspiration.
-    - text: New Stoffe.de shopping provider with detailed result views.
-      evidence:
+    - evidence:
         commits:
         - 991eb90f3
         - 594b055a4
@@ -2120,8 +1995,6 @@ llm_summary:
         commits:
         - bb032f260
       reason: Documentation-only change regarding privacy providers.
-    rationale: The introduction of a code execution sandbox and the upgrade to Gemini 3.5 Flash represent major functional
-      milestones for the platform. The addition of Stoffe.de expands the utility of the shopping assistant.
   social_video_recommendations:
   - idea: A demonstration of the new code sandbox showing a user selecting files and running a Python script directly in the
       chat.
@@ -2131,8 +2004,7 @@ llm_summary:
       commits:
       - cb584b78d
       - bfca9239b
-  - idea: A quick look at shopping for fabrics using the new Stoffe.de integration, highlighting the detailed result cards.
-    priority: medium
+  - priority: medium
     reason: Shows the practical, real-world utility of the shopping skills.
     evidence:
       commits:

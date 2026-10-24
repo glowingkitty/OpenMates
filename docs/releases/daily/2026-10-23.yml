@@ -5,7 +5,6 @@ generated_at: '2026-10-24T00:20:37+00:00'
 range:
   since: '2026-10-23T00:00:00+00:00'
   until: '2026-10-24T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -249,8 +225,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/reminder/app.yml
     feature_metadata_changed: false
     rationale:
@@ -450,8 +424,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -541,21 +513,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     feature_metadata_changed: true
@@ -571,8 +539,6 @@ sections:
     authored_at: '2026-10-23T18:24:23+00:00'
     changed_paths:
     - DESIGN.md
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/test_urban_sports_provider.py
     - docs/design-guide/result-embeds.md
     - docs/plans/result-embed-redesign/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
@@ -619,28 +585,24 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     feature_metadata_changed: false
@@ -671,8 +633,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -717,49 +677,42 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     feature_metadata_changed: false
@@ -832,21 +785,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     feature_metadata_changed: true
@@ -899,7 +848,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     feature_metadata_changed: false
@@ -1083,15 +1031,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1120,8 +1064,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1173,7 +1115,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
@@ -1237,9 +1178,6 @@ sections:
     authored_at: '2026-10-23T12:53:09+00:00'
     changed_paths:
     - DESIGN.md
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/test_fitness_urban_sports_skills.py
-    - backend/tests/test_urban_sports_provider.py
     - docs/design-guide/result-embeds.md
     - docs/plans/result-embed-redesign/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
@@ -1260,7 +1198,6 @@ sections:
     - frontend/apps/web_app/tests/components/specialized-preview-tools.spec.ts
     - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
     - frontend/packages/public-site/src/assets/results/event.svg
-    - frontend/packages/public-site/src/assets/results/meetup.webp
     - frontend/packages/public-site/src/assets/results/team.svg
     - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
     - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts
@@ -1341,161 +1278,138 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:search_repos
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:models3d:model_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:news:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     - id: embed:social_media:get-posts
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     feature_metadata_changed: false
@@ -1554,49 +1468,42 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     feature_metadata_changed: false
@@ -1661,28 +1568,24 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     feature_metadata_changed: false
@@ -1732,14 +1635,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
@@ -1812,42 +1712,34 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     feature_metadata_changed: true
@@ -1879,8 +1771,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1922,49 +1812,42 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     feature_metadata_changed: false
@@ -2006,14 +1889,12 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     feature_metadata_changed: false
@@ -2534,8 +2415,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'test: retain bounded web search inference diagnostics'
     commits:
@@ -2590,21 +2469,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
   - title: 'test: admit isolated Rust core essentials independently'
@@ -2639,28 +2514,24 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
   - title: 'fix: reuse equivalent completed event searches'
@@ -2674,8 +2545,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: open saved search results in embed fullscreen'
     commits:
@@ -2688,49 +2557,42 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
   - title: 'fix: keep chat timeline compact beside message history'
@@ -2751,21 +2613,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
   - title: 'feat: make reminder emails useful and preserve deep links'
@@ -2779,8 +2637,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/reminder/app.yml
   - title: 'fix: show Send in fullscreen embed voice recording'
     commits:
@@ -2800,7 +2656,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
   - title: 'fix: anchor verified CI Node acquisition and startup receipts'
@@ -2863,15 +2718,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
   - title: 'fix: update MuPDF bundled Brotli decoder'
     commits:
@@ -2884,8 +2735,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
   - title: 'fix: patch Node and preview Brotli security runtimes'
     commits:
@@ -2919,7 +2768,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
   - title: 'fix: preserve composer search clicks through draft persistence'
@@ -2947,161 +2795,138 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:search_repos
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:models3d:model_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:news:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     - id: embed:social_media:get-posts
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
   - title: 'fix: contain split-view composers and preserve public embed context'
@@ -3115,49 +2940,42 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
   - title: 'test: verify the trusted CI gateway helper path'
@@ -3199,28 +3017,24 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
   - title: 'fix: remove dangling self-correction cues from transcripts'
@@ -3248,14 +3062,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
   - title: 'fix: make audio transcript cleanup concise and final-intent only'
@@ -3276,42 +3087,34 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
   - title: 'fix: preserve voice calls through transcription idle gaps'
@@ -3325,8 +3128,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
   - title: 'fix: restore image previews and image file actions'
     commits:
@@ -3339,49 +3140,42 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
   - title: 'fix: render SVG-only code as image embeds'
@@ -3395,14 +3189,12 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
   - title: 'fix: match copy and report message hover styling'
@@ -3481,21 +3273,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
   - title: 'fix: validate event topics without optional relevance goals'
@@ -3509,21 +3297,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
   - title: 'fix: preserve generated image previews and attribution'
@@ -3537,42 +3321,34 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
 marketing_candidates:
@@ -3597,8 +3373,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: stabilize call startup and streamed playback'
@@ -3620,21 +3394,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/maps/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: skill:maps:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     newsletter_ready: false
@@ -3649,28 +3419,24 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:travel:search_connections
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:travel
       source: backend/apps/travel/app.yml
     newsletter_ready: false
@@ -3685,8 +3451,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: open saved search results in embed fullscreen'
@@ -3700,49 +3464,42 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     newsletter_ready: false
@@ -3765,21 +3522,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/events/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: skill:events:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     newsletter_ready: false
@@ -3794,8 +3547,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/reminder/app.yml
     newsletter_ready: false
   - title: 'fix: show Send in fullscreen embed voice recording'
@@ -3817,7 +3568,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     newsletter_ready: false
@@ -3840,15 +3590,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:audio
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     newsletter_ready: false
   - title: 'fix: update MuPDF bundled Brotli decoder'
@@ -3862,8 +3608,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/pdf/app.yml
     newsletter_ready: false
   - title: 'fix: patch Node and preview Brotli security runtimes'
@@ -3893,7 +3637,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     newsletter_ready: false
@@ -3924,161 +3667,138 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:search_repos
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:docs:doc
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:docs
       source: backend/apps/docs/app.yml
     - id: embed:events:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
     - id: embed:fitness:search_classes
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:fitness:search_locations
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:fitness
       source: backend/apps/fitness/app.yml
     - id: embed:health:search_appointments
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:health
       source: backend/apps/health/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: embed:hosting:search_domains
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:hosting
       source: backend/apps/hosting/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:models3d:model_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:models3d:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
     - id: embed:news:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     - id: embed:social_media:get-posts
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:social_media:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:social_media
       source: backend/apps/social_media/app.yml
     - id: embed:weather:forecast
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:weather
       source: backend/apps/weather/app.yml
     - id: embed:web:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:web
       source: backend/apps/web/app.yml
     newsletter_ready: false
@@ -4093,49 +3813,42 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:pdf:pdf
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:pdf
       source: backend/apps/pdf/app.yml
     newsletter_ready: false
@@ -4150,28 +3863,24 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     newsletter_ready: false
@@ -4186,14 +3895,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: skill:ai:ask
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
     newsletter_ready: false
@@ -4208,42 +3914,34 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:images
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/images/app.yml
     - id: embed:images:generate
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     newsletter_ready: false
@@ -4258,8 +3956,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     newsletter_ready: false
   - title: 'fix: restore image previews and image file actions'
@@ -4273,49 +3969,42 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generate_draft
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:generated_image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:image_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     newsletter_ready: false
@@ -4330,14 +4019,12 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     - id: embed:images:image
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
     newsletter_ready: false
@@ -4667,8 +4354,6 @@ sources:
     in_dev: true
     changed_paths:
     - DESIGN.md
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/test_urban_sports_provider.py
     - docs/design-guide/result-embeds.md
     - docs/plans/result-embed-redesign/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
@@ -5205,9 +4890,6 @@ sources:
     in_dev: true
     changed_paths:
     - DESIGN.md
-    - backend/shared/providers/urban_sports/parsers.py
-    - backend/tests/test_fitness_urban_sports_skills.py
-    - backend/tests/test_urban_sports_provider.py
     - docs/design-guide/result-embeds.md
     - docs/plans/result-embed-redesign/plan.yml
     - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
@@ -5228,7 +4910,6 @@ sources:
     - frontend/apps/web_app/tests/components/specialized-preview-tools.spec.ts
     - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
     - frontend/packages/public-site/src/assets/results/event.svg
-    - frontend/packages/public-site/src/assets/results/meetup.webp
     - frontend/packages/public-site/src/assets/results/team.svg
     - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
     - frontend/packages/public-site/src/components/landing/landingFeatureAnimationContent.ts

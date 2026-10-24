@@ -146,7 +146,7 @@ test('search preview summarizes checked results and exposes honest terminal stat
 	await expect(page.getByTestId('hosting-search-preview')).toBeVisible();
 	await expectWithinViewport(page, card);
 	await expect(card).toContainText('cedarcomet');
-	await expect(card).toContainText('Gandi');
+	await expect(card).toContainText('ExampleRegistrar');
 	await expect(card).toContainText('6 checked');
 	await expect(card).toContainText('3 available');
 	await expect(card).toContainText(/available/i);
@@ -194,7 +194,7 @@ test('search fullscreen filters checked children locally and opens their details
 
 	const outboundRequests: string[] = [];
 	page.on('request', (request) => {
-		if (/\/(?:v1\/apps\/hosting|gandi)\//i.test(request.url()))
+		if (/\/(?:v1\/apps\/hosting|ExampleRegistrar)\//i.test(request.url()))
 			outboundRequests.push(request.url());
 	});
 	await chooseView(page, 'available');
@@ -361,7 +361,7 @@ test('domain fullscreen keeps quote terms, source and copyable names readable', 
 	await expect(detail).toContainText(/VAT|tax/i);
 	await expect(detail).not.toContainText(/\b1 years\b/i);
 	await expect(detail).toContainText(/availability.*change|prices.*change/i);
-	await expect(detail.getByRole('link', { name: /open on Gandi/i })).toHaveAttribute('href', /^https:\/\/shop\.gandi\.net\//);
+	await expect(detail.getByRole('link', { name: /open on ExampleRegistrar/i })).toHaveAttribute('href', /^https:\/\/shop\.ExampleRegistrar\.net\//);
 	await checkpoint(testInfo, 'hosting-domain-detail-default-phone-light', detail);
 
 	await openPreview(page, 'HostingDomainEmbedFullscreen', { variant: 'minTwoYears' });

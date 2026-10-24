@@ -5142,29 +5142,29 @@ element:
   sv: Element X
   he: Element X
   verified_by_human: []
-meetup:
-  context: Meetup contact link
-  en: Meetup
-  de: Meetup
-  zh: Meetup
-  es: Meetup
-  fr: Meetup
-  pt: Meetup
-  ru: Meetup
-  ja: Meetup
-  ko: Meetup
-  it: Meetup
-  tr: Meetup
-  vi: Meetup
-  id: Meetup
-  pl: Meetup
-  nl: Meetup
-  ar: Meetup
-  hi: Meetup
-  th: Meetup
-  cs: Meetup
-  sv: Meetup
-  he: Meetup
+Gathering:
+  context: Gathering contact link
+  en: Gathering
+  de: Gathering
+  zh: Gathering
+  es: Gathering
+  fr: Gathering
+  pt: Gathering
+  ru: Gathering
+  ja: Gathering
+  ko: Gathering
+  it: Gathering
+  tr: Gathering
+  vi: Gathering
+  id: Gathering
+  pl: Gathering
+  nl: Gathering
+  ar: Gathering
+  hi: Gathering
+  th: Gathering
+  cs: Gathering
+  sv: Gathering
+  he: Gathering
   verified_by_human: []
 email:
   context: Email contact link

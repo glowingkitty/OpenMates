@@ -166,7 +166,8 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
     assert weather_schema["properties"]["days"]["x-ui"]["hidden"] is True
 
     travel_request = travel_connections["schema"]["properties"]["requests"]["items"]["properties"]
-    assert "transitous" in travel_request["providers"]["items"]["enum"]
+    assert "providers" not in travel_request
+    assert "unavailable" in travel_connections["description"].lower()
     assert "owned_passes" in travel_request
     assert "pass_only" in travel_request
     assert travel_request["rail_products"]["items"]["enum"] == [

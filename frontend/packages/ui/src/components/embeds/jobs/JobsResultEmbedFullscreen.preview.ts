@@ -1,6 +1,6 @@
 const job = {
   id: 'preview-1', title: 'Climate Data Analyst', company: 'Example Organization',
-  location: 'Berlin', country: 'DE', provider: 'Arbeitnow',
+  location: 'Berlin', country: 'DE', provider: 'ExampleJobsD',
   url: 'https://example.com/jobs/climate-data', apply_url: 'https://example.com/jobs/climate-data/apply',
   remote: null, description: 'Analyse public climate datasets.', published_at: '2026-10-01',
 };
@@ -9,7 +9,7 @@ export default defaultProps;
 export const variants = {
   sourceOnly: { ...defaultProps, data: { decodedContent: { ...job, apply_url: undefined } } },
   richDetails: { ...defaultProps, data: { decodedContent: { ...job,
-    provider: 'hard_problems', sector: 'Healthcare', role: 'Product design',
+    provider: 'ExampleJobsC', sector: 'Healthcare', role: 'Product design',
     seniority: 'Senior', organization_type: 'For-profit', work_arrangement: 'Hybrid',
     employment_type: 'full_time', valid_through: '2026-11-14T00:00:00Z', detail_status: 'complete',
     impact: 'Reduce administrative work so healthcare professionals can focus on patients.',

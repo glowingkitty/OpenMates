@@ -5,7 +5,6 @@ generated_at: '2026-10-22T00:20:36+00:00'
 range:
   since: '2026-10-21T00:00:00+00:00'
   until: '2026-10-22T00:00:00+00:00'
-  from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
@@ -30,132 +29,109 @@ feature_availability:
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plans
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plans/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:projects
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/projects/app.yml
   - id: app:tasks
     kind: app
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: backend/apps/tasks/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:medical_history
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:sleep_diary
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: memory:health:symptoms_log
     kind: memory
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:health
     source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:teams
     kind: platform
     default_enabled: false
     effective_enabled: false
     override: disabled
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: skill:models3d:generate
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:models3d
     source: backend/apps/models3d/app.yml
   - id: skill:openmates:get-docs
     kind: skill
     default_enabled: false
     effective_enabled: false
-    override: null
     parent_id: app:openmates
     source: backend/apps/openmates/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
@@ -215,9 +191,6 @@ sections:
     - backend/apps/home/app.yml
     - backend/apps/home/evidence.py
     - backend/apps/home/location_enrichment.py
-    - backend/apps/home/providers/immoscout24.py
-    - backend/apps/home/providers/kleinanzeigen.py
-    - backend/apps/home/providers/wg_gesucht.py
     - backend/apps/home/skills/search_skill.py
     - backend/apps/shopping/visual_ranking.py
     - backend/shared/providers/geoapify/places.py
@@ -286,35 +259,27 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     feature_metadata_changed: true
@@ -371,8 +336,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
     rationale:
@@ -417,14 +380,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:videos:get_transcript
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     feature_metadata_changed: true
@@ -632,43 +592,34 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:audio:recording
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:transcribe
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -702,7 +653,6 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     feature_metadata_changed: false
@@ -752,8 +702,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -779,8 +727,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -822,8 +768,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -856,13 +800,10 @@ sections:
     changed_paths:
     - backend/apps/jobs/app.yml
     - backend/apps/jobs/skills/search_skill.py
-    - backend/shared/providers/jobs/hard_problems.py
-    - backend/shared/providers/jobs/hard_problems_details.py
     - backend/shared/providers/jobs/models.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_role_details.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
     - frontend/apps/web_app/tests/jobs-search-example.spec.ts
@@ -907,28 +848,23 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     feature_metadata_changed: true
@@ -1003,15 +939,12 @@ sections:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: false
     rationale:
@@ -1038,8 +971,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     feature_metadata_changed: true
     rationale:
@@ -1072,21 +1003,17 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     feature_metadata_changed: true
@@ -1400,22 +1327,16 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     feature_metadata_changed: true
     rationale:
@@ -1470,8 +1391,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1518,8 +1437,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1572,8 +1489,6 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1613,15 +1528,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
     rationale:
@@ -1684,14 +1595,11 @@ sections:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: embed:code:application
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     feature_metadata_changed: false
@@ -1862,7 +1770,6 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
   - title: 'docs: record single-LLM inspiration rollout and active-user limits'
@@ -1890,8 +1797,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: close English and German inspiration rollout'
     commits:
@@ -1911,8 +1816,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'docs: record verified Apps workspace repair'
     commits:
@@ -1932,8 +1835,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: align ONNX runtime minimum with approved iOS26.2'
     commits:
@@ -1953,28 +1854,23 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'fix: repair Apps sidebar, results, settings and workflow handoffs'
@@ -1988,15 +1884,12 @@ unreleased_progress:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'perf: start application previews with warm servers and pushed readiness'
     commits:
@@ -2009,14 +1902,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: embed:code:application
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
   - title: 'docs: record Apple parity and notification verification checkpoint'
@@ -2037,8 +1927,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
   - title: 'fix: preserve apartment photo identity and location provenance'
     commits:
@@ -2051,21 +1939,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
   - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
@@ -2079,22 +1963,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'fix: show readable sheet citation headings'
     commits:
@@ -2121,35 +1999,27 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
   - title: 'feat: replace Sweden jobs example with Germany search'
@@ -2163,8 +2033,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
   - title: 'fix: preserve Gemini user turn in inspiration repair requests'
     commits:
@@ -2177,8 +2045,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'fix: place composer microphone before send button'
     commits:
@@ -2205,8 +2071,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
   - title: 'fix: review inspiration fields and repair only failed sources'
     commits:
@@ -2219,8 +2083,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
   - title: 'feat: add media.ccc.de published video captions'
     commits:
@@ -2233,14 +2095,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:videos:get_transcript
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - title: 'fix: accelerate isolated app previews and prepare common code toolchains'
@@ -2254,15 +2113,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
   - title: 'feat: bind native notification replies to authenticated registration'
     commits:
@@ -2303,43 +2158,34 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:audio:recording
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:transcribe
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   unknown_release_status: []
   feature_metadata_changed:
@@ -2354,28 +2200,23 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
   - title: 'fix: read complete live apartment gallery layouts'
@@ -2389,8 +2230,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
   - title: 'fix: preserve apartment photo identity and location provenance'
     commits:
@@ -2403,21 +2242,17 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
   - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
@@ -2431,22 +2266,16 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - title: 'feat: improve apartment data, galleries, filtering and maps'
     commits:
@@ -2459,35 +2288,27 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
   - title: 'feat: replace Sweden jobs example with Germany search'
@@ -2501,8 +2322,6 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
   - title: 'feat: add media.ccc.de published video captions'
     commits:
@@ -2515,14 +2334,11 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:videos:get_transcript
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
   - title: 'feat: redesign Apps workspace with natural-language requests'
@@ -2536,43 +2352,34 @@ unreleased_progress:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:audio:recording
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:transcribe
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 marketing_candidates:
   newsletter: []
@@ -2588,7 +2395,6 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     newsletter_ready: false
@@ -2611,8 +2417,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: use registered inspiration review tracing purpose'
@@ -2626,8 +2430,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: strengthen English and German inspiration copy review'
@@ -2641,8 +2443,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: restore job details and header application CTA'
@@ -2656,28 +2456,23 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:job_result
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: embed:jobs:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     - id: skill:jobs:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
     newsletter_ready: false
@@ -2692,15 +2487,12 @@ marketing_candidates:
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'perf: start application previews with warm servers and pushed readiness'
@@ -2714,14 +2506,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     - id: embed:code:application
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
     newsletter_ready: false
@@ -2736,8 +2525,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     newsletter_ready: false
   - title: 'fix: preserve apartment photo identity and location provenance'
@@ -2751,21 +2538,17 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     newsletter_ready: false
@@ -2780,22 +2563,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
   - title: 'fix: show readable sheet citation headings'
@@ -2817,35 +2594,27 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:home
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/home/app.yml
     - id: app:shopping
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/shopping/app.yml
     - id: embed:home:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     - id: skill:home:search
       kind: skill
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:home
       source: backend/apps/home/app.yml
     newsletter_ready: false
@@ -2860,8 +2629,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/jobs/app.yml
     newsletter_ready: false
   - title: 'fix: preserve Gemini user turn in inspiration repair requests'
@@ -2875,8 +2642,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'fix: place composer microphone before send button'
@@ -2898,8 +2663,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     newsletter_ready: false
   - title: 'fix: review inspiration fields and repair only failed sources'
@@ -2913,8 +2676,6 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     newsletter_ready: false
   - title: 'feat: add media.ccc.de published video captions'
@@ -2928,14 +2689,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/videos/app.yml
     - id: embed:videos:get_transcript
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:videos
       source: backend/apps/videos/app.yml
     newsletter_ready: false
@@ -2950,15 +2708,11 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/ai/app.yml
     - id: app:code
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/code/app.yml
     newsletter_ready: false
   - title: 'feat: bind native notification replies to authenticated registration'
@@ -2988,43 +2742,34 @@ marketing_candidates:
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/audio/app.yml
     - id: app:health
       kind: app
       default_enabled: true
       effective_enabled: true
-      override: null
-      parent_id: null
       source: backend/apps/health/app.yml
     - id: embed:audio:recording
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:audio:transcribe
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:audio
       source: backend/apps/audio/app.yml
     - id: embed:maps:search
       kind: embed
       default_enabled: true
       effective_enabled: true
-      override: null
       parent_id: app:maps
       source: backend/apps/maps/app.yml
     - id: platform:workflows
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     newsletter_ready: false
 risks:
@@ -3216,13 +2961,10 @@ sources:
     changed_paths:
     - backend/apps/jobs/app.yml
     - backend/apps/jobs/skills/search_skill.py
-    - backend/shared/providers/jobs/hard_problems.py
-    - backend/shared/providers/jobs/hard_problems_details.py
     - backend/shared/providers/jobs/models.py
     - backend/tests/test_jobs_other_impact_provider.py
     - backend/tests/test_jobs_role_details.py
     - backend/tests/test_jobs_search_skill.py
-    - docs/apis/hard_problems.md
     - docs/apis/jobs-search-research.md
     - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
     - frontend/apps/web_app/tests/jobs-search-example.spec.ts
@@ -3739,9 +3481,6 @@ sources:
     - backend/apps/home/app.yml
     - backend/apps/home/evidence.py
     - backend/apps/home/location_enrichment.py
-    - backend/apps/home/providers/immoscout24.py
-    - backend/apps/home/providers/kleinanzeigen.py
-    - backend/apps/home/providers/wg_gesucht.py
     - backend/apps/home/skills/search_skill.py
     - backend/apps/shopping/visual_ranking.py
     - backend/shared/providers/geoapify/places.py

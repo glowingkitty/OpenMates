@@ -590,13 +590,13 @@ provider: Brave Search`,
       type: "image_result",
       content: `type: image_result
 title: "r/interestingasfuck - NASA has a plane called Super Guppy that's designed to transport rockets, large equipment and even other planes"
-source_page_url: "https://www.reddit.com/r/interestingasfuck/comments/odlpql/nasa_has_a_plane_called_super_guppy_thats/"
+source_page_url: "https://example.com/fixture"
 image_url: "https://external-preview.redd.it/nasa-has-a-plane-called-super-guppy-thats-designed-to-v0-s0-Fure1-WND-BDHws5tg598M-CQFQVGLgTwvtT27us.jpg?width=640&crop=smart&auto=webp&s=1337e481abe2d8ccc2501809f2927e148712dfab"
 thumbnail_url: "https://imgs.search.brave.com/U8E4JWDmURV53Zm9xA-GldZV-laaMg5Qg7HMsrToAo0/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHRl/cm5hbC1wcmV2aWV3/LnJlZGQuaXQvbmFz/YS1oYXMtYS1wbGFu/ZS1jYWxsZWQtc3Vw/ZXItZ3VwcHktdGhh/dHMtZGVzaWduZWQt/dG8tdjAtczAtRnVy/ZTEtV05ELUJESHdz/NXRnNTk4TS1DUUZR/VkdMZ1R3dnRUMjd1/cy5qcGc_d2lkdGg9/NjQwJmNyb3A9c21h/cnQmYXV0bz13ZWJw/JnM9MTMzN2U0ODFh/YmUyZDhjY2MyNTAx/ODA5ZjI5MjdlMTQ4/NzEyZGZhYg"
-source: reddit.com
+source: ExampleCommunity.com
 favicon_url: "https://imgs.search.brave.com/U-eHNCapRHVNWWCVPPMTIvOofZULh0_A_FQKe8xTE4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2ZiNTU0M2Nj/MTFhZjRiYWViZDlk/MjJiMjBjMzFjMDRk/Y2IzYWI0MGI0MjVk/OGY5NzQzOGQ5NzQ5/NWJhMWI0NC93d3cu/cmVkZGl0LmNvbS8"
 hash: 01e2e73d68a8d48f
-embed_ref: reddit.com-eHx
+embed_ref: ExampleCommunity.com-eHx
 app_id: images
 skill_id: search`,
       parent_embed_id: "5e183917-41a3-45f4-a0e7-e01e346b1e58",

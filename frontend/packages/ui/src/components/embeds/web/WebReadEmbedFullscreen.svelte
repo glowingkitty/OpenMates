@@ -14,7 +14,7 @@
   Layout (per Figma design):
   - Gradient banner header: title (page title), subtitle (word count), favicon
   - Banner CTA: "Open on {hostname}" button at the bottom of the banner
-  - "Text only preview, via Firecrawl: {wordCount} words" label
+  - "Text only preview, {wordCount} words" label
   - White content card with rendered markdown
 -->
 
@@ -408,7 +408,7 @@
   appId="web"
   skillId="read"
   embedHeaderTitle={displayTitle}
-  embedHeaderSubtitle={totalWordCount > 0 ? `via Firecrawl: ${totalWordCount.toLocaleString()} words` : undefined}
+  embedHeaderSubtitle={totalWordCount > 0 ? `${totalWordCount.toLocaleString()} words` : undefined}
   embedHeaderFaviconUrl={faviconUrl}
   skillIconName="text"
   showSkillIcon={true}
@@ -438,11 +438,11 @@
 
   {#snippet content()}
     <div class="web-read-fullscreen-content">
-      <!-- "Text only preview, via Firecrawl: X words" label - only show if we have content -->
+      <!-- "Text only preview, X words" label - only show if we have content -->
       {#if totalWordCount > 0}
         <div class="text-preview-label">
           <span>{$text('embeds.web_read_text_preview')}</span>
-          <span>via Firecrawl: {totalWordCount.toLocaleString()} words</span>
+          <span>{totalWordCount.toLocaleString()} words</span>
         </div>
       {/if}
       
@@ -465,6 +465,7 @@
             <div class="result-content">
               {#if index in renderedMarkdowns && renderedMarkdowns[index]}
                 <div class="markdown-content">
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown stores only DOMPurify allowlist output or an HTML-escaped text fallback -->
                   {@html renderedMarkdowns[index]}
                 </div>
               {:else if result.markdown}

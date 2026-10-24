@@ -354,17 +354,17 @@ async function inspectReportedHeaderRegressions(page: Page, history: Locator, ch
       'pcbdesign', `${chat.slug}: component result preview`);
   } else {
     const appointment = chat.embeds.find(embed => embed.type === 'appointment'
-      && embedField(embed, 'insurance') === 'unknown' && embedField(embed, 'provider_platform') === 'Doctolib')!;
-    expect(appointment, `${chat.slug}: source unknown-insurance Doctolib appointment`).toBeDefined();
+      && embedField(embed, 'insurance') === 'unknown' && embedField(embed, 'provider_platform') === 'ExampleClinicA')!;
+    expect(appointment, `${chat.slug}: source unknown-insurance ExampleClinicA appointment`).toBeDefined();
     const card = fullscreen.locator(`[data-testid="embed-preview"][data-embed-id="${appointment.embed_id}"]`);
-    const verifiedLabel = sourceMessage('embeds.health.insurance_verify_on_provider').replace('{provider}', 'Doctolib');
+    const verifiedLabel = sourceMessage('embeds.health.insurance_verify_on_provider').replace('{provider}', 'ExampleClinicA');
     await expect(card.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
-    await expect(card).not.toContainText(/verify on Jameda/i);
+    await expect(card).not.toContainText(/verify on ExampleClinicB/i);
     await card.click();
     const child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
     await expect(child).toBeVisible();
     await expect(child.locator('.insurance-unknown-badge')).toHaveText(verifiedLabel);
-    await expect(child).not.toContainText(/verify on Jameda/i);
+    await expect(child).not.toContainText(/verify on ExampleClinicB/i);
     await closeFullscreen(page, child);
   }
   await closeFullscreen(page, fullscreen);
@@ -503,27 +503,27 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
       await closeFullscreen(page, sheetFullscreen);
     }
   }
-  if (appId === 'shopping' && chat.slug === 'air-fryers-amazon-germany') {
+  if (appId === 'shopping' && chat.slug === 'air-fryers-retail-germany') {
     const parents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
       && embedField(embed, 'app_id') === 'shopping'
       && embedField(embed, 'skill_id') === 'search_products'
       && embedField(embed, 'status') === 'finished');
-    expect(parents, `${chat.slug}: finished Amazon product search`).toHaveLength(1);
+    expect(parents, `${chat.slug}: finished ExampleRetail product search`).toHaveLength(1);
     const parent = parents[0];
-    expect(embedField(parent, 'provider'), `${chat.slug}: Amazon search provider`).toMatch(/^Amazon$/i);
+    expect(embedField(parent, 'provider'), `${chat.slug}: ExampleRetail search provider`).toMatch(/^ExampleRetail$/i);
     expect(embedField(parent, 'country'), `${chat.slug}: German search market`).toBe('de');
     const products = chat.embeds.filter(embed => embed.type === 'product' && embed.parent_embed_id === parent.embed_id);
-    expect(products.length, `${chat.slug}: saved Amazon product results`).toBeGreaterThanOrEqual(3);
+    expect(products.length, `${chat.slug}: saved ExampleRetail product results`).toBeGreaterThanOrEqual(3);
     expect(parent.embed_ids, `${chat.slug}: search parent lists every product`).toEqual(
       expect.arrayContaining(products.map(product => product.embed_id))
     );
     for (const product of products) {
-      expect(embedField(product, 'provider'), `${chat.slug}: ${product.embed_id} provider`).toMatch(/^Amazon$/i);
+      expect(embedField(product, 'provider'), `${chat.slug}: ${product.embed_id} provider`).toMatch(/^ExampleRetail$/i);
       expect(embedField(product, 'country'), `${chat.slug}: ${product.embed_id} market`).toBe('de');
       expect(embedField(product, 'purchase_url'), `${chat.slug}: ${product.embed_id} purchase destination`)
-        .toMatch(/^https:\/\/www\.amazon\.de\//);
+        .toMatch(/^https:\/\/www\.ExampleRetail\.de\//);
       expect(embedField(product, 'image_url'), `${chat.slug}: ${product.embed_id} source image`)
-        .toMatch(/^https:\/\/m\.media-amazon\.com\//);
+        .toMatch(/^https:\/\/m\.media-ExampleRetail\.com\//);
     }
 
     const selectedRefs = ['philips-airfryer-2000-fay', 'cosori-airfryer-turboblaze-3zH', 'philips-airfryer-dual-pjD'];

@@ -12,7 +12,7 @@ for (const [language, extension] of [
  ['C', 'c'], ['C++', 'cpp'], ['Rust', 'rs'], ['Go', 'go']
 ]) {
  // contract-test: supporting surface=gui.web assertions=code-run.execution.e2b-only,code-run.request.validated,code-run.execution.stream-status-visible
- test(`generated ${language} program executes in an isolated E2B sandbox`, async ({ page }: { page: any }) => {
+test(`generated ${language} program executes in an isolated E2B sandbox`, async ({ page }: { page: any }) => {
   test.setTimeout(240_000);
   attachConsoleListeners(page);
   attachNetworkListeners(page);

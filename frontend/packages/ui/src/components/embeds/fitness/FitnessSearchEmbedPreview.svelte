@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
 
-  Preview component for Fitness Urban Sports search embeds.
+  Preview component for Fitness fitness source search embeds.
   Uses UnifiedEmbedPreview and mirrors the compact event-search card pattern:
   query/location summary, provider, result count, plan/mode filters, and top
   result snippets while the full result list stays in fullscreen.
@@ -38,7 +38,7 @@
     id,
     skillId,
     query: queryProp = '',
-    provider: providerProp = 'Urban Sports Club',
+    provider: providerProp = '',
     filters: filtersProp = {},
     status: statusProp,
     results: resultsProp = [],
@@ -49,13 +49,13 @@
   }: Props = $props();
 
   let localQuery = $state('');
-  let localProvider = $state('Urban Sports Club');
+  let localProvider = $state('');
   let localStatus = $state<FitnessStatus>('processing');
   let localResultCount = $state(0);
 
   $effect(() => {
     localQuery = queryProp || asText(filtersProp.query || filtersProp.address || filtersProp.city);
-    localProvider = providerProp || 'Urban Sports Club';
+    localProvider = providerProp || '';
     localStatus = statusProp || 'processing';
     localResultCount = resultCountProp ?? resultsProp.length;
   });

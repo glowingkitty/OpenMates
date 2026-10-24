@@ -11,12 +11,10 @@ const documents = Object.fromEntries(["terms", "privacy"].map((name) => [
 
 // Provider names, numbered brand headings, and the word "Details" are also German.
 const sharedNames = new Set([
-  "Urban Sports Club", "3.11 Webshare", "3.16 Flightradar24",
-  "Wikimedia Foundation (Wikipedia)", "Meetup", "Luma", "Resident Advisor",
-  "Doctolib (EU)", "Amazon", "Edamam", "Details", "Hetzner", "Mistral AI",
-  "OpenAI", "Google Gemini", "Google Lens", "SerpAPI", "Transitous", "Eventbrite",
-  "Siegessäule", "Berliner Philharmoniker", "Stoffe.de", "Google Calendar",
-  "SEC EDGAR", "Open-Meteo", "Bright Sky", "USPTO", "JobTech JobSearch", "Arbeitnow",
+  "3.14 Flightradar24",
+  "Wikimedia Foundation (Wikipedia)", "ExampleClinicA (EU)", "Edamam", "Details", "Hetzner", "Mistral AI",
+  "OpenAI", "Google Gemini", "Google Calendar",
+  "SEC EDGAR", "Open-Meteo", "Bright Sky", "JobTech JobSearch", "ExampleJobsD",
 ]);
 
 const placeholders = (value: string) => [...value.matchAll(/\{[^{}]+\}/g)].map(([match]) => match).sort();

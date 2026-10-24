@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { homeListingContent, homeImages, homeHasAmenity, homeMatchesFilters, homeMapGeometry, homeApproximate } from './homeListingData';
 
 describe('persisted home listing evidence hydration', () => {
-  // contract-test: direct surface=gui.web assertions=home-search.listings.rich-provider-evidence,home-search.vision.evidence-and-conflicts,home-search.neighborhood.sourced-facts
+  // contract-test: direct surface=gui.web assertions=home-search.listings.rich-provider-evidence,app-skills.history.renderable
   it('reconstructs actual flattened TOON namespaces without splitting underscore field names', () => {
     const place = {name: 'Canal', distance_m: 120, distance_method: 'shoreline_geometry', checked_at: '2026-10-21', walk_target_latitude: 52.49};
     const listing = homeListingContent({
@@ -21,7 +21,7 @@ describe('persisted home listing evidence hydration', () => {
     expect(listing.visual_assessment).toMatchObject({status: 'partial', photo_count: 2, features: {balcony: {photo_indices: '0|1', status: 'uncertain'}}});
     expect(listing.neighborhood).toMatchObject({source: 'Geoapify', checked_at: '2026-10-21', features: {water: [place], park: []}, coverage: {water: {status: 'partial'}}});
   });
-  // contract-test: supporting surface=gui.web assertions=home-search.images.complete-gallery,home-search.vision.evidence-and-conflicts
+  // contract-test: supporting surface=gui.web assertions=home-search.images.complete-gallery,app-skills.history.renderable
   it('accepts nested JSON evidence and preserves all gallery photos', () => {
     const listing = homeListingContent({match_evidence: JSON.stringify({amenities: {balcony: {status: 'confirmed', expectation: 'present', text_status: 'present'}}}), visual_assessment: JSON.stringify({photo_count: 2, total_photo_count: 18}), neighborhood: JSON.stringify({features: {water: [{name: 'Canal'}]}}), image_urls: 'one|two|three'});
     expect(homeHasAmenity(listing, 'balcony')).toBe(true);

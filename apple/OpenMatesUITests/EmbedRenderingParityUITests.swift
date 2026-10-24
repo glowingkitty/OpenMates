@@ -394,7 +394,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         let provider = app.buttons["external-provider-cta"]
         XCTAssertTrue(provider.waitForExistence(timeout: 5))
         XCTAssertTrue(provider.isHittable)
-        XCTAssertTrue(provider.label.contains("Jameda"))
+        XCTAssertTrue(provider.label.contains("ExampleClinicB"))
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Hautarzt")).firstMatch.exists)
         attachScreenshot(name: "Appointment date doctor specialty and booking provider CTA")
     }

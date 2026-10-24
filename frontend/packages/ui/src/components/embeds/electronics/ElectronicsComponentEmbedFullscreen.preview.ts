@@ -7,7 +7,7 @@
 
 const component = {
     embed_id: "preview-electronics-component-fs-1",
-    provider: "TI WEBENCH",
+    provider: "ExampleComponents",
     part_number: "TPS564257DRLR",
     base_part_number: "TPS564257",
     title: "TPS564257DRLR Buck converter",
@@ -17,7 +17,7 @@ const component = {
     control_mode: "D-CAP3",
     product_url: "https://www.ti.com/product/TPS564257",
     datasheet_url: "https://www.ti.com/lit/gpn/tps564257",
-    description: "Compact synchronous buck converter reference design from TI WEBENCH.",
+    description: "Compact synchronous buck converter reference design from ExampleComponents.",
     bom_cost_usd: 0.47,
     bom_count: 11,
     efficiency_percent: 92.4,

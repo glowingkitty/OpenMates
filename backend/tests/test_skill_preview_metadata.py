@@ -59,60 +59,37 @@ sys.modules.setdefault("airports", airports_stub)
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
-def test_shopping_preview_metadata_routes_fabric_to_stoffe() -> None:
+def test_shopping_preview_metadata_reports_unavailable() -> None:
     from backend.apps.shopping.skills.search_products import SearchProductsSkill
-
-    metadata = SearchProductsSkill.resolve_preview_metadata({
-        "query": "lyocell stoff meterware",
-        "category": "fabrics",
-    })
-
-    assert metadata == {
-        "provider": "Stoffe.de",
-        "providers": ["Stoffe.de"],
-    }
+    metadata = SearchProductsSkill.resolve_preview_metadata({"query": "fabric", "category": "fabrics"})
+    assert metadata == {"provider": "", "providers": [], "provider_required": True, "available": False}
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
-def test_shopping_preview_metadata_routes_country_to_amazon() -> None:
+def test_shopping_preview_metadata_does_not_infer_source_from_country() -> None:
     from backend.apps.shopping.skills.search_products import SearchProductsSkill
-
-    metadata = SearchProductsSkill.resolve_preview_metadata({
-        "query": "coffee grinder",
-        "country": "US",
-    })
-
-    assert metadata == {
-        "provider": "Amazon",
-        "providers": ["Amazon"],
-    }
+    metadata = SearchProductsSkill.resolve_preview_metadata({"query": "coffee grinder", "country": "US"})
+    assert metadata["provider"] == "" and metadata["providers"] == []
+    assert metadata["available"] is False
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
-def test_events_preview_metadata_expands_auto_to_provider_slugs() -> None:
-    from backend.apps.events.skills.search_skill import SearchSkill as EventsSearchSkill
-
-    metadata = EventsSearchSkill.resolve_preview_metadata({"query": "AI", "provider": "auto"})
-
-    assert metadata["provider"] == "auto"
-    assert "meetup" in metadata["providers"]
-    assert "luma" in metadata["providers"]
+def test_events_preview_metadata_lists_only_official_schedule_source() -> None:
+    from backend.apps.events.skills.search_skill import SearchSkill
+    metadata = SearchSkill.resolve_preview_metadata({"query": "AI", "provider": "auto"})
+    assert metadata == {"provider": "pretalx", "providers": ["pretalx"]}
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
-def test_home_preview_metadata_defaults_to_all_providers() -> None:
-    from backend.apps.home.skills.search_skill import SearchSkill as HomeSearchSkill
-
-    metadata = HomeSearchSkill.resolve_preview_metadata({"query": "Berlin"})
-
-    assert metadata == {
-        "provider": "Multi",
-        "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"],
-    }
+def test_home_preview_metadata_reports_no_configured_source() -> None:
+    from backend.apps.home.skills.search_skill import SearchSkill
+    metadata = SearchSkill.resolve_preview_metadata({"query": "Berlin"})
+    assert metadata["providers"] == []
+    assert metadata["provider"] == "Unavailable"
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
-def test_travel_preview_metadata_resolves_train_provider_icons() -> None:
+def test_travel_preview_metadata_preserves_query_without_unavailable_provider_icons() -> None:
     from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
 
     metadata = SearchConnectionsSkill.resolve_preview_metadata({
@@ -121,7 +98,8 @@ def test_travel_preview_metadata_resolves_train_provider_icons() -> None:
     })
 
     assert metadata["provider"] == ""
-    assert [provider["id"] for provider in metadata["providers"]] == ["deutsche_bahn", "flix"]
+    assert metadata["providers"] == []
+    assert metadata["available"] is False
     assert metadata["query"] == "Berlin → Dresden, 2026-04-01"
 
 
@@ -135,7 +113,7 @@ def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() ->
             "skill_id": "search_connections",
             "status": "processing",
             "query": "Berlin → Dresden, 2026-04-01",
-            "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn"}],
+            "providers": [{"id": "sample_transport", "name": "Sample transport"}],
         },
         {
             "request_id": 1,
@@ -146,7 +124,7 @@ def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() ->
     )
 
     assert metadata["query"] == "Berlin → Dresden, 2026-04-01"
-    assert metadata["providers"] == [{"id": "deutsche_bahn", "name": "Deutsche Bahn"}]
+    assert metadata["providers"] == [{"id": "sample_transport", "name": "Sample transport"}]
     assert metadata["legs"] == [{"origin": "Berlin", "destination": "Dresden", "date": "2026-04-01"}]
     assert metadata["transport_methods"] == ["train"]
     assert metadata["max_results"] == 10
@@ -225,7 +203,7 @@ def test_jobs_parent_preview_is_bounded_and_excludes_child_details() -> None:
     results = [{"id": "r1", "results": [{
         "title": f"Engineer {index}", "company": "Example Org",
         "url": f"https://example.org/jobs/{index}", "location": "Berlin",
-        "country": "DE", "remote": False, "provider": "arbeitsagentur",
+        "country": "DE", "remote": False, "provider": "JobTech",
         "description": "Long child description " * 100,
         "raw_provider_payload": {"private": True},
     } for index in range(20)]}]
@@ -236,7 +214,7 @@ def test_jobs_parent_preview_is_bounded_and_excludes_child_details() -> None:
     assert previews[0] == {
         "title": "Engineer 0", "company": "Example Org",
         "url": "https://example.org/jobs/0", "location": "Berlin",
-        "country": "DE", "remote": False, "provider": "arbeitsagentur",
+        "country": "DE", "remote": False, "provider": "JobTech",
     }
     assert "Long child description" not in json.dumps(metadata)
     assert "raw_provider_payload" not in json.dumps(metadata)
@@ -252,8 +230,8 @@ def test_models3d_parent_preview_metadata_is_lightweight() -> None:
         [
             {
                 "title": "Desk organizer",
-                "provider": "Printables",
-                "source_page_url": "https://www.printables.com/model/123",
+                "provider": "Example Catalog",
+                "source_page_url": "https://catalog.example/model/123",
                 "preview_image_url": "https://cdn.example/model.webp",
                 "thumbnail_url": "https://cdn.example/model-thumb.webp",
                 "creator_name": "Model Maker",
@@ -269,8 +247,8 @@ def test_models3d_parent_preview_metadata_is_lightweight() -> None:
         "preview_results": [
             {
                 "title": "Desk organizer",
-                "source_page_url": "https://www.printables.com/model/123",
-                "provider": "Printables",
+                "source_page_url": "https://catalog.example/model/123",
+                "provider": "Example Catalog",
                 "thumbnail_url": "https://cdn.example/model-thumb.webp",
                 "preview_image_url": "https://cdn.example/model.webp",
             }
@@ -607,7 +585,7 @@ def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -
         "search",
         [
             {
-                "title": "Berlin AI Meetup",
+                "title": "Berlin AI Conference",
                 "url": "https://example.com/events/berlin-ai",
                 "start_date": "2026-06-20",
                 "end_date": "2026-06-21",
@@ -621,7 +599,7 @@ def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -
     assert metadata == {
         "preview_results": [
             {
-                "title": "Berlin AI Meetup",
+                "title": "Berlin AI Conference",
                 "url": "https://example.com/events/berlin-ai",
                 "start_date": "2026-06-20",
                 "end_date": "2026-06-21",

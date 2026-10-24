@@ -5505,7 +5505,6 @@ enum PublicChatContent {
             section("legal.privacy.stripe.heading", "legal.privacy.stripe.description"),
             section("legal.privacy.brave.heading", "legal.privacy.brave.description"),
             section("legal.privacy.google.heading", "legal.privacy.google.description"),
-            section("legal.privacy.firecrawl.heading", "legal.privacy.firecrawl.description")
         ].joined(separator: "\n\n")
     }
 

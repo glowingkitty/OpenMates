@@ -498,7 +498,7 @@ sections:
     - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedPreview.svelte
     - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentProvider.test.ts
     - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentShell.svelte
-    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-amazon-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-retail-germany.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts
@@ -3973,7 +3973,7 @@ sources:
     - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedPreview.svelte
     - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentProvider.test.ts
     - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentShell.svelte
-    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-amazon-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-retail-germany.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-sunflower-illustration.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts

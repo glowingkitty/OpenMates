@@ -17,73 +17,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -136,22 +116,16 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'fix: add native notification replies'
@@ -167,15 +141,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'fix: align Safari chrome tint with chats panel'
@@ -241,15 +211,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-12'
     title: 'feat: add agent tooling parity'
@@ -285,15 +251,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-12'
     title: 'fix: await chat key candidate preservation'
@@ -329,15 +291,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-12'
     title: 'fix: prevent tablet chat drawer drag jump'
@@ -524,16 +482,6 @@ themes:
     commits:
     - 63ea6df76
     section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-05-14'
-    title: 'feat(newsletter): prepare meetup email'
-    commits:
-    - 95d3a256b
-    section: features
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
@@ -1125,26 +1073,6 @@ themes:
     user_facing: false
     related_features: []
   - date: '2026-05-14'
-    title: 'fix: update OpenMates meetup coordinates'
-    commits:
-    - 8a921a338
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-05-14'
-    title: 'fix: update OpenMates meetup location'
-    commits:
-    - 0f89d7918
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-05-14'
     title: 'fix: warm translation cache on boot'
     commits:
     - a3760c66a
@@ -1669,16 +1597,6 @@ themes:
   newsletter_ready_count: 2
   dev_only_count: 0
   source_items:
-  - date: '2026-05-11'
-    title: 'feat: add Flix travel provider'
-    commits:
-    - 64a236d8a
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-05-16'
     title: 'fix: scroll embed deep links to highlighted targets'
     commits:
@@ -1708,15 +1626,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: self_hosting
   item_count: 1
@@ -1735,16 +1649,6 @@ themes:
     related_features: []
 marketing_candidates:
   newsletter:
-  - date: '2026-05-11'
-    title: 'feat: add Flix travel provider'
-    commits:
-    - 64a236d8a
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-05-11'
     title: 'feat: expand travel connection results'
     commits:
@@ -2597,16 +2501,6 @@ marketing_candidates:
     related_features: []
   social_or_video:
   - date: '2026-05-11'
-    title: 'feat: add Flix travel provider'
-    commits:
-    - 64a236d8a
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-05-11'
     title: 'feat: add encrypted Apple share task flow'
     commits:
     - 2abf23f00
@@ -2620,22 +2514,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:ios
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'feat: expand travel connection results'
@@ -2661,15 +2549,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'fix: align Safari chrome tint with chats panel'
@@ -2735,15 +2619,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'fix: sync native assistant responses'
@@ -2759,15 +2639,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-11'
     title: 'revert: restore Safari chrome tint behavior'
@@ -2813,15 +2689,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-12'
     title: 'fix: allow backup codes after 2FA signup verification'
@@ -2877,15 +2749,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-05-12'
     title: 'fix: normalize mixed skill identifiers'
@@ -3624,10 +3492,6 @@ sources:
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-16.yml
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-17.yml
 llm_summary:
-  overview: OpenMates introduced support for DeepSeek V4 models and expanded its travel capabilities with Flix integration
-    and country-based routing. The update also featured significant visual polish, including dynamic chat header backgrounds,
-    public event SEO pages, and a new interactive touch drawer for mobile and tablet users. Security and reliability were
-    also addressed through authenticated memory actions and hardened chat synchronization.
   released_changes:
   - text: OpenMates added support for DeepSeek V4 models, including integration with the model selector and updated privacy
       documentation.
@@ -3635,9 +3499,7 @@ llm_summary:
       commits:
       - 6eaa21ff8
     release_status: released_main
-  - text: Flix was added as a travel provider, and searches now route through providers based on the country of origin for
-      better accuracy.
-    evidence:
+  - evidence:
       commits:
       - 64a236d8a
       - e2fc7b068
@@ -3685,8 +3547,7 @@ llm_summary:
       commits:
       - ec88d1724
     release_status: released_main
-  - text: The social media skill is now active, featuring restored card styling and Reddit icon support.
-    evidence:
+  - evidence:
       commits:
       - f0fc5d012
       - 1a019b539
@@ -3803,8 +3664,7 @@ llm_summary:
       - d29773d88
       - '706096817'
     release_status: released_main
-  - text: Infrastructure for the upcoming May 19 meetup was prepared, including email templates and updated location coordinates.
-    evidence:
+  - evidence:
       commits:
       - 95d3a256b
       - 8a921a338
@@ -3827,8 +3687,7 @@ llm_summary:
         commits:
         - 6eaa21ff8
       reason: Major model update providing users with more AI options.
-    - text: Integration with Flix and country-based routing for travel searches.
-      evidence:
+    - evidence:
         commits:
         - 64a236d8a
         - e2fc7b068
@@ -3867,8 +3726,7 @@ llm_summary:
         - 2d5a7c613
         - 32edeb8a5
       reason: iOS, macOS, and Apple Watch platforms are currently listed as disabled features.
-    - text: Meetup email template and location preparation.
-      evidence:
+    - evidence:
         commits:
         - 95d3a256b
         - 8a921a338

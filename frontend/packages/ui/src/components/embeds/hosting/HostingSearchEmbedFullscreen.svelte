@@ -49,7 +49,7 @@
     }
     return initial;
   });
-  let headerSubtitle = $derived(`${$text('embeds.hosting.search_domains.provider_via').replace('{provider}', searchData.provider || 'Gandi')} · ${searchData.currency || 'EUR'}${searchData.country ? ` · ${searchData.country}` : ''}`);
+  let headerSubtitle = $derived(`${$text('embeds.hosting.search_domains.provider_via').replace('{provider}', searchData.provider || '')} · ${searchData.currency || 'EUR'}${searchData.country ? ` · ${searchData.country}` : ''}`);
 
   function updated(event: { status: string; decodedContent: Record<string, unknown> }) {
     searchData = { ...searchData, ...event.decodedContent } as DomainSearchContent;

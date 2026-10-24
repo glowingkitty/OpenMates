@@ -32,8 +32,8 @@ export const variants = {
   noImage: { ...defaultProps, image_url: null },
   zero: { ...defaultProps, price_cents: 0, price_eur: null, was_price_cents: null, stock: 0, rating: 0, reviews: 0 },
   longTitle: { ...defaultProps, title: 'A deliberately long product name with the complete brand, variation, colour, size, material and packaging description retained for accessibility' },
-  amazon: {
-    id: "preview-shopping-result-amazon",
+  ExampleRetail: {
+    id: "preview-shopping-result-ExampleRetail",
     title: "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
     brand: "Sony",
     price: "€279.00",
@@ -49,8 +49,8 @@ export const variants = {
     isMobile: false,
     onFullscreen: () => {},
   },
-  stoffe: {
-    id: "preview-shopping-result-stoffe",
+  ExampleFabric: {
+    id: "preview-shopping-result-ExampleFabric",
     title: "Baumwoll-Musselin - Double Gauze Bestickt Zitronen Weiß",
     brand: "Snaply",
     price: "15,19 €",

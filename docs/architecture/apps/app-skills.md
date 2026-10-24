@@ -107,7 +107,7 @@ providers:
 
 # No-API-key — always available
 providers:
-  - name: Doctolib
+  - name: OpenMates
     no_api_key: true
 ```
 
@@ -116,8 +116,6 @@ Normalized by `ProviderRef` in [app_metadata_schemas.py](../../backend/shared/py
 **`no_api_key: true` means:** the provider doesn't use the standard Vault API key lookup path. It does NOT necessarily mean "no authentication" — some providers use alternative auth (e.g., SecretsManager tokens, proxy credentials). Always check the provider's source to understand its actual auth mechanism.
 
 **Providers using `no_api_key: true`:**
-- Web scraping: Doctolib, Jameda, Meetup, Luma, REWE
-- Proxy-based: Webshare
 - Alternative auth (SecretsManager): Flightradar24 (Bearer token API)
 - Internal: OpenMates
 

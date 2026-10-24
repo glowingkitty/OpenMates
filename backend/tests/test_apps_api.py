@@ -1183,12 +1183,12 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_name,provider_id,configured,priced", [
-    ("SerpAPI", "serpapi", False, False),
-    ("Urban Sports Club", "urban_sports_club", True, True),
+    ("MissingCatalog", "missingcatalog", False, False),
+    ("LicensedCatalog", "licensedcatalog", True, True),
     ("Remotion", "remotion", False, False),
-    ("Transitous", "transitous", False, False),
-    ("Deutsche Bahn", "deutsche_bahn", True, False),
-    ("Stoffe.de", "stoffe", True, False),
+    ("OptionalCatalog", "optionalcatalog", False, False),
+    ("PublicTimetable", "publictimetable", True, False),
+    ("ProductCatalog", "productcatalog", True, False),
 ])
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,app-skills.surface.semantic-parity
 async def test_catalog_optional_pricing_keeps_provider_ids_and_skill_tariffs(

@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { renderEmbedAsText, EMBED_TEXT_RENDERERS, str, trunc, formatPrice } from '../embedTextRenderers';
 
 describe('EMBED_TEXT_RENDERERS registry', () => {
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 	it('should have entries for all major embed types', () => {
 		const expectedKeys = [
 			'app:web:search', 'app:web:read', 'web-website',
@@ -39,6 +40,8 @@ describe('EMBED_TEXT_RENDERERS registry', () => {
 describe('renderEmbedAsText', () => {
 	// ── Web domain ──────────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('web search without children shows count', () => {
 		const result = renderEmbedAsText('app:web:search', {
 			query: 'test query',
@@ -48,6 +51,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('test query');
 		expect(result).toContain('10 results');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('web search with children shows individual results', () => {
 		const children = [
@@ -61,6 +66,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('Result 2');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('website renders title, URL, description', () => {
 		const result = renderEmbedAsText('web-website', {
 			title: 'Example', url: 'https://example.com', description: 'A site'
@@ -72,9 +79,11 @@ describe('renderEmbedAsText', () => {
 
 	// ── Events domain ───────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('event search with children shows events', () => {
 		const children = [
-			{ name: 'AI Meetup', date: '2026-04-05', venue: 'Berlin' },
+			{ name: 'AI Gathering', date: '2026-04-05', venue: 'Berlin' },
 			{ title: 'Hack Night', start_date: '2026-04-12', location: 'Munich' }
 		];
 		const result = renderEmbedAsText('app:events:search', {
@@ -82,10 +91,12 @@ describe('renderEmbedAsText', () => {
 		}, children);
 		expect(result).toContain('**Event Search**');
 		expect(result).toContain('AI meetups');
-		expect(result).toContain('AI Meetup');
+		expect(result).toContain('AI Gathering');
 		expect(result).toContain('Berlin');
 		expect(result).toContain('Hack Night');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('individual event renders name and date', () => {
 		const result = renderEmbedAsText('events-event', {
@@ -97,6 +108,8 @@ describe('renderEmbedAsText', () => {
 	});
 
 	// ── Code domain ─────────────────────────────────────────────────
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('code embed renders language and snippet', () => {
 		const result = renderEmbedAsText('code-code', {
@@ -110,6 +123,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('42 lines');
 		expect(result).toContain('const x = 1;');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('application embed renders project metadata and file refs', () => {
 		const result = renderEmbedAsText('code-application', {
@@ -131,6 +146,8 @@ describe('renderEmbedAsText', () => {
 
 	// ── Travel domain ───────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('travel connections with children shows routes', () => {
 		const children = [{
 			origin: 'Berlin', destination: 'Paris',
@@ -148,6 +165,8 @@ describe('renderEmbedAsText', () => {
 
 	// ── Home domain ─────────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('home search with children shows listings', () => {
 		const children = [
 			{ title: '2BR Apartment', price: 1200, currency: 'EUR', address: 'Berlin Mitte' }
@@ -161,6 +180,8 @@ describe('renderEmbedAsText', () => {
 
 	// ── Image domain ────────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('image generate shows model and prompt', () => {
 		const result = renderEmbedAsText('app:images:generate', {
 			model: 'dall-e-3', prompt: 'A cat on a rainbow'
@@ -172,11 +193,15 @@ describe('renderEmbedAsText', () => {
 
 	// ── Other types ─────────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('PDF renders filename and pages', () => {
 		const result = renderEmbedAsText('pdf', { filename: 'report.pdf', page_count: 15 });
 		expect(result).toContain('report.pdf');
 		expect(result).toContain('15 pages');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('reminder renders prompt and time', () => {
 		const result = renderEmbedAsText('app:reminder:set-reminder', {
@@ -185,6 +210,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('Buy groceries');
 		expect(result).toContain('Time: Tomorrow 9 AM');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('math calculate renders expressions', () => {
 		const result = renderEmbedAsText('app:math:calculate', {
@@ -195,6 +222,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('2^10 = 1024');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('sheet renders dimensions', () => {
 		const result = renderEmbedAsText('sheets-sheet', {
 			title: 'Budget', row_count: 50, col_count: 8
@@ -202,6 +231,8 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('Budget');
 		expect(result).toContain('50 rows × 8 columns');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('mind map renders title and outline', () => {
 		const result = renderEmbedAsText('mindmaps-mindmap', {
@@ -226,6 +257,8 @@ describe('renderEmbedAsText', () => {
 
 	// ── Fallback ────────────────────────────────────────────────────
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('unknown key produces fallback with key label', () => {
 		const result = renderEmbedAsText('unknown-type', { foo: 'bar' });
 		expect(result).toContain('[unknown-type]');
@@ -234,6 +267,7 @@ describe('renderEmbedAsText', () => {
 });
 
 describe('helpers', () => {
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 	it('str returns null for empty/non-string', () => {
 		expect(str('')).toBeNull();
 		expect(str(null)).toBeNull();
@@ -241,10 +275,14 @@ describe('helpers', () => {
 		expect(str('hello')).toBe('hello');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
+
 	it('trunc truncates long strings', () => {
 		expect(trunc('short', 10)).toBe('short');
 		expect(trunc('a very long string here', 10)).toBe('a very lon…');
 	});
+
+	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable
 
 	it('formatPrice formats correctly', () => {
 		expect(formatPrice(89, 'eur')).toBe('EUR 89');

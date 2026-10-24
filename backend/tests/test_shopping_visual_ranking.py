@@ -36,7 +36,8 @@ def score(value):
             "probabilities": {"0": .1, "4": .9}, "confidence": .8}
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 @pytest.mark.parametrize("value", [["a"] * 4, "a", [""], [1], {}, ["a" * 513]])
 def test_reference_limit_is_strict_on_runtime_and_schema(value):
     with pytest.raises(ValueError, match="at most 3"):
@@ -61,7 +62,7 @@ def test_empty_references_are_neutral_and_prepared_images_strip_metadata():
         visual.prepare_image(b"not an image")
 
 
-# contract-test: direct surface=rest_api assertions=shopping-search.relevance.visual-and-text,shopping-search.products.supplied-gallery,shopping-search.relevance.truthful-fallback,app-skills.search-relevance.safe-finalization
+# contract-test: supporting surface=rest_api assertions=shopping-search.products.supplied-gallery,shopping-search.relevance.truthful-fallback
 @pytest.mark.asyncio
 async def test_multiple_references_score_photos_and_text_filter_conflicts_and_preserve_unknown(monkeypatch):
     captured = []
@@ -113,7 +114,7 @@ async def test_multiple_references_score_photos_and_text_filter_conflicts_and_pr
     assert all(isinstance(value, bytes) for value in captured[0][2].values())
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.products.supplied-gallery
+# contract-test: supporting surface=rest_api assertions=shopping-search.products.supplied-gallery
 @pytest.mark.asyncio
 async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch, caplog):
     caplog.set_level("INFO", logger=visual.__name__)
@@ -224,7 +225,7 @@ async def test_public_image_download_pins_ip_preserves_sni_and_never_follows_red
     assert result[:2] == b"\xff\xd8" and len(seen) == 1
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
+# contract-test: supporting surface=rest_api assertions=app-skills.images.authorized-resolution
 @pytest.mark.asyncio
 async def test_references_require_auth_and_owner_even_when_file_index_contains_foreign_embed(monkeypatch):
     embed_id = str(uuid4())
@@ -240,7 +241,7 @@ async def test_references_require_auth_and_owner_even_when_file_index_contains_f
     directus.embed.get_embed_by_id.assert_not_called()
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized,shopping-search.relevance.bounded
+# contract-test: supporting surface=rest_api assertions=app-skills.images.authorized-resolution
 @pytest.mark.asyncio
 async def test_direct_upload_uuid_checks_owner_after_cache_miss_and_uses_bounded_storage(monkeypatch):
     embed_id = str(uuid4())
@@ -267,30 +268,6 @@ async def test_direct_upload_uuid_checks_owner_after_cache_miss_and_uses_bounded
     directus.get_items.assert_awaited_once()
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
-@pytest.mark.asyncio
-async def test_skill_validates_before_search_and_forwards_authorized_context(monkeypatch):
-    provider = AsyncMock(return_value=([], {"totalResultCount": 0}))
-    monkeypatch.setattr(shopping, "rewe_search", provider)
-    monkeypatch.setattr(shopping, "sanitize_long_text_fields_in_payload", AsyncMock(return_value=[]))
-    resolve = AsyncMock(return_value=[visual.prepare_image(image_bytes())])
-    monkeypatch.setattr(shopping, "resolve_reference_images", resolve)
-    skill = object.__new__(shopping.SearchProductsSkill)
-    skill.skill_name = "Search products"
-    skill.app = SimpleNamespace(_make_internal_api_request=AsyncMock())
-    _id, items, error = await skill._process_single_request(
-        {"query": "fabric", "reference_images": ["a"] * 4}, "invalid", secrets_manager=object(),
-    )
-    assert "at most 3" in error and not items
-    provider.assert_not_awaited()
-    response = await skill.execute(
-        [{"id": "visual", "query": "fabric", "reference_images": ["photo.png"]}],
-        secrets_manager=object(), user_id="alice", user_vault_key_id="key", file_path_index={"photo.png": "uuid"},
-    )
-    assert resolve.await_args.args[1]["user_id"] == "alice"
-    assert resolve.await_args.args[1]["file_path_index"] == {"photo.png": "uuid"}
-    assert resolve.await_args.args[1]["internal_api_request"] is skill.app._make_internal_api_request
-    assert response.results[0]["visual_evaluation"]["status"] == "unavailable"
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
@@ -374,7 +351,8 @@ async def test_image_client_rejects_foreign_transport_without_disclosure(setting
     post.assert_not_called()
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
+# contract-test: infrastructure
+# Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 @pytest.mark.asyncio
 async def test_directus_conflicting_owner_fields_are_denied_before_decryption():
     embed_id = str(uuid4())
@@ -389,89 +367,13 @@ async def test_directus_conflicting_owner_fields_are_denied_before_decryption():
         })
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
-@pytest.mark.asyncio
-async def test_concurrent_execute_calls_do_not_share_visual_summary_by_request_id(monkeypatch):
-    skill = object.__new__(shopping.SearchProductsSkill)
-    skill.skill_name = "Search products"
-    # Force interleaving: first call starts, second call finishes, first resumes.
-    started, resume = asyncio.Event(), asyncio.Event()
-
-    async def process(*, req, request_id, visual_evaluation_summaries, **kwargs):
-        if req["query"] == "first":
-            visual_evaluation_summaries[request_id] = {"status": "partial"}
-            started.set()
-            await resume.wait()
-        else:
-            await started.wait()
-            visual_evaluation_summaries[request_id] = {"status": "unavailable"}
-            resume.set()
-        return request_id, [], None
-
-    monkeypatch.setattr(skill, "_process_single_request", process)
-    first, second = await asyncio.gather(
-        skill.execute([{"id": "same-id", "query": "first"}], secrets_manager=object()),
-        skill.execute([{"id": "same-id", "query": "second"}], secrets_manager=object()),
-    )
-    assert first.results[0]["visual_evaluation"] == {"status": "partial"}
-    assert second.results[0]["visual_evaluation"] == {"status": "unavailable"}
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
-@pytest.mark.asyncio
-async def test_slow_search_preserves_results_when_optional_visual_deadline_is_spent(monkeypatch):
-    skill = object.__new__(shopping.SearchProductsSkill)
-    product = {"product_id": "fabric", "title": "Blue fabric", "price_cents": 1299,
-               "image_url": "https://cdn.example/fabric.jpg"}
-    provider = AsyncMock(return_value=([SimpleNamespace(to_result_dict=lambda: dict(product))], {}))
-    monkeypatch.setattr(shopping, "rewe_search", provider)
-    monkeypatch.setattr(shopping, "sanitize_long_text_fields_in_payload", AsyncMock(return_value=[product]))
-    monkeypatch.setattr(shopping, "resolve_reference_images", AsyncMock(return_value=[b"prepared"]))
-    visual_call, text_call = AsyncMock(), AsyncMock()
-    monkeypatch.setattr(shopping, "rank_products_visually", visual_call)
-    monkeypatch.setattr(shopping, "rank_search_candidates", text_call)
-    # Reference-image telemetry adds two clock reads before the provider search.
-    ticks = iter([0, 0, 0, 26, 26])
-    monkeypatch.setattr(shopping, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
-    summaries = {}
-    _id, items, error = await skill._process_single_request(
-        {"query": "fabric", "reference_images": ["photo.png"], "relevance_criteria": "blue floral"},
-        "slow", secrets_manager=object(), visual_evaluation_summaries=summaries,
-    )
-    assert error is None and items[0]["price_cents"] == 1299
-    assert items[0]["visual_match"]["status"] == summaries["slow"]["status"] == "unavailable"
-    visual_call.assert_not_awaited()
-    text_call.assert_not_awaited()
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
-@pytest.mark.asyncio
-async def test_visual_timeout_cancels_provider_work_before_truthful_fallback(monkeypatch):
-    prepared = visual.prepare_image(image_bytes())
-    cancelled = asyncio.Event()
-    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=prepared))
-    monkeypatch.setattr(visual, "VISUAL_EVALUATION_SECONDS", .01)
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        async def evaluate_with_images(self, **kwargs):
-            try:
-                await asyncio.sleep(30)
-            finally:
-                cancelled.set()
-
-    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
-    result = await visual.rank_products_visually(
-        candidates=[{"title": "Fabric", "image_url": "https://cdn.example/fabric.jpg"}],
-        reference_images=[prepared], relevance_criteria="blue", query="fabric", secrets_manager=None,
-    )
-    assert cancelled.is_set() and result.summary["status"] == "unavailable"
-    assert result.candidates[0]["visual_match"]["status"] == "unavailable"
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
+# contract-test: supporting surface=rest_api assertions=app-skills.images.authorized-resolution
 @pytest.mark.asyncio
 async def test_owned_fresh_upload_recovers_after_cache_and_chat_embed_miss_without_renewing_expiry(monkeypatch):
     embed_id = str(uuid4())
@@ -499,7 +401,7 @@ async def test_owned_fresh_upload_recovers_after_cache_and_chat_embed_miss_witho
     assert record["expires_at"] == now - 100 + 86400
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
+# contract-test: supporting surface=rest_api assertions=app-skills.images.authorized-resolution
 @pytest.mark.parametrize("fault", ["foreign", "expired", "future", "wrong-id", "renewed-expiry", "missing-metadata", "not-found"])
 @pytest.mark.asyncio
 async def test_fresh_upload_recovery_rejects_foreign_expired_or_invalid_records_before_decryption(monkeypatch, fault):
@@ -539,88 +441,11 @@ async def test_fresh_upload_recovery_rejects_foreign_expired_or_invalid_records_
     cache.set.assert_not_awaited()
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
-@pytest.mark.parametrize("composition", [None, "100% Baumwolle"])
-@pytest.mark.asyncio
-async def test_all_evaluated_fractional_match_has_explicit_scale_and_no_unavailable_filter_explanation(monkeypatch, composition):
-    prepared = visual.prepare_image(image_bytes())
-    captured = []
-    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=prepared))
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        async def evaluate_with_images(self, *, state, questions, images):
-            captured.extend(state["candidates"])
-            return DecisionResponse(model="jev-1.13.0", answers={
-                key: score(3.24 if key == "candidate_000" else 1) for key in questions
-            })
-
-    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
-    product = {"title": "Baumwoll-Popeline Kleine Blumen dunkelblau", "attributes": {"weight": 120, "width": 145},
-               "image_url": "https://cdn.example/fabric.jpg"}
-    if composition is not None:
-        product["attributes"]["composition"] = composition
-    candidates = [dict(product) for _ in range(20)]
-    result = await visual.rank_products_visually(candidates=candidates, reference_images=[prepared],
-                                                 relevance_criteria="blue floral fabric", query="fabric", secrets_manager=None)
-    assert len(result.candidates) == 1
-    assert result.candidates[0]["attributes"] == product["attributes"]
-    assert result.candidates[0]["visual_match"] == {"status": "evaluated", "score": 3.24,
-                                                    "score_min": 0, "score_max": 4, "product_image_count": 1}
-    assert result.summary["status"] == "evaluated"
-    assert (result.summary["evaluated_count"], result.summary["filtered_count"], result.summary["unavailable_count"]) == (20, 19, 0)
-    assert (result.summary["score_min"], result.summary["score_max"], result.summary["minimum_score"]) == (0, 4, 2)
-    assert all(row["data"]["attributes"] == product["attributes"] for row in captured)
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.visual-and-text
-@pytest.mark.parametrize("mode", ["visual", "text"])
-@pytest.mark.asyncio
-async def test_forty_discovered_candidates_include_late_match_and_preserve_final_limit(monkeypatch, mode, caplog):
-    caplog.set_level("INFO", logger=shopping.__name__)
-    rows = [{"product_id": str(i), "title": f"Fabric {i}", "image_url": f"https://cdn.example/{i}.jpg"}
-            for i in range(40)]
-    provider = AsyncMock(return_value=([SimpleNamespace(to_result_dict=lambda row=row: dict(row)) for row in rows], {}))
-    monkeypatch.setattr(shopping, "rewe_search", provider)
-    async def sanitize(*, payload, **kwargs):
-        return payload
-    monkeypatch.setattr(shopping, "sanitize_long_text_fields_in_payload", sanitize)
-    monkeypatch.setattr(shopping, "resolve_reference_images", AsyncMock(return_value=[b"prepared"]))
-    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=b"prepared"))
-
-    class Client:
-        def __init__(self, **kwargs):
-            pass
-        async def evaluate_with_images(self, *, state, questions, images):
-            return DecisionResponse(model="jev-1.14.0", answers={
-                key: score(4 if key == "candidate_039" else 3) for key in questions
-            })
-    monkeypatch.setattr(visual, "JevDecisionClient", Client)
-    async def text_rank(**kwargs):
-        assert len(kwargs["candidates"]) == 40
-        return SimpleNamespace(candidates=list(reversed(kwargs["candidates"])), applied=True)
-    text = AsyncMock(side_effect=text_rank)
-    monkeypatch.setattr(shopping, "rank_search_candidates", text)
-    request = {"query": "fabric", "provider": "REWE", "max_results": 4}
-    request.update({"reference_images": ["photo.png"]} if mode == "visual" else {"relevance_criteria": "blue floral"})
-    summaries = {}
-    _, results, error = await object.__new__(shopping.SearchProductsSkill)._process_single_request(
-        request, "forty", secrets_manager=object(), visual_evaluation_summaries=summaries)
-    assert error is None and len(results) == 4
-    assert results[0]["product_id"] == "39"
-    assert provider.await_args.kwargs["max_results"] == 40
-    if mode == "visual":
-        assert summaries["forty"]["evaluated_count"] == 40
-        text.assert_not_awaited()
-    else:
-        assert text.await_count == 1
-    assert any("requested_candidates=40 provider_returned=40 unique_candidates=40 final_limit=4" in record.message
-               for record in caplog.records)
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
 @pytest.mark.asyncio
 async def test_forty_candidate_deadline_retains_completed_batches_and_unverified_tail(monkeypatch):
     monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=b"prepared"))
@@ -648,53 +473,8 @@ async def test_forty_candidate_deadline_retains_completed_batches_and_unverified
     assert result.candidates[-1]["visual_match"] == {"status": "unavailable"}
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.products.supplied-gallery,shopping-search.privacy.minimized
-@pytest.mark.asyncio
-@pytest.mark.parametrize("host,path,expected_host", [
-    ("cdn02.plentymarkets.com", "/5rtbqcd0flq3/item/images/123/preview/item.jpg", "cdn02.plentyone.com"),
-    ("cdn02.plentymarkets.com", "/other-tenant/item/images/123.jpg", "cdn02.plentymarkets.com"),
-    ("cdn02.plentymarkets.com.attacker.example", "/5rtbqcd0flq3/item/images/123.jpg", "cdn02.plentymarkets.com.attacker.example"),
-])
-async def test_known_stoffe_cdn_alias_keeps_path_and_public_pinned_transport(monkeypatch, host, path, expected_host):
-    original_client = httpx.AsyncClient
-    calls = []
-    async def handler(request):
-        calls.append(request)
-        assert request.url.host == "8.8.8.8" and request.url.path == path
-        assert request.url.params["version"] == "1"
-        assert request.headers["Host"] == expected_host
-        assert request.extensions["sni_hostname"] == expected_host
-        return httpx.Response(200, content=image_bytes(), headers={"Content-Type": "image/png"})
-    def client(**kwargs):
-        assert kwargs["follow_redirects"] is False and kwargs["trust_env"] is False
-        return original_client(transport=httpx.MockTransport(handler), **kwargs)
-    dns = AsyncMock(return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))])
-    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", dns)
-    monkeypatch.setattr(httpx, "AsyncClient", client)
-    original_url = f"https://{host}{path}?version=1"
-    decision = SimpleNamespace(evaluate_with_images=AsyncMock(return_value=DecisionResponse(
-        model="jev-1.14.0", answers={"candidate_000": score(3)})))
-    monkeypatch.setattr(visual, "JevDecisionClient", lambda **kwargs: decision)
-    result = await visual.rank_products_visually(
-        candidates=[{"title": "Fabric", "image_url": original_url, "image_urls": [original_url]}],
-        reference_images=[b"prepared reference"], relevance_criteria=None, query="fabric", secrets_manager=None)
-    assert result.summary["evaluated_count"] == 1
-    assert result.candidates[0]["image_url"] == original_url
-    assert result.candidates[0]["image_urls"] == [original_url]
-    assert dns.await_args.args[:2] == (expected_host, 443) and len(calls) == 1
 
 
-# contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
-@pytest.mark.asyncio
-async def test_known_cdn_alias_still_rejects_private_dns_before_http(monkeypatch):
-    dns = AsyncMock(return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443))])
-    client = AsyncMock()
-    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", dns)
-    monkeypatch.setattr(httpx, "AsyncClient", client)
-    with pytest.raises(ValueError, match="not public"):
-        await visual.download_public_product_image("https://cdn02.plentymarkets.com/5rtbqcd0flq3/item/images/123.jpg")
-    assert dns.await_args.args[0] == "cdn02.plentyone.com"
-    client.assert_not_called()
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized

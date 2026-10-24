@@ -26,10 +26,10 @@ for (const width of [390, 1100]) {
     const body = page.getByTestId('fitness-search-preview');
     await expect(body.locator(':scope > *')).toHaveCount(3);
     await expect(body.locator('.fitness-search-query')).toHaveText('yoga near Sorauer Str. 12');
-    await expect(body.locator('.fitness-search-provider')).toHaveText('Urban Sports Club');
+    await expect(body.locator('.fitness-search-provider')).toHaveText('ExampleFitness');
     await expect(body.getByTestId('fitness-search-result-count')).toHaveText('2 classes');
     await expect(body).not.toContainText('Morning Yoga Flow');
-    await expect(body).not.toContainText('Searched all Urban Sports plans');
+    await expect(body).not.toContainText('Searched all fitness source plans');
     await expect(body.locator('.fitness-search-chips')).toHaveCount(0);
     const bounded = await body.evaluate(el => {
       const bounds = el.getBoundingClientRect();
@@ -159,7 +159,7 @@ for (const width of [390, 1100]) {
       } else {
         await expect(page.getByTestId('result-facts')).toContainText('0.90 km');
         await expect(page.getByTestId('result-map')).toBeVisible();
-        await expect(page.getByTestId('fitness-open-urban-sports')).toBeVisible();
+        await expect(page.getByTestId('fitness-open-provider')).toBeVisible();
       }
       await checkpoint(page, testInfo, `${result.app}-fullscreen-default-${width}px`);
     });
@@ -196,7 +196,7 @@ for (const width of [390, 1100]) {
     await expect(page.getByTestId('result-facts')).toContainText('0.00 km');
     await expect(page.getByTestId('result-facts')).toContainText('0 spots left');
     await expect(page.getByTestId('fitness-result-fullscreen')).toContainText('Yoga Studio Kreuzberg');
-    await expect(page.getByTestId('fitness-open-urban-sports')).toHaveAttribute('href', 'https://urbansportsclub.com/en/venues/yoga-studio');
+    await expect(page.getByTestId('fitness-open-provider')).toHaveAttribute('href', 'https://example.com/fixture');
     await expect(page.getByTestId('result-map')).toBeVisible();
     await expect(page.locator('.fitness-detail-image')).toHaveCSS('object-fit', 'contain');
   });
@@ -229,7 +229,7 @@ test('missing result metadata stays absent and unavailable product state stays u
   await open(page, 'fitness', 'FitnessResultEmbedFullscreen', 390, 'minimal');
   await expect(page.getByTestId('result-map')).toHaveCount(0);
   await expect(page.locator('.fitness-detail-image')).toHaveCount(0);
-  await expect(page.getByTestId('fitness-open-urban-sports')).toHaveCount(0);
+  await expect(page.getByTestId('fitness-open-provider')).toHaveCount(0);
 });
 
 for (const width of [390, 1100]) {

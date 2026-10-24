@@ -434,11 +434,12 @@ skills:
     description_translation_key: web.read.description
     icon_image: web.svg
     preprocessor_hint: >
-      Read and extract content from a specific URL or webpage the user provided.
+      Web content reading is unavailable until a supported content reader is configured.
+      Do not use this as a fallback for unavailable provider connectors.
     class_path: |
       backend.apps.web.skills.read_skill.ReadSkill
-    providers:
-      - Firecrawl
+    provider_required: true
+    providers: []
     # Follow-up suggestions shown to users after read results
     suggestions_follow_up_requests:
       - "Summarize this page"

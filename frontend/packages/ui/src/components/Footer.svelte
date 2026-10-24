@@ -233,8 +233,8 @@
                 <a href={externalLinks.discord} target="_blank" rel="me" aria-label="Discord">
                     <div class="social-icon icon_discord"></div>
                 </a>
-                <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
-                    <div class="social-icon icon_meetup"></div>
+                <a href={externalLinks.meetup} target="_blank" rel="me noopener noreferrer" aria-label={$text('settings.meetup')}>
+                    <div class="social-icon icon_events"></div>
                 </a>
                 <a href={externalLinks.bluesky} target="_blank" rel="me" aria-label="Bluesky">
                     <div class="social-icon icon_bluesky"></div>
@@ -536,8 +536,10 @@
         background-image: url('@openmates/ui/static/icons/pixelfed.svg');
     }
     
-    .social-icon.icon_meetup {
-        background-image: url('@openmates/ui/static/icons/meetup.svg');
+
+
+    .social-icon.icon_events {
+        background-image: url('@openmates/ui/static/icons/event.svg');
     }
 
     .social-icon.icon_element {

@@ -833,15 +833,7 @@ struct EventResultSummary: Identifiable {
     var providerLabel: String? {
         guard let provider, !provider.isEmpty else { return nil }
         switch provider.lowercased() {
-        case "meetup": return "Meetup"
-        case "luma": return "Luma"
         case "google_events": return "Google"
-        case "resident_advisor": return "Resident Advisor"
-        case "siegessaeule": return "Siegessäule"
-        case "classictic": return "Classictic"
-        case "berlin_philharmonic": return "Berlin Philharmonic"
-        case "bachtrack": return "Bachtrack"
-        case "eventbrite": return "Eventbrite"
         default: return provider
         }
     }

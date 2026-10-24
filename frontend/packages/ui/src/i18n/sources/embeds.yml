@@ -1098,31 +1098,6 @@ hosting.search_domains.other_term_prices:
   he: "{count} מחירים לתקופות אחרות"
   verified_by_human: []
 
-hosting.search_domains.open_on_gandi:
-  context: "Link to view this domain on Gandi website"
-  en: "Open on Gandi"
-  de: "Bei Gandi öffnen"
-  zh: "在 Gandi 打开"
-  es: "Abrir en Gandi"
-  fr: "Ouvrir sur Gandi"
-  pt: "Abrir na Gandi"
-  ru: "Открыть на Gandi"
-  ja: "Gandi で開く"
-  ko: "Gandi에서 열기"
-  it: "Apri su Gandi"
-  tr: "Gandi'de aç"
-  vi: "Mở trên Gandi"
-  id: "Buka di Gandi"
-  pl: "Otwórz w Gandi"
-  nl: "Openen op Gandi"
-  ar: "افتح على Gandi"
-  hi: "Gandi पर खोलें"
-  th: "เปิดบน Gandi"
-  cs: "Otevřít na Gandi"
-  sv: "Öppna hos Gandi"
-  he: "פתח ב-Gandi"
-  verified_by_human: []
-
 hosting.search_domains.back_to_results:
   context: "Back navigation to domain result list"
   en: "Back to results"
@@ -4700,7 +4675,7 @@ no_results:
   he: לא נמצאו חיבורים.
   verified_by_human: [en, de]
 register_on_provider:
-  context: Button label to register for an event on a provider website, e.g. 'Register on Meetup'
+  context: Button label to register for an event on a provider website, e.g. 'Register on Gathering'
   en: Register on {provider}
   de: Auf {provider} registrieren
   zh: "在 {provider} 上注册"
@@ -5998,28 +5973,28 @@ view_on_google_hotels:
   he: צפייה ב-Google Hotels
   verified_by_human: [en, de]
 view_on_meetup:
-  context: CTA button text to open an event on Meetup.com
-  en: View on Meetup
-  de: Auf Meetup ansehen
-  zh: 在 Meetup 上查看
-  es: Ver en Meetup
-  fr: Voir sur Meetup
-  pt: Ver no Meetup
-  ru: Смотреть на Meetup
+  context: CTA button text to open an event on Gathering.com
+  en: View on Gathering
+  de: Auf Gathering ansehen
+  zh: 在 Gathering 上查看
+  es: Ver en Gathering
+  fr: Voir sur Gathering
+  pt: Ver no Gathering
+  ru: Смотреть на Gathering
   ja: Meetupで見る
   ko: Meetup에서 보기
-  it: Vedi su Meetup
-  tr: Meetup'ta görüntüle
-  vi: Xem trên Meetup
-  id: Lihat di Meetup
-  pl: Zobacz na Meetup
-  nl: Bekijken op Meetup
-  ar: عرض على Meetup
-  hi: Meetup पर देखें
-  th: ดูบน Meetup
-  cs: Zobrazit na Meetup
-  sv: Visa på Meetup
-  he: צפייה ב-Meetup
+  it: Vedi su Gathering
+  tr: Gathering'ta görüntüle
+  vi: Xem trên Gathering
+  id: Lihat di Gathering
+  pl: Zobacz na Gathering
+  nl: Bekijken op Gathering
+  ar: عرض على Gathering
+  hi: Gathering पर देखें
+  th: ดูบน Gathering
+  cs: Zobrazit na Gathering
+  sv: Visa på Gathering
+  he: צפייה ב-Gathering
   verified_by_human: []
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
@@ -6585,7 +6560,7 @@ health.book_slot:
   verified_by_human: []
 
 health.view_practice:
-  context: Link label to view the doctor's practice page on Doctolib
+  context: Link label to view the doctor's practice page on ExampleClinicA
   en: View practice
   de: Praxis ansehen
   zh: 查看诊所
@@ -6684,33 +6659,33 @@ health.telehealth:
   he: ייעוץ מרחוק
   verified_by_human: []
 
-health.book_on_doctolib:
-  context: Button label linking to the doctor's live availability page on Doctolib where the user can book an appointment themselves
-  en: Book on Doctolib
-  de: Auf Doctolib buchen
-  zh: 在 Doctolib 预约
-  es: Reservar en Doctolib
-  fr: Réserver sur Doctolib
-  pt: Reservar no Doctolib
-  ru: Забронировать на Doctolib
-  ja: Doctolib で予約
-  ko: Doctolib에서 예약
-  it: Prenota su Doctolib
-  tr: Doctolib'de rezervasyon yap
-  vi: Đặt lịch trên Doctolib
-  id: Pesan di Doctolib
-  pl: Zarezerwuj na Doctolib
-  nl: Boek op Doctolib
-  ar: احجز على Doctolib
-  hi: Doctolib पर बुक करें
-  th: จองบน Doctolib
-  cs: Rezervovat na Doctolib
-  sv: Boka på Doctolib
-  he: הזמנה ב-Doctolib
+health.book_on_ExampleClinicA:
+  context: Button label linking to the doctor's live availability page on ExampleClinicA where the user can book an appointment themselves
+  en: Book on ExampleClinicA
+  de: Auf ExampleClinicA buchen
+  zh: 在 ExampleClinicA 预约
+  es: Reservar en ExampleClinicA
+  fr: Réserver sur ExampleClinicA
+  pt: Reservar no ExampleClinicA
+  ru: Забронировать на ExampleClinicA
+  ja: ExampleClinicA で予約
+  ko: ExampleClinicA에서 예약
+  it: Prenota su ExampleClinicA
+  tr: ExampleClinicA'de rezervasyon yap
+  vi: Đặt lịch trên ExampleClinicA
+  id: Pesan di ExampleClinicA
+  pl: Zarezerwuj na ExampleClinicA
+  nl: Boek op ExampleClinicA
+  ar: احجز على ExampleClinicA
+  hi: ExampleClinicA पर बुक करें
+  th: จองบน ExampleClinicA
+  cs: Rezervovat na ExampleClinicA
+  sv: Boka på ExampleClinicA
+  he: הזמנה ב-ExampleClinicA
   verified_by_human: []
 
 health.slots_may_be_outdated:
-  context: Disclaimer shown below the slot time chips on the doctor appointment fullscreen, warning that the displayed times may no longer be available. {provider} is the booking platform name (e.g. Doctolib, Jameda).
+  context: Disclaimer shown below the slot time chips on the doctor appointment fullscreen, warning that the displayed times may no longer be available. {provider} is the booking platform name (e.g. ExampleClinicA, ExampleClinicB).
   en: These times may no longer be available. Check current availability on {provider}.
   de: Diese Termine sind möglicherweise nicht mehr verfügbar. Aktuelle Verfügbarkeit auf {provider} prüfen.
   zh: 这些时间段可能已不再可用。请在 {provider} 上查看最新可用性。
@@ -6759,33 +6734,33 @@ health.no_appointments_found:
   he: לא נמצאו תורים.
   verified_by_human: []
 
-health.book_on_jameda:
-  context: Button label linking to the direct booking URL on Jameda where the user can book the specific appointment slot
-  en: Book on Jameda
-  de: Auf Jameda buchen
-  zh: 在 Jameda 预约
-  es: Reservar en Jameda
-  fr: Réserver sur Jameda
-  pt: Reservar no Jameda
-  ru: Записаться на Jameda
-  ja: Jameda で予約する
-  ko: Jameda에서 예약
-  it: Prenota su Jameda
-  tr: Jameda'da randevu al
-  vi: Đặt lịch trên Jameda
-  id: Pesan di Jameda
-  pl: Zarezerwuj na Jameda
-  nl: Boek op Jameda
-  ar: احجز على Jameda
-  hi: Jameda पर बुक करें
-  th: จองบน Jameda
-  cs: Rezervovat na Jameda
-  sv: Boka på Jameda
-  he: הזמן ב-Jameda
+health.book_on_ExampleClinicB:
+  context: Button label linking to the direct booking URL on ExampleClinicB where the user can book the specific appointment slot
+  en: Book on ExampleClinicB
+  de: Auf ExampleClinicB buchen
+  zh: 在 ExampleClinicB 预约
+  es: Reservar en ExampleClinicB
+  fr: Réserver sur ExampleClinicB
+  pt: Reservar no ExampleClinicB
+  ru: Записаться на ExampleClinicB
+  ja: ExampleClinicB で予約する
+  ko: ExampleClinicB에서 예약
+  it: Prenota su ExampleClinicB
+  tr: ExampleClinicB'da randevu al
+  vi: Đặt lịch trên ExampleClinicB
+  id: Pesan di ExampleClinicB
+  pl: Zarezerwuj na ExampleClinicB
+  nl: Boek op ExampleClinicB
+  ar: احجز على ExampleClinicB
+  hi: ExampleClinicB पर बुक करें
+  th: จองบน ExampleClinicB
+  cs: Rezervovat na ExampleClinicB
+  sv: Boka på ExampleClinicB
+  he: הזמן ב-ExampleClinicB
   verified_by_human: []
 
 health.reviews:
-  context: Label after the review count number on Jameda appointment cards — e.g. "(42 reviews)"
+  context: Label after the review count number on ExampleClinicB appointment cards — e.g. "(42 reviews)"
   en: reviews
   de: Bewertungen
   zh: 条评价
@@ -6810,7 +6785,7 @@ health.reviews:
   verified_by_human: []
 
 health.insurance_verify_on_provider:
-  context: Badge text shown when insurance info is unknown for a doctor. {provider} is the booking platform name (e.g. Doctolib, Jameda).
+  context: Badge text shown when insurance info is unknown for a doctor. {provider} is the booking platform name (e.g. ExampleClinicA, ExampleClinicB).
   en: "Insurance: verify on {provider}"
   de: "Versicherung: auf {provider} prüfen"
   zh: 保险：请在{provider}上核实
@@ -10822,7 +10797,7 @@ wiki.source_wikipedia:
 # Native and web search-result detail labels shared by health, home, nutrition,
 # and shopping cards. English labels mirror the deployed component previews.
 fitness.open_provider:
-  context: Fitness class detail action to open the provider, e.g. Open Urban Sports
+  context: Fitness class detail action to open the provider, e.g. Open fitness source
   en: "Open {provider}"
   de: "{provider} öffnen"
   verified_by_human: []

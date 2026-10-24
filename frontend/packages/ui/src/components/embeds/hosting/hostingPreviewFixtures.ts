@@ -9,8 +9,8 @@ const registration = (amount: number, minimum = 1, discount = false): DomainTier
 
 function child(id: string, ascii: string, unicode: string, availability: DomainResult['availability'], registrationTiers: DomainTier[], renewalTiers: DomainTier[], extra: Record<string, unknown> = {}): DomainResult {
   return normalizeDomain(id, {
-    domain_ascii: ascii, domain_unicode: unicode, availability, provider: 'Gandi',
-    provider_url: `https://shop.gandi.net/en/domain/suggest?search=${encodeURIComponent(ascii)}`,
+    domain_ascii: ascii, domain_unicode: unicode, availability, provider: 'ExampleRegistrar',
+    provider_url: `https://example.com/fixture)}`,
     country: 'DE', currency: 'EUR', checked_at: '2026-10-01T13:09:00Z',
     registration_tiers: registrationTiers, renewal_tiers: renewalTiers, restrictions: [], ...extra,
   });
@@ -32,7 +32,7 @@ export const domainFixtures = {
 export const checkedChildren: DomainResult[] = [domainFixtures.com, domainFixtures.net, domainFixtures.idn, domainFixtures.org, domainFixtures.co, domainFixtures.unknown];
 
 export const parentContent: DomainSearchContent = {
-  query: 'cedarcomet', provider: 'Gandi', country: 'DE', currency: 'EUR', checked_at: '2026-10-01T13:09:00Z',
+  query: 'cedarcomet', provider: 'ExampleRegistrar', country: 'DE', currency: 'EUR', checked_at: '2026-10-01T13:09:00Z',
   status: 'finished', partial: false, warnings: [], error: null, availability: 'prefer_available', max_results: 2,
   result_count: 2, checked_count: 6, available_count: 3, unavailable_count: 2, unknown_count: 1,
   embed_ids: checkedChildren.map((item) => item.embed_id),

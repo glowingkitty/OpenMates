@@ -17,73 +17,53 @@ feature_availability:
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/3d/app.yml
   - id: app:life_coaching
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/life_coaching/app.yml
   - id: app:plants
     kind: app
     default_enabled: true
     override: disabled
-    parent_id: null
     source: backend/apps/plants/app.yml
   - id: app:workflows
     kind: app
     default_enabled: false
-    override: null
-    parent_id: null
     source: backend/apps/workflows/app.yml
   - id: embed:code:application
     kind: embed
     default_enabled: false
-    override: null
     parent_id: app:code
     source: backend/apps/code/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:ios
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:macos
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:plans
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:projects
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:tasks
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   - id: platform:workflows
     kind: platform
     default_enabled: false
-    override: null
-    parent_id: null
     source: platform
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
@@ -1036,15 +1016,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add follow-up suggestions, PII detection, focus mode, reminders, daily inspiration, chat import,
@@ -1061,15 +1037,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add full settings, StoreKit payments, i18n, offline mode, share extension, accessibility, tests,
@@ -1086,15 +1058,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add unread badges, pending upload queue, inline attachment previews, edit message store'
@@ -1110,15 +1078,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
@@ -1214,15 +1178,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
@@ -1538,15 +1498,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): OPE-443 — full accessibility rollout across all 41 views'
@@ -1562,15 +1518,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add Handoff/Continuity, rich markdown, Lock Screen widget, Spotlight indexing, and keyboard shortcuts'
@@ -1586,15 +1538,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add WidgetKit daily inspiration widget, message pagination, and 29 Siri Shortcuts'
@@ -1610,15 +1558,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add WidgetKit widget, message pagination, and 29 Siri Shortcuts'
@@ -1634,15 +1578,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add assistant avatar + fix list row backgrounds in UI redesign'
@@ -1658,15 +1598,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): complete i18n sweep — all 169 hardcoded strings replaced across 53 files'
@@ -1682,15 +1618,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): initial build fixes, i18n bundling, and scaffolded navigation (WIP)'
@@ -1706,15 +1638,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): replace all web redirects with native settings, wire i18n across entire app'
@@ -1730,15 +1658,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(newsletter): add YouTube link to OpenMates v0.9 announcement'
@@ -1804,15 +1728,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'fix(apple): wire embed updates, audio/video playback, hidden chats, fork nav, push badges, settings persistence,
@@ -1829,15 +1749,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'fix(newsletter): correct title to Introducing OpenMates v0.9, relativize links'
@@ -1923,15 +1839,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source block to FollowUpSuggestions'
@@ -1947,15 +1859,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source blocks to embeds, auth, public chats'
@@ -1971,15 +1879,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source blocks to remaining chat views'
@@ -1995,15 +1899,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
@@ -2019,15 +1919,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
@@ -2043,15 +1939,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
@@ -2067,15 +1959,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
@@ -2091,15 +1979,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(seo): semantic URL update for all public chat types in SPA'
@@ -2145,15 +2029,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading'
@@ -2721,39 +2601,9 @@ themes:
     user_facing: true
     related_features: []
   - date: '2026-04-19'
-    title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    commits:
-    - 4af97e411
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
     title: 'feat(events): add concert_tags guidance to preprocessor_hint'
     commits:
     - 220d9bd08
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    commits:
-    - db12c95f0
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -3949,15 +3799,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat: add native Apple app (iOS/iPadOS/macOS) - Phase 1 foundation'
@@ -3983,15 +3829,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): OPE-443 — remaining 8 accessibility files from settings agent'
@@ -4007,15 +3849,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): fix sidebar list row backgrounds to strip native chrome'
@@ -4031,15 +3869,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'chore(rules): add apple-ui.md — web source of truth rules for Swift UI files'
@@ -4065,15 +3899,11 @@ themes:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
 - theme: docs
   item_count: 5
@@ -6233,39 +6063,9 @@ marketing_candidates:
     user_facing: true
     related_features: []
   - date: '2026-04-19'
-    title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    commits:
-    - 4af97e411
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
     title: 'feat(events): add concert_tags guidance to preprocessor_hint'
     commits:
     - 220d9bd08
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    commits:
-    - db12c95f0
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -7837,15 +7637,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add camera, sketch, maps, drafts, highlight nav, chat header, processing details, input actions'
@@ -7861,15 +7657,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add follow-up suggestions, PII detection, focus mode, reminders, daily inspiration, chat import,
@@ -7886,15 +7678,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add full settings, StoreKit payments, i18n, offline mode, share extension, accessibility, tests,
@@ -7911,15 +7699,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(apple): add unread badges, pending upload queue, inline attachment previews, edit message store'
@@ -7935,15 +7719,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat(chat-header): 16:9 media frame with centered play button, remove bg video element'
@@ -8069,15 +7849,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-17'
     title: 'feat: add text sanitizer for ASCII smuggling prevention in message input and deep links'
@@ -8433,15 +8209,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): OPE-443 — remaining 8 accessibility files from settings agent'
@@ -8457,15 +8229,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add Handoff/Continuity, rich markdown, Lock Screen widget, Spotlight indexing, and keyboard shortcuts'
@@ -8481,15 +8249,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add WidgetKit daily inspiration widget, message pagination, and 29 Siri Shortcuts'
@@ -8505,15 +8269,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add WidgetKit widget, message pagination, and 29 Siri Shortcuts'
@@ -8529,15 +8289,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): add assistant avatar + fix list row backgrounds in UI redesign'
@@ -8553,15 +8309,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): complete i18n sweep — all 169 hardcoded strings replaced across 53 files'
@@ -8577,15 +8329,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): fix sidebar list row backgrounds to strip native chrome'
@@ -8601,15 +8349,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): initial build fixes, i18n bundling, and scaffolded navigation (WIP)'
@@ -8625,15 +8369,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(apple): replace all web redirects with native settings, wire i18n across entire app'
@@ -8649,15 +8389,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'feat(reminder): add quick When? preset dropdown, hide Day/Time unless Custom selected'
@@ -8683,15 +8419,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'fix(apple): wire embed updates, audio/video playback, hidden chats, fork nav, push badges, settings persistence,
@@ -8708,15 +8440,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-18'
     title: 'fix(newsletter): allow autoplay-video deep links for authenticated users'
@@ -8832,15 +8560,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source block + fix OMTextFieldStyle border in OMButtonStyles'
@@ -8856,15 +8580,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source block to FollowUpSuggestions'
@@ -8880,15 +8600,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source blocks to embeds, auth, public chats'
@@ -8904,15 +8620,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): add web-source blocks to remaining chat views'
@@ -8928,15 +8640,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
@@ -8952,15 +8660,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
@@ -8976,15 +8680,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
@@ -9000,15 +8700,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
@@ -9024,50 +8720,16 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
-  - date: '2026-04-19'
-    title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
-    commits:
-    - 4af97e411
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-04-19'
     title: 'feat(events): add concert_tags guidance to preprocessor_hint'
     commits:
     - 220d9bd08
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
-    commits:
-    - 2f6a60234
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-04-19'
-    title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
-    commits:
-    - db12c95f0
     section: features
     release_status: released_main
     communication_status: ready_for_public_communication
@@ -9128,15 +8790,11 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
     - id: platform:macos
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: null
-      parent_id: null
       source: platform
   - date: '2026-04-19'
     title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
@@ -9205,12 +8863,6 @@ sources:
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-18.yml
   - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-19.yml
 llm_summary:
-  overview: OpenMates introduced several major features this week, including a privacy-preserving Wikipedia inline link integration,
-    SEPA bank transfer support, and end-to-end encrypted message highlights. The project also underwent a branding refresh,
-    renaming the 'App Store' to 'Apps' and 'Settings & Memories' to 'Memories'. Visual polish was added to the onboarding
-    experience with a new cinematic Ken-Burns slideshow, while the events system expanded to include the Berlin Philharmonic.
-    Foundational work for native Apple platforms progressed significantly in the background, though those features remain
-    unreleased.
   released_changes:
   - text: OpenMates implemented Wikipedia inline links with a privacy-preserving backend proxy that protects user IP addresses
       and includes differentiated rate limits.
@@ -9261,9 +8913,7 @@ llm_summary:
       commits:
       - 52cfa6f7a
     release_status: released_main
-  - text: The Berlin Philharmonic provider was activated within the events system, supporting hybrid free-text searches and
-      concert-specific tagging.
-    evidence:
+  - evidence:
       commits:
       - 4af97e411
       - 2f6a60234
@@ -9465,8 +9115,7 @@ llm_summary:
         commits:
         - 52cfa6f7a
       reason: New high-performance model availability.
-    - text: Activation of the Berlin Philharmonic event provider.
-      evidence:
+    - evidence:
         commits:
         - 4af97e411
         - 2f6a60234

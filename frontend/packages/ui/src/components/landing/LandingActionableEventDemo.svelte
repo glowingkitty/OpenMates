@@ -49,10 +49,10 @@
   let demoEvent = $derived.by(() => ({
     embed_id: 'landing-actionable-event-preview',
     id: 'landing-actionable-depin-berlin',
-    provider: 'luma',
+    provider: 'event website',
     title: $text('guest_onboarding.landing_actionable_event_title'),
     description: $text('guest_onboarding.landing_actionable_event_detail'),
-    url: 'https://luma.com/depin-berlin',
+    url: 'https://example.com/fixture',
     date_start: demoStartDate.toISOString(),
     date_end: demoEndDate.toISOString(),
     event_type: 'PHYSICAL',
@@ -67,7 +67,7 @@
     organizer: { name: $text('guest_onboarding.landing_actionable_event_organizer') },
     rsvp_count: 460,
     is_paid: false,
-    image_url: 'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519',
+    image_url: 'https://example.com/fixture',
   }));
 
   function noop() {
@@ -113,7 +113,7 @@
         });
       }
 
-      if (stage.id === 'luma-cta') {
+      if (stage.id === 'provider-cta') {
         schedule(stageStartMs + ACTIONABLE_CTA_POINTER_TARGET_MS, () => {
           interactionState = 'cta-targeted';
         });
@@ -186,11 +186,11 @@
               </div>
             {:else}
               <div
-                class="landing-actionable-luma-button"
-                data-testid="landing-actionable-luma-button"
+                class="landing-actionable-provider-button"
+                data-testid="landing-actionable-provider-button"
                 data-demo-pressed={interactionState === 'cta-clicked' ? 'true' : 'false'}
               >
-                {$text('guest_onboarding.landing_actionable_event_open_luma')}
+                {$text('guest_onboarding.landing_actionable_event_open_provider')}
               </div>
             {/if}
           </div>
@@ -198,7 +198,7 @@
       </div>
     {/key}
 
-    {#if activeStage === 'event-preview' || activeStage === 'luma-cta'}
+    {#if activeStage === 'event-preview' || activeStage === 'provider-cta'}
       <div class="landing-actionable-pointer" data-testid="landing-actionable-pointer" aria-hidden="true">
         <MousePointerIcon size={34} strokeWidth={2.6} />
       </div>
@@ -327,7 +327,7 @@
     max-height: 200px;
   }
 
-  .landing-actionable-luma-button {
+  .landing-actionable-provider-button {
     min-width: 0 !important;
     height: auto !important;
     margin: 0 !important;
@@ -347,7 +347,7 @@
       transform var(--duration-fast) ease;
   }
 
-  .landing-actionable-luma-button[data-demo-pressed='true'] {
+  .landing-actionable-provider-button[data-demo-pressed='true'] {
     background: var(--color-button-primary-pressed) !important;
     box-shadow: var(--shadow-xs) !important;
     transform: scale(0.97);
@@ -465,7 +465,7 @@
       font-size: clamp(1rem, 4.2cqi, 1.2rem);
     }
 
-    .landing-actionable-stage-content[data-stage='luma-cta'] {
+    .landing-actionable-stage-content[data-stage='provider-cta'] {
       transform: scale(0.9);
     }
 
@@ -494,7 +494,7 @@
   @media (prefers-reduced-motion: reduce) {
     .landing-actionable-pointer,
     .landing-actionable-preview,
-    .landing-actionable-luma-button {
+    .landing-actionable-provider-button {
       transition-duration: 1ms !important;
     }
   }

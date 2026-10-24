@@ -289,7 +289,7 @@ test('final suggestion remains a ghost and never overwrites a newer draft', asyn
 });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('terminal presentation stops before required persistence and interim completion keeps continuation active', async () => {
+test('terminal presentation stops before required persistence and interim completion keeps continuation active', async () => {
   const f = fixture();
   const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
   await tick();
@@ -303,7 +303,7 @@ test('final suggestion remains a ghost and never overwrites a newer draft', asyn
  });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('late owned metadata applies during a subsequent same-chat turn and cannot overwrite a newer completed turn', async () => {
+test('late owned metadata applies during a subsequent same-chat turn and cannot overwrite a newer completed turn', async () => {
   const f = fixture();
   const first = sendTuiMessage({ message: 'First question', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
   await tick(); f.pending.resolve(result('chat-1', 'First answer')); await first;
@@ -325,7 +325,7 @@ test('final suggestion remains a ghost and never overwrites a newer draft', asyn
  });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('late metadata survives navigation back to its chat while account scope remains current', async () => {
+test('late metadata survives navigation back to its chat while account scope remains current', async () => {
   const f = fixture();
   const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
   await tick(); f.pending.resolve(result('chat-1', 'Finished')); await send;
@@ -343,7 +343,7 @@ test('final suggestion remains a ghost and never overwrites a newer draft', asyn
  });
 
 // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
- test('owned preprocessing title paints during Thinking without releasing required reply persistence or replacing an existing title', async () => {
+test('owned preprocessing title paints during Thinking without releasing required reply persistence or replacing an existing title', async () => {
   const f = fixture(); f.state.activeChatId = null;
   const send = sendTuiMessage({ message: 'Ask something', state: f.state, client: f.client, render: f.render, modelShell: f.modelShell });
   await tick();

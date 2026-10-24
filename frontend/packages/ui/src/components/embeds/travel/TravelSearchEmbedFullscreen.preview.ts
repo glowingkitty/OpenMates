@@ -34,9 +34,9 @@ const sampleResults = [
 
 /** Explicit raw data keeps route geometry intact through the preview adapter. */
 const overviewResults = [
-  { destination: 'Hamburg Central Station', carrier: 'Deutsche Bahn', price: '29.90',
+  { destination: 'Hamburg Central Station', carrier: 'Example Rail', price: '29.90',
     end: { lat: 53.5526, lon: 10.0067 }, via: { lat: 53.14, lon: 12.45 }, arrival: '2026-10-25T10:46:00+01:00', duration: '1h 42m' },
-  { destination: 'Leipzig Central Station', carrier: 'FlixTrain', price: '19.90',
+  { destination: 'Leipzig Central Station', carrier: 'ExampleCoach', price: '19.90',
     end: { lat: 51.3455, lon: 12.3818 }, via: { lat: 52.0, lon: 12.6 }, arrival: '2026-10-25T10:18:00+01:00', duration: '1h 14m' },
 ].map((item) => ({
   type: 'connection', transport_method: 'train', trip_type: 'one_way',
@@ -47,7 +47,7 @@ const overviewResults = [
   route_points: [{lat: 52.5251, lon: 13.3694, label: 'Berlin Central Station'}, item.via, { ...item.end, label: item.destination }],
   legs: [{ leg_index: 0, origin: 'Berlin Central Station', destination: item.destination,
     departure: '2026-10-25T09:04:00+01:00', arrival: item.arrival, duration: item.duration, stops: 0,
-    segments: [{ mode: 'train', carrier: item.carrier, number: item.carrier === 'Deutsche Bahn' ? 'ICE 700' : 'FLX 123',
+    segments: [{ mode: 'train', carrier: item.carrier, number: item.carrier === 'Example Rail' ? 'REG 700' : 'REG 123',
       departure_station: 'Berlin Central Station', arrival_station: item.destination,
       departure_time: '2026-10-25T09:04:00+01:00', arrival_time: item.arrival, duration: item.duration,
       departure_latitude: 52.5251, departure_longitude: 13.3694,
