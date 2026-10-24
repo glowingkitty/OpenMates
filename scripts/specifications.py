@@ -390,7 +390,7 @@ def _resolve_bundle_dependency(bundle: SpecificationBundle, dependency: str) -> 
 def build_coverage(registry: dict[str, Any], test_index: dict[str, Any]) -> dict[str, Any]:
     assertions = registry.get("assertions", {})
     indexed = test_index.get("assertions", {}) if isinstance(test_index, dict) else {}
-    surface_names = ("rest_api", "cli", "sdks.npm", "sdks.pip", "gui.web", "gui.apple")
+    surface_names = ("rest_api", "cli", "sdks.npm", "sdks.pip", "sdks.rust", "gui.web", "gui.apple")
     surface_parity: dict[str, dict[str, int]] = {}
     for surface in surface_names:
         required = sum(surface in record.get("required_applies_to", []) for record in assertions.values())
@@ -439,7 +439,7 @@ _TYPESCRIPT_TEST = re.compile(
     re.DOTALL,
 )
 _VALID_TEST_CLASSIFICATIONS = {"direct", "supporting", "infrastructure", "tooling", "legacy_unmapped"}
-_VALID_TEST_SURFACES = {"rest_api", "cli", "sdks.npm", "sdks.pip", "gui.web", "gui.apple", "tooling"}
+_VALID_TEST_SURFACES = {"rest_api", "cli", "sdks.npm", "sdks.pip", "sdks.rust", "gui.web", "gui.apple", "tooling"}
 
 
 def _test_name(source: str, path: Path) -> str | None:

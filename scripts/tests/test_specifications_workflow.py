@@ -410,6 +410,7 @@ def test_coverage_keeps_inventory_mapping_proof_and_surfaces_separate(tmp_path):
     assert coverage["assertions_with_tests"] == 0
     assert coverage["assertions_with_current_proof"] == 0
     assert coverage["surface_parity"]["rest_api"]["required"] == 1
+    assert coverage["surface_parity"]["sdks.rust"] == {"required": 0, "proven": 0}
 
 
 # contract-test: tooling
@@ -536,3 +537,48 @@ def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, t
     assert "HEAD stale987" in error
     assert "merged commit merged123" in error
     assert "1 dirty file" in error
+
+
+def test_rust_surface_counts_only_its_own_current_proof(tmp_path):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    bundle = write_bundle(specifications_root)
+    specification_path = bundle / "specification.yml"
+    specification = yaml.safe_load(specification_path.read_text(encoding="utf-8"))
+    specification["applies_to"]["sdks"]["implementations"]["rust"] = {"required": True}
+    specification_path.write_text(yaml.safe_dump(specification, sort_keys=False), encoding="utf-8")
+    registry = module.build_registry(specifications_root)
+    assertion_id = "web-search.request.validated"
+
+    without_proof = module.build_coverage(registry, test_index={})
+    assert without_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 0}
+    indexed = {"assertions": {assertion_id: {"surfaces": {"rest_api": {"current_direct_proof": True}}}}}
+    rest_proof = module.build_coverage(registry, indexed)
+    assert rest_proof["surface_parity"]["rest_api"] == {"required": 1, "proven": 1}
+    assert rest_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 0}
+    indexed["assertions"][assertion_id]["surfaces"]["sdks.rust"] = {"current_direct_proof": True}
+    rust_proof = module.build_coverage(registry, indexed)
+    assert rust_proof["surface_parity"]["sdks.rust"] == {"required": 1, "proven": 1}
+    assert rust_proof["assertions_with_current_proof"] == 0
+    assert {key: value for key, value in rest_proof["surface_parity"].items() if key != "sdks.rust"} == {
+        key: value for key, value in rust_proof["surface_parity"].items() if key != "sdks.rust"
+    }
+
+
+def test_rust_surface_metadata_is_accepted_and_unknown_surface_is_rejected(tmp_path):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    write_bundle(specifications_root)
+    registry = module.build_registry(specifications_root)
+    test_path = tmp_path / "test_rust_surface.py"
+    source = (
+        "# contract-test: direct surface=sdks.rust assertions=web-search.request.validated\n"
+        "def test_rust_contract():\n"
+        "    pass\n"
+    )
+    test_path.write_text(source, encoding="utf-8")
+    assert module.check_test_file(test_path, registry, changed=True) == []
+    test_path.write_text(source.replace("sdks.rust", "sdks.unknown"), encoding="utf-8")
+    errors = module.check_test_file(test_path, registry, changed=True)
+    assert len(errors) == 1
+    assert "unknown surface sdks.unknown" in errors[0]

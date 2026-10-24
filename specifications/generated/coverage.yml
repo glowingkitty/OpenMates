@@ -16,6 +16,9 @@ surface_parity:
   sdks.pip:
     required: 600
     proven: 0
+  sdks.rust:
+    required: 70
+    proven: 0
   gui.web:
     required: 928
     proven: 0
