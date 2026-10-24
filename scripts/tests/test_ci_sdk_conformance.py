@@ -400,6 +400,17 @@ def test_reviewed_program_pin_rejects_forged_candidate_aggregate_before_executio
         sdk.verify_programs(tmp_path, trust)
 
 
+def test_reviewed_contract_pin_rejects_changed_candidate_matrix_before_execution(tmp_path):
+    contract = tmp_path / "config/sdk-capabilities.json"
+    contract.parent.mkdir()
+    contract.write_bytes(b'{"capabilities": ["reviewed fixture"]}')
+    trust = {"programs": {}, "contracts": {"config/sdk-capabilities.json": sdk.sha(contract.read_bytes())}}
+    sdk.verify_programs(tmp_path, trust)
+    contract.write_bytes(b'{"capabilities": [], "releaseEligible": true}')
+    with pytest.raises(sdk.Refused, match="reviewed_contract_changed"):
+        sdk.verify_programs(tmp_path, trust)
+
+
 def test_forged_complete_vector_json_cannot_erase_reviewed_gaps(tmp_path):
     root, report = gate_fixture(tmp_path)
     report["openGaps"] = []
