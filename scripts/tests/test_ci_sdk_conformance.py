@@ -139,15 +139,36 @@ def test_workflow_and_runner_do_not_enable_stack_or_publication():
     root = Path(__file__).resolve().parents[2]
     workflow = (root / ".github/workflows/isolated-tests.yml").read_text()
     runner = (root / "scripts/ci_run_tests.py").read_text()
-    assert "sdk-conformance]" in workflow
-    assert "inputs.mode == 'sdk-conformance' && '3.12'" in workflow
+    import yaml
+    document = yaml.safe_load(workflow)
+    # PyYAML's YAML 1.1 reader can interpret GitHub's `on` key as True.
+    trigger = document.get("on", document.get(True))
+    sdk_modes = {"sdk-conformance", "sdk-lockfiles", "rust-wasm"}
+    options = trigger["workflow_dispatch"]["inputs"]["mode"]["options"]
+    assert sdk_modes <= set(options)
+    steps = document["jobs"]["test"]["steps"]
+    python_setup = [step for step in steps if step.get("uses") == "actions/setup-python@v5"]
+    assert len(python_setup) == 1
+    # Exact approved conditional: all three SDK modes use 3.12, every other
+    # mode uses 3.13. Neither a missing mode nor a broader branch is admitted.
+    assert python_setup[0]["with"]["python-version"] == (
+        "${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || "
+        "inputs.mode == 'rust-wasm') && '3.12' || '3.13' }}")
     assert "inputs.mode != 'sdk-conformance'" in workflow
     assert "CI_SDK_DEADLINE_MONOTONIC={started + 2700}" in workflow
-    import yaml
-    steps = yaml.safe_load(workflow)["jobs"]["test"]["steps"]
-    assert steps[0]["name"] == "Start bounded SDK conformance clock"
-    assert steps[0]["working-directory"] == "${{ github.workspace }}"
-    assert steps[1]["uses"] == "actions/checkout@v4"
+    clocks = [(index, step) for index, step in enumerate(steps)
+              if step.get("name") == "Start bounded SDK conformance clock"]
+    assert len(clocks) == 1
+    clock_index, clock = clocks[0]
+    assert clock["if"] == "inputs.mode == 'sdk-conformance'"
+    assert clock["working-directory"] == "${{ github.workspace }}"
+    assert [line.strip() for line in clock["run"].splitlines()
+            if "CI_SDK_DEADLINE_MONOTONIC=" in line] == [
+        "output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 2700}\\n')"]
+    checkouts = [(index, step) for index, step in enumerate(steps)
+                 if step.get("uses", "").startswith("actions/checkout@")]
+    assert checkouts and clock_index < checkouts[0][0]
+    assert checkouts[0][1]["uses"] == "actions/checkout@v4"
     assert "subject/test-results/ci-sdk-conformance.json" in workflow
     assert 'elif mode == "sdk-conformance":' in runner
     source = Path(sdk.__file__).read_text()
@@ -923,3 +944,137 @@ def test_monitor_diagnostic_not_projected_outside_conformance_stage(tmp_path):
         "failedVectorIds": [report["diagnostic"]["vectorId"]], "diagnostic": report["diagnostic"]}))
     actual = sdk.failure_diagnostics(private, tmp_path, "python-binding-build", {}, [expected])
     assert "diagnostic" not in actual
+
+
+def unit_location_fixture(tmp_path, stage="sdk-library-units", source=None):
+    root = tmp_path / "subject"
+    name = str(Path(sdk.LIBRARY_UNIT_MANIFESTS[stage]).parent / "src/lib.rs")
+    path = root / name
+    path.parent.mkdir(parents=True)
+    path.write_text(source or 'fn actual() {}\nfn unicode() { let _ = "é🦀"; }\n')
+    return root, {name: sdk.sha(path.read_bytes())}, name
+
+
+def failed_unit_summary(passed=2, failed=1, ignored=0, measured=0, filtered=0):
+    return (f"test result: FAILED. {passed} passed; {failed} failed; {ignored} ignored; "
+            f"{measured} measured; {filtered} filtered out; finished in 69.54s")
+
+
+@pytest.mark.parametrize("stage", list(sdk.LIBRARY_UNIT_MANIFESTS))
+def test_rust_unit_projection_is_coordinates_and_counts_only_never_test_names_or_values(tmp_path, stage):
+    root, inputs, tracked = unit_location_fixture(tmp_path, stage)
+    data = ("running 3 tests\n"
+            "test never_export_test_token ... FAILED\n"
+            "---- never_export_test_token stdout ----\n"
+            f"thread 'never_export_thread_token' (123456) panicked at {tracked}:1:4:\n"
+            "assertion `left == right` failed\nleft: never-export-password\nright: never-export-network-body\n"
+            + failed_unit_summary() + "\n\nerror: test failed, to rerun pass `--lib`\n").encode()
+    actual = sdk.rust_unit_diagnostics(data, root, inputs, stage)
+    assert actual == {"panicLocations": [{"path": tracked, "line": 1, "column": 4}],
+                      "reportedCounts": {"passed": 2, "failed": 1, "ignored": 0, "measured": 0, "filteredOut": 0}}
+    assert "never_export" not in json.dumps(actual) and "never-export" not in json.dumps(actual)
+    assert "123456" not in json.dumps(actual) and "failedTests" not in actual
+
+
+@pytest.mark.parametrize("source", [
+    'macro_rules! unused { () => { mod phantom { #[test] fn not_a_real_test() {} } }; }',
+    'fn outer() { mod inner { #[test] fn not_registered() {} } }',
+    '#[some_macro([0] mod phantom { #[test] fn not_a_real_test() {} })]\nfn wrapper() {}\n#[test]\nfn actual() {}',
+])
+def test_rust_unit_projection_never_inventories_any_source_test_module_or_attribute(tmp_path, source):
+    root, inputs, _ = unit_location_fixture(tmp_path, source=source)
+    raw = b"test phantom::not_a_real_test ... FAILED\ntest inner::not_registered ... FAILED\n"
+    assert sdk.rust_unit_diagnostics(raw, root, inputs, "sdk-library-units") is None
+    assert not hasattr(sdk, "unit_test_inventory")
+
+
+@pytest.mark.parametrize("location", ["/private/never-export-token:1:2", "src/untracked.rs:1:2",
+    "src/lib.rs:0:2", "src/lib.rs:99999999:2", "src/lib.rs:1:0", "src/lib.rs:1:999999",
+    "src/lib.rs:1:16", "src/lib.rs:2:36"])
+def test_rust_unit_untracked_or_out_of_range_panic_coordinates_omit_every_raw_field(tmp_path, location):
+    root, inputs, _ = unit_location_fixture(tmp_path)
+    raw = f"thread 'never-export-thread' panicked at {location}:\nnever-export-secret\n".encode()
+    assert sdk.rust_unit_diagnostics(raw, root, inputs, "sdk-library-units") is None
+
+
+@pytest.mark.parametrize("line,column", [(1, 1), (1, 15), (2, 30), (2, 34), (2, 35)])
+def test_rust_unit_panic_coordinates_allow_character_byte_and_end_of_line_widths(tmp_path, line, column):
+    root, inputs, tracked = unit_location_fixture(tmp_path)
+    raw = f"thread '<unnamed>' (4321) panicked at src/lib.rs:{line}:{column}:\nnever-export\n".encode()
+    assert sdk.rust_unit_diagnostics(raw, root, inputs, "sdk-library-units") == {
+        "panicLocations": [{"path": tracked, "line": line, "column": column}]}
+
+
+@pytest.mark.parametrize("fault", ["changed", "missing", "symlink", "bytes", "files"])
+def test_rust_unit_coordinates_require_held_source_identity_and_resource_bounds(tmp_path, monkeypatch, fault):
+    root, inputs, tracked = unit_location_fixture(tmp_path)
+    path = root / tracked
+    if fault == "changed":
+        path.write_text('fn changed() {}\n')
+    elif fault == "missing":
+        path.unlink()
+    elif fault == "symlink":
+        path.unlink()
+        foreign = tmp_path / "never-export-source"
+        foreign.write_text('fn private() {}\n')
+        path.symlink_to(foreign)
+    elif fault == "bytes":
+        monkeypatch.setattr(sdk, "MAX_UNIT_SOURCE_BYTES", 1)
+    else:
+        monkeypatch.setattr(sdk, "MAX_UNIT_SOURCE_FILES", 0)
+    assert sdk.rust_unit_diagnostics(b"thread 'private' panicked at src/lib.rs:1:2:\n", root, inputs, "sdk-library-units") is None
+
+
+@pytest.mark.parametrize("raw", [
+    "error: private counter 12345\n",
+    "private assertion: " + failed_unit_summary(),
+    failed_unit_summary() + "\nnever-export-trailing-assertion",
+    failed_unit_summary(failed=1000001),
+    failed_unit_summary(failed=0),
+    "running 9 tests\n" + failed_unit_summary(),
+    "running 1000001 tests\n" + failed_unit_summary(),
+    failed_unit_summary() + "\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s",
+    "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;",
+    failed_unit_summary() + "\nerror: never-export-secret",
+])
+def test_rust_unit_counts_require_trailing_complete_bounded_failed_summary_and_consistent_running(tmp_path, raw):
+    root, inputs, _ = unit_location_fixture(tmp_path)
+    assert sdk.rust_unit_diagnostics(raw.encode(), root, inputs, "sdk-library-units") is None
+
+
+def test_rust_unit_counts_select_final_complete_summary_and_omit_raw_noise(tmp_path):
+    root, inputs, _ = unit_location_fixture(tmp_path)
+    raw = (failed_unit_summary(passed=999) + "\nnever-export-panic-text\n"
+           "running 4 tests\n" + failed_unit_summary(ignored=1, filtered=20)
+           + "\nerror: test failed, to rerun pass `-p openmates-rust --lib`\n")
+    assert sdk.rust_unit_diagnostics(raw.encode(), root, inputs, "sdk-library-units") == {
+        "panicLocations": [], "reportedCounts": {"passed": 2, "failed": 1, "ignored": 1, "measured": 0, "filteredOut": 20}}
+
+
+def test_rust_unit_location_cap_dedup_and_log_tail_are_bounded(tmp_path, monkeypatch):
+    root, inputs, tracked = unit_location_fixture(tmp_path)
+    monkeypatch.setattr(sdk, "MAX_UNIT_DIAGNOSTIC_LOCATIONS", 1)
+    raw = ("thread 'private' panicked at src/lib.rs:1:2:\n" * 3
+           + "thread 'private' panicked at src/lib.rs:2:2:\n").encode()
+    assert sdk.rust_unit_diagnostics(raw, root, inputs, "sdk-library-units") == {
+        "panicLocations": [{"path": tracked, "line": 1, "column": 2}]}
+    assert sdk.rust_unit_diagnostics(raw + b"x" * 65536, root, inputs, "sdk-library-units") is None
+
+
+def test_failure_diagnostics_preserves_compiler_private_retention_exit_scope_and_never_exports_identifiers(tmp_path):
+    root, inputs, tracked = unit_location_fixture(tmp_path)
+    private = tmp_path / "private" / "sdk-synthetic"
+    private.mkdir(parents=True, mode=0o700)
+    data = (f"error[E0425]: never-export-compiler\n --> {tracked}:1:2\n"
+            "thread 'never-export-thread' panicked at src/lib.rs:1:2:\nnever-export-assertion\n").encode()
+    (private / "sdk-library-units.log").write_bytes(data)
+    actual = sdk.failure_diagnostics(private, root, "sdk-library-units", inputs, [])
+    assert actual["category"] == "rust_compile_or_unit" and actual["rawUpload"] is False
+    assert actual["compiler"][0]["code"] == "E0425"
+    assert actual["rustUnits"] == {"panicLocations": [{"path": tracked, "line": 1, "column": 2}]}
+    assert actual["privateRetained"]["sha256"] == sdk.sha(data)
+    retained = list(private.parent.glob("failure-sdk-*/sdk-library-units.log"))
+    assert len(retained) == 1 and retained[0].read_bytes() == data and retained[0].stat().st_mode & 0o777 == 0o600
+    assert "never-export" not in json.dumps(actual)
+    (private / "napi-build.log").write_bytes(data)
+    assert "rustUnits" not in sdk.failure_diagnostics(private, root, "napi-build", inputs, [])

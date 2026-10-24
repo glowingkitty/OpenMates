@@ -506,6 +506,77 @@ def compiler_diagnostics(data, root, inputs):
     return report["compiler"]
 
 
+# Diagnostics are projections, never a replacement for Cargo's actual exit.
+MAX_UNIT_DIAGNOSTIC_LOCATIONS = 16
+MAX_UNIT_SOURCE_FILES = 2048
+MAX_UNIT_SOURCE_BYTES = 16 * 1024**2
+MAX_UNIT_DIAGNOSTIC_COUNT = 1_000_000
+
+
+def rust_unit_diagnostics(data, root, inputs, stage):
+    """Project only held panic coordinates and a trailing libtest FAILED count.
+
+    No Rust syntax/test/module parsing and no thread/test identifiers are exported.
+    Counts are diagnostic observations, never proof of execution or acceptance.
+    """
+    if stage not in LIBRARY_UNIT_MANIFESTS:
+        return None
+    text = data[-65536:].decode("utf-8", errors="replace")
+    prefixes = tuple(str(Path(manifest).parent / "src") + "/" for manifest in LIBRARY_UNIT_MANIFESTS.values())
+    widths, source_bytes, locations = {}, 0, []
+    for match in re.finditer(r"(?m)^thread '[^'\n]{1,512}'(?: \([0-9]{1,10}\))? panicked at ([^\n]{1,512}):([0-9]{1,8}):([0-9]{1,8}):\r?$", text):
+        filename, line, column = match.groups()
+        path = Path(filename)
+        candidates = [path] if path.is_absolute() else [root / path, root / Path(LIBRARY_UNIT_MANIFESTS[stage]).parent / path]
+        for candidate in candidates:
+            try:
+                relative = candidate.resolve().relative_to(root).as_posix()
+            except (ValueError, OSError, RuntimeError):
+                continue
+            if relative not in inputs or not relative.startswith(prefixes) or not relative.endswith(".rs") or len(relative) > 512:
+                continue
+            if relative not in widths:
+                if len(widths) >= MAX_UNIT_SOURCE_FILES or source_bytes >= MAX_UNIT_SOURCE_BYTES:
+                    continue
+                widths[relative] = ()
+                try:
+                    raw = regular(root / relative, MAX_UNIT_SOURCE_BYTES - source_bytes)
+                    source_bytes += len(raw)
+                    if sha(raw) != inputs[relative]:
+                        continue
+                    # UTF-8 byte width plus one bounds both byte/character
+                    # coordinate conventions and permits the end-of-line point.
+                    widths[relative] = tuple(len(value.encode("utf-8")) + 1 for value in raw.decode("utf-8").splitlines())
+                except (OSError, UnicodeError, Refused):
+                    continue
+            held_lines = widths[relative]
+            if (0 < int(line) <= len(held_lines)
+                    and 0 < int(column) <= min(MAX_UNIT_DIAGNOSTIC_COUNT, held_lines[int(line) - 1])):
+                location = {"path": relative, "line": int(line), "column": int(column)}
+                if location not in locations and len(locations) < MAX_UNIT_DIAGNOSTIC_LOCATIONS:
+                    locations.append(location)
+                break
+    rows = text.splitlines()
+    summaries = [index for index, row in enumerate(rows) if row.startswith("test result:")]
+    report = {"panicLocations": locations}
+    if summaries:
+        index = summaries[-1]
+        summary = re.fullmatch(r"test result: FAILED\. ([0-9]{1,7}) passed; ([0-9]{1,7}) failed; ([0-9]{1,7}) ignored; ([0-9]{1,7}) measured; ([0-9]{1,7}) filtered out; finished in [0-9]{1,8}(?:\.[0-9]{1,8})?s", rows[index])
+        # Only the actual trailing complete summary, optionally followed by
+        # Cargo's closed rerun hint/blank lines, can supply numeric counts.
+        trailing = all(not row.strip() or re.fullmatch(
+            r"error: test failed, to rerun pass `(?:-p [A-Za-z0-9_.-]+ )?--lib`", row)
+            for row in rows[index + 1:])
+        if summary is not None and trailing:
+            values = [int(value) for value in summary.groups()]
+            running = [re.fullmatch(r"running ([0-9]{1,7}) tests?", row) for row in rows[:index]]
+            running = [int(match.group(1)) for match in running if match is not None]
+            if (all(value <= MAX_UNIT_DIAGNOSTIC_COUNT for value in values) and values[1] > 0
+                    and (not running or (running[-1] <= MAX_UNIT_DIAGNOSTIC_COUNT and sum(values[:4]) == running[-1]))):
+                report["reportedCounts"] = dict(zip(("passed", "failed", "ignored", "measured", "filteredOut"), values))
+    return report if locations or "reportedCounts" in report else None
+
+
 def project_vector_diagnostic(value, expected, failed_ids):
     """Accept only the reviewed Rust monitor's closed, actually failed vector."""
     keys = ("vectorId", "phase", "errorCode")
@@ -542,6 +613,10 @@ def failure_diagnostics(private, root, stage, inputs, plan):
         report["privateRetained"] = {"bytes": len(data), "sha256": sha(data),
                                      "truncated": info.st_size > len(data), "lifetime": "isolated-runner-only"}
         report["compiler"] = compiler_diagnostics(data, root, inputs)
+        if stage in LIBRARY_UNIT_MANIFESTS:
+            units = rust_unit_diagnostics(data, root, inputs, stage)
+            if units is not None:
+                report["rustUnits"] = units
         if stage in {"node-dependencies", "sdk-facade-build"}:
             report["packageManager"] = package_diagnostics(data)
         if stage in {"napi-load", "python-load"}:
