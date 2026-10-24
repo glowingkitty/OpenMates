@@ -1,6 +1,7 @@
 import logging
 import hashlib
 from datetime import datetime
+from uuid import UUID
 from typing import Dict, Any, Optional
 from fastapi import WebSocket
 
@@ -59,15 +60,53 @@ async def handle_request_embed(
         embed_id = payload.get("embed_id")
         log_prefix = f"[request_embed:{embed_id}] "
 
-        if not embed_id:
+        source_only = payload.get("source_only") is True
+        request_id = payload.get("request_id")
+
+        async def source_response(chat_id: Optional[str] = None) -> None:
+            await manager.send_personal_message(
+                {"type": "embed_source", "payload": {
+                    "embed_id": embed_id, "request_id": request_id,
+                    "chat_id": chat_id, "user_id": user_id,
+                }}, user_id, device_fingerprint_hash,
+            )
+
+        async def not_found() -> None:
+            if source_only:
+                await source_response()
+            else:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Embed not found", "status": 404}},
+                    user_id, device_fingerprint_hash,
+                )
+
+        if source_only:
+            # First-party authenticated WS metadata discovery only. Keep the same
+            # live Personal/Team ACL below, and never return content or key material.
+            try:
+                valid_ids = (isinstance(embed_id, str) and str(UUID(embed_id)) == embed_id
+                             and isinstance(request_id, str) and str(UUID(request_id)) == request_id)
+            except ValueError:
+                valid_ids = False
+            if not valid_ids:
+                await not_found()
+                return
+        elif not embed_id:
             logger.error(f"{log_prefix}Missing embed_id in request from user {user_id}")
             return
 
-        async def not_found() -> None:
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Embed not found", "status": 404}},
-                user_id, device_fingerprint_hash,
+        async def read_embed() -> Optional[Dict[str, Any]]:
+            if not source_only:
+                return await directus_service.embed.get_embed_by_id(embed_id)
+            # Restrict discovery to identity/ACL metadata, before any ciphertext,
+            # operational cache, embed-key or Vault decryption read.
+            rows = await directus_service.get_items(
+                "embeds", params={"filter": {"embed_id": {"_eq": embed_id}},
+                                  "fields": "embed_id,hashed_user_id,hashed_chat_id,status", "limit": 2},
+                no_cache=True, admin_required=True, raise_on_error=True,
             )
+            return (rows[0] if isinstance(rows, list) and len(rows) == 1
+                    and isinstance(rows[0], dict) and rows[0].get("embed_id") == embed_id else None)
 
         async def source_chat(source_id: str) -> Optional[Dict[str, Any]]:
             """Read one live principal from Directus, including deletion state."""
@@ -120,7 +159,7 @@ async def handle_request_embed(
             elif team_id or chat.get("hashed_user_id") != hashed_user_id:
                 await not_found()
                 return
-            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            directus_embed = await read_embed()
             if directus_embed and directus_embed.get("hashed_chat_id") != hashed_chat_id:
                 legacy_owner_embed = (
                     not team_id and not directus_embed.get("hashed_chat_id")
@@ -136,7 +175,7 @@ async def handle_request_embed(
             if team_id:
                 await not_found()
                 return
-            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            directus_embed = await read_embed()
             if not directus_embed or directus_embed.get("hashed_user_id") != hashed_user_id:
                 await not_found()
                 return
@@ -159,6 +198,13 @@ async def handle_request_embed(
                 await not_found()
                 return
             chat_id = source_id
+
+        if source_only:
+            if not directus_embed or directus_embed.get("status") == "cancelled":
+                await not_found()
+                return
+            await source_response(chat_id)
+            return
 
         # A completed chat embed is the canonical client-encrypted record. Upload
         # cache entries are operational metadata and have no chat binding; reading
@@ -507,6 +553,11 @@ async def handle_request_embed(
                 device_fingerprint_hash
             )
 
+    except Exception:
+        if payload.get("source_only") is not True:
+            raise
+        logger.error("Source-only embed discovery failed", exc_info=True)
+        await source_response()
     finally:
         if _otel_span is not None:
             try:

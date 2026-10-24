@@ -490,3 +490,140 @@ async def test_non_client_terminal_envelopes_are_not_served_as_readable_executio
     assert manager.send_personal_message.await_args.args[0] == {
         'type': 'error', 'payload': {'message': 'Embed not found', 'status': 404},
     }
+
+
+SOURCE_EMBED_ID = "11111111-1111-4111-8111-111111111111"
+SOURCE_REQUEST_ID = "22222222-2222-4222-8222-222222222222"
+SOURCE_CHAT_ID = "33333333-3333-4333-8333-333333333333"
+
+
+def _source_discovery_fixture(case="owner", *, child=False, scoped_team=False):
+    """Only explicit ACL metadata may be read on a source-only request."""
+    from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+
+    owner_hash = hashlib.sha256(b"owner").hexdigest()
+    row = {"embed_id": SOURCE_EMBED_ID, "hashed_user_id": owner_hash,
+           "hashed_chat_id": hashlib.sha256(SOURCE_CHAT_ID.encode()).hexdigest(), "status": "finished"}
+    if child:
+        row["parent_embed_id"] = "44444444-4444-4444-8444-444444444444"
+    chat = {"id": SOURCE_CHAT_ID, "hashed_user_id": owner_hash, "hashed_team_id": None}
+    if case == "foreign_embed":
+        row["hashed_user_id"] = hashlib.sha256(b"foreign").hexdigest()
+    elif case == "wrong_chat":
+        row["hashed_chat_id"] = hashlib.sha256(b"other-chat").hexdigest()
+    elif case == "cancelled":
+        row["status"] = "cancelled"
+    elif case == "missing_hash":
+        row.pop("hashed_chat_id")
+    elif case == "foreign_chat":
+        chat["hashed_user_id"] = hashlib.sha256(b"foreign").hexdigest()
+    elif case == "deleting":
+        chat["storage_state"] = "deleting"
+    elif case in ("team_source", "team_scoped", "team_removed", "team_mismatch"):
+        chat["hashed_team_id"] = hash_id("team-1")
+
+    if scoped_team:
+        chat["hashed_team_id"] = hash_id("team-1")
+
+    async def metadata(collection, params, **kwargs):
+        assert kwargs == {"no_cache": True, "admin_required": True, "raise_on_error": True}
+        assert params["limit"] == 2
+        if collection == "embeds":
+            assert params["fields"] == "embed_id,hashed_user_id,hashed_chat_id,status"
+            assert params["filter"] == {"embed_id": {"_eq": SOURCE_EMBED_ID}}
+            if case == "embed_read_error":
+                raise RuntimeError("unavailable store")
+            return [] if case == "missing" else [row]
+        assert collection == "chats"
+        assert params["fields"] == "id,hashed_user_id,hashed_team_id,storage_state"
+        assert params["filter"] == {"id": {"_eq": SOURCE_CHAT_ID}}
+        return [] if case == "deleted" else [chat]
+
+    directus = SimpleNamespace(
+        get_items=AsyncMock(side_effect=metadata),
+        embed=SimpleNamespace(get_embed_by_id=AsyncMock(), get_sync_embed_key_window_for_page=AsyncMock()),
+        chat=SimpleNamespace(get_chat_activity_candidates=AsyncMock(return_value=[{"id": SOURCE_CHAT_ID}]),
+                             get_chat_metadata=AsyncMock(return_value={})),
+        team=SimpleNamespace(require_team_role=AsyncMock(
+            side_effect=TeamPermissionError("removed") if case == "team_removed" else None)),
+    )
+    cache = SimpleNamespace(get=AsyncMock(), get_user_vault_key_id=AsyncMock())
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    return directus, cache, encryption, manager
+
+
+def _assert_source_only_reply(directus, cache, encryption, manager, chat_id, request_id=SOURCE_REQUEST_ID):
+    manager.send_personal_message.assert_awaited_once_with(
+        {"type": "embed_source", "payload": {"embed_id": SOURCE_EMBED_ID, "request_id": request_id,
+                                              "chat_id": chat_id, "user_id": "owner"}}, "owner", "device",
+    )
+    # Source discovery cannot read content, operational cache, key wrappers or Vault plaintext.
+    directus.embed.get_embed_by_id.assert_not_awaited()
+    directus.embed.get_sync_embed_key_window_for_page.assert_not_awaited()
+    cache.get.assert_not_awaited()
+    cache.get_user_vault_key_id.assert_not_awaited()
+    encryption.decrypt_with_user_key.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+@pytest.mark.parametrize("child", [False, True])
+async def test_source_only_discovers_owned_personal_original_without_content_or_keys(child):
+    directus, cache, encryption, manager = _source_discovery_fixture(child=child)
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id="owner", device_fingerprint_hash="device",
+        payload={"embed_id": SOURCE_EMBED_ID, "source_only": True, "request_id": SOURCE_REQUEST_ID},
+    )
+    directus.chat.get_chat_activity_candidates.assert_awaited_once_with("owner")
+    assert [call.args[0] for call in directus.get_items.await_args_list] == ["embeds", "chats"]
+    _assert_source_only_reply(directus, cache, encryption, manager, SOURCE_CHAT_ID)
+
+
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["missing", "foreign_embed", "foreign_chat", "deleted", "deleting",
+                                       "cancelled", "missing_hash", "team_source", "embed_read_error"])
+async def test_source_only_unavailable_or_unauthorized_discovery_is_uniformly_correlated(case):
+    directus, cache, encryption, manager = _source_discovery_fixture(case)
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id="owner", device_fingerprint_hash="device",
+        payload={"embed_id": SOURCE_EMBED_ID, "source_only": True, "request_id": SOURCE_REQUEST_ID},
+    )
+    _assert_source_only_reply(directus, cache, encryption, manager, None)
+
+
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["team_scoped", "team_removed", "team_mismatch", "wrong_chat", "missing"])
+async def test_source_only_scoped_team_discovery_preserves_current_acl(case):
+    directus, cache, encryption, manager = _source_discovery_fixture(case, scoped_team=True)
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id="owner", device_fingerprint_hash="device",
+        payload={"embed_id": SOURCE_EMBED_ID, "chat_id": SOURCE_CHAT_ID,
+                 "team_id": "wrong-team" if case == "team_mismatch" else "team-1",
+                 "source_only": True, "request_id": SOURCE_REQUEST_ID},
+    )
+    _assert_source_only_reply(directus, cache, encryption, manager,
+                             SOURCE_CHAT_ID if case == "team_scoped" else None)
+    if case == "team_scoped":
+        directus.team.require_team_role.assert_awaited_once_with(
+            "team-1", "owner", {"owner", "admin", "member", "viewer"})
+
+
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+@pytest.mark.parametrize("request_id", [None, "", "not-a-uuid", "22222222222242228222222222222222", 42])
+async def test_source_only_invalid_correlation_id_is_rejected_before_database_reads(request_id):
+    directus, cache, encryption, manager = _source_discovery_fixture()
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id="owner", device_fingerprint_hash="device",
+        payload={"embed_id": SOURCE_EMBED_ID, "source_only": True, "request_id": request_id},
+    )
+    directus.get_items.assert_not_awaited()
+    directus.chat.get_chat_activity_candidates.assert_not_awaited()
+    _assert_source_only_reply(directus, cache, encryption, manager, None, request_id)

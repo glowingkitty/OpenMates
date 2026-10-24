@@ -148,7 +148,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
-    import { getSavedEmbedFullscreenFallback } from '../services/embedSuggestionSearch';
     import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
     import type { WikipediaArticleIdentity, WikipediaRelatedArticle } from '../utils/wikipediaLearning';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -714,6 +713,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     type EmbedFullscreenEventDetail = {
         sourceChatId?: string | null;
+        loadError?: boolean;
         lookupChatId?: string | null;
         exampleChatId?: string | null;
         embedId?: string | null;
@@ -1859,11 +1859,29 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         embedFullscreenData = {
             embedId, embedData, decodedContent, embedType, attrs,
             focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange,
-            hasChatContext, exampleChatId, lookupChatId, isResolving: true
+            hasChatContext, exampleChatId, lookupChatId,
+            isResolving: !detail.loadError, loadError: detail.loadError === true
         };
         const openingData = embedFullscreenData;
-        const openingChatId = currentChat?.chat_id;
-        const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
+        const openingChatId = currentChat?.chat_id ?? null;
+        const openingDraftChatId = get(draftEditorUIState).currentChatId ?? temporaryChatId;
+        const openingLoadGeneration = loadChatGeneration;
+        const stillOpening = () => {
+            const sameChat = isComposerLookupChatCurrent({
+                openingChatId, openingDraftChatId, openingLoadGeneration,
+                currentChat, currentDraftChatId: get(draftEditorUIState).currentChatId ?? temporaryChatId,
+                currentLoadGeneration: loadChatGeneration,
+            });
+            const sameOpening = showEmbedFullscreen && embedFullscreenData === openingData;
+            if (!sameOpening || !sameChat) {
+                console.debug('[ActiveChat] Composer embed fullscreen opening superseded', JSON.stringify({
+                    sameOpening, sameChat, openingChatId, currentChatId: currentChat?.chat_id ?? null,
+                    openingDraftChatId, currentDraftChatId: get(draftEditorUIState).currentChatId ?? temporaryChatId,
+                    openingLoadGeneration, currentLoadGeneration: loadChatGeneration,
+                }));
+            }
+            return sameOpening && sameChat;
+        };
         fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
 
@@ -1895,6 +1913,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             });
             console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', hasChatContext ? currentChat?.chat_id : null);
         }
+        // Composer selections already awaited complete server recovery. A
+        // failed selection has a terminal error, not another pending read.
+        if (detail.loadError) return;
         
         // Cached imports/resolvers can complete in microtasks without yielding a
         // paint. Let Safari present the closeable shell before decoding results
@@ -2622,15 +2643,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return true;
         };
         const exampleChatId = embedChatId && isExampleChat(embedChatId) ? embedChatId : null;
-        // Saved cards are embed actions too. Legacy saves can supply their
-        // already-decrypted item fields if the original ciphertext is gone.
-        const savedFallback = settingsPath
-            ? getSavedEmbedFullscreenFallback(get(appSettingsMemoriesStore), embedId, settingsPath) : null;
         const { resolveEmbedForOpen } = await import('../services/embedResolver');
         const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
         // A saved memory without an owner must not borrow the currently open
         // public example's namespace just because the user is composing there.
-        const lookupChatId = embedChatId ?? (settingsPath ? null : openingChatId);
+        let lookupChatId = embedChatId ?? (settingsPath ? null : openingChatId);
         const readEmbed = async (id: string) => {
             try {
                 return await resolveEmbedForOpen(id, { chatId: lookupChatId });
@@ -2641,10 +2658,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         };
         const embed = await readEmbed(embedId);
         if (!stillSelected()) return;
+        if (embed?.sourceChatId) lookupChatId = embed.sourceChatId;
         if (!embed) {
             dispatchEmbedFullscreen({
-                embedId, embedType: savedFallback?.embedType,
-                decodedContent: savedFallback?.decodedContent,
+                embedId, loadError: true,
                 hasChatContext: false, sourceChatId: currentChat?.chat_id ?? null,
                 exampleChatId, lookupChatId,
             });
@@ -2661,8 +2678,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!stillSelected()) return;
             if (!parent) {
                 dispatchEmbedFullscreen({
-                    embedId, embedType: savedFallback?.embedType ?? embed.type,
-                    embedData: embed, decodedContent: savedFallback?.decodedContent,
+                    embedId, embedType: embed.type,
+                    embedData: embed,
                     hasChatContext: false, sourceChatId: currentChat?.chat_id ?? null,
                     exampleChatId, lookupChatId,
                 });

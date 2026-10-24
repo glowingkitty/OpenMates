@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   provenance: new Map<string, Record<string, unknown>>(),
   raw: new Map<string, Record<string, unknown>>(), localKeys: new Map<string, Record<string, unknown>[]>(),
   fetch: vi.fn(), send: vi.fn(), keys: vi.fn(), put: vi.fn(), dispatch: vi.fn(),
+  handlers: new Map<string, (payload: Record<string, unknown>) => void>(),
+  connection: new EventTarget(),
 }));
 vi.mock("../../stores/authState", () => ({ authStore: writable({ isAuthenticated: true, isInitialized: true }) }));
 vi.mock("../../stores/userProfile", () => ({ userProfile: writable({ user_id: "owner-1", account_id: "account-1" }) }));
@@ -22,7 +24,15 @@ vi.mock("../embedStore", () => ({ embedStore: {
 } }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: { getProvenance: (id: string) => state.provenance.get(id) ?? null } }));
 vi.mock("../chatSyncService", () => ({ chatSyncService: { dispatchEvent: state.dispatch } }));
-vi.mock("../websocketService", () => ({ webSocketService: { sendMessage: state.send } }));
+vi.mock("../websocketService", () => ({ webSocketService: {
+  sendMessage: state.send,
+  on: (type: string, handler: (payload: Record<string, unknown>) => void) => state.handlers.set(type, handler),
+  off: (type: string, handler: (payload: Record<string, unknown>) => void) => {
+    if (state.handlers.get(type) === handler) state.handlers.delete(type);
+  },
+  addEventListener: (type: string, handler: EventListener) => state.connection.addEventListener(type, handler),
+  removeEventListener: (type: string, handler: EventListener) => state.connection.removeEventListener(type, handler),
+} }));
 vi.mock("../../config/api", () => ({ getApiEndpoint: (path: string) => path, storageArchiveFetch: state.fetch }));
 vi.mock("../../demo_chats/exampleChatStore", () => ({
   isExampleChat: (id: string) => id.startsWith("example-"),
@@ -54,6 +64,7 @@ beforeEach(() => {
     options.writeGuard(); state.loaded.set(ref, { ...data, type: "app_skill_use", content: "decoded" });
   });
   state.dispatch.mockReset();
+  state.handlers.clear();
   authStore.set({ isAuthenticated: true, isInitialized: true });
   userProfile.set({ user_id: "owner-1", account_id: "account-1" } as never);
   activeTeamId.set(null);
@@ -83,7 +94,7 @@ describe("embed reads use caller source context", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted
-  it('lets a saved-item viewer use its metadata when in-flight recovery rejects', async () => {
+  it('returns unavailable when in-flight recovery rejects', async () => {
     vi.useRealTimers();
     const id = embedId();
     let release!: () => void;
@@ -95,6 +106,93 @@ describe("embed reads use caller source context", () => {
     release();
     expect(await opening).toBeNull();
     expect(state.activeChat).toBe('unrelated-active-chat');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it.each(['example-open-chat', 'unrelated-private-chat'])('discovers a saved result source without borrowing %s', async activeChat => {
+    vi.useRealTimers();
+    state.activeChat = activeChat;
+    const id = embedId(), sourceChat = '11111111-1111-4111-8111-111111111111';
+    let release!: () => void;
+    const responseGate = new Promise<void>(resolve => { release = resolve; });
+    state.fetch.mockImplementation(async () => { await responseGate; return ready(id); });
+    let settled = false;
+    const opening = resolveEmbedForOpen(id, { chatId: null }).then(value => { settled = true; return value; });
+    await vi.waitFor(() => expect(state.send).toHaveBeenCalledTimes(1));
+    const request = state.send.mock.calls[0][1];
+    expect(request).toMatchObject({ embed_id: id, chat_id: null, team_id: null, source_only: true });
+    expect(state.fetch).not.toHaveBeenCalled();
+    const reply = { embed_id: id, request_id: request.request_id, chat_id: sourceChat, user_id: 'owner-1' };
+    const receive = state.handlers.get('embed_source')!;
+    receive({ ...reply, request_id: 'another-request' });
+    receive({ ...reply, user_id: 'another-owner' });
+    receive({ ...reply, embed_id: 'another-embed' });
+    receive({ ...reply, chat_id: 'hashed-not-usable' });
+    expect(state.fetch).not.toHaveBeenCalled();
+    receive(reply);
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+    expect(settled).toBe(false);
+    expect(state.loaded.size).toBe(0);
+    release();
+    expect(await opening).toMatchObject({ embed_id: id, content: 'decoded', sourceChatId: sourceChat });
+    expect(state.fetch.mock.calls.map(([path]) => path)).toEqual([`/v1/embeds/chats/${sourceChat}/embeds/${id}`]);
+    expect(state.handlers.size).toBe(0);
+    expect(state.activeChat).toBe(activeChat);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it.each(['account', 'authentication', 'Team', 'chat'])('rejects a discovered source after the %s changes', async kind => {
+    vi.useRealTimers();
+    const id = embedId();
+    const opening = resolveEmbedForOpen(id, { chatId: null }).catch(() => null);
+    await vi.waitFor(() => expect(state.send).toHaveBeenCalledTimes(1));
+    const request = state.send.mock.calls[0][1];
+    if (kind === 'account') userProfile.set({ user_id: 'owner-2', account_id: 'account-2' } as never);
+    if (kind === 'authentication') authStore.set({ isAuthenticated: true, isInitialized: true });
+    if (kind === 'Team') activeTeamId.set('team-2');
+    if (kind === 'chat') state.activeChat = 'new-active-chat';
+    state.handlers.get('embed_source')!({ embed_id: id, request_id: request.request_id,
+      chat_id: '11111111-1111-4111-8111-111111111111', user_id: 'owner-1' });
+    expect(await opening).toBeNull();
+    expect(state.fetch).not.toHaveBeenCalled();
+    expect(state.put).not.toHaveBeenCalled();
+    expect(state.handlers.size).toBe(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it('retains the discovered source when saved opening joins an existing authorized read', async () => {
+    vi.useRealTimers();
+    const id = '22222222-2222-4222-8222-222222222222';
+    const sourceChat = '11111111-1111-4111-8111-111111111111';
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    state.fetch.mockImplementation(async () => { await gate; return ready(id); });
+    const initial = requestEmbedFromServerOnce(id, 'existing-preview', { chatId: sourceChat });
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+    const opening = resolveEmbedForOpen(id, { chatId: null });
+    await vi.waitFor(() => expect(state.send).toHaveBeenCalledTimes(1));
+    state.handlers.get('embed_source')!({ embed_id: id, request_id: state.send.mock.calls[0][1].request_id,
+      chat_id: sourceChat, user_id: 'owner-1' });
+    release();
+    await initial;
+    expect(await opening).toMatchObject({ embed_id: id, sourceChatId: sourceChat });
+    expect(state.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted
+  it.each(['missing', 'timeout', 'disconnect'])('does not substitute memory fields when source recovery is %s', async outcome => {
+    const id = embedId();
+    const opening = resolveEmbedForOpen(id, { chatId: null });
+    await vi.waitFor(() => expect(state.send).toHaveBeenCalledTimes(1));
+    const request = state.send.mock.calls[0][1];
+    if (outcome === 'missing') state.handlers.get('embed_source')!({ embed_id: id,
+      request_id: request.request_id, chat_id: null, user_id: 'owner-1' });
+    if (outcome === 'timeout') await vi.advanceTimersByTimeAsync(8_001);
+    if (outcome === 'disconnect') state.connection.dispatchEvent(new Event('close'));
+    expect(await opening).toBeNull();
+    expect(state.fetch).not.toHaveBeenCalled();
+    expect(state.put).not.toHaveBeenCalled();
+    expect(state.handlers.size).toBe(0);
   });
 
   // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence

@@ -34,6 +34,8 @@ export interface FullscreenRouteState {
 
 export interface EmbedFullscreenDispatchDetail {
   embedId?: string | null;
+    /** The caller has completed recovery and the original is unavailable. */
+    loadError?: boolean;
   projectId?: string;
   teamId?: string | null;
   embedData?: unknown;

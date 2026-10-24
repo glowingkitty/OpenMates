@@ -274,7 +274,13 @@ export async function installE2ETestHooks() {
   };
 
   testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title, ...eventFields }) => {
-    if (!embedId.startsWith('e2e-')) throw new Error('E2E embed IDs must start with e2e-');
+    if (!embedId.startsWith('e2e-')) {
+      const { authStore } = await import('../stores/authState');
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!['localhost', '127.0.0.1'].includes(window.location.hostname) || !get(authStore).isAuthenticated || !uuid.test(embedId)) {
+        throw new Error('Owned saved embed fixtures require authenticated localhost and a canonical UUID');
+      }
+    }
     const { encryptWithMasterKey } = await import('./cryptoService');
     const { appSettingsMemoriesStore } = await import('../stores/appSettingsMemoriesStore');
     const encrypted = await encryptWithMasterKey(JSON.stringify({

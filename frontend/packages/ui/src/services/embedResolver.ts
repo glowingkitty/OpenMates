@@ -18,7 +18,7 @@ import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 import { activeChatStore } from "../stores/activeChatStore";
-import { isAuthBootstrapSettled } from "../stores/authBootstrapReadiness";
+import { isAuthBootstrapSettled, waitForAuthBootstrapReadiness } from "../stores/authBootstrapReadiness";
 import { activeTeamId } from "../stores/teamStore";
 import { userProfile } from "../stores/userProfile";
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
@@ -55,10 +55,11 @@ const LOCAL_CODE_DOC_PREVIEW_PREFIXES = [
   "preview:docs-doc:",
 ];
 
-const requestedEmbeds = new Map<
-  string,
-  { requestedAt: number; promise: Promise<void> | null; reason: string; embedId: string; personal?: true }
->();
+type EmbedRequestEntry = {
+  requestedAt: number; promise: Promise<void> | null; reason: string;
+  embedId: string; personal?: true; sourceChatId?: string;
+};
+const requestedEmbeds = new Map<string, EmbedRequestEntry>();
 
 /** Expire only settled Personal metadata; active work and Team/Shared policy stay untouched. */
 function pruneExpiredPersonalRequests(now: number): void {
@@ -70,6 +71,12 @@ function pruneExpiredPersonalRequests(now: number): void {
 }
 
 type EmbedReadOptions = { chatId?: string | null };
+
+// An explicit null is an unknown source (for example an older saved result),
+// not permission to reinterpret the ID in the currently open chat.
+function embedReadChatId(options: EmbedReadOptions): string | null {
+  return options.chatId === undefined ? activeChatStore.get() : options.chatId;
+}
 
 function currentEmbedAccount(): string {
   const profile = get(userProfile);
@@ -91,11 +98,14 @@ async function captureEmbedReadContext(embedId: string, options: EmbedReadOption
   const account = currentEmbedAccount();
   const selectedTeam = get(activeTeamId);
   const authenticated = get(authStore).isAuthenticated;
-  const chatId = options.chatId ?? activeChatStore.get();
+  const auth = get(authStore);
+  const activeChatId = activeChatStore.get();
+  const chatId = embedReadChatId(options);
   const capturedPersonalScope = chatId ? capturePersonalEmbedReadScope(chatId, embedId) : null;
   let personalScope: PersonalEmbedReadScope | null = null;
   const assertCurrent = () => {
-    if (currentEmbedAccount() !== account || get(activeTeamId) !== selectedTeam) {
+    if (currentEmbedAccount() !== account || get(activeTeamId) !== selectedTeam ||
+        (chatId === null && (get(authStore) !== auth || activeChatStore.get() !== activeChatId))) {
       throw new Error("Embed read workspace changed");
     }
     if (personalScope) assertPersonalEmbedReadScope(personalScope);
@@ -104,7 +114,7 @@ async function captureEmbedReadContext(embedId: string, options: EmbedReadOption
   const chat = chatId ? await chatDB.getChat(chatId) : null;
   assertCurrent();
   const teamId = chat?.team_id !== undefined ? chat.team_id
-    : chatId === activeChatStore.get() ? selectedTeam : null;
+    : chatId && chatId === activeChatStore.get() ? selectedTeam : null;
   if (authenticated && !teamId && !chat?.is_shared_by_others) {
     personalScope = capturedPersonalScope;
     assertCurrent();
@@ -266,6 +276,76 @@ async function fetchEncryptedEmbedForSourceChat(embedId: string, context: EmbedR
     : fetchPersonalEmbedForChat(embedId, parentId, context);
 }
 
+/**
+ * Older saved entries contain only an embed ID. The existing server WS path
+ * discovers its live Personal source under the authenticated owner's ACL.
+ * Its correlated source-only reply cannot enter normal embed persistence.
+ * Wait for that reply, then use the ordinary scoped ciphertext/key reader;
+ * sending request_embed alone does not mean the original has been recovered.
+ */
+async function recoverEmbedWithoutSource(
+  embedId: string, context: EmbedReadContext, request: EmbedRequestEntry,
+): Promise<void> {
+  if (!context.authenticated || !isAuthBootstrapSettled()) return;
+  const { webSocketService } = await import('./websocketService');
+  context.assertCurrent();
+  const requestId = generateUUID();
+  const ownerId = get(userProfile).user_id;
+  let receive!: (chatId: string | null) => void;
+  const source = new Promise<string | null>(resolve => { receive = resolve; });
+  const onEmbed = (payload: Record<string, unknown>) => {
+    if (payload.embed_id !== embedId || payload.request_id !== requestId || payload.user_id !== ownerId) return;
+    if (payload.chat_id === null) { receive(null); return; }
+    if (typeof payload.chat_id !== 'string' ||
+        !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(payload.chat_id)) return;
+    receive(payload.chat_id);
+  };
+  const disconnected = () => receive(null);
+  webSocketService.on('embed_source', onEmbed);
+  webSocketService.addEventListener('close', disconnected);
+  const timer = setTimeout(() => receive(null), 8_000);
+  let sourceChatId: string | null;
+  try {
+    sourceChatId = await Promise.race([
+      webSocketService.sendMessage('request_embed', {
+        embed_id: embedId, chat_id: null, team_id: null,
+        source_only: true, request_id: requestId,
+      }).then(() => source),
+      source,
+    ]);
+  } finally {
+    clearTimeout(timer);
+    webSocketService.off('embed_source', onEmbed);
+    webSocketService.removeEventListener('close', disconnected);
+  }
+  context.assertCurrent();
+  if (!sourceChatId) return;
+  const discovered = await captureEmbedReadContext(embedId, { chatId: sourceChatId });
+  context.assertCurrent();
+  const assertCurrent = () => { context.assertCurrent(); discovered.assertCurrent(); };
+  // Always make the authorized REST read, even if unrelated sync warmed a
+  // local row while source discovery was pending. It also pages inherited keys.
+  if (discovered.personalScope) {
+    await runPersonalEmbedReadOperation(discovered.personalScope, async (assertPending, signal) => {
+      const guard = () => { assertCurrent(); assertPending(); };
+      await fetchEncryptedEmbedForChat(embedId, sourceChatId, null, false, guard, signal);
+      guard();
+    });
+  } else {
+    const signal = AbortSignal.timeout(8_000);
+    const guard = () => { assertCurrent(); if (signal.aborted) throw new Error('Embed source read expired'); };
+    await fetchEncryptedEmbedForChat(embedId, sourceChatId, discovered.teamId, discovered.shared, guard, signal);
+  }
+  // Joining an existing authorized read does not execute our callback. Preserve
+  // its discovered source too, only after that operation leaves readable data.
+  const recovered = await embedStore.get(`embed:${embedId}`);
+  assertCurrent();
+  if (recovered && typeof recovered !== 'string' && !recovered._decryptionPending && !recovered._decryptionFailed) {
+    request.sourceChatId = sourceChatId;
+    decryptionFailures.delete(context.requestKey);
+  }
+}
+
 
 /** Read local encrypted metadata only; key arrival can wake a failed decrypt. */
 async function decryptionReadiness(embedId: string, context: EmbedReadContext): Promise<string> {
@@ -345,7 +425,14 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
 
-  if (isExampleChat(options.chatId ?? activeChatStore.get() ?? "")) return false;
+  if (isExampleChat(embedReadChatId(options) ?? "")) return false;
+  if (options.chatId === null && get(authStore).isAuthenticated) {
+    const account = currentEmbedAccount(), activeChatId = activeChatStore.get(), teamId = get(activeTeamId);
+    try {
+      await waitForAuthBootstrapReadiness(AbortSignal.timeout(8_000));
+    } catch { return false; }
+    if (currentEmbedAccount() !== account || activeChatStore.get() !== activeChatId || get(activeTeamId) !== teamId) return false;
+  }
   let context: EmbedReadContext;
   try {
     context = await captureEmbedReadContext(bareId, options);
@@ -369,13 +456,17 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
 
-  const requestEntry = { requestedAt: now, promise: null as Promise<void> | null, reason, embedId: bareId,
-    ...(context.personalScope ? { personal: true as const } : {}) };
+  const requestEntry: EmbedRequestEntry = { requestedAt: now, promise: null, reason, embedId: bareId,
+    ...(context.personalScope || (context.chatId === null && context.authenticated) ? { personal: true as const } : {}) };
   try {
     const promise = (async () => {
       console.warn(
         `[embedResolver] Embed missing locally, requesting from server (${reason}):`, bareId,
       );
+      if (context.chatId === null) {
+        await recoverEmbedWithoutSource(bareId, context, requestEntry);
+        return;
+      }
       if (!context.authenticated) {
         if (await fetchEncryptedEmbedForSourceChat(bareId, context)) decryptionFailures.delete(context.requestKey);
         return;
@@ -552,6 +643,8 @@ async function initToonDecoder() {
  */
 export interface EmbedData {
   embed_id: string;
+  /** Runtime-only source discovered while recovering an older saved result. */
+  sourceChatId?: string;
   type: string; // Decrypted type (client-side only)
   // See embedStateMachine.ts for the canonical status type and valid transitions
   status: "processing" | "finished" | "error" | "cancelled";
@@ -697,7 +790,10 @@ export async function resolveEmbedForOpen(
     return null;
   }
   context.assertCurrent();
-  return resolveEmbed(embedId, options);
+  const sourceChatId = requestedEmbeds.get(context.requestKey)?.sourceChatId;
+  const recovered = await resolveEmbed(embedId, sourceChatId ? { chatId: sourceChatId } : options);
+  context.assertCurrent();
+  return recovered && sourceChatId ? { ...recovered, sourceChatId } : recovered;
 }
 
 /**

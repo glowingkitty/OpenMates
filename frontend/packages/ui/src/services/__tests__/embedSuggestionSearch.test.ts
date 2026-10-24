@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat } from '../../types/chat';
-import { getSavedEmbedFullscreenFallback, searchSavedEmbedMemories } from '../embedSuggestionSearch';
+import { searchSavedEmbedMemories } from '../embedSuggestionSearch';
 
 const mocks = vi.hoisted(() => ({
   getMessagesForChat: vi.fn(),
@@ -26,23 +26,6 @@ vi.mock('../../demo_chats', () => ({
 }));
 
 describe('composer embed suggestions', () => {
-  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
-  it('opens the selected legacy saved event with only its known saved fields', () => {
-    const value = { embed_id: 'saved-event', title: 'Freelance Barcamp Berlin',
-      date_start: '2026-11-14T09:00:00+01:00', location: 'Fixture coworking Berlin',
-      url: 'https://example.com/barcamp', notes: 'My saved event notes' };
-    const state = { entriesByApp: new Map([['events', { saved_events: [
-      { id: 'selected-entry', item_value: value },
-    ] }]]) };
-    expect(getSavedEmbedFullscreenFallback(state, 'saved-event', 'apps/events/settings_memories/saved_events/entry/selected-entry'))
-      .toEqual({ embedType: 'events-event', decodedContent: {
-        ...value, app_id: 'events', skill_id: 'event', venue_address: value.location, description: value.notes,
-      } });
-    expect(getSavedEmbedFullscreenFallback(state, 'saved-event', 'apps/events/settings_memories/saved_events/entry/another-entry')).toBeNull();
-    expect(getSavedEmbedFullscreenFallback(state, 'another-event')).toBeNull();
-    expect(value).not.toHaveProperty('venue_address');
-  });
-
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();

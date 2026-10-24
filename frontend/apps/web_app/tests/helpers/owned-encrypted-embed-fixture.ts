@@ -82,6 +82,7 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 				const child=eventFixture?{type:'event_result',app_id:'events',skill_id:'search',
 					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'luma',
 					url:'https://example.com/events/barcamp',date_start:'2026-11-14T09:00:00+01:00',is_paid:false,
+					venue:{name:'Original encrypted event venue',address:'Original fixture street 12',city:'Berlin'},
 					organizer:{name:'Historical event fixture'},description:'Recovered encrypted event details'}
 					:{type:'image_result',app_id:'images',skill_id:'search',embed_ref:'historical-image-result',title:'Historical image fixture',
                     image_url:'/favicon.png',thumbnail_url:'/favicon.png',
