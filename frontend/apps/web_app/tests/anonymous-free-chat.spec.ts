@@ -424,9 +424,11 @@ test.describe('Anonymous free chat', () => {
 
 		await page.getByTestId('input-dismiss-button').click();
 		await expect(page.getByTestId('anonymous-terms-reminder')).toHaveCount(0);
-		await expect(page.getByTestId('message-field')).toHaveClass(/draft-preview/);
+		await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
+		const draftCard = page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Hello anonymous text' });
+		await expect(draftCard).toBeVisible();
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
-		await page.getByTestId('message-field').click();
+		await draftCard.click();
 		await expect(page.getByTestId('anonymous-terms-reminder')).toBeVisible({ timeout: 5000 });
 		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
 		await page.locator('[data-action="send-message"]').click();

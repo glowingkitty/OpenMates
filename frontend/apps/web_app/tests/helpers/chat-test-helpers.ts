@@ -1014,6 +1014,28 @@ async function submitPasswordAndHandleOtp(
 	}
 }
 
+/** Use the opener when closed and the panel's visible Close control when open. */
+async function setChatSidebarOpen(
+	page: any,
+	open: boolean,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
+): Promise<void> {
+	const toggle = page.getByTestId('sidebar-toggle');
+	try {
+		if (await toggle.getAttribute('aria-expanded') !== String(open)) {
+			if (open) await toggle.click();
+			else await page.getByRole('button', { name: 'Close', exact: true }).click();
+		}
+		await expect(toggle).toHaveAttribute('aria-expanded', String(open));
+	} catch (error) {
+		logCheckpoint('Chat sidebar transition failed', {
+			requestedOpen: open,
+			expanded: await toggle.getAttribute('aria-expanded').catch(() => null)
+		});
+		throw error;
+	}
+}
+
 /**
  * Start a new chat session by clicking the new chat button.
  * Uses data-testid and data-action for stable selectors.
@@ -1804,6 +1826,7 @@ module.exports = {
 	openSignupInterface,
 	isSignupInterfaceVisible,
 	startNewChat,
+	setChatSidebarOpen,
 	sendMessage,
 	deleteActiveChat,
 	waitForAssistantResponse,

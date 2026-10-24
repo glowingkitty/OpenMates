@@ -63,7 +63,7 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
 def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
     source = _active_chat_source()
     helper = re.search(
-        r"function\s+resetComposerWelcomeState\(clearLiveInput = true\)\s*\{(.*?)\n\s*// Cache the last measured welcome content height",
+        r"function\s+resetComposerWelcomeState\(clearLiveInput = true, preserveFocus = false\)\s*\{(.*?)\n\s*// Cache the last measured welcome content height",
         source,
         re.S,
     )
@@ -101,7 +101,7 @@ def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
         "The unauthenticated fallback must reset composer state before restoring welcome"
     )
 
-    new_chat_reset = source.index("resetComposerWelcomeState(false);", source.index("New chat creation initiated"))
+    new_chat_reset = source.index("resetComposerWelcomeState(false, preserveComposerFocus);", source.index("New chat creation initiated"))
     new_chat_clear = source.index("currentChat = null;", new_chat_reset)
     assert new_chat_reset < new_chat_clear, (
         "New chat creation must reset visual state without deleting the previous chat draft"

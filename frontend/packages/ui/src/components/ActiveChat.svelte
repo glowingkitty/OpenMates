@@ -342,6 +342,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         dismissFocus: () => void;
         revealDraftActions?: () => void;
         flushCurrentDraft?: () => Promise<void> | void;
+        flushCurrentDraftLocally: () => Promise<boolean>;
         prepareVoiceCallDraft?: (chatId: string) => Promise<boolean>;
         sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
@@ -3858,7 +3859,21 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             console.warn('[ActiveChat] Failed to load anonymous chats for guest carousel:', err);
         }
         const sharedMetas = await loadSharedByOthersRecentChats();
-        const localMetas = [...anonymousMetas, ...sharedMetas];
+        const existingIds = new Set([...anonymousMetas, ...sharedMetas].map(meta => meta.chat.chat_id));
+        const draftMetas: RecentChatMeta[] = getAllDraftChatIdsWithDrafts()
+            .filter(id => !isPublicChat(id) && !isAnonymousChatId(id) && !existingIds.has(id))
+            .reverse()
+            .map(id => ({
+                ...buildExampleChatMeta({
+                    ...createAnonymousHashShellChat(id),
+                    is_anonymous: false,
+                    category: null,
+                    icon: null,
+                    draft_v: 1,
+                }),
+                draftPreview: formatDraftPreview(getSessionStorageDraftMarkdown(id) ?? ''),
+            }));
+        const localMetas = [...draftMetas, ...anonymousMetas, ...sharedMetas];
 
         if (!includeGuestExamples) {
             return localMetas;
@@ -4005,16 +4020,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
      */
     async function handleOpenRecentChat(chat: Chat) {
         console.info(`[ActiveChat] Opening recent chat: ${chat.chat_id}`);
-        if (isPersistedDraftOnlyChat(chat)) {
-            temporaryChatId = null;
-            messageInputFieldRef?.setCurrentChatContext?.(chat.chat_id, null, chat.draft_v ?? 0);
-        }
+        const opensDraft = isPersistedDraftOnlyChat(chat);
+        // loadChat restores the document before its context becomes editable.
+        // Binding an empty workspace editor here can delete the saved draft.
         phasedSyncState.markInitialChatLoaded();
         activeChatStore.setActiveChat(chat.chat_id);
         await loadChat(chat);
         window.dispatchEvent(new CustomEvent('globalChatSelected', {
             bubbles: true, composed: true, detail: { chatId: chat.chat_id }
         }));
+        if (opensDraft && currentChat?.chat_id === chat.chat_id) {
+            messageInputFieldRef?.focus();
+        }
     }
 
     async function handleOpenPriorityEmbed(item: SavedEmbedContinueCandidate): Promise<void> {
@@ -4541,7 +4558,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!storedChat) {
                 if (wasDraftOnly) {
                     console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} no longer exists locally. Resetting to new chat.`);
-                    await handleNewChatClick();
+                    await resetChatWorkspace(messageInputFocused);
                 }
                 return;
             }
@@ -4558,7 +4575,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 resetChatHeaderState();
                 if (!chatHasVisibleStoredSurface(refreshedChat)) {
                     console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} has no draft, messages, or metadata. Resetting to new chat.`);
-                    await handleNewChatClick();
+                    await resetChatWorkspace(messageInputFocused);
                     return;
                 }
             }
@@ -4656,7 +4673,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
 
         console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} was cleared. Resetting to new chat.`);
-        await handleNewChatClick();
+        await resetChatWorkspace(messageInputFocused);
         return true;
     }
 
@@ -5272,13 +5289,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     });
 
-    function resetComposerWelcomeState(clearLiveInput = true) {
+    function resetComposerWelcomeState(clearLiveInput = true, preserveFocus = false) {
         if (blurTimer) {
             clearTimeout(blurTimer);
             blurTimer = undefined;
         }
-        messageInputFocused = false;
-        messageInputRecentlyFocused = false;
+        if (!preserveFocus) {
+            messageInputFocused = false;
+            messageInputRecentlyFocused = false;
+        }
         messageInputHasContent = false;
         messageInputMapsOpen = false;
         anonymousFileAttachmentPending = false;
@@ -5294,7 +5313,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
-        if (activeElement instanceof HTMLElement) {
+        if (!preserveFocus && activeElement instanceof HTMLElement) {
             activeElement.blur();
         }
     }
@@ -5649,11 +5668,70 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ),
      );
 
+     // Persistence assigns an identity to the existing composer; it must not
+     // replace the measured welcome surface during the user's typing session.
+     let composerDismissalGeneration = 0;
+     let focusedComposerChatId: string | null = null;
+     let focusedComposerOwner: { userId: string | null; teamId: string | null; epoch: number } | null = null;
+     let focusedDraftOnlyChatId: string | null = null;
      $effect(() => {
-        if (showWelcome && isActiveDraftOnlyChat) {
-            showWelcome = false;
-        }
+        const focused = messageInputFocused;
+        untrack(() => {
+            if (focused) {
+                composerDismissalGeneration++;
+                focusedComposerChatId = currentChat?.chat_id ?? temporaryChatId;
+                const team = getActiveTeamContextSnapshot();
+                focusedComposerOwner = { userId: $userProfile.user_id ?? null, teamId: team.teamId, epoch: team.epoch };
+            } else if (focusedComposerChatId) {
+                const chatId = focusedComposerChatId;
+                focusedComposerChatId = null;
+                void parkDismissedUnsentDraft(chatId, composerDismissalGeneration);
+            }
+        });
      });
+
+     $effect(() => {
+        const focused = messageInputFocused;
+        const chatId = currentChat?.chat_id;
+        const draftOnly = isActiveDraftOnlyChat;
+        const hasMessages = currentMessages.length > 0;
+        const editorOwner = $draftEditorUIState.currentChatId;
+        const userId = $userProfile.user_id ?? null;
+        untrack(() => {
+            const owner = focusedComposerOwner;
+            if (!focused || !chatId || focusedComposerChatId !== chatId || !owner || owner.userId !== userId ||
+                !isActiveTeamContext(owner.teamId, owner.epoch) || (editorOwner && editorOwner !== chatId) ||
+                hasMessages || (!draftOnly && currentChat && chatHasVisibleStoredSurface(currentChat))) {
+                focusedDraftOnlyChatId = null;
+            } else if (draftOnly && editorOwner === chatId) {
+                // Keep this identity when deletion clears draft_v/ciphertext before its notification.
+                focusedDraftOnlyChatId = chatId;
+            }
+        });
+     });
+
+     async function parkDismissedUnsentDraft(chatId: string, generation: number): Promise<void> {
+        const owner = $userProfile.user_id;
+        const team = getActiveTeamContextSnapshot();
+        const isCurrent = () => generation === composerDismissalGeneration && !messageInputFocused &&
+            (currentChat?.chat_id ?? temporaryChatId) === chatId && currentMessages.length === 0 &&
+            (!currentChat || isPersistedDraftOnlyChat(currentChat)) &&
+            owner === $userProfile.user_id && isActiveTeamContext(team.teamId, team.epoch);
+        if (!isCurrent()) return;
+        try {
+            if (!await messageInputFieldRef?.flushCurrentDraftLocally() || !isCurrent()) return;
+            // A pending attachment may not have a restorable saved document yet.
+            // Keep its live editor until it can be safely handed back to a card.
+            const saved = $authStore.isAuthenticated
+                ? isPersistedDraftOnlyChat(await chatDB.getRawChat(chatId))
+                : !!loadSessionStorageDraft(chatId);
+            if (!isCurrent() || (!saved && messageInputHasContent)) return;
+            await resetChatWorkspace();
+            carouselInvalidationCounter++;
+        } catch (error) {
+            console.error('[ActiveChat] Could not park dismissed unsent draft:', error);
+        }
+     }
      let firstTurnSourceReason = $derived(classifyFirstTurnComposerContext({
          chat: currentChat,
          temporaryChatId,
@@ -7515,6 +7593,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         });
         window.dispatchEvent(customEvent);
 
+        if (get(draftEditorUIState).currentChatId !== chat?.chat_id ||
+            (currentChat && currentChat.chat_id !== chat?.chat_id)) return;
+
         const isDraftForUnsentNewChat = showWelcome && !currentChat?.chat_id && chat?.chat_id;
         const isNewChat = !currentChat?.chat_id && chat?.chat_id; // Check if it was a new chat
         const activatesPersistedDraft = isDraftForUnsentNewChat && isPersistedDraftOnlyChat(chat);
@@ -7523,10 +7604,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
         } else {
             console.debug("[ActiveChat] Draft saved for unsent new chat; keeping welcome state:", chat.chat_id);
-        }
-
-        if (activatesPersistedDraft) {
-            showWelcome = false;
         }
 
         // CRITICAL: Sync liveInputText with current editor content after draft save
@@ -8057,7 +8134,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     function handleMessagesChange(event: CustomEvent) {
         const { hasMessages } = event.detail;
         if (currentChat?.chat_id) {
-            showWelcome = false;
+            // Autosave assigns a chat ID before there is a conversation.
+            // Preserve the workspace (or an explicitly opened draft) on an
+            // empty-history notification; only real messages change the view.
+            if (!isActiveDraftOnlyChat || hasMessages || currentMessages.length > 0) {
+                showWelcome = false;
+            }
             return;
         }
         if (currentMessages.length > 0) {
@@ -8222,10 +8304,30 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     async function handleNewChatClick() {
+        await resetChatWorkspace();
+    }
+
+    function canPreserveClearedDraftFocus(): boolean {
+        const owner = focusedComposerOwner;
+        const editorOwner = get(draftEditorUIState).currentChatId;
+        return messageInputFocused && !!currentChat && focusedDraftOnlyChatId === currentChat.chat_id &&
+            focusedComposerChatId === currentChat.chat_id && !!owner && owner.userId === ($userProfile.user_id ?? null) &&
+            isActiveTeamContext(owner.teamId, owner.epoch) && (!editorOwner || editorOwner === currentChat.chat_id) &&
+            currentMessages.length === 0 && !messageInputHasContent && !chatHasVisibleStoredSurface(currentChat);
+    }
+
+    async function resetChatWorkspace(preserveComposerFocus = false) {
+        console.debug('[ActiveChat] Workspace reset focus:', JSON.stringify({
+            chatId: currentChat?.chat_id, focusedDraftOnlyChatId, focused: messageInputFocused,
+            draftOnly: isActiveDraftOnlyChat, hasContent: messageInputHasContent, preserveComposerFocus,
+            editorFocused: typeof document !== 'undefined' && document.activeElement?.classList.contains('ProseMirror'),
+        }));
+        composerDismissalGeneration++;
+        focusedComposerChatId = null;
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
-        resetComposerWelcomeState(false);
+        resetComposerWelcomeState(false, preserveComposerFocus);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
@@ -8296,6 +8398,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             newlyCreatedChatIdToSelect: null // Clear any pending selection
         }));
         console.debug("[ActiveChat] Set currentChatId in draft state to new temporary chat ID:", temporaryChatId);
+        if (preserveComposerFocus) focusedComposerChatId = temporaryChatId;
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
         liveInputText = '';
@@ -8328,7 +8431,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (!currentChat && showWelcome && temporaryChatId) {
             return; // Already in a clean state with a stable draft/editor owner
         }
-        await handleNewChatClick();
+        await resetChatWorkspace(canPreserveClearedDraftFocus());
     }
 
     /**
@@ -10219,14 +10322,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         // Both the sidebar and the active surface can observe the persistence
         // notification. Adoption is idempotent, including a delayed duplicate.
-        if (currentChat?.chat_id === chat.chat_id && activeChatStore.get() === chat.chat_id && !showWelcome) {
+        if (currentChat?.chat_id === chat.chat_id && activeChatStore.get() === chat.chat_id) {
             return true;
         }
 
         const generation = ++loadChatGeneration;
         currentChat = chat;
         temporaryChatId = null;
-        showWelcome = false;
         chatLoadState = 'ready';
         updateNavFromCache(chat.chat_id);
         void applyPersistedDraftHeader(chat, 'local draft adoption', () =>
@@ -10239,7 +10341,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
-         if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
+         if (options?.preserveActiveComposer && isPersistedDraftOnlyChat(chat)) {
+             // A late autosave can finish after dismissal. It may adopt the
+             // current editor, but cannot reopen a draft the user just parked.
+             adoptPersistedDraft(chat);
+             return;
+         }
+         composerDismissalGeneration++;
          // End the previous typing session at navigation start, before any
          // async loading. Same-chat refreshes keep the user's focus/selection,
          // and a click during this load must never be undone on completion.
@@ -12071,48 +12179,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 currentMessages = [];
                 activeChatStore.clearActiveChat();
             } else if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && hasSessionStorageDrafts && !isInNewChatMode) {
-                // CRITICAL: User has sessionStorage drafts but no chat is loaded (mobile fallback path)
-                // On mobile, Chats.svelte doesn't mount, so the draft chat is never auto-selected.
-                // We must actively load the most recent draft chat so the user sees their unsaved work.
-                console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading most recent sessionStorage draft chat (mobile fallback)");
-                const draftChatIds = getAllDraftChatIdsWithDrafts();
-                if (draftChatIds.length > 0) {
-                    const mostRecentDraftId = draftChatIds[draftChatIds.length - 1];
-                    const draftContent = loadSessionStorageDraft(mostRecentDraftId);
-                    
-                    if (draftContent) {
-                        const now = Math.floor(Date.now() / 1000);
-                        const virtualChat: Chat = {
-                            chat_id: mostRecentDraftId,
-                            encrypted_title: null,
-                            messages_v: 0,
-                            title_v: 0,
-                            draft_v: 0,
-                            encrypted_draft_md: null,
-                            encrypted_draft_preview: null,
-                            last_edited_overall_timestamp: now,
-                            unread_count: 0,
-                            created_at: now,
-                            updated_at: now,
-                            processing_metadata: false,
-                            waiting_for_metadata: false,
-                            encrypted_category: null,
-                            encrypted_icon: null
-                        };
-                        
-                        setTimeout(() => {
-                            // Re-check that no chat has been loaded in the meantime
-                            if (!currentChat?.chat_id && !$activeChatStore) {
-                                phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
-                                activeChatStore.setActiveChat(mostRecentDraftId);
-                                loadChat(virtualChat);
-                                console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Draft chat loaded successfully:", mostRecentDraftId);
-                            } else {
-                                console.debug("[ActiveChat] [NON-AUTH] Fallback: Chat already loaded, skipping draft restore");
-                            }
-                        }, 100);
-                    }
-                }
+                // Saved drafts belong to the workspace until deliberately opened.
+                showWelcome = true;
+                carouselInvalidationCounter++;
             } else if (!$authStore.isAuthenticated && (isInNewChatMode || hasSessionStorageDrafts)) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback skipped - user has draft or is in new chat mode", { isInNewChatMode, hasSessionStorageDrafts });
             }
@@ -12390,7 +12459,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         return;
                     }
                     retryActiveDraftOnlyChatResetAfterDraftDeleted(changedChatId, 'draft save or sync');
-                } else {
+                } else if ($authStore.isAuthenticated) {
                     void refreshActiveChatHeaderFromStoredChat(changedChatId, 'draft save or sync');
                 }
             }
@@ -13248,8 +13317,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
             if (currentChat && chat_id === currentChat.chat_id) {
                 console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
-                // Reset to new chat state using the existing handler
-                handleNewChatClick();
+                // Empty-draft cleanup keeps the user's existing typing session.
+                void resetChatWorkspace(canPreserveClearedDraftFocus());
             }
 
             // ─── Carousel: remove deleted chat and trigger refresh ───────────
@@ -14836,7 +14905,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others || meta.draftPreview)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     class:large-continue-cards={isTallViewport}
@@ -14849,7 +14918,19 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                         {@const gradientColors = getContinueGradientColors(category, meta.event ? 'events' : null)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if meta.event && isTallViewport}
+                                        {#if meta.draftPreview}
+                                            <button
+                                                class="resume-chat-card resume-chat-draft-card" data-testid="resume-chat-draft-card"
+                                                data-chat-id={meta.chat.chat_id}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                type="button"
+                                            >
+                                                <div class="resume-chat-content resume-chat-draft-content">
+                                                    <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
+                                                    <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
+                                                </div>
+                                            </button>
+                                        {:else if meta.event && isTallViewport}
                                             <EventEmbedPreview
                                                 id={meta.event.embed_id}
                                                 event={meta.event}

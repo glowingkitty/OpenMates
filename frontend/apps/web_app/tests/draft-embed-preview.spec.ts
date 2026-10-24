@@ -17,11 +17,11 @@ test('saved embed references show type labels in navigation without a draft-only
   await startNewChat(page);
   await fillMessageEditor(page, page.getByTestId('message-editor'), 'Draft with an image reference');
   await expect.poll(() => page.url()).toContain('chat-id=');
-  await page.getByTestId('input-dismiss-button').click();
-  await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
-
   const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
   expect(draftChatId).toBeTruthy();
+  await page.getByTestId('input-dismiss-button').click();
+  await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
+  await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
   await startNewChat(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect.poll(() => page.evaluate(() => typeof (window as typeof window & {

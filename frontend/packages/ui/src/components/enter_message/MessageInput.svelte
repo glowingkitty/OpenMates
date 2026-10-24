@@ -20,7 +20,7 @@
         type ChatModelSelection
     } from '../../services/chatModelSelection';
     import { isTeamAIInvocation } from '../../services/teamService';
-    import { activeTeamId } from '../../stores/teamStore';
+    import { activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext } from '../../stores/teamStore';
 
     // Services & Stores
     import {
@@ -156,6 +156,7 @@
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
+    import { loadSessionStorageDraft, getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService';
     import { incomingDraftOmitsLocalEmbed, inspectDraftContent } from '../../services/drafts/draftContent';
     // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
     import {
@@ -355,12 +356,15 @@
     });
 
     let lastDirectEditOwner: { editor: Editor; chatId: string; userId: string | null; teamId: string | null } | null = null;
+    let trustedDraftInput: { editor: Editor; chatId: string; userId: string | null; team: ReturnType<typeof getActiveTeamContextSnapshot> } | null = null;
+    let deferredContextDraftEdit: { cancel: () => void } | null = null;
     let observedEditorChatId: string | undefined;
 
     $effect(() => {
         if (observedEditorChatId !== currentChatId) {
             observedEditorChatId = currentChatId;
             lastDirectEditOwner = null;
+            deferredContextDraftEdit?.cancel();
         }
     });
     let queuedEdit = $state<{
@@ -2634,8 +2638,13 @@
                         if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
                             autoConvertedPasteCandidate = null;
                         }
+                        noteTrustedDraftInput(event);
                         return false;
                     },
+                    beforeinput: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    input: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    paste: (_view, event) => { noteTrustedDraftInput(event); return false; },
+                    drop: (_view, event) => { noteTrustedDraftInput(event); return false; },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
                         if (target.closest('[data-mention-type="openmates"]')) {
@@ -2671,6 +2680,11 @@
         console.debug('[MessageInput] Blurred editor on mount to prevent auto-focus');
 
         initializeDraftService(editor);
+        // A blank workspace already reserves its shell ID. Bind the editor
+        // before typing so an immediate dismissal can drain its own save.
+        if (isNewChatContext && currentChatId && !get(draftEditorUIState).currentChatId) {
+            void setDraftServiceCurrentChatContext(currentChatId, null, 0);
+        }
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         if (!hasSendableDraft && !isMessageFieldFocused) {
@@ -2799,6 +2813,7 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        deferredContextDraftEdit?.cancel();
         invalidateRecordingContext('component-destroy');
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
@@ -3412,6 +3427,49 @@
         };
     }
 
+    function noteTrustedDraftInput(event: Event) {
+        if (!event.isTrusted || !currentChatId || !editor || editor.isDestroyed ||
+            !editor.view.dom.contains(event.target as Node)) return;
+        const input = { editor, chatId: currentChatId, userId: $userProfile.user_id ?? null,
+            team: getActiveTeamContextSnapshot() };
+        trustedDraftInput = input;
+        // Native input can pass through microtask checkpoints before its edit.
+        // Expire at the end of this event task, after ProseMirror processes it.
+        setTimeout(() => { if (trustedDraftInput === input) trustedDraftInput = null; }, 0);
+    }
+
+    function deferUserDraftEditDuringRestore(changedEditor: Editor) {
+        const input = trustedDraftInput;
+        if (!input || input.editor !== changedEditor || queuedEdit || sendClickInProgress ||
+            (recordingContext?.editor === changedEditor && changedEditor.isEmpty) ||
+            !get(draftEditorUIState).isSwitchingContext) return;
+        const editedDocument = changedEditor.state.doc;
+        const stillOwned = () => editor === changedEditor && !changedEditor.isDestroyed && !composerDestroyed &&
+            currentChatId === input.chatId && get(draftEditorUIState).currentChatId === input.chatId &&
+            ($userProfile.user_id ?? null) === input.userId && isActiveTeamContext(input.team.teamId, input.team.epoch) &&
+            !queuedEdit && !sendClickInProgress;
+        if (!stillOwned()) return;
+        deferredContextDraftEdit?.cancel();
+        let unsubscribe = () => {};
+        const pending = { cancel: () => {
+            unsubscribe();
+            if (deferredContextDraftEdit === pending) deferredContextDraftEdit = null;
+        } };
+        deferredContextDraftEdit = pending;
+        unsubscribe = draftEditorUIState.subscribe(state => {
+            if (stillOwned() && state.isSwitchingContext) return;
+            queueMicrotask(() => {
+                if (deferredContextDraftEdit !== pending) return;
+                pending.cancel();
+                // Programmatic restores and navigation must not replay a transient clear.
+                if (stillOwned() && !get(draftEditorUIState).isSwitchingContext &&
+                    changedEditor.state.doc.eq(editedDocument)) triggerSaveDraft(input.chatId, changedEditor);
+            });
+        });
+        draftEditorUIState.update(state => state.currentChatId === input.chatId
+            ? { ...state, hasUnsavedChanges: true } : state);
+    }
+
     export function hasLiveUserEditForChat(chatId: string): boolean {
         return !!editor && !editor.isDestroyed && editor.view.dom.isConnected &&
             currentChatId === chatId && editor.getText().trim().length > 0 &&
@@ -3421,6 +3479,7 @@
     }
 
     function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
+        if (transaction.docChanged) deferUserDraftEditDuringRestore(editor);
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
         // that ProseMirror treats as content changes, triggering onUpdate even though
@@ -6254,6 +6313,45 @@
     }
     export function flushCurrentDraft(): Promise<void> | undefined {
         return flushCurrentEditorDraft(currentChatId);
+    }
+    /** Commit the live document before its editor is reused by the workspace. */
+    export async function flushCurrentDraftLocally(): Promise<boolean> {
+        if (!editor || editor.isDestroyed || queuedEdit || sendClickInProgress || !currentChatId) return false;
+        if (inspectDraftContent(editor.getJSON()).hasPendingEmbed || recordingContext) return false;
+        const chatId = currentChatId;
+        if (get(draftEditorUIState).isSwitchingContext) {
+            await new Promise<void>((resolve) => {
+                let unsubscribe = () => {};
+                unsubscribe = draftEditorUIState.subscribe((state) => {
+                    if (state.currentChatId !== chatId || !state.isSwitchingContext) {
+                        resolve();
+                        queueMicrotask(() => unsubscribe());
+                    }
+                });
+            });
+        }
+        if (!editor || editor.isDestroyed || sendClickInProgress || currentChatId !== chatId) return false;
+        syncTextOnlyDomToEditorBeforeDraftSave(editor);
+        await flushSaveDraftAndWaitForIdle(editor, chatId);
+        if (!editor || editor.isDestroyed || sendClickInProgress || currentChatId !== chatId) return false;
+        const state = get(draftEditorUIState);
+        // Guest storage can reject writes (for example when its quota is full).
+        // An older saved draft is insufficient proof that these edits are safe.
+        if (!get(authStore).isAuthenticated) {
+            const content = editor.getJSON();
+            const saved = loadSessionStorageDraft(chatId);
+            const persistenceFailed = inspectDraftContent(content).hasMeaningfulContent
+                ? !getAllDraftChatIdsWithDrafts().includes(chatId) || JSON.stringify(saved) !== JSON.stringify(content)
+                : saved !== null;
+            if (persistenceFailed) {
+                draftEditorUIState.update(s => s.currentChatId === chatId
+                    ? { ...s, hasUnsavedChanges: true, lastSavedContentMarkdown: null }
+                    : s);
+                return false;
+            }
+        }
+        return currentChatId === chatId && state.currentChatId === chatId &&
+            !state.isSaveInProgress && !state.hasUnsavedChanges && !state.isSwitchingContext;
     }
     /** Submit a public wiki question through the normal encrypted send path without editing the composer. */
     export async function sendPublicQuestion(question: string, article: WikipediaArticleIdentity, targetChatId: string | null): Promise<boolean> {
