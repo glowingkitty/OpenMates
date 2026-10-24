@@ -15,12 +15,24 @@ import types
 
 try:
     from ci_sdk_conformance import (Refused, regular, require, sha, write,
-                                    execution_plan, matrix_gaps, verify_programs, load_trust, compiler_diagnostics, snapshot)
+                                    execution_plan, matrix_gaps, verify_programs, load_trust, compiler_diagnostics, snapshot,
+                                    project_vector_diagnostic)
 except ModuleNotFoundError:
     from scripts.ci_sdk_conformance import (Refused, regular, require, sha, write,
-                                            execution_plan, matrix_gaps, verify_programs, load_trust, compiler_diagnostics, snapshot)
+                                            execution_plan, matrix_gaps, verify_programs, load_trust, compiler_diagnostics, snapshot,
+                                            project_vector_diagnostic)
 
 LIMIT = 4 * 1024**2
+
+
+def unique_failure_object(pairs):
+    """Ambiguous duplicate fields cannot authorize a public diagnostic."""
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate failure field")
+        value[key] = item
+    return value
 
 
 class Driver:
@@ -76,13 +88,18 @@ class Driver:
             return result
         except Exception as error:
             failed_ids = []
+            diagnostic = None
             if identity:
                 try:
-                    parsed = json.loads(outputs["stdout"])
+                    parsed = json.loads(outputs["stdout"], object_pairs_hook=unique_failure_object)
                     if isinstance(parsed, dict) and parsed.get("capability") == identity["capability"]:
                         failed_ids = sorted({value["id"] for value in parsed.get("results", [])
                             if isinstance(value, dict) and value.get("id") in identity["vectors"]
                             and value.get("status") == "failed"})
+                        if (parsed.get("language") == identity["language"]
+                                and parsed.get("fixtureSha256") == identity["fixtureSha256"]
+                                and parsed.get("status") == "failed"):
+                            diagnostic = project_vector_diagnostic(parsed.get("diagnostic"), identity, failed_ids)
                 except (ValueError, TypeError):
                     pass
             self.failure = {"code": str(error) if isinstance(error, Refused) else "driver_deadline" if isinstance(error, subprocess.TimeoutExpired) else "driver_unclassified",
@@ -91,6 +108,8 @@ class Driver:
                             "stdoutBytes": len(outputs["stdout"]), "stderrBytes": len(outputs["stderr"]),
                             "stdoutSha256": sha(outputs["stdout"]), "stderrSha256": sha(outputs["stderr"]),
                             "compiler": compiler_diagnostics(outputs["stderr"], self.root, self.inputs)}
+            if diagnostic is not None:
+                self.failure["diagnostic"] = diagnostic
             raise
         finally:
             selector.close()

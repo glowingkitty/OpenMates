@@ -1247,7 +1247,7 @@
     "packages/openmates-session-bindings/examples/session-project-task-watch-conformance.rs": "ccb903b1bcd989240f6e5919c1c3fabaf17e0b0c4572fcacc6ffd6d2bcd0e7ab",
     "packages/openmates-session-bindings/examples/session-recovery-conformance.rs": "05646c6f5b2ce965c452f9ad190189e22e9fbf42c68b062fc3d86e60f786e8e9",
     "packages/openmates-session-bindings/examples/session-work-conformance.rs": "ffcd73a953eda99f726a7ba5865f077ab7d192161d0df92f4cc69b03716efbb5",
-    "packages/openmates-session-bindings/examples/support/essential_session.rs": "62899bdc2c54ab61e0e0b69abd942dce9d7de072aed0b0e7426c742f74c9e6bb",
+    "packages/openmates-session-bindings/examples/support/essential_session.rs": "7fe298b93e37197fdad84f01fbaab875391786bddc29e466d403cd3ae5c91417",
     "packages/openmates-session-bindings/examples/task-order-conformance.rs": "01b4f41f151ae2e866b7444a6aff66686a30c6ad51fd612ad1d60d8f4581b7d8",
     "scripts/build_sdk_native.py": "7b6d9d7139be4680019b69a941102df2b882225508ca0296c7a4270626741c28",
     "scripts/check_sdk_conformance.py": "a96148a8fbdf6a6406913cbe357137adf5eb77a5897361ea50851ca4ef1f2498",

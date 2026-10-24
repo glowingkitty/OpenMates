@@ -26,6 +26,14 @@ TARGET = "sdk-conformance"
 BUDGET = 2700  # 45min from workflow start; leaves 15min of the 60min job for setup/upload.
 RESERVE = 2 * 1024**3  # runner artifact/cleanup reserve, not the dev-host capacity floor
 MAX_LOG = 32 * 1024**2
+VECTOR_DIAGNOSTIC_CAPABILITY = "session.chat-change-monitor.v1"
+VECTOR_DIAGNOSTIC_PHASES = frozenset({"open", "next", "stage", "durable_save", "commit", "close",
+                                     "peer_control", "peer_status", "assertion", "list", "discard",
+                                     "durable_read", "peer_start", "storage_setup", "client_setup"})
+VECTOR_DIAGNOSTIC_CODES = frozenset({"cancelled", "conflict", "forbidden", "expired", "authentication",
+                                    "invalid", "protocol", "offline", "unavailable", "assertion",
+                                    "timeout", "peer_protocol", "unclassified", "crypto", "storage_io"})
+MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
 INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "packages/openmates-python",
@@ -489,6 +497,21 @@ def compiler_diagnostics(data, root, inputs):
     return report["compiler"]
 
 
+def project_vector_diagnostic(value, expected, failed_ids):
+    """Accept only the reviewed Rust monitor's closed, actually failed vector."""
+    keys = ("vectorId", "phase", "errorCode")
+    if (expected.get("capability") != VECTOR_DIAGNOSTIC_CAPABILITY
+            or expected.get("language") != "rust" or not isinstance(value, dict)
+            or set(value) != set(keys)
+            or any(not isinstance(value[key], str) or len(value[key]) > 160 for key in keys)
+            or value["vectorId"] not in expected["vectors"] or value["vectorId"] not in failed_ids
+            or value["phase"] not in VECTOR_DIAGNOSTIC_PHASES
+            or value["errorCode"] not in VECTOR_DIAGNOSTIC_CODES
+            or len(json.dumps(value, separators=(",", ":")).encode()) > MAX_VECTOR_DIAGNOSTIC_BYTES):
+        return None
+    return {key: value[key] for key in keys}
+
+
 def failure_diagnostics(private, root, stage, inputs, plan):
     """Retain raw bytes privately; export only closed codes and tracked locations."""
     report = {"category": "adapter_conformance" if stage == "real-conformance" else
@@ -543,6 +566,10 @@ def failure_diagnostics(private, root, stage, inputs, plan):
                               if isinstance(value, str) and value in expected["vectors"]]
                 report["failedVectorIds"] = sorted(set(failed_ids))
                 report["vectorAttribution"] = "exact-known-ids" if failed_ids else "adapter-suite-only"
+                diagnostic = (project_vector_diagnostic(driver.get("diagnostic"), expected, failed_ids)
+                              if stage == "real-conformance" else None)
+                if diagnostic is not None:
+                    report["diagnostic"] = diagnostic
         for entry in driver.get("compiler", []):
             if not isinstance(entry, dict) or not isinstance(entry.get("code"), str):
                 continue

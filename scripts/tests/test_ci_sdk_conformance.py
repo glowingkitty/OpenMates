@@ -697,3 +697,137 @@ def test_readonly_local_node_identity_keeps_strict_policy():
     receipt = sdk.command_identity("napi-load", [executable, "--version"], {"PATH": os.defpath})
     assert receipt["tool"] == "node" and receipt["admission"] == "strict-owner-mode"
     assert receipt["executableKind"] == "elf"
+
+
+def monitor_failure_report():
+    expected = next(row for row in sdk.load_trust()["plan"]
+                    if row["capability"] == "session.chat-change-monitor.v1" and row["language"] == "rust")
+    diagnostic = {"vectorId": expected["vectors"][0], "phase": "stage", "errorCode": "unclassified"}
+    return expected, {"capability": expected["capability"], "language": "rust", "status": "failed",
+                      "fixtureSha256": expected["fixtureSha256"], "diagnostic": diagnostic,
+                      "results": [{"id": diagnostic["vectorId"], "status": "failed"}]}
+
+
+def fault_monitor_report(report, fault, expected):
+    if fault == "extra":
+        report["diagnostic"]["message"] = "never-export-private-payload"
+    elif fault == "arbitrary_text":
+        report["diagnostic"]["errorCode"] = "never-export-token"
+    elif fault == "phase":
+        report["diagnostic"]["phase"] = "never-export-path"
+    elif fault == "foreign_vector":
+        report["diagnostic"]["vectorId"] = "never-export-private-id"
+    elif fault == "nonfailed_vector":
+        report["diagnostic"]["vectorId"] = expected["vectors"][1]
+        report["results"].append({"id": expected["vectors"][1], "status": "passed"})
+    elif fault == "oversize":
+        report["diagnostic"]["phase"] = "never-export-" * 1000
+    elif fault == "malformed":
+        report["diagnostic"] = [report["diagnostic"]]
+    elif fault == "field_type":
+        report["diagnostic"]["errorCode"] = {"secret": "never-export-token"}
+    elif fault == "missing":
+        del report["diagnostic"]["phase"]
+    elif fault == "language":
+        report["language"] = "python"
+    elif fault == "capability":
+        report["capability"] = "session.foreground-completion-recovery.v1"
+    elif fault == "fixture":
+        report["fixtureSha256"] = "f" * 64
+    elif fault == "status":
+        report["status"] = "passed"
+
+
+@pytest.mark.parametrize("fault", [None, "extra", "arbitrary_text", "phase", "foreign_vector",
+                                   "nonfailed_vector", "oversize", "malformed", "field_type", "missing",
+                                   "language", "capability", "fixture", "status"])
+def test_failed_monitor_driver_projects_only_exact_closed_fixture_diagnostic(tmp_path, fault):
+    from scripts import ci_sdk_conformance_exec as executor
+    expected, report = monitor_failure_report()
+    fault_monitor_report(report, fault, expected)
+    report["private_extra"] = "never-export-raw-output"
+    command = [sys.executable, "-c", "import sys;sys.stdout.write(sys.argv[1]);sys.exit(7)",
+               json.dumps(report), "--capability", expected["capability"]]
+    driver = executor.Driver(tmp_path, {"programs": {}, "contracts": {}}, [expected], time.monotonic() + 5)
+    driver.commands = [command]
+    with pytest.raises(sdk.Refused, match="^driver_failed$"):
+        driver.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=2)
+    assert driver.failure["code"] == "driver_failed" and driver.failure["terminatedReturncode"] == 7
+    assert driver.launches[0]["status"] == "started"  # Diagnostics never manufacture a passing launch.
+    if fault is None:
+        assert driver.failure["diagnostic"] == report["diagnostic"]
+    else:
+        assert "diagnostic" not in driver.failure
+    assert "never-export" not in json.dumps(driver.failure)
+
+
+@pytest.mark.parametrize("fault", [None, "extra", "arbitrary_text", "phase", "foreign_vector",
+                                   "nonfailed_vector", "oversize", "malformed", "field_type", "missing"])
+def test_public_failure_receipt_revalidates_monitor_diagnostic(tmp_path, fault):
+    expected, report = monitor_failure_report()
+    failed_id = report["results"][0]["id"]
+    fault_monitor_report(report, fault, expected)
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    driver = {"code": "driver_failed", "adapter": {"capability": expected["capability"], "language": "rust"},
+              "failedVectorIds": [failed_id], "diagnostic": report["diagnostic"],
+              "private_extra": "never-export-private-output"}
+    (private / "driver-failure.json").write_text(json.dumps(driver))
+    actual = sdk.failure_diagnostics(private, tmp_path, "real-conformance", {}, [expected])
+    assert actual["failedVectorIds"] == [failed_id] and actual["rawUpload"] is False
+    if fault is None:
+        assert actual["diagnostic"] == report["diagnostic"]
+    else:
+        assert "diagnostic" not in actual
+    assert "never-export" not in json.dumps(actual)
+
+
+@pytest.mark.parametrize("capability,language", [
+    ("session.chat-change-monitor.v1", "npm"),
+    ("session.chat-change-monitor.v1", "python"),
+    ("session.foreground-completion-recovery.v1", "rust"),
+])
+def test_vector_diagnostic_never_broadens_unrelated_adapter_scope(capability, language):
+    expected, report = monitor_failure_report()
+    expected = {**expected, "capability": capability, "language": language}
+    diagnostic = report["diagnostic"]
+    assert sdk.project_vector_diagnostic(diagnostic, expected, [diagnostic["vectorId"]]) is None
+
+
+@pytest.mark.parametrize("phase,code", [
+    ("list", "invalid"), ("discard", "crypto"), ("durable_read", "storage_io"),
+    ("peer_start", "peer_protocol"), ("storage_setup", "storage_io"), ("client_setup", "unclassified"),
+])
+def test_monitor_diagnostic_accepts_explicit_operation_phase_and_closed_code(phase, code):
+    expected, report = monitor_failure_report()
+    diagnostic = {**report["diagnostic"], "phase": phase, "errorCode": code}
+    assert sdk.project_vector_diagnostic(diagnostic, expected, [diagnostic["vectorId"]]) == diagnostic
+
+
+@pytest.mark.parametrize("duplicate", ["errorCode", "fixtureSha256"])
+def test_duplicate_failed_stdout_fields_cannot_authorize_diagnostic(tmp_path, duplicate):
+    from scripts import ci_sdk_conformance_exec as executor
+    expected, report = monitor_failure_report()
+    raw = json.dumps(report)
+    target = json.dumps(report["diagnostic"]["errorCode"] if duplicate == "errorCode" else report[duplicate])
+    raw = raw.replace(json.dumps(duplicate) + ": " + target,
+                      json.dumps(duplicate) + ": \"never-export-ambiguous-value\", "
+                      + json.dumps(duplicate) + ": " + target, 1)
+    command = [sys.executable, "-c", "import sys;sys.stdout.write(sys.argv[1]);sys.exit(7)",
+               raw, "--capability", expected["capability"]]
+    driver = executor.Driver(tmp_path, {"programs": {}, "contracts": {}}, [expected], time.monotonic() + 5)
+    driver.commands = [command]
+    with pytest.raises(sdk.Refused, match="^driver_failed$"):
+        driver.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=2)
+    assert "diagnostic" not in driver.failure and "never-export" not in json.dumps(driver.failure)
+
+
+def test_monitor_diagnostic_not_projected_outside_conformance_stage(tmp_path):
+    expected, report = monitor_failure_report()
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    (private / "driver-failure.json").write_text(json.dumps({
+        "code": "driver_failed", "adapter": {"capability": expected["capability"], "language": "rust"},
+        "failedVectorIds": [report["diagnostic"]["vectorId"]], "diagnostic": report["diagnostic"]}))
+    actual = sdk.failure_diagnostics(private, tmp_path, "python-binding-build", {}, [expected])
+    assert "diagnostic" not in actual
