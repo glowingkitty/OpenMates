@@ -2,6 +2,8 @@
 """Verify opt-in fixture TLS and isolation without starting product services."""
 import ipaddress
 import ssl
+import socket
+import threading
 import subprocess
 
 import pytest
@@ -43,10 +45,37 @@ def test_fixture_leaf_has_verified_hostname_and_disposable_ca(tmp_path):
     assert (tmp_path / "server.key").stat().st_mode & 0o777 == 0o600
     context = ssl.create_default_context(cafile=str(tmp_path / "ca.pem"))
     assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED
-    result = subprocess.run(["openssl", "verify", "-CAfile", str(tmp_path / "ca.pem"),
+    result = subprocess.run(["openssl", "verify", "-x509_strict", "-CAfile", str(tmp_path / "ca.pem"),
                              "-verify_hostname", HOSTNAME, str(tmp_path / "server.crt")],
                             check=True, capture_output=True, text=True)
     assert "OK" in result.stdout
+    # Python3.13 enables strict X509 verification by default. Exercise the
+    # equivalent flag on older local Python too, using only a loopback TLS peer.
+    context.verify_flags |= ssl.VERIFY_X509_STRICT
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    listener.settimeout(5)
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(tmp_path / "server.crt", tmp_path / "server.key")
+    failures = []
+    def respond():
+        try:
+            connection, _ = listener.accept()
+            with server_context.wrap_socket(connection, server_side=True) as connection:
+                connection.sendall(b"strict TLS ready")
+        except Exception as error:
+            failures.append(type(error).__name__)
+    thread = threading.Thread(target=respond, daemon=True)
+    thread.start()
+    try:
+        with socket.create_connection(listener.getsockname(), timeout=5) as connection:
+            with context.wrap_socket(connection, server_hostname=HOSTNAME) as connection:
+                assert connection.recv(64) == b"strict TLS ready"
+    finally:
+        listener.close()
+        thread.join(timeout=5)
+    assert not thread.is_alive() and failures == []
     assert len(HTML) > 30000 and len(PARAGRAPHS) == 240
     assert b"PUBLIC ARTICLE END 7f531b" in HTML
 

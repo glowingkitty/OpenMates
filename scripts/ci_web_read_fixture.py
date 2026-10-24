@@ -37,7 +37,7 @@ def prepare_tls(directory: Path) -> None:
         raise RuntimeError("Fixture TLS directory cannot be a symlink")
     directory.chmod(0o700)
     commands = [
-        ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=OpenMates disposable CI reader CA", "-keyout", "ca.key", "-out", "ca.pem"],
+        ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=OpenMates disposable CI reader CA", "-addext", "keyUsage=critical,keyCertSign,cRLSign", "-keyout", "ca.key", "-out", "ca.pem"],
         ["req", "-newkey", "rsa:2048", "-nodes", "-subj", f"/CN={HOSTNAME}", "-keyout", "server.key", "-out", "server.csr"],
         ["x509", "-req", "-in", "server.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial", "-days", "2", "-extfile", "server.ext", "-out", "server.crt"],
     ]
