@@ -8,7 +8,7 @@
     "sdkCompilerChanges": false
   },
   "contracts": {
-    "config/sdk-capabilities.json": "4db383a938700300fc0bcd46c61e010c55905055132c15f82bb9dbf1a162010d",
+    "config/sdk-capabilities.json": "8d8236ac9eeddcfb6f62dd85e9015c02e9fd9035ba171ff80238db9dc22bbe0e",
     "config/sdk-capabilities.schema.json": "ff232cfd259ef34e49323ae3e1ff9b8b2af3f5d5fee6fe7acd47876a2bc8959c",
     "tests/sdk-conformance/fixtures/core.json": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
     "tests/sdk-conformance/fixtures/privacy.json": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
@@ -116,7 +116,7 @@
     "sdk.reminders [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
     "sdk.reminders [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
     "sdk.reminders [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
-    "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage. Native Cookie metadata search and Personal draft clearing exist with focused fixtures; full older-chat census, Team draft clear, API-key/facade and npm/Python exposure remain incomplete. Complete cross-language operation/send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified.",
+    "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage. Native Cookie metadata search and Personal draft clearing exist with focused fixtures; full older-chat census, Team draft clear, API-key/facade and npm/Python exposure remain incomplete. Complete cross-language operation/send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified. Private uncompiled Personal-only native cached-list freshness prototype adds explicit protected restoration and platform clock adapters; Linux boot-clock support only, Team/Direct/Mac, executable cross-SDK conformance, runtime regressions and matched-default-flow performance floor remain unverified. Durable native pre-dispatch receipt revocation for uncertain operations is privately staged with restart/save-failure regressions but remains uncompiled and unrun.",
     "sdk.session-client [npm] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
     "sdk.session-client [python] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
     "sdk.settings [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
