@@ -26,6 +26,8 @@ TARGET = "sdk-conformance"
 BUDGET = 2700  # 45min from workflow start; leaves 15min of the 60min job for setup/upload.
 RESERVE = 2 * 1024**3  # runner artifact/cleanup reserve, not the dev-host capacity floor
 MAX_LOG = 32 * 1024**2
+LIBRARY_UNIT_MANIFESTS = {"sdk-library-units": "packages/openmates-rust/Cargo.toml",
+                          "binding-library-units": "packages/openmates-session-bindings/Cargo.toml"}
 VECTOR_DIAGNOSTIC_CAPABILITY = "session.chat-change-monitor.v1"
 VECTOR_DIAGNOSTIC_PHASES = frozenset({"open", "next", "stage", "durable_save", "commit", "close",
                                      "peer_control", "peer_status", "assertion", "list", "discard",
@@ -228,10 +230,16 @@ def tool_search_path(node, rustup, pnpm, npm, python):
 
 
 def command_tool(stage):
+    if stage in LIBRARY_UNIT_MANIFESTS:
+        return "cargo"
     tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
-             "binding-library-units": "cargo", "napi-load": "node"}
+             "napi-load": "node"}
     return tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
                      "python-binding-build", "python-load", "real-conformance"} else "other")
+
+
+def library_unit_command(stage):
+    return ["cargo", "+1.98.1", "test", "--locked", "--manifest-path", LIBRARY_UNIT_MANIFESTS[stage], "--lib"]
 
 
 def file_identity(value):
@@ -390,12 +398,13 @@ class Commands:
                     self.check()
                     if entry.python:
                         entry.held()
-                    if stage == "binding-library-units":
+                    if stage in LIBRARY_UNIT_MANIFESTS:
                         log.flush()
                         text = regular(self.private / (stage + ".log"), MAX_LOG).decode("utf-8", errors="replace")
-                        counts = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", text)
-                        require(len(counts) == 1 and int(counts[0][0]) > 0 and int(counts[0][1]) == 0, "unit_test_evidence")
-                        record["unitTests"] = dict(zip(("passed", "failed", "ignored"), map(int, counts[0])))
+                        counts = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored; ([0-9]+) measured; ([0-9]+) filtered out(?:; finished in [0-9.]+s)?$", text)
+                        require(len(counts) == 1 and int(counts[0][0]) > 0
+                                and all(int(value) == 0 for value in counts[0][1:]), "unit_test_evidence")
+                        record["unitTests"] = dict(zip(("passed", "failed", "ignored", "measured", "filteredOut"), map(int, counts[0])))
                     record["status"] = "passed"
         except Refused as error:
             if str(error).startswith("command_"):
@@ -516,7 +525,7 @@ def failure_diagnostics(private, root, stage, inputs, plan):
     """Retain raw bytes privately; export only closed codes and tracked locations."""
     report = {"category": "adapter_conformance" if stage == "real-conformance" else
               "native_load" if stage in {"napi-load", "python-load"} else
-              "rust_compile_or_unit" if stage in {"binding-library-units", "napi-build", "python-binding-build"} else
+              "rust_compile_or_unit" if stage in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"} else
               "typescript_compile" if stage == "sdk-facade-build" else "setup_or_fence",
               "compiler": [], "rawUpload": False}
     log = private / (stage + ".log")
@@ -655,10 +664,10 @@ def run(root, results, node, *, verify_node, environ=None):
             def step(name, command, seconds=900):
                 nonlocal stage
                 stage = name
-                if name in {"binding-library-units", "napi-build", "python-binding-build"}:
+                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
                     require(snapshot(root) == before, "source_changed")
                 result = commands.run(name, command, seconds=seconds)
-                if name in {"binding-library-units", "napi-build", "python-binding-build"}:
+                if name in {*LIBRARY_UNIT_MANIFESTS, "napi-build", "python-binding-build"}:
                     require(snapshot(root) == before, "source_changed")
                 return result
             try:
@@ -672,8 +681,8 @@ def run(root, results, node, *, verify_node, environ=None):
                 require(isinstance(dependencies, list) and all(isinstance(value, str) and len(value) <= 256
                         and not value.startswith("-") and "\n" not in value for value in dependencies), "sdk_dependency_contract")
                 step("python-dependencies", [python, "-m", "pip", "install", "jsonschema", "pytest", "pyyaml", *dependencies], 300)
-                step("binding-library-units", ["cargo", "+1.98.1", "test", "--locked", "--manifest-path",
-                                              "packages/openmates-session-bindings/Cargo.toml", "--lib"])
+                for unit_stage in LIBRARY_UNIT_MANIFESTS:
+                    step(unit_stage, library_unit_command(unit_stage))
                 node_artifact = root / "frontend/packages/openmates-cli/native/linux-x64.node"
                 python_artifact = root / "packages/openmates-python/openmates/_native.abi3.so"
                 require(not node_artifact.exists() and not python_artifact.exists(), "preexisting_native_artifact")

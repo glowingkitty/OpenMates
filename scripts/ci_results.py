@@ -227,9 +227,9 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
 def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: str, *, trust: dict, expected_inputs: dict) -> bool:
     """Require the exact reviewed plan, immutable candidate inputs and every stage."""
     try:
-        from scripts.ci_sdk_conformance import LOCKS
+        from scripts.ci_sdk_conformance import LOCKS, LIBRARY_UNIT_MANIFESTS, library_unit_command
     except ModuleNotFoundError:
-        from ci_sdk_conformance import LOCKS
+        from ci_sdk_conformance import LOCKS, LIBRARY_UNIT_MANIFESTS, library_unit_command
     if (json.loads(job["specs"]) != ["sdk-conformance"]
             or report.get("runtime_profile") != "sdk-conformance"
             or report.get("results") != [{"suite": "sdk-conformance", "exit_code": 0,
@@ -244,7 +244,7 @@ def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: s
             or not all(name in expected_inputs for name in LOCKS)
             or sdk.get("locks") != {name: expected_inputs[name] for name in LOCKS}):
         return False
-    stages = ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "binding-library-units", "napi-build",
+    stages = ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", *LIBRARY_UNIT_MANIFESTS, "napi-build",
               "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
     steps = sdk.get("steps")
     if (not isinstance(steps, list) or not all(isinstance(row, dict) for row in steps)
@@ -254,11 +254,20 @@ def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: s
                    or type(row.get("elapsedSeconds")) not in (int, float)
                    or not math.isfinite(row["elapsedSeconds"]) or row["elapsedSeconds"] < 0 for row in steps)):
         return False
-    unit = steps[4].get("unitTests")
-    if (not isinstance(unit, dict) or type(unit.get("passed")) is not int or unit["passed"] <= 0
-            or type(unit.get("failed")) is not int or unit["failed"] != 0
-            or type(unit.get("ignored")) is not int or unit["ignored"] < 0):
-        return False
+    for step in steps:
+        if step["stage"] not in LIBRARY_UNIT_MANIFESTS:
+            continue
+        unit, command = step.get("unitTests"), step.get("command")
+        expected_argv = hashlib.sha256(json.dumps(library_unit_command(step["stage"]), separators=(",", ":")).encode()).hexdigest()
+        if (not isinstance(unit, dict) or type(unit.get("passed")) is not int or unit["passed"] <= 0
+                or any(type(unit.get(key)) is not int or unit[key] != 0
+                       for key in ("failed", "ignored", "measured", "filteredOut"))
+                or step.get("started") is not True or not isinstance(command, dict)
+                or command.get("tool") != "cargo" or command.get("admission") != "strict-owner-mode"
+                or command.get("argvSha256") != expected_argv
+                or not isinstance(command.get("executableSha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", command["executableSha256"])):
+            return False
     gate, artifacts, dist = sdk.get("gate"), sdk.get("artifacts"), sdk.get("dist")
     if not isinstance(gate, dict) or not isinstance(artifacts, dict) or not isinstance(dist, dict):
         return False

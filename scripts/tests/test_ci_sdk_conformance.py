@@ -157,7 +157,7 @@ def test_workflow_and_runner_do_not_enable_stack_or_publication():
     assert '"--release"' not in source
 
 
-def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path):
+def green_sdk_evidence(tmp_path):
     root, raw = gate_fixture(tmp_path)
     report = {"runtime_profile": sdk.TARGET, "results": [{"suite": sdk.TARGET, "exit_code": 0,
                                                        "failed_stage": None, "failure_code": None}]}
@@ -171,11 +171,20 @@ def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path
     evidence.update(inputs=inputs, inputSetSha256=sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
                     locks=dict(inputs), dist={"frontend/packages/openmates-cli/dist/sdk-entry.js": "d" * 64},
                     steps=[{"stage": stage, "status": "passed", "returncode": 0, "terminatedReturncode": 0, "elapsedSeconds": 1}
-                           for stage in ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]])
-    evidence["steps"][4]["unitTests"] = {"passed": 1, "failed": 0, "ignored": 0}
+                           for stage in ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "sdk-library-units", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]])
+    for step in evidence["steps"][4:6]:
+        step.update(unitTests={"passed": 1, "failed": 0, "ignored": 0, "measured": 0, "filteredOut": 0},
+                    started=True, command={"tool": "cargo", "admission": "strict-owner-mode",
+                    "argvSha256": sdk.sha(json.dumps(sdk.library_unit_command(step["stage"]), separators=(",", ":")).encode()),
+                    "executableSha256": "e" * 64})
     for value in evidence["artifacts"].values():
         value.update(device=1, inode=1, uid=os.getuid(), mode=0o600, mtimeNs=1, ctimeNs=1, bytes=96)
     expectation = {"trust": synthetic_trust(root), "expected_inputs": inputs}
+    return report, evidence, job, expectation
+
+
+def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path):
+    report, evidence, job, expectation = green_sdk_evidence(tmp_path)
     assert valid_sdk_conformance_receipt(report, evidence, job, "b" * 40, **expectation)
     for key, value in [("source_commit", "d" * 40), ("cleanupVerified", False),
                        ("sourceHeld", False), ("loadIdentityVerified", False), ("publication", True)]:
@@ -198,7 +207,53 @@ def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path
     assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
 
 
-@pytest.mark.parametrize("fault", [None, "source_change", "artifact_change", "child_exception", "stale_artifact"])
+@pytest.mark.parametrize("index", [4, 5])
+@pytest.mark.parametrize("fault", ["missing_stage", "reordered", "faked_stage", "missing_summary", "zero_tests",
+                                   "failed", "ignored", "measured", "filteredOut", "boolean_passed",
+                                   "missing_command", "fake_tool", "fake_argv", "fake_image", "not_started"])
+def test_retriever_requires_both_actual_whole_library_unit_receipts(tmp_path, index, fault):
+    report, evidence, job, expectation = green_sdk_evidence(tmp_path)
+    step = evidence["steps"][index]
+    if fault == "missing_stage":
+        evidence["steps"].pop(index)
+    elif fault == "reordered":
+        evidence["steps"][4], evidence["steps"][5] = evidence["steps"][5], evidence["steps"][4]
+    elif fault == "faked_stage":
+        step["stage"] = "invented-library-units"
+    elif fault == "missing_summary":
+        step.pop("unitTests")
+    elif fault == "zero_tests":
+        step["unitTests"]["passed"] = 0
+    elif fault in {"failed", "ignored", "measured", "filteredOut"}:
+        step["unitTests"][fault] = 1
+    elif fault == "boolean_passed":
+        step["unitTests"]["passed"] = True
+    elif fault == "missing_command":
+        step.pop("command")
+    elif fault == "fake_tool":
+        step["command"]["tool"] = "python"
+    elif fault == "fake_argv":
+        step["command"]["argvSha256"] = sdk.sha(json.dumps([
+            *sdk.library_unit_command(step["stage"]), "one_test_only"], separators=(",", ":")).encode())
+    elif fault == "fake_image":
+        step["command"]["executableSha256"] = "not-an-executable-digest"
+    elif fault == "not_started":
+        step["started"] = False
+    assert not valid_sdk_conformance_receipt(report, evidence, job, "b" * 40, **expectation)
+
+
+@pytest.mark.parametrize("stage,manifest", [
+    ("sdk-library-units", "packages/openmates-rust/Cargo.toml"),
+    ("binding-library-units", "packages/openmates-session-bindings/Cargo.toml"),
+])
+def test_library_unit_commands_keep_locked_default_features_and_unfiltered_lib(stage, manifest):
+    assert sdk.library_unit_command(stage) == ["cargo", "+1.98.1", "test", "--locked", "--manifest-path", manifest, "--lib"]
+    assert sdk.command_tool(stage) == "cargo"
+    assert sdk.BUDGET == 2700
+
+
+@pytest.mark.parametrize("fault", [None, "source_change", "artifact_change", "child_exception", "stale_artifact",
+                                   "sdk_source_change", "sdk_unit_failure", "sdk_deadline"])
 def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fences(tmp_path, monkeypatch, fault):
     root, gate = gate_fixture(tmp_path)
     monkeypatch.setattr(sdk, "load_trust", lambda: synthetic_trust(root))
@@ -242,6 +297,20 @@ def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fence
         assert self.env["OPENMATES_STATE_DIR"].startswith(self.env["HOME"])
         if stage == "rust-toolchain":
             assert command == ["/synthetic/tools/rustup", "toolchain", "install", "1.98.1", "--profile", "minimal", "--component", "rustfmt"]
+        if stage in sdk.LIBRARY_UNIT_MANIFESTS:
+            assert command == sdk.library_unit_command(stage)
+            assert "--locked" in command and "--lib" in command
+            assert not {"--offline", "--no-default-features", "--features", "--ignored"}.intersection(command)
+        if stage == "sdk-library-units":
+            if fault != "stale_artifact":
+                assert not node_artifact.exists() and not python_artifact.exists()
+            if fault == "sdk_source_change":
+                inputs[sdk.LOCKS[0]] = "f" * 64
+            elif fault == "sdk_unit_failure":
+                raise sdk.Refused("child_failed")
+            elif fault == "sdk_deadline":
+                self.deadline = time.monotonic() - 1
+                self.check()
         if fault == "child_exception" and stage == "napi-build":
             raise RuntimeError("never-export")
         if stage == "napi-build":
@@ -280,11 +349,16 @@ def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fence
         assert evidence["gate"]["openGapCount"] == 1 and evidence["publication"] is False
         assert len(attestations) == 3
         assert [stage for stage, _ in calls] == ["rust-toolchain", "python-environment", "node-dependencies",
-            "python-dependencies", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
+            "python-dependencies", "sdk-library-units", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
     else:
         assert results[0]["exit_code"] == 1 and evidence["status"] == "failed"
         assert evidence["code"] == {"source_change": "source_changed", "artifact_change": "artifact_changed",
-                                    "child_exception": "unclassified", "stale_artifact": "preexisting_native_artifact"}[fault]
+                                    "child_exception": "unclassified", "stale_artifact": "preexisting_native_artifact",
+                                    "sdk_source_change": "source_changed", "sdk_unit_failure": "child_failed",
+                                    "sdk_deadline": "deadline"}[fault]
+        if fault in {"sdk_source_change", "sdk_unit_failure", "sdk_deadline"}:
+            assert not {"binding-library-units", "napi-build", "python-binding-build", "real-conformance"}.intersection(stage for stage, _ in calls)
+            assert evidence["diagnostics"]["category"] == "rust_compile_or_unit"
 
 
 
@@ -449,17 +523,24 @@ def test_bounded_driver_output_refused_and_recorded_without_raw_stream(tmp_path,
 @pytest.mark.parametrize("summary,accepted", [
     ("test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out", True),
     ("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out", False),
+    ("test result: ok. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out", False),
+    ("test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out", False),
+    ("test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out", False),
+    ("test result: ok. 10 passed; 0 failed; 0 ignored; 1 measured; 0 filtered out", False),
+    ("test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s", True),
+    ("test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n" * 2, False),
     ("synthetic echo without unit evidence", False),
 ])
-def test_unit_stage_requires_positive_actual_cargo_summary_shape(tmp_path, summary, accepted):
+@pytest.mark.parametrize("stage", ["sdk-library-units", "binding-library-units"])
+def test_unit_stage_requires_positive_actual_cargo_summary_shape(tmp_path, summary, accepted, stage):
     commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 5)
     command = [sys.executable, "-c", "print(" + repr(summary) + ")"]
     if accepted:
-        commands.run("binding-library-units", command)
-        assert commands.steps[0]["unitTests"] == {"passed": 10, "failed": 0, "ignored": 0}
+        commands.run(stage, command)
+        assert commands.steps[0]["unitTests"] == {"passed": 10, "failed": 0, "ignored": 0, "measured": 0, "filteredOut": 0}
     else:
         with pytest.raises(sdk.Refused, match="unit_test_evidence"):
-            commands.run("binding-library-units", command)
+            commands.run(stage, command)
 
 
 def test_failure_vector_attribution_only_accepts_reviewed_fixture_ids(tmp_path):
