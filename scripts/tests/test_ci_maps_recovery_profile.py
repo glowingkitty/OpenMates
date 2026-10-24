@@ -108,6 +108,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     ({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}, True),
 ])
 @pytest.mark.parametrize("spec_name", [
+    "cli-rust-core-essential.spec.ts",
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
     "workflow-metadata-warmup.spec.ts",
@@ -211,14 +212,15 @@ def test_marker_chat_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch
     ({"public_provider": True}, None),
     ({"storage_capacity": True}, None),
 ])
-def test_maps_epoch_rejects_other_profiles(tmp_path, monkeypatch, profile_options, mutation):
+@pytest.mark.parametrize("spec_name", ["maps-discovery-chat.spec.ts", "cli-rust-core-essential.spec.ts"])
+def test_maps_epoch_rejects_other_profiles(tmp_path, monkeypatch, profile_options, mutation, spec_name):
     runner, profile, path = _runner_profile(tmp_path, monkeypatch, **profile_options)
     if mutation:
         mutation(profile)
         path.write_text(json.dumps(profile))
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
     with pytest.raises(RuntimeError, match="isolated marker-only AI profile"):
-        runner.activate_isolated_marker_chat_epoch("maps-discovery-chat.spec.ts")
+        runner.activate_isolated_marker_chat_epoch(spec_name)
 
 
 def test_maps_epoch_rejects_other_spec_and_bad_receipt(tmp_path, monkeypatch):
@@ -248,16 +250,25 @@ def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
         runner.activate_isolated_recovery_epoch()
 
 
-def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, monkeypatch):
+@pytest.mark.parametrize("specs", [
+    ["skill-web-search.spec.ts", "connection-resilience.spec.ts"],
+    ["cli-rust-core-essential.spec.ts"],
+    ["cli-rust-core-essential.spec.ts", "connection-resilience.spec.ts"],
+])
+def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, monkeypatch, specs):
     runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
     web = tmp_path / "web"
     (web / "tests").mkdir(parents=True)
-    specs = ["skill-web-search.spec.ts", "connection-resilience.spec.ts"]
     for spec in specs:
         (web / "tests" / spec).write_text("// authenticated marker fixture")
     results = tmp_path / "results"
     results.mkdir()
     monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    cli = web / "node_modules/@playwright/test/cli.js"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("// inert Playwright entry; process execution is stubbed")
+    monkeypatch.setattr(runner, "pinned_node", lambda: "/synthetic/pinned-node")
     monkeypatch.setattr(runner, "RESULTS", results)
     monkeypatch.setattr(runner, "reserved_account_slot", lambda _: 1)
     monkeypatch.setattr(runner, "provision_account", lambda _, identity_index: {
@@ -284,7 +295,8 @@ def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, 
     monkeypatch.setattr(runner, "wait_web", lambda _: None)
 
     def browser(command, **kwargs):
-        calls.append(("browser", command[4]))
+        assert command[:3] == ["/synthetic/pinned-node", str(cli), "test"]
+        calls.append(("browser", command[3]))
         assert calls[0] == ("activate", specs[0])
         from pathlib import Path
         Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(
@@ -297,3 +309,14 @@ def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, 
     assert calls == [("activate", specs[0]), *(('browser', 'tests/' + spec) for spec in specs)]
     assert all(result["exit_code"] == 0 for result in outcomes)
     assert all(result["accounts"]["recovery_protocol_epoch"] == 1 for result in outcomes)
+
+
+@pytest.mark.parametrize("spec_name", [
+    "nested/cli-rust-core-essential.spec.ts", "cli-rust-core-essential.spec.ts.backup",
+    "cli-rust-core-essential-other.spec.ts", "cli-rust-tui-proof.spec.ts",
+])
+def test_essential_epoch_selector_does_not_admit_near_names(tmp_path, monkeypatch, spec_name):
+    runner, _, _ = _runner_profile(tmp_path, monkeypatch, ai_fixtures=True)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Docker was reached"))
+    with pytest.raises(RuntimeError, match="exact browser spec"):
+        runner.activate_isolated_marker_chat_epoch(spec_name)

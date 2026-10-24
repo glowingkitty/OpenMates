@@ -73,6 +73,7 @@ ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
+    "cli-rust-core-essential.spec.ts",
     "cli-recovery-fixtures.spec.ts",
     "cli-recovery-discovery.spec.ts",
     "diagram-html-editing.spec.ts",
