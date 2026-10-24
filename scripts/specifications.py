@@ -869,7 +869,9 @@ def _repository_test_files(repo_root: Path) -> list[Path]:
         ".venv",
         "build",
         "dist",
+        "logs",
         "node_modules",
+        "target",
         "test-results",
     }
     files: list[Path] = []

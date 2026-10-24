@@ -502,6 +502,47 @@ def test_repository_test_discovery_prunes_managed_worktrees(tmp_path):
 
 
 # contract-test: tooling
+@pytest.mark.parametrize("generated_directory", ["target", "logs"])
+def test_repository_test_discovery_prunes_generated_copies_at_every_depth(tmp_path, generated_directory):
+    module = load_module()
+    # There is no Git index in this temporary repository: real untracked source
+    # tests must remain discoverable alongside tracked source in normal use.
+    source_paths = [
+        tmp_path / "scripts/tests/test_source.py",
+        tmp_path / "frontend/packages/ui/tests/source.spec.ts",
+        tmp_path / "packages/client/tests/test_untracked.py",
+    ]
+    copy_paths = [
+        tmp_path / generated_directory / "tests/test_root_copy.py",
+        tmp_path / "packages/native" / generated_directory / "private/baseline/tests/copied.spec.ts",
+        tmp_path / "frontend/packages/ui" / generated_directory / "retained/tests/test_nested_copy.py",
+    ]
+    for path in source_paths + copy_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# synthetic test discovery fixture\n", encoding="utf-8")
+
+    discovered = module._repository_test_files(tmp_path)
+
+    assert set(discovered) == set(source_paths)
+
+
+# contract-test: tooling
+def test_repository_test_discovery_excludes_exact_generated_directory_names_only(tmp_path):
+    module = load_module()
+    source_paths = [
+        tmp_path / "targeted/tests/test_source.py",
+        tmp_path / "catalogs/tests/test_source.py",
+        tmp_path / "logs-helper/tests/helper.spec.ts",
+        tmp_path / "scripts/tests/target_test.py",
+    ]
+    for path in source_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# synthetic source test\n", encoding="utf-8")
+
+    assert set(module._repository_test_files(tmp_path)) == set(source_paths)
+
+
+# contract-test: tooling
 def test_evidence_preflight_rejects_stale_merged_session_worktree(monkeypatch, tmp_path):
     module = load_module()
     control_root = tmp_path / "repo"
