@@ -28,6 +28,17 @@ def load(name, file):
 lane = load("scripts.ci_rust_wasm", "ci_rust_wasm.py")
 retrieval = load("wasm_results", "ci_results.py")
 WASM = b"\0asm\x01\0\0\0\0\x01\0"
+# Explicit test-only replacement for the synthetic archive below. Expected
+# digest is a literal, never learned from the archive under validation.
+SYNTHETIC_BINDGEN_PIN = ("0.2.129", "dd4afd5b4ed89dd2daca833fd225acf0676450b28f3cc0849f835e9ada9745e8")
+
+
+class SyntheticPinTests(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        pin = patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN)
+        pin.start()
+        self.addCleanup(pin.stop)
 
 
 def install_bindgen_fixture(private, work, executable=b"inert fixture binary"):
@@ -42,7 +53,6 @@ def install_bindgen_fixture(private, work, executable=b"inert fixture binary"):
     archive = private / "cargo/registry/cache/inert-index/wasm-bindgen-cli-0.2.129.crate"
     archive.parent.mkdir(parents=True)
     archive.write_bytes(b"synthetic published crate fixture")
-    (package / ".cargo-checksum.json").write_text(json.dumps({"package": hashlib.sha256(archive.read_bytes()).hexdigest()}))
     return binary
 
 
@@ -243,7 +253,7 @@ class WasmReceiptTests(unittest.TestCase):
             ast.parse(path.read_text())
 
 
-class WasmRunTests(unittest.TestCase):
+class WasmRunTests(SyntheticPinTests):
     def execute(self, scenario="success", diagnostic_probe=None, browser_e2e=False):
         with TemporaryDirectory() as directory, ExitStack() as stack:
             base = Path(directory)
@@ -560,7 +570,7 @@ class WasmDiagnosticTests(unittest.TestCase):
         self.assertNotIn("ci-rust-wasm-private", public["with"]["path"])
 
 
-class BrowserPackagingTests(unittest.TestCase):
+class BrowserPackagingTests(SyntheticPinTests):
     def actual_producer(self, variant="valid"):
         with TemporaryDirectory() as directory:
             private = Path(directory)
@@ -777,7 +787,7 @@ class BrowserPackagingTests(unittest.TestCase):
 
 
 
-class ProvenanceDiagnosticTests(unittest.TestCase):
+class ProvenanceDiagnosticTests(SyntheticPinTests):
     """Actual provenance/producer/check functions; synthetic files, no child process."""
 
     def fixture(self, root):
@@ -802,10 +812,9 @@ class ProvenanceDiagnosticTests(unittest.TestCase):
             ("manifest-package-type", "manifest-identity", None),
             ("manifest-name", "manifest-identity", "manifestNameMatches"),
             ("manifest-version", "manifest-identity", "manifestVersionMatches"),
-            ("checksum-missing", "checksum-read", None),
-            ("checksum-invalid-json", "checksum-read", None),
-            ("checksum-missing-package", "checksum-read", None),
-            ("checksum-shape", "checksum-validation", "checksumWellFormed"),
+            ("pin-shape", "registry-pin", None),
+            ("pin-version", "registry-pin", "pinVersionMatches"),
+            ("checksum-shape", "registry-pin", "checksumWellFormed"),
             ("checksum-mismatch", "checksum-validation", "checksumMatches"),
             ("archive-world-writable", "archive-read", None),
             ("lock-missing", "published-lock-read", None),
@@ -861,24 +870,14 @@ class ProvenanceDiagnosticTests(unittest.TestCase):
                         )
                         + '"\n'
                     )
-                elif fault == "checksum-missing":
-                    (package / ".cargo-checksum.json").unlink()
-                elif fault == "checksum-invalid-json":
-                    (package / ".cargo-checksum.json").write_text(
-                        "PRIVATE_INVALID_JSON"
-                    )
-                elif fault == "checksum-missing-package":
-                    (package / ".cargo-checksum.json").write_text("{}")
-                elif fault in {"checksum-shape", "checksum-mismatch"}:
-                    (package / ".cargo-checksum.json").write_text(
-                        json.dumps(
-                            {
-                                "package": "PRIVATE_CHECKSUM"
-                                if fault == "checksum-shape"
-                                else "0" * 64
-                            }
-                        )
-                    )
+                elif fault == "pin-shape":
+                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ["PRIVATE_PIN"]))
+                elif fault == "pin-version":
+                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ("0.2.128", SYNTHETIC_BINDGEN_PIN[1])))
+                elif fault == "checksum-shape":
+                    stack.enter_context(patch.object(lane, "BINDGEN_CRATE_PIN", ("0.2.129", "PRIVATE_CHECKSUM")))
+                elif fault == "checksum-mismatch":
+                    archive.write_bytes(b"altered archive")
                 elif fault == "archive-world-writable":
                     archive.chmod(0o666)
                 elif fault == "lock-missing":
@@ -1216,11 +1215,47 @@ class ProvenanceDiagnosticTests(unittest.TestCase):
 
         with TemporaryDirectory() as directory:
             private, work, binary, package, archive = self.fixture(Path(directory))
-            (package / ".cargo-checksum.json").write_text(
-                json.dumps({"package": "0" * 64})
-            )
+            archive.write_bytes(b"altered archive")
             with self.assertRaises(lane.sdk.Refused):
                 lane.installed_bindgen_provenance(private, work, Forged())
+
+class OfficialRegistryPinTests(unittest.TestCase):
+    """No synthetic override by default: exercise the independent production pin."""
+
+    def test_version_and_digest_are_the_independently_verified_registry_pin(self):
+        self.assertEqual(lane.BINDGEN_CRATE_PIN, (
+            "0.2.129", "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c"))
+        self.assertEqual(lane.BINDGEN_CRATE_PIN[0], lane.BINDGEN_VERSION)
+
+    def test_vendor_checksum_absence_is_valid_only_with_the_explicit_test_pin(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
+            self.assertFalse((package / ".cargo-checksum.json").exists())
+            diagnostic = lane.new_provenance_diagnostic()
+            with self.assertRaises(lane.sdk.Refused):
+                lane.installed_bindgen_provenance(private, work, diagnostic)
+            self.assertFalse(diagnostic["checksumMatches"])
+            with patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN):
+                actual = lane.installed_bindgen_provenance(private, work)
+            self.assertEqual(actual["crateSha256"], SYNTHETIC_BINDGEN_PIN[1])
+            self.assertEqual(actual["version"], SYNTHETIC_BINDGEN_PIN[0])
+
+    def test_tampered_archive_and_forged_vendor_checksum_cannot_replace_the_pin(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
+            archive.write_bytes(b"tampered archive")
+            (package / ".cargo-checksum.json").write_text(json.dumps({
+                "package": hashlib.sha256(archive.read_bytes()).hexdigest()}))
+            with patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN), self.assertRaises(lane.sdk.Refused):
+                lane.installed_bindgen_provenance(private, work)
+
+    def test_environment_cannot_override_the_production_pin(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = ProvenanceDiagnosticTests().fixture(Path(directory))
+            with patch.dict(os.environ, {"BINDGEN_CRATE_PIN": SYNTHETIC_BINDGEN_PIN[1],
+                                       "WASM_BINDGEN_CHECKSUM": SYNTHETIC_BINDGEN_PIN[1]}), self.assertRaises(lane.sdk.Refused):
+                lane.installed_bindgen_provenance(private, work)
+
 
 if __name__ == "__main__":
     unittest.main()

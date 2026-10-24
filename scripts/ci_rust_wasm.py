@@ -28,6 +28,10 @@ BROWSER_BUDGET = 1800
 WASM_NAME = "openmates_browser_bindings.wasm"
 WASM_PATH = "wasm32-unknown-unknown/release/" + WASM_NAME
 BINDGEN_VERSION = "0.2.129"
+# Independent official registry metadata, verified 2026-10-24 (not the archive
+# being checked): https://index.crates.io/wa/sm/wasm-bindgen-cli and
+# https://crates.io/api/v1/crates/wasm-bindgen-cli/0.2.129
+BINDGEN_CRATE_PIN = ("0.2.129", "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c")
 PACKAGE_NAME = "openmates_browser"
 PACKAGE_FILES = (PACKAGE_NAME + ".js", PACKAGE_NAME + "_bg.wasm", PACKAGE_NAME + ".d.ts", PACKAGE_NAME + "_bg.wasm.d.ts")
 STAGES = ("rust-toolchain", "wasm-target", "wasm-build", "bindgen-install", "bindgen-version", "bindgen-package")
@@ -153,14 +157,14 @@ def package_inventory(folder):
 
 PROVENANCE_SUBSTAGES = frozenset({
     "locked-version", "install", "source-discovery", "archive-discovery", "unique-count",
-    "manifest-read", "manifest-identity", "checksum-read", "archive-read", "checksum-validation",
+    "manifest-read", "manifest-identity", "registry-pin", "archive-read", "checksum-validation",
     "published-lock-read", "published-lock-root", "binary-stat", "binary-read", "binary-identity",
     "before-version", "version-output", "package-output",
 })
 PROVENANCE_CODES = frozenset({"packaging", "unsafe_file", "changed_file", "deadline", "artifact_reserve",
                              "stage_deadline", "child_failed", "diagnostic_bound", "unclassified"})
 PROVENANCE_BOOLEANS = (
-    "manifestNameMatches", "manifestVersionMatches", "checksumWellFormed", "checksumMatches",
+    "manifestNameMatches", "manifestVersionMatches", "pinVersionMatches", "checksumWellFormed", "checksumMatches",
     "publishedLockRootMatches", "binaryRegular", "binaryOwner", "binaryModeSafe", "binarySizeWithinLimit",
     "binaryExecutable", "binarySingleLink", "binaryIdentityMatches",
 )
@@ -213,13 +217,17 @@ def installed_bindgen_provenance(private, work, diagnostic=None):
     diagnostic["manifestVersionMatches"] = metadata.get("version") == BINDGEN_VERSION if name_matches else None
     sdk.require(package.get("package", {}).get("name") == "wasm-bindgen-cli"
                 and package["package"].get("version") == BINDGEN_VERSION, "packaging")
-    diagnostic["substage"] = "checksum-read"
-    checksum = json.loads(sdk.regular(sources[0] / ".cargo-checksum.json"))["package"]
+    diagnostic["substage"] = "registry-pin"
+    sdk.require(type(BINDGEN_CRATE_PIN) is tuple and len(BINDGEN_CRATE_PIN) == 2, "packaging")
+    pinned_version, checksum = BINDGEN_CRATE_PIN
+    version_matches = type(pinned_version) is str and pinned_version == BINDGEN_VERSION
+    diagnostic["pinVersionMatches"] = version_matches
+    well_formed = type(checksum) is str and re.fullmatch(r"[0-9a-f]{64}", checksum)
+    diagnostic["checksumWellFormed"] = bool(well_formed)
+    sdk.require(version_matches and well_formed, "packaging")
     diagnostic["substage"] = "archive-read"
     archive = sdk.regular(archives[0])
     diagnostic["substage"] = "checksum-validation"
-    well_formed = isinstance(checksum, str) and re.fullmatch(r"[0-9a-f]{64}", checksum)
-    diagnostic["checksumWellFormed"] = bool(well_formed)
     checksum_matches = sdk.sha(archive) == checksum if well_formed else None
     diagnostic["checksumMatches"] = checksum_matches
     sdk.require(well_formed and checksum_matches, "packaging")
