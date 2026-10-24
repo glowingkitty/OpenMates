@@ -8,7 +8,7 @@
     "sdkCompilerChanges": false
   },
   "contracts": {
-    "config/sdk-capabilities.json": "8d8236ac9eeddcfb6f62dd85e9015c02e9fd9035ba171ff80238db9dc22bbe0e",
+    "config/sdk-capabilities.json": "310f1caf168c4f8b42e9533c8fc270fe16b17692ef849dfd242961738379697e",
     "config/sdk-capabilities.schema.json": "ff232cfd259ef34e49323ae3e1ff9b8b2af3f5d5fee6fe7acd47876a2bc8959c",
     "tests/sdk-conformance/fixtures/core.json": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
     "tests/sdk-conformance/fixtures/privacy.json": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
@@ -17,6 +17,7 @@
     "tests/sdk-conformance/fixtures/session-auth.json": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
     "tests/sdk-conformance/fixtures/session-chat-change-monitor.json": "f660ad311fed1a39ff2a1066c504c090cc6c033600414d02128477afb143fdb0",
     "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
+    "tests/sdk-conformance/fixtures/session-message-window.json": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
     "tests/sdk-conformance/fixtures/session-plans-workflows.json": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
     "tests/sdk-conformance/fixtures/session-project-items.json": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
     "tests/sdk-conformance/fixtures/session-project-sources.json": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
@@ -181,14 +182,17 @@
     "session.foreground-completion-recovery.v1 [python] partial: Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.; API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
     "session.source-host-lifecycle.v1 [rust] partial: Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness.",
     "session.source-host-lifecycle.v1 [npm] missing: Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness.",
-    "session.source-host-lifecycle.v1 [python] missing: Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness."
+    "session.source-host-lifecycle.v1 [python] missing: Required parked source-host binding/facade/protocol conformance is not implemented or executed in this slice; Rust public transport API alone does not establish three-language or production-host readiness.",
+    "session.message-window.v1 [rust] partial: Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page.",
+    "session.message-window.v1 [npm] partial: Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page.",
+    "session.message-window.v1 [python] partial: Staged synthetic one-page vectors and source-only checks do not establish compiled runtime, live backend, browser integration, all cross-SDK chat capabilities or release readiness. Complete-history/recovery authority is never inferred from a page."
   ],
   "plan": [
     {
       "capability": "crypto.aes-gcm-combined.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "rust",
       "vectors": [
         "browser-om-fnv-header",
         "historical-python-constant-header",
@@ -205,9 +209,9 @@
     },
     {
       "capability": "crypto.aes-gcm-combined.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "npm",
       "vectors": [
         "browser-om-fnv-header",
         "historical-python-constant-header",
@@ -224,9 +228,9 @@
     },
     {
       "capability": "crypto.aes-gcm-combined.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "python",
       "vectors": [
         "browser-om-fnv-header",
         "historical-python-constant-header",
@@ -243,36 +247,36 @@
     },
     {
       "capability": "crypto.recovery-envelope.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "rust",
       "vectors": [
         "sequential-key-existing-chat-v1"
       ]
     },
     {
       "capability": "crypto.recovery-envelope.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "npm",
       "vectors": [
         "sequential-key-existing-chat-v1"
       ]
     },
     {
       "capability": "crypto.recovery-envelope.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "python",
       "vectors": [
         "sequential-key-existing-chat-v1"
       ]
     },
     {
       "capability": "crypto.slug-lookup.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "rust",
       "vectors": [
         "bounded-object-slug",
         "unicode-object-slug"
@@ -280,9 +284,9 @@
     },
     {
       "capability": "crypto.slug-lookup.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "npm",
       "vectors": [
         "bounded-object-slug",
         "unicode-object-slug"
@@ -290,9 +294,9 @@
     },
     {
       "capability": "crypto.slug-lookup.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "python",
       "vectors": [
         "bounded-object-slug",
         "unicode-object-slug"
@@ -300,63 +304,63 @@
     },
     {
       "capability": "protocol.generated-skills.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "rust",
       "vectors": [
         "generated-web-search"
       ]
     },
     {
       "capability": "protocol.generated-skills.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "npm",
       "vectors": [
         "generated-web-search"
       ]
     },
     {
       "capability": "protocol.generated-skills.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "python",
       "vectors": [
         "generated-web-search"
       ]
     },
     {
       "capability": "session.native-boundary.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "rust",
       "vectors": [
         "explicit-session-policy"
       ]
     },
     {
       "capability": "session.native-boundary.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "npm",
       "vectors": [
         "explicit-session-policy"
       ]
     },
     {
       "capability": "session.native-boundary.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/core.json",
       "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
-      "language": "python",
       "vectors": [
         "explicit-session-policy"
       ]
     },
     {
       "capability": "session.password-totp-rotation.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
       "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
-      "language": "rust",
       "vectors": [
         "logout-clears-session-on-remote-failure",
         "password-v2-serialized-cookie-rotation",
@@ -366,9 +370,9 @@
     },
     {
       "capability": "session.password-totp-rotation.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
       "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
-      "language": "npm",
       "vectors": [
         "logout-clears-session-on-remote-failure",
         "password-v2-serialized-cookie-rotation",
@@ -378,9 +382,9 @@
     },
     {
       "capability": "session.password-totp-rotation.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
       "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
-      "language": "python",
       "vectors": [
         "logout-clears-session-on-remote-failure",
         "password-v2-serialized-cookie-rotation",
@@ -390,9 +394,9 @@
     },
     {
       "capability": "session.recovery-replay.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-recovery.json",
       "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
-      "language": "rust",
       "vectors": [
         "cancel-while-lease-await",
         "canonical-digest-mismatch",
@@ -409,9 +413,9 @@
     },
     {
       "capability": "session.recovery-replay.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-recovery.json",
       "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
-      "language": "npm",
       "vectors": [
         "cancel-while-lease-await",
         "canonical-digest-mismatch",
@@ -428,9 +432,9 @@
     },
     {
       "capability": "session.recovery-replay.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-recovery.json",
       "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
-      "language": "python",
       "vectors": [
         "cancel-while-lease-await",
         "canonical-digest-mismatch",
@@ -447,9 +451,9 @@
     },
     {
       "capability": "protocol.project-create.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/project-create.json",
       "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
-      "language": "rust",
       "vectors": [
         "missing-name-no-create-post",
         "personal-encrypted-defaults",
@@ -458,9 +462,9 @@
     },
     {
       "capability": "protocol.project-create.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/project-create.json",
       "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
-      "language": "npm",
       "vectors": [
         "missing-name-no-create-post",
         "personal-encrypted-defaults",
@@ -469,9 +473,9 @@
     },
     {
       "capability": "protocol.project-create.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/project-create.json",
       "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
-      "language": "python",
       "vectors": [
         "missing-name-no-create-post",
         "personal-encrypted-defaults",
@@ -480,9 +484,9 @@
     },
     {
       "capability": "session.work-crud.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-work.json",
       "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
-      "language": "rust",
       "vectors": [
         "cancel-boundary",
         "close-boundary",
@@ -498,9 +502,9 @@
     },
     {
       "capability": "session.work-crud.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-work.json",
       "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
-      "language": "npm",
       "vectors": [
         "cancel-boundary",
         "close-boundary",
@@ -516,9 +520,9 @@
     },
     {
       "capability": "session.work-crud.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-work.json",
       "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
-      "language": "python",
       "vectors": [
         "cancel-boundary",
         "close-boundary",
@@ -534,9 +538,9 @@
     },
     {
       "capability": "session.plans-workflows.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-plans-workflows.json",
       "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
-      "language": "rust",
       "vectors": [
         "bad_identity-workflow-run",
         "cancel-workflow-run",
@@ -556,9 +560,9 @@
     },
     {
       "capability": "session.plans-workflows.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-plans-workflows.json",
       "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
-      "language": "npm",
       "vectors": [
         "bad_identity-workflow-run",
         "cancel-workflow-run",
@@ -578,9 +582,9 @@
     },
     {
       "capability": "session.plans-workflows.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-plans-workflows.json",
       "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
-      "language": "python",
       "vectors": [
         "bad_identity-workflow-run",
         "cancel-workflow-run",
@@ -600,9 +604,9 @@
     },
     {
       "capability": "session.anonymous-stream.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-anonymous.json",
       "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
-      "language": "rust",
       "vectors": [
         "cancel-and-fresh-public-send",
         "duplicate-sse-sequence-refused",
@@ -617,9 +621,9 @@
     },
     {
       "capability": "session.anonymous-stream.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-anonymous.json",
       "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
-      "language": "npm",
       "vectors": [
         "cancel-and-fresh-public-send",
         "duplicate-sse-sequence-refused",
@@ -634,9 +638,9 @@
     },
     {
       "capability": "session.anonymous-stream.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-anonymous.json",
       "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
-      "language": "python",
       "vectors": [
         "cancel-and-fresh-public-send",
         "duplicate-sse-sequence-refused",
@@ -651,9 +655,9 @@
     },
     {
       "capability": "session.project-items.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-project-items.json",
       "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
-      "language": "rust",
       "vectors": [
         "cross-project-child-refused",
         "explicit-scope-zero-transport",
@@ -670,9 +674,9 @@
     },
     {
       "capability": "session.project-items.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-project-items.json",
       "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
-      "language": "npm",
       "vectors": [
         "cross-project-child-refused",
         "explicit-scope-zero-transport",
@@ -689,9 +693,9 @@
     },
     {
       "capability": "session.project-items.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-project-items.json",
       "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
-      "language": "python",
       "vectors": [
         "cross-project-child-refused",
         "explicit-scope-zero-transport",
@@ -708,9 +712,9 @@
     },
     {
       "capability": "local.privacy.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/privacy.json",
       "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
-      "language": "rust",
       "vectors": [
         "canonical-number-exponent-zero-exact",
         "canonical-number-exponent-zero-over",
@@ -755,9 +759,9 @@
     },
     {
       "capability": "local.privacy.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/privacy.json",
       "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
-      "language": "npm",
       "vectors": [
         "canonical-number-exponent-zero-exact",
         "canonical-number-exponent-zero-over",
@@ -802,9 +806,9 @@
     },
     {
       "capability": "local.privacy.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/privacy.json",
       "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
-      "language": "python",
       "vectors": [
         "canonical-number-exponent-zero-exact",
         "canonical-number-exponent-zero-over",
@@ -849,9 +853,9 @@
     },
     {
       "capability": "local.task-order.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/task-order.json",
       "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
-      "language": "rust",
       "vectors": [
         "canonical-equivalence-stable",
         "danish-case",
@@ -879,9 +883,9 @@
     },
     {
       "capability": "local.task-order.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/task-order.json",
       "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
-      "language": "npm",
       "vectors": [
         "canonical-equivalence-stable",
         "danish-case",
@@ -909,9 +913,9 @@
     },
     {
       "capability": "local.task-order.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/task-order.json",
       "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
-      "language": "python",
       "vectors": [
         "canonical-equivalence-stable",
         "danish-case",
@@ -939,9 +943,9 @@
     },
     {
       "capability": "session.project-task-watch.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-project-task-watch.json",
       "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
-      "language": "rust",
       "vectors": [
         "api-key-refusal-before-transport",
         "bounded-commit-channel",
@@ -972,9 +976,9 @@
     },
     {
       "capability": "session.project-task-watch.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-project-task-watch.json",
       "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
-      "language": "npm",
       "vectors": [
         "api-key-refusal-before-transport",
         "bounded-commit-channel",
@@ -1005,9 +1009,9 @@
     },
     {
       "capability": "session.project-task-watch.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-project-task-watch.json",
       "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
-      "language": "python",
       "vectors": [
         "api-key-refusal-before-transport",
         "bounded-commit-channel",
@@ -1038,9 +1042,9 @@
     },
     {
       "capability": "session.project-source-authoring.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-project-sources.json",
       "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
-      "language": "rust",
       "vectors": [
         "all-five-typed-capabilities",
         "api-key-authoring-refusal-zero-transport",
@@ -1071,9 +1075,9 @@
     },
     {
       "capability": "session.project-source-authoring.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-project-sources.json",
       "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
-      "language": "npm",
       "vectors": [
         "all-five-typed-capabilities",
         "api-key-authoring-refusal-zero-transport",
@@ -1104,9 +1108,9 @@
     },
     {
       "capability": "session.project-source-authoring.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-project-sources.json",
       "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
-      "language": "python",
       "vectors": [
         "all-five-typed-capabilities",
         "api-key-authoring-refusal-zero-transport",
@@ -1137,9 +1141,9 @@
     },
     {
       "capability": "session.chat-change-monitor.v1",
+      "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-chat-change-monitor.json",
       "fixtureSha256": "f660ad311fed1a39ff2a1066c504c090cc6c033600414d02128477afb143fdb0",
-      "language": "rust",
       "vectors": [
         "monitor-data-cas-race",
         "monitor-durable-opaque",
@@ -1153,9 +1157,9 @@
     },
     {
       "capability": "session.chat-change-monitor.v1",
+      "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-chat-change-monitor.json",
       "fixtureSha256": "f660ad311fed1a39ff2a1066c504c090cc6c033600414d02128477afb143fdb0",
-      "language": "npm",
       "vectors": [
         "monitor-data-cas-race",
         "monitor-durable-opaque",
@@ -1169,9 +1173,9 @@
     },
     {
       "capability": "session.chat-change-monitor.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-chat-change-monitor.json",
       "fixtureSha256": "f660ad311fed1a39ff2a1066c504c090cc6c033600414d02128477afb143fdb0",
-      "language": "python",
       "vectors": [
         "monitor-data-cas-race",
         "monitor-durable-opaque",
@@ -1185,9 +1189,9 @@
     },
     {
       "capability": "session.foreground-completion-recovery.v1",
-      "fixture": "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json",
-      "fixtureSha256": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
       "language": "rust",
+      "fixture": "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json",
+      "fixtureSha256": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
       "vectors": [
         "foreground-ack-loss-resume",
         "foreground-claim-cancel",
@@ -1201,9 +1205,9 @@
     },
     {
       "capability": "session.foreground-completion-recovery.v1",
-      "fixture": "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json",
-      "fixtureSha256": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
       "language": "npm",
+      "fixture": "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json",
+      "fixtureSha256": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
       "vectors": [
         "foreground-ack-loss-resume",
         "foreground-claim-cancel",
@@ -1217,9 +1221,9 @@
     },
     {
       "capability": "session.foreground-completion-recovery.v1",
+      "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-foreground-completion-recovery.json",
       "fixtureSha256": "0ab6538d541e9dce859a50a273f025a3ae5f76cb35d683ce5b3a85eb994ca2b2",
-      "language": "python",
       "vectors": [
         "foreground-ack-loss-resume",
         "foreground-claim-cancel",
@@ -1229,6 +1233,102 @@
         "foreground-one-byte-refusal",
         "foreground-resume-owner-substitution",
         "foreground-stage-reset"
+      ]
+    },
+    {
+      "capability": "session.message-window.v1",
+      "language": "rust",
+      "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+      "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+      "vectors": [
+        "window-after",
+        "window-around",
+        "window-around-alias",
+        "window-around-false-nonempty",
+        "window-around-missing",
+        "window-around-oversized",
+        "window-around-wrong-anchor",
+        "window-around-wrong-oversized-anchor",
+        "window-bad-input-cursor",
+        "window-bad-response-cursor",
+        "window-before",
+        "window-cancel",
+        "window-forbidden-context",
+        "window-latest",
+        "window-noauth",
+        "window-over-bytes",
+        "window-over-rows",
+        "window-page-local-maps",
+        "window-page-local-unknown",
+        "window-partial-cache",
+        "window-tamper",
+        "window-wrong-chat",
+        "window-wrong-key",
+        "window-wrong-scope"
+      ]
+    },
+    {
+      "capability": "session.message-window.v1",
+      "language": "npm",
+      "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+      "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+      "vectors": [
+        "window-after",
+        "window-around",
+        "window-around-alias",
+        "window-around-false-nonempty",
+        "window-around-missing",
+        "window-around-oversized",
+        "window-around-wrong-anchor",
+        "window-around-wrong-oversized-anchor",
+        "window-bad-input-cursor",
+        "window-bad-response-cursor",
+        "window-before",
+        "window-cancel",
+        "window-forbidden-context",
+        "window-latest",
+        "window-noauth",
+        "window-over-bytes",
+        "window-over-rows",
+        "window-page-local-maps",
+        "window-page-local-unknown",
+        "window-partial-cache",
+        "window-tamper",
+        "window-wrong-chat",
+        "window-wrong-key",
+        "window-wrong-scope"
+      ]
+    },
+    {
+      "capability": "session.message-window.v1",
+      "language": "python",
+      "fixture": "tests/sdk-conformance/fixtures/session-message-window.json",
+      "fixtureSha256": "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556",
+      "vectors": [
+        "window-after",
+        "window-around",
+        "window-around-alias",
+        "window-around-false-nonempty",
+        "window-around-missing",
+        "window-around-oversized",
+        "window-around-wrong-anchor",
+        "window-around-wrong-oversized-anchor",
+        "window-bad-input-cursor",
+        "window-bad-response-cursor",
+        "window-before",
+        "window-cancel",
+        "window-forbidden-context",
+        "window-latest",
+        "window-noauth",
+        "window-over-bytes",
+        "window-over-rows",
+        "window-page-local-maps",
+        "window-page-local-unknown",
+        "window-partial-cache",
+        "window-tamper",
+        "window-wrong-chat",
+        "window-wrong-key",
+        "window-wrong-scope"
       ]
     }
   ],
@@ -1241,6 +1341,7 @@
     "packages/openmates-session-bindings/examples/session-auth-conformance.rs": "5cd61e1f47a775386eb9774b5b74d2a795eca72596aceabc3ae212b2219f01d8",
     "packages/openmates-session-bindings/examples/session-chat-change-monitor-conformance.rs": "caa2db5fee7afaaa2b4df55705d709e9393c080e95c8b5d41d3ba4db214db47f",
     "packages/openmates-session-bindings/examples/session-foreground-completion-recovery-conformance.rs": "5c9c6f2cc714a240da8f843f92ce597ce5e97e707b8b6910e0467727135e01e5",
+    "packages/openmates-session-bindings/examples/session-message-window-conformance.rs": "f68c04208a3dfc9e2838ca0503cbf1a07be4f3cbfb1cd696f66288fe2aebcc52",
     "packages/openmates-session-bindings/examples/session-plans-workflows-conformance.rs": "63f3f247271e87d42217e3d741453c3bd744f3128e1775a37354ad644384eb5b",
     "packages/openmates-session-bindings/examples/session-project-items-conformance.rs": "b44bf166bf6d165e2540e6c8f96d44ba27dca78a26672a53932d817c73c92c02",
     "packages/openmates-session-bindings/examples/session-project-sources-conformance.rs": "5248150274b62e0f488eabaa894fb4862a6668b81d8b9773b721d1ca103fd531",
@@ -1250,13 +1351,14 @@
     "packages/openmates-session-bindings/examples/support/essential_session.rs": "7fe298b93e37197fdad84f01fbaab875391786bddc29e466d403cd3ae5c91417",
     "packages/openmates-session-bindings/examples/task-order-conformance.rs": "01b4f41f151ae2e866b7444a6aff66686a30c6ad51fd612ad1d60d8f4581b7d8",
     "scripts/build_sdk_native.py": "7b6d9d7139be4680019b69a941102df2b882225508ca0296c7a4270626741c28",
-    "scripts/check_sdk_conformance.py": "a96148a8fbdf6a6406913cbe357137adf5eb77a5897361ea50851ca4ef1f2498",
+    "scripts/check_sdk_conformance.py": "58f0e1b2721f89ed19c13efd27ee908e6fa0aaa7786a737cf0467bab6ec03dac",
     "scripts/generate_rust_sdk_apps.py": "5c8225a1f0d8b970fd6af3c137dfb96d7d19a9e3fe488837ad354a828042fd7d",
     "scripts/generate_sdk_app_skills.py": "b026fc3d0b10ac278c2213f91700882b0cf8fd265f200821bb9b006d924182ce",
     "scripts/sdk_rust_inventory.py": "41976e61c896974b2a28a06c30e9efc48a1c246298d9c1947ab5ee0702b0701c",
     "tests/sdk-conformance/essential_session_server.py": "bf7b1d285e9ee750df0d57ecdfa05e922a1a2ee80a7f28601474cb7e104c654f",
     "tests/sdk-conformance/generate_session_auth.py": "a929a921538f00bfbece06e6235a73527045890510be4b57a00bee2dc7e98644",
     "tests/sdk-conformance/inventory.py": "cc45743acff5e562f31342fc484f902b4cfdb6794b59600eb9b5142b383b2afe",
+    "tests/sdk-conformance/message_window_server.py": "619d16259fb239ed276ad5e876ad169eb10c66eca658aa888ec69372f0820d12",
     "tests/sdk-conformance/npm-inventory.mjs": "a42b4cc17da66a4299d8fb637a4c547f60448cec0c8ab348ac3fb31bd3a21700",
     "tests/sdk-conformance/project_create_server.py": "aac3bf7b3073d4fce6b5e58dad4c373d3762ef84b3a7a57a8b12522a05471410",
     "tests/sdk-conformance/recovery_server.py": "5b6355ef2970619df7014fb6d4e8817b91efa52a0c6386982b6a7c5be6bcf743",
@@ -1276,6 +1378,8 @@
     "tests/sdk-conformance/runners/session-chat-change-monitor.py": "6d66ed823ad9af492086c7647892868a50a91e09ffceb65df82d07db70767514",
     "tests/sdk-conformance/runners/session-foreground-completion-recovery.mjs": "d46a78e518b4499fcbe10bda3ecce17f47fa004f066971a3e36dfdb638d415fd",
     "tests/sdk-conformance/runners/session-foreground-completion-recovery.py": "fcfeb5d6a98ffecaef1c8c0318828c77bcdd3c5a1c72c4482a48bde3812f4074",
+    "tests/sdk-conformance/runners/session-message-window.mjs": "2a99e1ea39b36322a6115019b9f1b2855c9ae5526edbc546d8a5a32aa69eacd5",
+    "tests/sdk-conformance/runners/session-message-window.py": "1b387bbdfb931b1f8d0e2cd0bdb0696ffcf98d69812d67131748fae90bd95dcc",
     "tests/sdk-conformance/runners/session-plans-workflows.mjs": "dca252758818250cbd661207c1a5d5576e4b2ba6be530ca466807743ed52562a",
     "tests/sdk-conformance/runners/session-plans-workflows.py": "93d817f9b7740607502e83493829b8eb49020f9d4d9be460fa9958e0ea578ae3",
     "tests/sdk-conformance/runners/session-project-items.mjs": "a4d4cfd17c864cfe01e28f168c0190d708e639825c14a84acb16290dae19b7d7",
@@ -1298,6 +1402,9 @@
     "tests/sdk-conformance/session_work_server.py": "667bba84ac3ba4d373d748e2e04241cb60ffb32e24fd318c2869939127728c19",
     "tests/sdk-conformance/test_essential_session_server.py": "d758c2c3c41883d1332c1815222b3c323896b06dc8ace2c2c9a7bb93b12f1c68",
     "tests/sdk-conformance/test_inventory.py": "24c1b2aea691dbac6dd434ebe831c87e3290e8b8e3208a65cc45ff02bedc6cb3",
+    "tests/sdk-conformance/test_message_window_peer.py": "f7c3d15f229a7b21cc8227f45ab142eb720b2f8b20899c60c4d9e717335760e6",
+    "tests/sdk-conformance/test_message_window_runner.cjs": "e646e42258cc6aa7327752d82edda658d7244510a3f3cdd6c6e9cba3e73bab4e",
+    "tests/sdk-conformance/test_message_window_runner.py": "f73bb5ea7829e6111e72bf748e5defb4697fe34db848edcc18e50d5d698e205f",
     "tests/sdk-conformance/test_recovery_server.py": "b65606083a8967b8abe1148469bf581fc7e6c32e7637cfb08ca3febebc3029ad",
     "tests/sdk-conformance/test_session_auth.py": "6a2f30b865ffd5598b290e39920b76f017fa72b25a49d3c5970a514d6fedbc28",
     "tests/sdk-conformance/test_session_plans_workflows.py": "c1c6a06474e50189ec65c93946e7bf56c854357c486f6f1d77239e60a26a89a1",

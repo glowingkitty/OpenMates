@@ -447,12 +447,82 @@ def test_claimed_passes_without_actual_driver_launches_refused(tmp_path):
         sdk.gate_receipt(root, report, trust=synthetic_trust(root))
 
 
-def test_real_reviewed_contract_keeps_156_gaps_and_exact_54_by_615_plan():
+def test_real_reviewed_contract_preserves_54_by_615_and_adds_exact_three_window_adapters():
     trust = sdk.load_trust()
-    assert len(trust["gaps"]) == 156
-    assert len(trust["plan"]) == 54
-    assert sum(len(row["vectors"]) for row in trust["plan"]) == 615
-    assert "scripts/check_sdk_conformance.py" in trust["programs"]
+    assert len(trust["gaps"]) == 159
+    assert len(trust["plan"]) == 57
+    assert sum(len(row["vectors"]) for row in trust["plan"]) == 687
+    # Immutable original prefix: every old fixture/vector/language/hash survives.
+    assert (
+        sdk.sha(json.dumps(trust["plan"][:54], sort_keys=True).encode())
+        == "68483b1c2184d521ef87e7658e689d0703c51e279b12fde891a70630aa2fe293"
+    )
+    assert sum(len(row["vectors"]) for row in trust["plan"][:54]) == 615
+    assert (
+        sdk.sha(json.dumps(trust["gaps"][:156], sort_keys=True).encode())
+        == "4b3e7cbb6f2a985ce9b74e563c517a03c94d5303dbec62e29e578c7bb2008306"
+    )
+    added = trust["plan"][54:]
+    assert [row["language"] for row in added] == ["rust", "npm", "python"]
+    assert all(
+        row["capability"] == "session.message-window.v1"
+        and row["fixture"]
+        == "tests/sdk-conformance/fixtures/session-message-window.json"
+        and row["fixtureSha256"]
+        == "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556"
+        and len(row["vectors"]) == len(set(row["vectors"])) == 24
+        for row in added
+    )
+    assert all(row["vectors"] == added[0]["vectors"] for row in added)
+    assert sum(len(row["vectors"]) for row in added) == 72
+    assert all(
+        gap.startswith("session.message-window.v1 [") for gap in trust["gaps"][156:]
+    )
+
+
+def test_reviewed_window_pins_preserve_every_unrelated_program_and_contract():
+    trust = sdk.load_trust()
+    programs = copy.deepcopy(trust["programs"])
+    added = [
+        "packages/openmates-session-bindings/examples/session-message-window-conformance.rs",
+        "tests/sdk-conformance/message_window_server.py",
+        "tests/sdk-conformance/runners/session-message-window.mjs",
+        "tests/sdk-conformance/runners/session-message-window.py",
+        "tests/sdk-conformance/test_message_window_peer.py",
+        "tests/sdk-conformance/test_message_window_runner.cjs",
+        "tests/sdk-conformance/test_message_window_runner.py",
+    ]
+    assert len(programs) == 81
+    for name in added:
+        assert len(programs.pop(name)) == 64
+    assert (
+        programs["scripts/check_sdk_conformance.py"]
+        == "58f0e1b2721f89ed19c13efd27ee908e6fa0aaa7786a737cf0467bab6ec03dac"
+    )
+    programs["scripts/check_sdk_conformance.py"] = (
+        "a96148a8fbdf6a6406913cbe357137adf5eb77a5897361ea50851ca4ef1f2498"
+    )
+    assert (
+        sdk.sha(json.dumps(programs, sort_keys=True).encode())
+        == "950a80e183dd7ddb305aeb0cd403cca40a601c7eef7ce4b54319a9a35d2cf21b"
+    )
+    contracts = copy.deepcopy(trust["contracts"])
+    assert len(contracts) == 17
+    assert (
+        contracts.pop("tests/sdk-conformance/fixtures/session-message-window.json")
+        == "6ac93df9f8618b27256b0dd6b4542d6e4289d435dd595eed2c402f764b325556"
+    )
+    assert (
+        contracts["config/sdk-capabilities.json"]
+        == "310f1caf168c4f8b42e9533c8fc270fe16b17692ef849dfd242961738379697e"
+    )
+    contracts["config/sdk-capabilities.json"] = (
+        "8d8236ac9eeddcfb6f62dd85e9015c02e9fd9035ba171ff80238db9dc22bbe0e"
+    )
+    assert (
+        sdk.sha(json.dumps(contracts, sort_keys=True).encode())
+        == "3c081508f25d7dc489b20889dd77127c3d8055aa458eedf6cea9a98907033cf9"
+    )
 
 
 def test_raw_failure_log_retained_privately_but_only_closed_compiler_fields_export(tmp_path):
@@ -1078,3 +1148,104 @@ def test_failure_diagnostics_preserves_compiler_private_retention_exit_scope_and
     assert "never-export" not in json.dumps(actual)
     (private / "napi-build.log").write_bytes(data)
     assert "rustUnits" not in sdk.failure_diagnostics(private, root, "napi-build", inputs, [])
+
+
+def message_window_gate_fixture(tmp_path):
+    """Synthetic validator input only; never an actual library pass receipt."""
+    root, report = gate_fixture(tmp_path)
+    identity = "session.message-window.v1"
+    vectors = next(
+        row["vectors"]
+        for row in sdk.load_trust()["plan"]
+        if row["capability"] == identity
+    )
+    assert len(vectors) == 24
+    matrix_path = root / "config/sdk-capabilities.json"
+    matrix = json.loads(matrix_path.read_text())
+    matrix["capabilities"][0]["id"] = identity
+    matrix["fixture"] = "tests/sdk-conformance/window-synthetic.json"
+    raw = {
+        "capabilities": {identity: {"vectors": [{"id": value} for value in vectors]}}
+    }
+    fixture = root / matrix["fixture"]
+    fixture.write_text(json.dumps(raw))
+    matrix_path.write_text(json.dumps(matrix))
+    report["matrixSha256"] = sdk.sha(matrix_path.read_bytes())
+    report["openGaps"] = sdk.matrix_gaps(matrix)
+    report["conformance"] = [
+        {
+            "capability": identity,
+            "language": language,
+            "fixtureSha256": sdk.sha(fixture.read_bytes()),
+            "status": "passed",
+            "results": [{"id": value, "status": "passed"} for value in vectors],
+        }
+        for language in ("rust", "npm", "python")
+    ]
+    report["expectedPlan"] = sdk.execution_plan(root, matrix)
+    report["actualLaunches"] = [
+        {
+            "capability": row["capability"],
+            "language": row["language"],
+            "status": "passed",
+            "commandSha256": "d" * 64,
+        }
+        for row in report["expectedPlan"]
+    ]
+    return root, report
+
+
+def test_three_complete_window_validator_rows_remain_blocked_by_declared_gap(tmp_path):
+    root, report = message_window_gate_fixture(tmp_path)
+    result = sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+    assert result["realRunCount"] == 3 and result["vectorOutcomeCount"] == 72
+    assert result["openGapCount"] == 1 and result["releaseEligible"] is False
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing_adapter",
+        "duplicate_adapter",
+        "missing_vector",
+        "extra_vector",
+        "wrong_fixture",
+        "wrong_capability",
+        "wrong_language",
+        "plan_reordered",
+        "missing_launch",
+        "launch_reordered",
+        "gap_erased",
+        "release_claim",
+    ],
+)
+def test_window_admission_rejects_partial_forged_or_reordered_results(tmp_path, fault):
+    root, report = message_window_gate_fixture(tmp_path)
+    if fault == "missing_adapter":
+        report["conformance"].pop()
+    elif fault == "duplicate_adapter":
+        report["conformance"][1] = copy.deepcopy(report["conformance"][0])
+    elif fault == "missing_vector":
+        report["conformance"][0]["results"].pop()
+    elif fault == "extra_vector":
+        report["conformance"][0]["results"].append(
+            {"id": "invented-private", "status": "passed"}
+        )
+    elif fault == "wrong_fixture":
+        report["conformance"][0]["fixtureSha256"] = "f" * 64
+    elif fault == "wrong_capability":
+        report["conformance"][0]["capability"] = "unreviewed"
+    elif fault == "wrong_language":
+        report["conformance"][0]["language"] = "unreviewed"
+    elif fault == "plan_reordered":
+        report["expectedPlan"].reverse()
+    elif fault == "missing_launch":
+        report["actualLaunches"].pop()
+    elif fault == "launch_reordered":
+        report["actualLaunches"].reverse()
+    elif fault == "gap_erased":
+        report["openGaps"] = []
+    else:
+        report["releaseEligible"] = True
+    with pytest.raises(sdk.Refused):
+        sdk.gate_receipt(root, report, trust=synthetic_trust(root))
