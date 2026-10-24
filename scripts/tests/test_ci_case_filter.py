@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""The narrow recovery case selection preserves file fixtures and honest CI scope."""
+"""Approved exact case selection preserves file fixtures and honest CI scope."""
 
 import json
 import re
@@ -60,6 +60,8 @@ def test_playwright_receives_literal_exact_case_and_stats_are_partial(monkeypatc
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests
 
+    assert ci_run_tests.APPROVED_RECOVERY_CASES == ci_coordinator.APPROVED_RECOVERY_CASES
+
     assert ci_run_tests.playwright_case_args("") == []
     assert ci_run_tests.playwright_case_args(title) == ["--grep", re.escape(title) + "$"]
     pattern = ci_run_tests.playwright_case_args(title)[1]
@@ -112,12 +114,16 @@ def test_native_receipt_cannot_claim_full_spec_for_filtered_case(spec, title):
 def test_registered_recovery_titles_cannot_select_a_different_spec(tmp_path):
     queue = ci_coordinator.Queue(tmp_path / "queue.sqlite3")
     pairs = sorted(ci_coordinator.APPROVED_RECOVERY_CASES)
-    assert len(pairs) == 2
-    for index, (spec, title) in enumerate(pairs):
-        wrong_spec = pairs[1 - index][0]
-        with pytest.raises(ValueError, match="Case filter requires"):
-            queue.enqueue("owner", SOURCE, [wrong_spec], "e2e", case_title=title)
-        with pytest.raises(ValueError, match="Case filter requires"):
-            ci_coordinator.enqueue_submission(queue, "owner", SOURCE, [wrong_spec], "e2e", case_title=title)
+    assert len(pairs) == 3
+    assert ("startup-sync-contract.spec.ts",
+            "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads") in pairs
+    for spec, title in pairs:
+        for wrong_spec, _ in pairs:
+            if wrong_spec == spec:
+                continue
+            with pytest.raises(ValueError, match="Case filter requires"):
+                queue.enqueue("owner", SOURCE, [wrong_spec], "e2e", case_title=title)
+            with pytest.raises(ValueError, match="Case filter requires"):
+                ci_coordinator.enqueue_submission(queue, "owner", SOURCE, [wrong_spec], "e2e", case_title=title)
         with pytest.raises(ValueError, match="Case filter requires"):
             queue.enqueue("owner", SOURCE, [spec], "pytest", case_title=title)

@@ -39,6 +39,7 @@ COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed 
 APPROVED_RECOVERY_CASES = frozenset({
     ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
     ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+    ("startup-sync-contract.spec.ts", "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads"),
 })
 TERMINAL = ("success", "failure", "cancelled")
 
