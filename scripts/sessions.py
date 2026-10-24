@@ -4772,7 +4772,18 @@ def _archive_expired_worktree(record: dict) -> str:
                     info.mode = 0o600
                     output.addfile(info, io.BytesIO(payload))
                 for entry in entries:
-                    output.add(path / entry["path"], arcname=f"untracked/{entry['path']}", recursive=False)
+                    source = path / entry["path"]
+                    info = output.gettarinfo(source, arcname=f"untracked/{entry['path']}")
+                    if info.islnk():
+                        # Each manifest file must have its own verifiable payload.
+                        info.type = tarfile.REGTYPE
+                        info.linkname = ""
+                        info.size = entry["size"]
+                    if info.isfile():
+                        with source.open("rb") as payload:
+                            output.addfile(info, payload)
+                    else:
+                        output.addfile(info)
             raw.flush()
             os.fsync(raw.fileno())
         with tarfile.open(temporary, mode="r:gz") as verified:

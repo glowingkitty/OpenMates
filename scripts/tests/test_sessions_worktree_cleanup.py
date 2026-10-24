@@ -474,6 +474,7 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     subprocess.run(["git", "add", "tracked.txt"], cwd=path, check=True)
     (path / "tracked.txt").write_text("after\n", encoding="utf-8")
     (path / "new.txt").write_text("keep me\n", encoding="utf-8")
+    os.link(path / "new.txt", path / "hardlink.txt")
     (path / "link.txt").symlink_to("new.txt")
     (path / ".gitignore").write_text("node_modules/\nprivate.env\n", encoding="utf-8")
     (path / "node_modules").mkdir()
@@ -489,14 +490,19 @@ def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypa
     assert archive.stat().st_mode & 0o777 == 0o600
     with tarfile.open(archive, "r:gz") as saved:
         names = set(saved.getnames())
-        assert names == {"manifest.json", "staged.patch", "working.patch", "untracked/.gitignore", "untracked/new.txt", "untracked/link.txt", "untracked/private.env"}
+        assert names == {"manifest.json", "staged.patch", "working.patch", "untracked/.gitignore", "untracked/new.txt", "untracked/hardlink.txt", "untracked/link.txt", "untracked/private.env"}
         manifest = json.load(saved.extractfile("manifest.json"))
         assert b"staged" in saved.extractfile("staged.patch").read()
         assert b"after" in saved.extractfile("working.patch").read()
         assert saved.extractfile("untracked/new.txt").read() == b"keep me\n"
+        for name in ("untracked/new.txt", "untracked/hardlink.txt"):
+            assert saved.getmember(name).isfile()
+            assert not saved.getmember(name).islnk()
+            assert saved.extractfile(name).read() == b"keep me\n"
         assert saved.getmember("untracked/link.txt").linkname == "new.txt"
         assert saved.extractfile("untracked/private.env").read() == b"valuable\n"
     assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True).stdout.strip() == manifest["head"]
+    sessions._verify_expired_worktree_archive_snapshot({"path": str(path)}, str(archive))
     second_archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
     assert second_archive != archive
     assert archive.exists()
