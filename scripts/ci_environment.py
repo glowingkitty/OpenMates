@@ -46,6 +46,8 @@ DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct
 # enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
 # harness selector only strengthens network isolation; it grants no execution.
 PRIVATE_BACKEND_SPECS = frozenset({
+    "cli-rust-cli-performance.spec.ts",
+    "cli-rust-tui-performance.spec.ts",
     "cli-rust-tui-proof.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "rust-core-browser-session.spec.ts",

@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 NATIVE_SPEC = "cli-rust-tui-proof.spec.ts"
 ESSENTIAL_SPEC = "cli-rust-core-essential.spec.ts"
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
-PRIVATE_SPECS = (NATIVE_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC)
+PERFORMANCE_SPECS = ("cli-rust-cli-performance.spec.ts", "cli-rust-tui-performance.spec.ts")
+PRIVATE_SPECS = (NATIVE_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS)
 SOURCE_HASH = "a" * 40
 
 
@@ -80,7 +81,7 @@ def prepare_profile(
     return candidate, compose, json.loads(compose.read_text())
 
 
-@pytest.fixture(params=[NATIVE_SPEC, BROWSER_SPEC])
+@pytest.fixture(params=[NATIVE_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS])
 def generated_profile(tmp_path, monkeypatch, request):
     return prepare_profile(tmp_path, monkeypatch, [request.param])
 
@@ -117,6 +118,8 @@ def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(g
     [], ["cli-rust-tui-proof-extra.spec.ts"], ["nested/cli-rust-tui-proof.spec.ts"],
     ["cli-rust-core-essential-extra.spec.ts"], ["nested/cli-rust-core-essential.spec.ts"],
     ["rust-core-browser-session-extra.spec.ts"], ["nested/rust-core-browser-session.spec.ts"],
+    ["cli-rust-cli-performance-extra.spec.ts"], ["nested/cli-rust-cli-performance.spec.ts"],
+    ["cli-rust-tui-performance-extra.spec.ts"], ["nested/cli-rust-tui-performance.spec.ts"],
 ])
 def test_unknown_or_similar_spec_does_not_select_private_backend(tmp_path, monkeypatch, selected):
     _, _, profile = prepare_profile(tmp_path, monkeypatch, selected)
@@ -210,3 +213,16 @@ def test_essential_fixture_union_adds_only_private_replay_worker(tmp_path, monke
     evidence = json.loads((candidate / "test-results/ci-environment.json").read_text())
     assert evidence["source_commit"] == SOURCE_HASH
     assert evidence["harness_commit"] == "b" * 40
+
+
+def test_split_performance_specs_are_core_e2e_without_extra_fixture_or_unknown_name_admission():
+    from scripts import ci_coverage
+
+    names = ["cli-rust-cli-performance.spec.ts", "cli-rust-tui-performance.spec.ts"]
+    accepted, held = ci_coverage.partition(names)
+    assert accepted == names and held == {}
+    assert all(ci_coverage.execution_mode(name) == "e2e" for name in names)
+    for name in names:
+        assert name in runtime.PRIVATE_BACKEND_SPECS
+        assert name.replace(".spec.ts", "-extra.spec.ts") not in runtime.PRIVATE_BACKEND_SPECS
+    assert set(names).isdisjoint({"cli-rust-core-essential.spec.ts"})

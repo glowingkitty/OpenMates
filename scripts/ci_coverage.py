@@ -11,6 +11,9 @@ from pathlib import Path
 
 
 CORE_SPECS = frozenset({
+    # Exact-source paired performance only; private core auth/state, no inference.
+    "cli-rust-cli-performance.spec.ts",
+    "cli-rust-tui-performance.spec.ts",
     # Home galleries/filters use local preview fixtures; no account or inference.
     "components/home-search-details.spec.ts",
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.
