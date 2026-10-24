@@ -621,6 +621,15 @@ def has_team_storage_billing_schema(source_root: str | Path) -> bool:
     return (Path(source_root) / "backend/core/directus/schemas/team_storage_billing.yml").is_file()
 
 
+def web_read_fixture_selected(specs: list[str]) -> bool:
+    """The controlled-origin reader contract owns an exclusive runtime batch."""
+    if "web-read-public-page.spec.ts" not in specs:
+        return False
+    if specs != ["web-read-public-page.spec.ts"]:
+        raise ValueError("Public-page reader fixture requires its own standalone batch")
+    return True
+
+
 def compose_profile(
     source_hash: str,
     *,
@@ -645,8 +654,11 @@ def compose_profile(
     billing_profile: str | None = None,
     telemetry_proxy: bool = False,
     private_backend: bool = False,
+    web_read_fixture: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if web_read_fixture and public_provider:
+        raise ValueError("Public-page reader fixture cannot enable a provider proxy")
     if billing_profile not in (None, "legacy", "logical"):
         raise ValueError("Unknown isolated storage billing profile")
     storage_capacity = storage_capacity or billing_profile is not None
@@ -668,7 +680,7 @@ def compose_profile(
         raise ValueError("Target profile requires exactly 500 isolated worker slots")
     if workflow_runtime and (workflows or ai_fixtures or object_storage or offline_preview or storage_accountability or detached_docs):
         raise ValueError("Internal Workflow runtime cannot mix with weather or provider/storage profiles")
-    isolate_backend = private_backend or ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
+    isolate_backend = web_read_fixture or private_backend or ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -1150,6 +1162,38 @@ def compose_profile(
             services[name]["networks"] = ["default", "ingress"]
     if isolate_backend:
         profile["networks"] = {"default": {"internal": True}, "ingress": {}}
+    if web_read_fixture:
+        # Only this opt-in spec may reach the controlled HTTPS origin. Its
+        # public-shaped subnet is wholly internal: no external route or proxy.
+        if __package__:
+            from .ci_web_read_fixture import ADDRESS, HOSTNAME, SUBNET
+        else:
+            from ci_web_read_fixture import ADDRESS, HOSTNAME, SUBNET
+        fixture_dir = str(Path(SOURCE) / "test-results/ci-private/web-read-tls")
+        profile["networks"]["web-read-fixture"] = {
+            "internal": True, "ipam": {"config": [{"subnet": SUBNET}]},
+        }
+        api["networks"] = ["default", "web-read-fixture"]
+        api["extra_hosts"][HOSTNAME] = ADDRESS
+        api["environment"]["SSL_CERT_FILE"] = "/ci-web-read/ca.pem"
+        api["volumes"].append(f"{fixture_dir}/ca.pem:/ci-web-read/ca.pem:ro")
+        api["depends_on"]["web-read-origin"] = {"condition": "service_healthy"}
+        services["web-read-origin"] = {
+            "image": "openmates-ci-api:local",
+            "command": ["python", "/ci_web_read_fixture.py", "serve", "/tls"],
+            "environment": {"OPENMATES_CI_WEB_READ_FIXTURE": "github-isolated"},
+            "volumes": [f"{Path(__file__).with_name('ci_web_read_fixture.py').resolve()}:/ci_web_read_fixture.py:ro",
+                        f"{fixture_dir}:/tls:ro"],
+            "networks": {"web-read-fixture": {"ipv4_address": ADDRESS}},
+            "ports": ["127.0.0.1:8443:443"],
+            "mem_limit": 96 * MIB, "pids_limit": 64, "restart": "no",
+            "healthcheck": {"test": ["CMD", "python", "-c",
+                "import ssl,urllib.request; c=ssl.create_default_context(cafile='/tls/ca.pem'); "
+                "r=urllib.request.urlopen('https://read-page.ci.test/__health',context=c,timeout=3); assert r.status==200"],
+                "interval": "2s", "timeout": "5s", "retries": 20},
+            "extra_hosts": {HOSTNAME: ADDRESS},
+            "labels": {"org.openmates.source": source_hash},
+        }
     return profile
 
 
@@ -1452,7 +1496,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)), web_read_fixture=web_read_fixture_selected(selected))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -1480,6 +1524,12 @@ def main():
             if billing_private.is_symlink():
                 raise RuntimeError("Storage billing private mount cannot be a symlink")
             billing_private.chmod(0o700)
+        if "web-read-public-page.spec.ts" in selected:
+            if __package__:
+                from .ci_web_read_fixture import prepare_tls
+            else:
+                from ci_web_read_fixture import prepare_tls
+            prepare_tls(COMPOSE_PATH.parent / "web-read-tls")
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
         evidence = {
