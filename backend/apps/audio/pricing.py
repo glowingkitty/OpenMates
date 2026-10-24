@@ -34,12 +34,14 @@ BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE = 3
 REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE = Decimal("0.008")
 REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER = Decimal("1.20")
 USD_PER_CREDIT = Decimal("0.001")
-# Billing accepts whole credits: $0.008 × 1.20 rounds up to ten credits/minute.
-REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE = math.ceil(
+# Keep the published rate in whole credits per minute; settlement prorates
+# measured seconds and rounds the final credit total only once.
+REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE = math.ceil(
     REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE
     * REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER
     / USD_PER_CREDIT
 )
+REALTIME_TRANSCRIPTION_MINIMUM_CREDITS = 1
 SPEECH_MODEL_CREDITS_PER_SECOND = {
     LOW_COST_SPEECH_MODEL: 2,
     MULTILINGUAL_SPEECH_MODEL: 4,
@@ -53,6 +55,22 @@ def _duration_credits(*, duration_seconds: float, credits_per_second: int) -> in
     if duration_seconds <= 0:
         return 0
     return max(1, math.ceil(duration_seconds * credits_per_second))
+
+
+def calculate_realtime_transcription_credits(*, duration_seconds: float) -> int:
+    """Prorate the published minute rate without rounding up audio duration."""
+    if not math.isfinite(duration_seconds):
+        raise ValueError("Transcription duration must be finite")
+    if duration_seconds <= 0:
+        return 0
+    return max(
+        REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
+        math.ceil(
+            Decimal(str(duration_seconds))
+            * REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE
+            / SECONDS_PER_MINUTE
+        ),
+    )
 
 
 def calculate_sound_effect_credits(*, duration_seconds: float) -> int:

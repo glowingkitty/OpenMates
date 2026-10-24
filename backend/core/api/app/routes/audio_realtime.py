@@ -12,7 +12,6 @@ import base64
 import hashlib
 import json
 import logging
-import math
 import os
 import struct
 import uuid
@@ -22,9 +21,11 @@ import aiohttp
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 
 from backend.apps.audio.pricing import (
-    REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
+    REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE,
+    REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
     REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
     REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
+    calculate_realtime_transcription_credits,
 )
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
@@ -62,7 +63,7 @@ PCM_BYTES_PER_SECOND = PCM_SAMPLE_RATE * 2
 MAX_CHUNK_BYTES = 256 * 1024
 MAX_AUDIO_SECONDS = 20 * 60
 LOCK_TTL_SECONDS = MAX_AUDIO_SECONDS + 120
-REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE
+REALTIME_CREDITS_PER_MINUTE = REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE
 REALTIME_USAGE_TYPE = "realtime_transcription"
 INTERRUPTED_REALTIME_USAGE_TYPE = "realtime_transcription_interrupted"
 
@@ -155,12 +156,14 @@ async def _bill_realtime_usage(
     chat_id: Optional[str],
     interrupted: bool = False,
 ) -> None:
-    if audio_seconds <= 0:
+    credits_to_charge = calculate_realtime_transcription_credits(
+        duration_seconds=audio_seconds
+    )
+    if credits_to_charge == 0:
         return
-    billed_minutes = max(1, math.ceil(audio_seconds / 60))
     usage_details: dict[str, Any] = {
         "duration_seconds": audio_seconds,
-        "billed_minutes": billed_minutes,
+        "billing_unit": "second",
         "requests_transcribed": 1,
         "model": MISTRAL_REALTIME_MODEL,
         "provider_cost_usd_per_minute": float(
@@ -169,7 +172,8 @@ async def _bill_realtime_usage(
         "price_markup_percent": int(
             (REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER - 1) * 100
         ),
-        "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
+        "credits_per_minute": REALTIME_CREDITS_PER_MINUTE,
+        "minimum_credits": REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
         "usage_type": (
             INTERRUPTED_REALTIME_USAGE_TYPE if interrupted else REALTIME_USAGE_TYPE
         ),
@@ -180,7 +184,7 @@ async def _bill_realtime_usage(
     await billing.charge_user_credits(
         user_id=user_id,
         user_id_hash=user_id_hash,
-        credits_to_deduct=billed_minutes * REALTIME_CREDITS_PER_MINUTE,
+        credits_to_deduct=credits_to_charge,
         app_id="audio",
         skill_id="transcribe",
         idempotency_key=f"audio-realtime:{request_id}",
@@ -333,7 +337,7 @@ async def realtime_transcription(
     if (
         is_payment_enabled()
         and isinstance(credits, (int, float))
-        and credits < REALTIME_CREDITS_PER_MINUTE
+        and credits < REALTIME_TRANSCRIPTION_MINIMUM_CREDITS
     ):
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION, reason="Not enough credits"

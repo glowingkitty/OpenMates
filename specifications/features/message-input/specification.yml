@@ -406,7 +406,7 @@ assertions:
   depends_on: [examples.composer_ghost]
 - id: message-input.audio.realtime-voxtral3
   type: behavior
-  must: Web microphone dictation streams through the authenticated first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Realtime transcription retains the existing 20 percent markup policy at ten credits per started minute with idempotent settlement.
+  must: Web microphone dictation streams through the authenticated first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation.
   depends_on: [examples.voxtral3_dictation]
 
 

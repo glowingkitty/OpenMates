@@ -327,14 +327,14 @@ october_apple_privacy:
 voxtral3_dictation:
 - id: preview-and-editable-result
   assertion_ids: [message-input.audio.realtime-voxtral3]
-  given: A signed-in user starts microphone dictation in an unsent draft.
-  when: The user speaks and then stops the recording.
-  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation.
+  given: A signed-in user with one credit starts microphone dictation in an unsent draft.
+  when: The user speaks for one second and then stops the recording.
+  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation. The recording settles once for one credit.
 - id: realtime-price-and-separate-batch
   assertion_ids: [message-input.audio.realtime-voxtral3]
-  given: A user streams 61 seconds of dictation and later transcribes an uploaded file with the Audio transcribe app skill.
-  when: The dictation usage settles and the uploaded-file request is processed.
-  then: Dictation settles once for twenty credits using the Voxtral 3 realtime model. The separate app skill retains its existing model and three-credit-per-started-minute price.
+  given: A user streams 10 seconds of dictation, disconnects after 61 seconds of another recording, ends an empty recording, and later transcribes an uploaded file with the Audio transcribe app skill.
+  when: The completed and interrupted dictation usage settles and the uploaded-file request is processed.
+  then: The positive-duration dictation recordings settle once each for two and eleven credits respectively; the empty recording costs zero. The published dictation price remains ten credits per minute. The separate app skill retains its existing model and three-credit-per-started-minute price.
 
 single_line_recording:
 - id: long-desktop-dictation
