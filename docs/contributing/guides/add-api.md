@@ -1,11 +1,34 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-10-24
 ---
 
 # API Integration — Reference
 
-Full test script templates, documentation format, and Firecrawl fallback guide.
+Provider access policy, test script templates, and documentation format.
+
+## Permitted Access
+
+Implement external data integrations only through a provider-supported documented
+API, an explicitly licensed open-data feed, or written authorization covering the
+intended automated access and downstream use. Published official API terms or a
+feed licence are sufficient when they permit that use. Separate company contact
+or a partnership is not required unless the terms require it or the proposed use
+remains unclear; do not contact providers without user instruction.
+
+Before implementation, record the documentation/terms/licence URL and review
+date, the exact permitted interface and the relevant conditions for commercial
+use, display/redistribution, retention, attribution, privacy and rate limits.
+An API sold by an intermediary is not evidence of the required source-use rights
+by itself. Undocumented browser/mobile endpoints, public availability, browser
+automation, low request volume and silence in terms do not establish permission.
+Do not bypass source access controls. Platform-specific scraping requires the
+written authorization described above.
+
+If no permitted interface exists, report the capability gap and propose a
+documented API or licensed-data alternative. Do not replace the missing interface
+with a scraper, proxy, browser workflow or platform-specific agent instructions.
+Respectful request rates, `robots.txt` and fragility warnings are not permission.
 
 ---
 
@@ -91,6 +114,11 @@ if __name__ == "__main__":
 ## Overview
 Brief description of what the API does and why we're using it.
 
+## Access and Reuse Permission
+- Basis: provider-supported API terms, explicit feed licence, or written authorization
+- Documentation/terms/licence URL and review date
+- Scope and relevant commercial-use, display, retention and attribution conditions
+
 ## Authentication
 - Type: (API key / OAuth2 / etc.)
 - Vault key name: `<VAULT_KEY_NAME>`
@@ -125,35 +153,13 @@ Brief description of what the API does and why we're using it.
 
 ---
 
-## Firecrawl Reverse-Engineering (When No Official API)
-
-1. Use official docs, Brave, and WebFetch first.
-2. Use Firecrawl only when those cannot inspect the needed JS-heavy or dynamic
-   page; keep crawl/scrape limits tight and record why it was necessary.
-3. If Firecrawl is necessary, use `firecrawl_map` for a narrow site slice and
-   `firecrawl_scrape` with JSON format + schema to extract data.
-4. Test across multiple pages/examples.
-5. Follow same test script structure, add `--url` parameter.
-6. Add fragility warning section to docs:
-
-```markdown
-## Reverse-Engineered Integration Warning
-
-NOT based on an official API. Uses web scraping via Firecrawl.
-
-### Fragility: Site redesigns break extraction. No format stability guarantee.
-### Maintenance: Monitor for failures, re-test monthly, keep selectors documented.
-### Legal: Check robots.txt and ToS. Implement respectful rate limiting. Cache aggressively.
-```
-
----
-
 ## Checklist
 
 - [ ] Research completed (or user provided details)
+- [ ] Permitted access and downstream use documented with source URL and review date
+- [ ] Applicable commercial-use, display, retention, attribution, privacy and rate-limit conditions recorded
 - [ ] User confirmed approach
 - [ ] Test script at `scripts/api_tests/test_<provider>_api.py`
 - [ ] Script supports `--api-key`, `--test`, `--list`
 - [ ] All test cases pass
 - [ ] Summary at `docs/apis/<provider>.md`
-- [ ] If reverse-engineered: fragility warnings documented

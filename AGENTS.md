@@ -11,6 +11,20 @@ Frontend: Svelte/TypeScript, `frontend/apps/web_app`, `frontend/packages/ui`.
 Backend: Python/FastAPI, `backend/apps`, `backend/core`, `backend/shared`.
 Read relevant source/tests, reuse utilities and keep patches focused.
 
+External data integrations must use provider-supported documented APIs,
+explicitly licensed open-data feeds, or written authorization covering the
+intended access and downstream use. Published official API terms or a feed
+licence suffice when they permit that use; separate provider outreach is not
+required unless the terms require it or the intended use remains unclear.
+Record the permission source and respect its commercial-use, display, retention,
+attribution and rate-limit conditions. Do not substitute undocumented website or
+mobile endpoints, platform-specific scraping, access-control evasion, or an
+intermediary without the necessary source-use rights. Browser automation, low
+volume and silence in terms do not establish permission. If no permitted route
+exists, report the capability gap instead of implementing a fallback; contact
+providers only when instructed by the user. See
+`docs/contributing/guides/add-api.md`.
+
 Client architecture: shared Rust owns reusable headless operations, crypto, auth,
 storage policy, sync/reconnect/recovery; CLI/TUI is native Rust, web and Apple keep
 thin UI/platform adapters. Load `.claude/rules/cli-sdk.md` for client/SDK work.
