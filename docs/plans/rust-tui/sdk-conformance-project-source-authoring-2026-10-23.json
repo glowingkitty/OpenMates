@@ -1,0 +1,2833 @@
+{
+  "status": "migration-gaps",
+  "matrixSha256": "4568b7d07e4ee52bb0ac1d79ac2a3eceb9ad680869bbe5416c33f7f7a80e8258",
+  "publicApiInventorySha256": "4678f050f602d0e79d6272e7ade82560f74e6ddb4f9afc6a0646a5e632a3cddc",
+  "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+  "fixtureSha256ByCapability": {
+    "crypto.aes-gcm-combined.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+    "crypto.recovery-envelope.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+    "crypto.slug-lookup.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+    "protocol.generated-skills.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+    "session.native-boundary.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+    "session.password-totp-rotation.v1": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
+    "session.recovery-replay.v1": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
+    "protocol.project-create.v1": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
+    "session.work-crud.v1": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
+    "session.plans-workflows.v1": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
+    "session.anonymous-stream.v1": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+    "session.project-items.v1": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+    "local.privacy.v1": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+    "local.task-order.v1": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
+    "session.project-task-watch.v1": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
+    "session.project-source-authoring.v1": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724"
+  },
+  "publicApis": {
+    "npm": 1485,
+    "python": 1098,
+    "rust": 1414
+  },
+  "openGaps": [
+    "sdk.account [rust] partial: Typed Rust account reads/preferences exist; equivalent complete account, deletion/export, privacy and error-boundary conformance remain unverified.",
+    "sdk.account [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.account [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.anonymous [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.anonymous [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.anonymous [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.api-keys [rust] partial: Cookie-auth typed list/create-full-access-unlimited-no-expiration/revoke and one-time secret-safe output exist with focused mocked tests. Limited grants/policies, interactive reauthentication, bearer-management/device/session operations, complete facade parity and shared cross-language conformance remain unsupported or unverified.",
+    "sdk.api-keys [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.api-keys [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.apps [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.apps [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.apps [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.benchmark [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.benchmark [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.benchmark [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.billing [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.billing [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.billing [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.chats [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.chats [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.chats [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.configuration [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.configuration [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.configuration [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.connected-accounts [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.connected-accounts [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.connected-accounts [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.design [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.design [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.design [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.docs [rust] partial: Public credential-free typed documentation list/search/get and slug validation exist with focused tests. Complete namespace/facade parity, independent cross-language semantic fixtures, live backend compatibility and full error/download behavior remain unverified.",
+    "sdk.docs [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.docs [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.drafts [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.drafts [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.drafts [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.embeds [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.embeds [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.embeds [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.feedback [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.feedback [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.feedback [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.finance [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.finance [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.finance [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.history [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.history [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.history [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.ideabucket [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.ideabucket [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.ideabucket [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.inspirations [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.inspirations [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.inspirations [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.key-management [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.key-management [npm] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.key-management [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.learning-mode [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.learning-mode [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.learning-mode [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.memories [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.memories [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.memories [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.models [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.models [npm] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.models [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.new-chat-suggestions [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.new-chat-suggestions [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.new-chat-suggestions [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.notifications [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.notifications [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.notifications [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.plans [rust] partial: Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
+    "sdk.plans [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.plans [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.privacy-policy [rust] partial: Full SDK privacy-policy parity, enhanced anonymization and all session/stream policy boundaries remain incomplete; local.privacy.v1 is a separately registered bounded facet.",
+    "sdk.privacy-policy [npm] partial: Full SDK privacy-policy parity, enhanced anonymization and all session/stream policy boundaries remain incomplete; local.privacy.v1 is a separately registered bounded facet.",
+    "sdk.privacy-policy [python] partial: Full SDK privacy-policy parity, enhanced anonymization and all session/stream policy boundaries remain incomplete; local.privacy.v1 is a separately registered bounded facet.",
+    "sdk.projects [rust] partial: Typed Project CRUD/settings/ask and encrypted item listing/confirmed unlinking exist. Item scripting/projection/scope/permission/cancellation/receipt fixtures are focused local coverage; positive unlink with preserved target, live backend behavior and cross-language item parity remain unverified. API-key unlink refuses before network because the backend route is Cookie-only; interactive TTY confirmation remains a CLI gap. Complete public family parity, shared selectors/error/recovery coverage and filesystem/focus execution remain unverified.",
+    "sdk.projects [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.projects [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.public-utilities [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.public-utilities [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.public-utilities [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.reminders [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.reminders [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.reminders [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage. Native Cookie metadata search and Personal draft clearing exist with focused fixtures; full older-chat census, Team draft clear, API-key/facade and npm/Python exposure remain incomplete. Complete cross-language operation/send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified.",
+    "sdk.session-client [npm] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
+    "sdk.session-client [python] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
+    "sdk.settings [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.settings [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.settings [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.tasks [rust] partial: Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
+    "sdk.tasks [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.tasks [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.teams [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.teams [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.teams [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.transport [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.transport [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.transport [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.wikipedia [rust] partial: Explicit session-auth title search/summary/learning methods exist with backend-default routing and learning policy gates. API-key Wiki transport, namespace facade parity, complete error/privacy behavior, real learning/inference and shared cross-language conformance remain unverified.",
+    "sdk.wikipedia [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.wikipedia [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.workflows [rust] partial: Typed graph/CRUD/YAML/run/input/ask/template/project-link APIs and focused mocked tests exist; shared cross-language Workflow family conformance, live execution and complete encryption/error/recovery behavior remain unverified.",
+    "sdk.workflows [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.workflows [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.native-artifacts [rust] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "sdk.native-artifacts [npm] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "sdk.native-artifacts [python] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "session.password-totp-rotation.v1 [rust] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.password-totp-rotation.v1 [npm] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.password-totp-rotation.v1 [python] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.recovery-replay.v1 [rust] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "session.recovery-replay.v1 [npm] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "session.recovery-replay.v1 [python] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "protocol.project-create.v1 [rust] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-create.v1 [npm] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-create.v1 [python] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-task-sync.v1 [rust] partial: Scoped shared reducer and direct Cookie Personal/Team watch APIs are registered with a bounded synthetic-peer facet. Live backend compatibility, complete foreground remote-access lifecycle, all race/recovery timings and platform artifacts remain unverified. API-key watch is explicitly unavailable with project_task_watch_unavailable / PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION.",
+    "protocol.project-task-sync.v1 [npm] partial: Scoped shared reducer and direct Cookie Personal/Team watch APIs are registered with a bounded synthetic-peer facet. Live backend compatibility, complete foreground remote-access lifecycle, all race/recovery timings and platform artifacts remain unverified. API-key watch is explicitly unavailable with project_task_watch_unavailable / PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION.",
+    "protocol.project-task-sync.v1 [python] partial: Scoped shared reducer and direct Cookie Personal/Team watch APIs are registered with a bounded synthetic-peer facet. Live backend compatibility, complete foreground remote-access lifecycle, all race/recovery timings and platform artifacts remain unverified. API-key watch is explicitly unavailable with project_task_watch_unavailable / PROJECT_TASK_WATCH_REQUIRES_COOKIE_SESSION.",
+    "session.work-crud.v1 [rust] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "session.work-crud.v1 [npm] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "session.work-crud.v1 [python] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "protocol.project-remote-crypto.v1 [rust] partial: Eight focused Rust unit cases establish bounded handshake/envelope primitives; cross-language shared fixtures, actual foreground session/source-host integration, authorization/revocation lifecycle and interoperable npm/Python SDK counterparts remain unverified.",
+    "protocol.project-remote-crypto.v1 [npm] missing: Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established; retained CLI remote crypto is application-owned.",
+    "protocol.project-remote-crypto.v1 [python] missing: Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established.",
+    "session.plans-workflows.v1 [rust] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.plans-workflows.v1 [npm] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.plans-workflows.v1 [python] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [rust] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [npm] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [python] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified.",
+    "session.project-items.v1 [rust] partial: Eleven synthetic-peer vectors cover encrypted projection, explicit scope, confirmation, permissions, receipts, credential rotation and cancellation. Actual nonempty linked-item and Team-member backend behavior, API-key facade equivalence, all recovery/race timings and native platform artifacts remain unverified.",
+    "session.project-items.v1 [npm] partial: Eleven synthetic-peer vectors cover encrypted projection, explicit scope, confirmation, permissions, receipts, credential rotation and cancellation. Actual nonempty linked-item and Team-member backend behavior, API-key facade equivalence, all recovery/race timings and native platform artifacts remain unverified.",
+    "session.project-items.v1 [python] partial: Eleven synthetic-peer vectors cover encrypted projection, explicit scope, confirmation, permissions, receipts, credential rotation and cancellation. Actual nonempty linked-item and Team-member backend behavior, API-key facade equivalence, all recovery/race timings and native platform artifacts remain unverified.",
+    "session.project-task-watch.v1 [rust] partial: Bounded synthetic-peer registration only. Live backend Personal/Team watch compatibility, all authority/recovery/control race timings, complete foreground host integration and platform artifacts remain unverified; API-key watch admission is explicitly unavailable.",
+    "session.project-task-watch.v1 [npm] partial: Bounded synthetic-peer registration only. Live backend Personal/Team watch compatibility, all authority/recovery/control race timings, complete foreground host integration and platform artifacts remain unverified; API-key watch admission is explicitly unavailable.",
+    "session.project-task-watch.v1 [python] partial: Bounded synthetic-peer registration only. Live backend Personal/Team watch compatibility, all authority/recovery/control race timings, complete foreground host integration and platform artifacts remain unverified; API-key watch admission is explicitly unavailable.",
+    "session.project-source-authoring.v1 [rust] partial: Bounded source-authoring fixture registration only. Full foreground source host/filesystem/terminal lifecycle, live backend role and ownership behavior, all cancellation/recovery races and platform parity remain unverified. API-key source authoring is explicitly unavailable with project_source_authoring_unavailable / PROJECT_SOURCE_AUTHORING_REQUIRES_COOKIE_SESSION.",
+    "session.project-source-authoring.v1 [npm] partial: Bounded source-authoring fixture registration only. Full foreground source host/filesystem/terminal lifecycle, live backend role and ownership behavior, all cancellation/recovery races and platform parity remain unverified. API-key source authoring is explicitly unavailable with project_source_authoring_unavailable / PROJECT_SOURCE_AUTHORING_REQUIRES_COOKIE_SESSION.",
+    "session.project-source-authoring.v1 [python] partial: Bounded source-authoring fixture registration only. Full foreground source host/filesystem/terminal lifecycle, live backend role and ownership behavior, all cancellation/recovery races and platform parity remain unverified. API-key source authoring is explicitly unavailable with project_source_authoring_unavailable / PROJECT_SOURCE_AUTHORING_REQUIRES_COOKIE_SESSION."
+  ],
+  "conformance": [
+    {
+      "capability": "crypto.aes-gcm-combined.v1",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "language": "rust",
+      "results": [
+        {
+          "id": "legacy-iv-ciphertext",
+          "status": "passed"
+        },
+        {
+          "id": "browser-om-fnv-header",
+          "status": "passed"
+        },
+        {
+          "id": "historical-python-constant-header",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-short-before-framed-minimum",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-large-private-text-bound",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "crypto.aes-gcm-combined.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "legacy-iv-ciphertext",
+          "status": "passed"
+        },
+        {
+          "id": "browser-om-fnv-header",
+          "status": "passed"
+        },
+        {
+          "id": "historical-python-constant-header",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-short-before-framed-minimum",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-large-private-text-bound",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "crypto.aes-gcm-combined.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "legacy-iv-ciphertext",
+          "status": "passed"
+        },
+        {
+          "id": "browser-om-fnv-header",
+          "status": "passed"
+        },
+        {
+          "id": "historical-python-constant-header",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-wrong-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-current-fingerprint-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-empty",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-historical-python-marker-text",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-short-before-framed-minimum",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-om-iv-large-private-text-bound",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "crypto.recovery-envelope.v1",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "language": "rust",
+      "results": [
+        {
+          "id": "sequential-key-existing-chat-v1",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "crypto.recovery-envelope.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "sequential-key-existing-chat-v1",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "crypto.recovery-envelope.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "sequential-key-existing-chat-v1",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "crypto.slug-lookup.v1",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "language": "rust",
+      "results": [
+        {
+          "id": "unicode-object-slug",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-object-slug",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "crypto.slug-lookup.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "unicode-object-slug",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-object-slug",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "crypto.slug-lookup.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "unicode-object-slug",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-object-slug",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "protocol.generated-skills.v1",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "language": "rust",
+      "results": [
+        {
+          "id": "generated-web-search",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "protocol.generated-skills.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "generated-web-search",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "protocol.generated-skills.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "generated-web-search",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.native-boundary.v1",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "language": "rust",
+      "results": [
+        {
+          "id": "explicit-session-policy",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.native-boundary.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "explicit-session-policy",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.native-boundary.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
+      "results": [
+        {
+          "id": "explicit-session-policy",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.password-totp-rotation.v1",
+      "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
+      "language": "rust",
+      "results": [
+        {
+          "id": "password-v2-serialized-cookie-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "password-v2-totp-challenge-and-retry",
+          "status": "passed"
+        },
+        {
+          "id": "rotation-headers-survive-invalid-body",
+          "status": "passed"
+        },
+        {
+          "id": "logout-clears-session-on-remote-failure",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.password-totp-rotation.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
+      "results": [
+        {
+          "id": "password-v2-serialized-cookie-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "password-v2-totp-challenge-and-retry",
+          "status": "passed"
+        },
+        {
+          "id": "rotation-headers-survive-invalid-body",
+          "status": "passed"
+        },
+        {
+          "id": "logout-clears-session-on-remote-failure",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.password-totp-rotation.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
+      "results": [
+        {
+          "id": "password-v2-serialized-cookie-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "password-v2-totp-challenge-and-retry",
+          "status": "passed"
+        },
+        {
+          "id": "rotation-headers-survive-invalid-body",
+          "status": "passed"
+        },
+        {
+          "id": "logout-clears-session-on-remote-failure",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.recovery-replay.v1",
+      "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
+      "language": "rust",
+      "results": [
+        {
+          "id": "leased-commit-fresh-version",
+          "status": "passed"
+        },
+        {
+          "id": "terminal-canonical-reread",
+          "status": "passed"
+        },
+        {
+          "id": "commit-ack-loss-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "lease-generation-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "lease-identity-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "sealed-envelope-tamper",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-key-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-version-regression",
+          "status": "passed"
+        },
+        {
+          "id": "persist-server-error",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-digest-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-while-lease-await",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.recovery-replay.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
+      "results": [
+        {
+          "id": "leased-commit-fresh-version",
+          "status": "passed"
+        },
+        {
+          "id": "terminal-canonical-reread",
+          "status": "passed"
+        },
+        {
+          "id": "commit-ack-loss-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "lease-generation-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "lease-identity-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "sealed-envelope-tamper",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-key-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-version-regression",
+          "status": "passed"
+        },
+        {
+          "id": "persist-server-error",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-digest-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-while-lease-await",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.recovery-replay.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
+      "results": [
+        {
+          "id": "leased-commit-fresh-version",
+          "status": "passed"
+        },
+        {
+          "id": "terminal-canonical-reread",
+          "status": "passed"
+        },
+        {
+          "id": "commit-ack-loss-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "lease-generation-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "lease-identity-rejected",
+          "status": "passed"
+        },
+        {
+          "id": "sealed-envelope-tamper",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-key-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "metadata-version-regression",
+          "status": "passed"
+        },
+        {
+          "id": "persist-server-error",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-digest-mismatch",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-while-lease-await",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "protocol.project-create.v1",
+      "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
+      "language": "rust",
+      "results": [
+        {
+          "id": "personal-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "missing-name-no-create-post",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "protocol.project-create.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
+      "results": [
+        {
+          "id": "personal-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "missing-name-no-create-post",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "protocol.project-create.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
+      "results": [
+        {
+          "id": "personal-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-defaults",
+          "status": "passed"
+        },
+        {
+          "id": "missing-name-no-create-post",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.work-crud.v1",
+      "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
+      "language": "rust",
+      "results": [
+        {
+          "id": "tasks-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "tasks-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "policy-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "close-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-boundary",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.work-crud.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
+      "results": [
+        {
+          "id": "tasks-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "tasks-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "policy-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "close-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-boundary",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.work-crud.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
+      "results": [
+        {
+          "id": "tasks-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "tasks-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "projects-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "policy-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "close-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-boundary",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.plans-workflows.v1",
+      "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
+      "language": "rust",
+      "results": [
+        {
+          "id": "plans-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "run-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "failed-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "bad_identity-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "timeout-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "local-cancel-workflow-wait",
+          "status": "passed"
+        },
+        {
+          "id": "http_error-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "strict-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "consent-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.plans-workflows.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
+      "results": [
+        {
+          "id": "plans-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "run-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "failed-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "bad_identity-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "timeout-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "local-cancel-workflow-wait",
+          "status": "passed"
+        },
+        {
+          "id": "http_error-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "strict-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "consent-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.plans-workflows.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946",
+      "results": [
+        {
+          "id": "plans-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-personal-crud",
+          "status": "passed"
+        },
+        {
+          "id": "workflows-team-crud",
+          "status": "passed"
+        },
+        {
+          "id": "run-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "failed-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "bad_identity-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "timeout-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "local-cancel-workflow-wait",
+          "status": "passed"
+        },
+        {
+          "id": "http_error-workflow-run",
+          "status": "passed"
+        },
+        {
+          "id": "strict-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "scope-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "consent-boundary",
+          "status": "passed"
+        },
+        {
+          "id": "confirmation-boundary",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.anonymous-stream.v1",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "language": "rust",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.anonymous-stream.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.anonymous-stream.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-items.v1",
+      "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+      "language": "rust",
+      "results": [
+        {
+          "id": "personal-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "personal-chat-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "team-embed-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "workflow-unlink-noop-exact-receipt",
+          "status": "passed"
+        },
+        {
+          "id": "strict-confirmation-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "explicit-scope-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cross-project-child-refused",
+          "status": "passed"
+        },
+        {
+          "id": "missing-manage-permission-no-delete",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-unlink-receipt-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "queued-cancel-fences-unlink-retains-cookie",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.project-items.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+      "results": [
+        {
+          "id": "personal-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "personal-chat-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "team-embed-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "workflow-unlink-noop-exact-receipt",
+          "status": "passed"
+        },
+        {
+          "id": "strict-confirmation-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "explicit-scope-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cross-project-child-refused",
+          "status": "passed"
+        },
+        {
+          "id": "missing-manage-permission-no-delete",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-unlink-receipt-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "queued-cancel-fences-unlink-retains-cookie",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-items.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "4ff18d65745326d4909f1a89eaafee4c94ca312be1f4dc892d1ed649c0b84867",
+      "results": [
+        {
+          "id": "personal-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "team-encrypted-projection",
+          "status": "passed"
+        },
+        {
+          "id": "personal-chat-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "team-embed-unlink-preserves-target",
+          "status": "passed"
+        },
+        {
+          "id": "workflow-unlink-noop-exact-receipt",
+          "status": "passed"
+        },
+        {
+          "id": "strict-confirmation-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "explicit-scope-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cross-project-child-refused",
+          "status": "passed"
+        },
+        {
+          "id": "missing-manage-permission-no-delete",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-unlink-receipt-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "queued-cancel-fences-unlink-retains-cookie",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "local.privacy.v1",
+      "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+      "language": "rust",
+      "results": [
+        {
+          "id": "known-reuse-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "longest-known-match",
+          "status": "passed"
+        },
+        {
+          "id": "fresh-email-repeated",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-personal-memory",
+          "status": "passed"
+        },
+        {
+          "id": "category-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled-known-still-private",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-token-shield",
+          "status": "passed"
+        },
+        {
+          "id": "restore-one-pass",
+          "status": "passed"
+        },
+        {
+          "id": "restore-ordinary-literal",
+          "status": "passed"
+        },
+        {
+          "id": "restore-missing",
+          "status": "passed"
+        },
+        {
+          "id": "restore-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "enhanced-refused",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-mapping-filter",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-mapping-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-under",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-allocation-refused",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-exact",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-over",
+          "status": "passed"
+        },
+        {
+          "id": "restore-repeated-token-allocation-refused",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "local.privacy.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+      "results": [
+        {
+          "id": "known-reuse-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "longest-known-match",
+          "status": "passed"
+        },
+        {
+          "id": "fresh-email-repeated",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-personal-memory",
+          "status": "passed"
+        },
+        {
+          "id": "category-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled-known-still-private",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-token-shield",
+          "status": "passed"
+        },
+        {
+          "id": "restore-one-pass",
+          "status": "passed"
+        },
+        {
+          "id": "restore-ordinary-literal",
+          "status": "passed"
+        },
+        {
+          "id": "restore-missing",
+          "status": "passed"
+        },
+        {
+          "id": "restore-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "enhanced-refused",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-mapping-filter",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-mapping-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-under",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-allocation-refused",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-exact",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-over",
+          "status": "passed"
+        },
+        {
+          "id": "restore-repeated-token-allocation-refused",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "local.privacy.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+      "results": [
+        {
+          "id": "known-reuse-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "longest-known-match",
+          "status": "passed"
+        },
+        {
+          "id": "fresh-email-repeated",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-personal-memory",
+          "status": "passed"
+        },
+        {
+          "id": "category-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled",
+          "status": "passed"
+        },
+        {
+          "id": "master-disabled-known-still-private",
+          "status": "passed"
+        },
+        {
+          "id": "unknown-token-shield",
+          "status": "passed"
+        },
+        {
+          "id": "restore-one-pass",
+          "status": "passed"
+        },
+        {
+          "id": "restore-ordinary-literal",
+          "status": "passed"
+        },
+        {
+          "id": "restore-missing",
+          "status": "passed"
+        },
+        {
+          "id": "restore-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-conflict",
+          "status": "passed"
+        },
+        {
+          "id": "enhanced-refused",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-mapping-filter",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "text-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "mapping-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-exact",
+          "status": "passed"
+        },
+        {
+          "id": "encoded-limit-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-mapping-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-text-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-under",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-output-json-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-integer-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-float-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-exponent-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-exact",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-number-negative-zero-over",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-exact",
+          "status": "passed"
+        },
+        {
+          "id": "prepare-long-placeholder-allocation-refused",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-exact",
+          "status": "passed"
+        },
+        {
+          "id": "restore-original-output-over",
+          "status": "passed"
+        },
+        {
+          "id": "restore-repeated-token-allocation-refused",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "local.task-order.v1",
+      "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
+      "language": "rust",
+      "results": [
+        {
+          "id": "position-opposes-id",
+          "status": "passed"
+        },
+        {
+          "id": "fractional-negative-zero",
+          "status": "passed"
+        },
+        {
+          "id": "missing-null-zero",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-equivalence-stable",
+          "status": "passed"
+        },
+        {
+          "id": "english-unicode",
+          "status": "passed"
+        },
+        {
+          "id": "swedish",
+          "status": "passed"
+        },
+        {
+          "id": "german",
+          "status": "passed"
+        },
+        {
+          "id": "danish-case",
+          "status": "passed"
+        },
+        {
+          "id": "turkish-case",
+          "status": "passed"
+        },
+        {
+          "id": "japanese",
+          "status": "passed"
+        },
+        {
+          "id": "numeric-keyword",
+          "status": "passed"
+        },
+        {
+          "id": "large-js-number-rounding",
+          "status": "passed"
+        },
+        {
+          "id": "display-fallbacks",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-string",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-bool",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-object",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-title",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-source",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-row",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-locale-empty",
+          "status": "passed"
+        },
+        {
+          "id": "thai-default-punctuation",
+          "status": "passed"
+        },
+        {
+          "id": "german-phonebook",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "local.task-order.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
+      "results": [
+        {
+          "id": "position-opposes-id",
+          "status": "passed"
+        },
+        {
+          "id": "fractional-negative-zero",
+          "status": "passed"
+        },
+        {
+          "id": "missing-null-zero",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-equivalence-stable",
+          "status": "passed"
+        },
+        {
+          "id": "english-unicode",
+          "status": "passed"
+        },
+        {
+          "id": "swedish",
+          "status": "passed"
+        },
+        {
+          "id": "german",
+          "status": "passed"
+        },
+        {
+          "id": "danish-case",
+          "status": "passed"
+        },
+        {
+          "id": "turkish-case",
+          "status": "passed"
+        },
+        {
+          "id": "japanese",
+          "status": "passed"
+        },
+        {
+          "id": "numeric-keyword",
+          "status": "passed"
+        },
+        {
+          "id": "large-js-number-rounding",
+          "status": "passed"
+        },
+        {
+          "id": "display-fallbacks",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-string",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-bool",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-object",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-title",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-source",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-row",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-locale-empty",
+          "status": "passed"
+        },
+        {
+          "id": "thai-default-punctuation",
+          "status": "passed"
+        },
+        {
+          "id": "german-phonebook",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "local.task-order.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
+      "results": [
+        {
+          "id": "position-opposes-id",
+          "status": "passed"
+        },
+        {
+          "id": "fractional-negative-zero",
+          "status": "passed"
+        },
+        {
+          "id": "missing-null-zero",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-equivalence-stable",
+          "status": "passed"
+        },
+        {
+          "id": "english-unicode",
+          "status": "passed"
+        },
+        {
+          "id": "swedish",
+          "status": "passed"
+        },
+        {
+          "id": "german",
+          "status": "passed"
+        },
+        {
+          "id": "danish-case",
+          "status": "passed"
+        },
+        {
+          "id": "turkish-case",
+          "status": "passed"
+        },
+        {
+          "id": "japanese",
+          "status": "passed"
+        },
+        {
+          "id": "numeric-keyword",
+          "status": "passed"
+        },
+        {
+          "id": "large-js-number-rounding",
+          "status": "passed"
+        },
+        {
+          "id": "display-fallbacks",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-string",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-bool",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-position-object",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-title",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-source",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-row",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-locale-empty",
+          "status": "passed"
+        },
+        {
+          "id": "thai-default-punctuation",
+          "status": "passed"
+        },
+        {
+          "id": "german-phonebook",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-task-watch.v1",
+      "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
+      "language": "rust",
+      "results": [
+        {
+          "id": "personal-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "team-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "delta-removal",
+          "status": "passed"
+        },
+        {
+          "id": "same-cursor-final-empty",
+          "status": "passed"
+        },
+        {
+          "id": "exact-local-commit",
+          "status": "passed"
+        },
+        {
+          "id": "uncommitted-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "checkpoint-restore",
+          "status": "passed"
+        },
+        {
+          "id": "owner-project-team-negatives",
+          "status": "passed"
+        },
+        {
+          "id": "source-auth-denial",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-refusal-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cookie-rotation-retains-watch",
+          "status": "passed"
+        },
+        {
+          "id": "late-old-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-source-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-handshake",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-read",
+          "status": "passed"
+        },
+        {
+          "id": "iterator-abandon-selected",
+          "status": "passed"
+        },
+        {
+          "id": "two-idle-client-lane",
+          "status": "passed"
+        },
+        {
+          "id": "busy-finish-suspend",
+          "status": "passed"
+        },
+        {
+          "id": "reauthorize-denial-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "watch-cap-16",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-commit-channel",
+          "status": "passed"
+        },
+        {
+          "id": "session-lifecycle-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "no-host-or-job-surface",
+          "status": "passed"
+        },
+        {
+          "id": "idle-flood-bounded-commit",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.project-task-watch.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
+      "results": [
+        {
+          "id": "personal-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "team-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "delta-removal",
+          "status": "passed"
+        },
+        {
+          "id": "same-cursor-final-empty",
+          "status": "passed"
+        },
+        {
+          "id": "exact-local-commit",
+          "status": "passed"
+        },
+        {
+          "id": "uncommitted-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "checkpoint-restore",
+          "status": "passed"
+        },
+        {
+          "id": "owner-project-team-negatives",
+          "status": "passed"
+        },
+        {
+          "id": "source-auth-denial",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-refusal-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cookie-rotation-retains-watch",
+          "status": "passed"
+        },
+        {
+          "id": "late-old-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-source-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-handshake",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-read",
+          "status": "passed"
+        },
+        {
+          "id": "iterator-abandon-selected",
+          "status": "passed"
+        },
+        {
+          "id": "two-idle-client-lane",
+          "status": "passed"
+        },
+        {
+          "id": "busy-finish-suspend",
+          "status": "passed"
+        },
+        {
+          "id": "reauthorize-denial-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "watch-cap-16",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-commit-channel",
+          "status": "passed"
+        },
+        {
+          "id": "session-lifecycle-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "no-host-or-job-surface",
+          "status": "passed"
+        },
+        {
+          "id": "idle-flood-bounded-commit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-task-watch.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "183537898ecbade06b5dad7087b269e33e47edcc8c347ee9aa27fa9bd84a07c2",
+      "results": [
+        {
+          "id": "personal-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "team-21-final",
+          "status": "passed"
+        },
+        {
+          "id": "delta-removal",
+          "status": "passed"
+        },
+        {
+          "id": "same-cursor-final-empty",
+          "status": "passed"
+        },
+        {
+          "id": "exact-local-commit",
+          "status": "passed"
+        },
+        {
+          "id": "uncommitted-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "checkpoint-restore",
+          "status": "passed"
+        },
+        {
+          "id": "owner-project-team-negatives",
+          "status": "passed"
+        },
+        {
+          "id": "source-auth-denial",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-refusal-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "cookie-rotation-retains-watch",
+          "status": "passed"
+        },
+        {
+          "id": "late-old-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-source-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "full-queue-force-logout",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-handshake",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-read",
+          "status": "passed"
+        },
+        {
+          "id": "iterator-abandon-selected",
+          "status": "passed"
+        },
+        {
+          "id": "two-idle-client-lane",
+          "status": "passed"
+        },
+        {
+          "id": "busy-finish-suspend",
+          "status": "passed"
+        },
+        {
+          "id": "reauthorize-denial-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "watch-cap-16",
+          "status": "passed"
+        },
+        {
+          "id": "bounded-commit-channel",
+          "status": "passed"
+        },
+        {
+          "id": "session-lifecycle-invalidates",
+          "status": "passed"
+        },
+        {
+          "id": "no-host-or-job-surface",
+          "status": "passed"
+        },
+        {
+          "id": "idle-flood-bounded-commit",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-source-authoring.v1",
+      "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
+      "language": "rust",
+      "results": [
+        {
+          "id": "personal-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "team-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "personal-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "team-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-empty-duplicate-eight-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "patch-nonempty-unique-supported-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "all-five-typed-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "source-and-ciphertext-limits",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-slash-dot-ids",
+          "status": "passed"
+        },
+        {
+          "id": "patch-slash-dot-refused-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "percent-literal-reserved-unicode-segment",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-source-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-personal-owner-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-project-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-team-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-create-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "revoked-patch-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-patch-fields-ack",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-403-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-409-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "wrong-project-key-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "team-key-epoch-refused-before-write",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-accepted-write-retains-final-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-authoring-refusal-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "expired-cookie-session-no-source-write",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.project-source-authoring.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
+      "results": [
+        {
+          "id": "personal-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "team-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "personal-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "team-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-empty-duplicate-eight-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "patch-nonempty-unique-supported-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "all-five-typed-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "source-and-ciphertext-limits",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-slash-dot-ids",
+          "status": "passed"
+        },
+        {
+          "id": "patch-slash-dot-refused-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "percent-literal-reserved-unicode-segment",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-source-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-personal-owner-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-project-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-team-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-create-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "revoked-patch-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-patch-fields-ack",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-403-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-409-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "wrong-project-key-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "team-key-epoch-refused-before-write",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-accepted-write-retains-final-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-authoring-refusal-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "expired-cookie-session-no-source-write",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.project-source-authoring.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "e5d8e125bef21e35b3206bcbe09971da0b0fa715c74705eec39748ec6e26b724",
+      "results": [
+        {
+          "id": "personal-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "team-create-full-metadata",
+          "status": "passed"
+        },
+        {
+          "id": "personal-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "team-capability-patch",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-empty-duplicate-eight-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "patch-nonempty-unique-supported-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "all-five-typed-capabilities",
+          "status": "passed"
+        },
+        {
+          "id": "source-and-ciphertext-limits",
+          "status": "passed"
+        },
+        {
+          "id": "legacy-create-slash-dot-ids",
+          "status": "passed"
+        },
+        {
+          "id": "patch-slash-dot-refused-before-transport",
+          "status": "passed"
+        },
+        {
+          "id": "percent-literal-reserved-unicode-segment",
+          "status": "passed"
+        },
+        {
+          "id": "malformed-source-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-personal-owner-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-project-ack",
+          "status": "passed"
+        },
+        {
+          "id": "foreign-team-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-create-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "revoked-patch-ack",
+          "status": "passed"
+        },
+        {
+          "id": "mismatched-patch-fields-ack",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-403-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "canonical-409-no-retry",
+          "status": "passed"
+        },
+        {
+          "id": "wrong-project-key-ciphertext-ack",
+          "status": "passed"
+        },
+        {
+          "id": "team-key-epoch-refused-before-write",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-accepted-write-retains-final-rotation",
+          "status": "passed"
+        },
+        {
+          "id": "api-key-authoring-refusal-zero-transport",
+          "status": "passed"
+        },
+        {
+          "id": "expired-cookie-session-no-source-write",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "releaseEligible": false
+}

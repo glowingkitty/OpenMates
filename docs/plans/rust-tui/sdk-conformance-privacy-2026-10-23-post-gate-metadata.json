@@ -1,0 +1,40 @@
+{
+  "classification": "Comment-only assertion/surface metadata correction after successful417result gate; no runtime logic or fixture changes. Prior exact-source evidence retained unchanged.",
+  "files": {
+    "packages/openmates-rust/src/privacy.rs": {
+      "before": "e39ac9330bc39c300e15f4d158ca9bab9b7bd8a15493aaea94a2335d419f211a",
+      "after": "7132effeeab6879c3bdfe69d0f838b1c2186d0b9a0597086e0fa4da2dc88466f",
+      "commentsCorrected": 7
+    },
+    "packages/openmates-session-bindings/src/privacy.rs": {
+      "before": "20c525eb0da7776a54d740ae2d4c461ab9ffc0746a340d43f892a2cf1dc9c916",
+      "after": "3e702ebbd6201115f20ce3089fcc4377a49d4fab6676c3fefb4849b2f0674741",
+      "commentsCorrected": 1
+    },
+    "packages/openmates-session-bindings/examples/privacy-conformance.rs": {
+      "before": "dec50f2fc9388fbf34354ca08de5648ad25f8db2b5b249d05cb72a190c059394",
+      "after": "23acd0f0fb585927061648da85104fc0cdf832d02df7b46fc970bdfb43a75b01",
+      "commentsCorrected": 1
+    },
+    "frontend/packages/openmates-cli/tests/sdk-privacy.test.ts": {
+      "before": "988ec8fcd0f007d96a36b07762e39740cafc57680e76a799301382f621eec1fa",
+      "after": "0632c9b92b300e84d6102a8f847e103ef218ae229e0bc41428ad5bd0e49a0cfc",
+      "commentsCorrected": 2
+    },
+    "packages/openmates-python/tests/test_privacy.py": {
+      "before": "364b253bc1b58a8b1fc0d9450a7915c12b0854f8349afa4e450e5440dbc32a4f",
+      "after": "5695d3d1e6d9bf74867c611d85b130bef0b31e4cf7176a895cf87d42a878e42a",
+      "commentsCorrected": 4
+    },
+    "tests/sdk-conformance/runners/privacy.mjs": {
+      "before": "f36f44802f25348986004fc68c113fc9c352a606a16e32c875c35be8b170ba17",
+      "after": "6288927ac4b041b6de36b7cb0784be0c4942fa877de0ad885b455e398ed70088",
+      "commentsCorrected": 1
+    },
+    "tests/sdk-conformance/runners/privacy.py": {
+      "before": "06351aeede64afd76fc690de539fd241c5c0acfa443e57a43796afe9a9a30832",
+      "after": "d555d16f485f222f19016af71743ddfc7da604cbff7ced6f690aa610e1267cd8",
+      "commentsCorrected": 1
+    }
+  }
+}

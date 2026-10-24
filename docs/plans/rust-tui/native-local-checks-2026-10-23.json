@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-23",
+  "status": "passed_with_source_qualification",
+  "scope": "Retained local unit/mock/filesystem checks only; full-suite and final mechanical Clippy sources are distinguished. No product or actual cross-language adapter execution.",
+  "native": {
+    "tests": 376,
+    "library_tests": 324,
+    "other_tests": 52,
+    "product_tests_ignored_locally": 4,
+    "strict_all_target_clippy": "passed_on_final_static_source",
+    "package_input_guard": "passed_on_final_static_source"
+  },
+  "sdk": {
+    "library_tests": 267,
+    "focused_privacy_tests_on_final_static_source": 7,
+    "strict_all_target_clippy": "passed_on_final_static_source"
+  },
+  "full_suite_source_fence": {
+    "aggregate_sha256": "a29fffaaffbf831b84afd12dc6a50337e97503dc2c7d1180bb6eb3f597ae9123",
+    "inputs": 207,
+    "unchanged_before_after": true,
+    "privacy_sha256": "565a842bc8894e483015d75c207e662f027ea1ea48ab5a5ca3bca85c5f79fde5"
+  },
+  "sdk_library_source_fence": {
+    "aggregate_sha256": "b41dcb7d12cac4ce135d51787d0ab9856cdeead5e564ae8fa2714b74207f9c4c",
+    "inputs": 207,
+    "unchanged_before_after": true,
+    "privacy_sha256": "565a842bc8894e483015d75c207e662f027ea1ea48ab5a5ca3bca85c5f79fde5"
+  },
+  "final_static_source_fence": {
+    "aggregate_sha256": "b74c10bff376036418313a6c57e5c4f4cf9453548ed7282f73f5cb201a9693b6",
+    "inputs": 207,
+    "unchanged_before_after": true,
+    "privacy_sha256": "e39ac9330bc39c300e15f4d158ca9bab9b7bd8a15493aaea94a2335d419f211a"
+  },
+  "source_qualification": "SDK 267 library tests and native 376 tests passed before the root mechanical privacy.rs Clippy let-chain edit. The final b74c10 source then passed all 7 focused privacy tests, SDK/native strict all-target Clippy and package guard; whole suites were not repeated after that mechanical edit. The full-suite driver stopped at its SDK Clippy failure after native tests passed; that failure is retained and superseded only by the final static checks.",
+  "checks": [
+    {
+      "name": "native-all-targets",
+      "exitCode": 0,
+      "sourceFence": true,
+      "seconds": 84.12,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-final-native-all-targets.log"
+    },
+    {
+      "name": "sdk-clippy",
+      "exitCode": 101,
+      "sourceFence": true,
+      "seconds": 19.05,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-final-sdk-clippy.log"
+    },
+    {
+      "name": "privacy-focused",
+      "exitCode": 0,
+      "sourceFence": true,
+      "seconds": 34.06,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-static-final-privacy-focused.log"
+    },
+    {
+      "name": "sdk-clippy",
+      "exitCode": 0,
+      "sourceFence": true,
+      "seconds": 18.03,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-static-final-sdk-clippy.log"
+    },
+    {
+      "name": "native-clippy",
+      "exitCode": 0,
+      "sourceFence": true,
+      "seconds": 27.03,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-static-final-native-clippy.log"
+    },
+    {
+      "name": "package-inputs",
+      "exitCode": 0,
+      "sourceFence": true,
+      "seconds": 1.03,
+      "log": "/tmp/d1c4-client-privacy-2026-10-23-static-final-package-inputs.log"
+    }
+  ],
+  "sdk_library_check": {
+    "name": "sdk-privacy",
+    "exitCode": 0,
+    "sourceFence": true,
+    "seconds": 9.03,
+    "log": "/tmp/d1c4-client-privacy-2026-10-23-verified-sdk-privacy.log"
+  },
+  "cross_language_privacy": {
+    "fixture_cases": 39,
+    "fixture_sha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+    "new_native_artifacts": "build_in_progress_at_checkpoint",
+    "registered_adapters": 42,
+    "expected_vector_executions": 417,
+    "actual_new_conformance": "not_run",
+    "historical_passed_adapters": 39,
+    "historical_passed_vector_executions": 300,
+    "open_gaps": 141,
+    "releaseEligible": false
+  },
+  "prior_checkpoint": {
+    "schema_version": 1,
+    "date": "2026-10-23",
+    "status": "passed",
+    "scope": "Native Personal draft-clear handler and self-host receipt/environment compatibility producers. Pure unit/mock/filesystem checks only; product checks remain isolated GitHub CI.",
+    "native": {
+      "tests": 349,
+      "library_tests": 297,
+      "other_tests": 52,
+      "product_tests_ignored_locally": 4,
+      "strict_all_target_clippy": "passed",
+      "package_input_guard": "passed",
+      "focused_draft_clear_tests": 5
+    },
+    "source_input_fence": {
+      "status": "passed",
+      "aggregate_sha256": "f664c54beb5369d8fea18a0c08f073a8645582e06a1ec18391502af6a2b49bd8",
+      "inputs": 203,
+      "unchanged_before_after": true,
+      "owned_source_hashes": {
+        "frontend/packages/openmates-tui-native/src/server.rs": "46c4fd194a90a39d2fa697c11b0f01dd6493d0aa5fc2175bea4a20354ece4d78",
+        "frontend/packages/openmates-tui-native/src/server/update.rs": "c68f59e1050c2cbcfc913b997c790463058a8b57ada9cce56667ec38479b4a21",
+        "frontend/packages/openmates-tui-native/src/cli/handlers.rs": "532d6857ee73c8b9f1012e942a5cd35368709c304a05388df870ec67433bf797",
+        "frontend/packages/openmates-tui-native/src/cli/draft_clear_tests.rs": "c0ba80ef33e7c961051872280f5ff5137862e54bef7d8faf317f148313e720b7",
+        "config/cli-command-catalog.json": "f41e41ffd7a818f9ef15ec2cf91ae44c59a75586f494fb230b510a859e0cd78b",
+        "frontend/packages/openmates-tui-native/assets/cli-command-catalog.json": "f41e41ffd7a818f9ef15ec2cf91ae44c59a75586f494fb230b510a859e0cd78b",
+        "frontend/packages/openmates-tui-native/assets/manifest.json": "70d91047da927530669446e7b6cd259c86fec2452c584ff914b68f12f35a7833"
+      }
+    },
+    "minimum_free_gib": 33.182,
+    "checks": [
+      {
+        "name": "native-all-targets",
+        "exitCode": 0,
+        "sourceFence": true,
+        "seconds": 67.05,
+        "log": "/tmp/d1c4-selfhost-draft-clear-2026-10-23-reviewed-native-all-targets.log"
+      },
+      {
+        "name": "native-clippy",
+        "exitCode": 0,
+        "sourceFence": true,
+        "seconds": 12.03,
+        "log": "/tmp/d1c4-selfhost-draft-clear-2026-10-23-reviewed-native-clippy.log"
+      },
+      {
+        "name": "package-inputs",
+        "exitCode": 0,
+        "sourceFence": true,
+        "seconds": 1.03,
+        "log": "/tmp/d1c4-selfhost-draft-clear-2026-10-23-reviewed-package-inputs.log"
+      }
+    ],
+    "review": {
+      "selfhost_producers": "clear",
+      "draft_clear_handler_and_admission": "clear",
+      "draft_clear_fixture_follow_up": "Canonical expected error codes and parser arity corrected; missing bare flag remains explicitly refused. Named WebSocket callback retains exact credential assertions with a narrowly documented upstream-signature Clippy allowance, matching existing SDK practice."
+    },
+    "earlier_local_failures": {
+      "retained": true,
+      "logs": [
+        "/tmp/d1c4-selfhost-draft-clear-2026-10-23-driver.log",
+        "/tmp/d1c4-selfhost-draft-clear-2026-10-23-retry-driver.log",
+        "/tmp/d1c4-selfhost-draft-clear-2026-10-23-final-driver.log"
+      ],
+      "qualification": "Test fixture expectations and upstream callback lint signature, not product evidence. None replaced a passing product result."
+    },
+    "limits": [
+      "No API/WebSocket/browser product checks executed locally.",
+      "Personal draft-clear remains partial: required integration, platform and complete command parity stay open.",
+      "No SDK source changes or new cross-SDK capability; previous 39-adapter/300-vector checkpoint is retained rather than relabeled as a new execution.",
+      "No dev installation, registry publication, npm retirement or current signed-in performance result."
+    ]
+  },
+  "limits": [
+    "No API/WebSocket/browser product checks executed locally.",
+    "No new NAPI/PyO3 or 42-adapter/417-result conformance pass is claimed.",
+    "Current workspace differs from captured 48d2 source and its uninstalled private ARM64 binary.",
+    "No dev installation, registry publication, npm retirement, macOS verification or successful signed-in performance result."
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "kind": "sanitized-native-build-and-conformance-handoff",
+  "status": "passed",
+  "scope": "Fresh locked/offline ARM64 NAPI/PyO3 debug artifacts and exact-source bounded conformance; not registry publication, platform completeness, product E2E or later constructor-policy acceptance.",
+  "buildManifestSha256": "1e6061d94743e484b4ff1b50cd64d0f44e280acee7bb290fc27ab944585a79cb",
+  "buildSourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+  "buildSourceInputCount": 130,
+  "buildSourceUnchanged": true,
+  "buildGateSourceAggregateSha256": "b8110ab6e60c15fdfa4f19c7f6e685c66b128b39246b917cf93890f3dd90cf74",
+  "conformanceSourceAggregateSha256": "c9ba7450d325866f6c9389c23f3436afd37d89c38008d0269e11e6697e68c0ee",
+  "conformanceSourceInputCount": 615,
+  "conformanceSourceUnchanged": true,
+  "artifactsUnchanged": true,
+  "toolchain": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8",
+    "node": "v22.19.0",
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]"
+  },
+  "lockfilesBefore": {
+    "packages/openmates-rust/Cargo.lock": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+    "packages/openmates-session-bindings/Cargo.lock": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+    "frontend/packages/openmates-tui-native/Cargo.lock": "1b1b8f4a046bd82be8bdcb553f2f0aaf767ac5cb231c19efe4624707625cddfa"
+  },
+  "lockfilesAfter": {
+    "packages/openmates-rust/Cargo.lock": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+    "packages/openmates-session-bindings/Cargo.lock": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+    "frontend/packages/openmates-tui-native/Cargo.lock": "1b1b8f4a046bd82be8bdcb553f2f0aaf767ac5cb231c19efe4624707625cddfa"
+  },
+  "artifacts": {
+    "npm": {
+      "path": "frontend/packages/openmates-cli/native/linux-arm64.node",
+      "sha256": "d2d1cd718af35c523e73c1af1efca68657dfb5858aadfa3d6b6cf55dc9c409e3",
+      "bytes": 41883728,
+      "identity": {
+        "st_dev": 2049,
+        "st_ino": 7922067,
+        "st_size": 41883728,
+        "st_mtime_ns": 1792751714696578932,
+        "st_ctime_ns": 1792751714804579356,
+        "st_mode": 33152,
+        "st_uid": 1001,
+        "st_gid": 1001
+      }
+    },
+    "python": {
+      "path": "packages/openmates-python/openmates/_native.abi3.so",
+      "sha256": "4765e15d817d218c4cd0fd61178055ee1ff7ef76c00f909ac750fd16d186bf40",
+      "bytes": 47896736,
+      "identity": {
+        "st_dev": 2049,
+        "st_ino": 7922068,
+        "st_size": 47896736,
+        "st_mtime_ns": 1792751715029580238,
+        "st_ctime_ns": 1792751715199580905,
+        "st_mode": 33152,
+        "st_uid": 1001,
+        "st_gid": 1001
+      }
+    }
+  },
+  "preservedFlagHashes": {
+    "CARGO_BUILD_RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "RUSTC_WORKSPACE_WRAPPER": null,
+    "RUSTC_WRAPPER": null,
+    "RUSTFLAGS": null
+  },
+  "buildPhases": [
+    {
+      "name": "before-toolchain-check",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 36282011648
+    },
+    {
+      "name": "before-napi-build",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 36192837632
+    },
+    {
+      "name": "after-napi-build",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 35973529600
+    },
+    {
+      "name": "before-python-build",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 35930468352
+    },
+    {
+      "name": "after-python-build",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 35730534400
+    },
+    {
+      "name": "before-load-only-checks",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 35681898496
+    },
+    {
+      "name": "after-load-only-checks",
+      "sourceDigest": "9a94e435b82e629c07263ef488a15044514456f44c7f048474f96bac26dddd56",
+      "availableBytes": 35681882112
+    }
+  ],
+  "minimumFreeGiB": 32.51203155517578,
+  "adapters": 42,
+  "vectorResults": 417,
+  "privacyCasesPerLanguage": 39,
+  "privacyFixtureSha256": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
+  "openGaps": 141,
+  "releaseEligible": false,
+  "retainedReportSha256": "0f86fa6ac71b128612214ec84cce9b63e6fd56cfbcab2382167c709ad6e5b7c7",
+  "retainedInputsSha256": "f9f389b50f487bb242ec4110080408c260dec9c986c565859e5405b533ac85e7",
+  "postGateMetadataCorrection": {
+    "receipt": "sdk-conformance-privacy-2026-10-23-post-gate-metadata.json",
+    "sha256": "3ca006011166ac5cebe9ff309ae71810b45a04d57dd3e863c6ba39ee8a8efc9a",
+    "files": 7,
+    "annotations": 17,
+    "runtimeOrFixtureChange": false
+  },
+  "laterSourceQualification": "After the retained gate, 17 contract-test annotations in seven files changed comments only. A subsequent reviewed explicit-credential constructor-policy fix and host tests are outside this checkpoint; current bindings are rebuilding and a later whole gate will have a separate receipt."
+}

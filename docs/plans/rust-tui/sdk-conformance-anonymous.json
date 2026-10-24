@@ -1,0 +1,387 @@
+{
+  "status": "migration-gaps",
+  "matrixSha256": "49841a9a4cfc2caf35efaf28ffddfe449753477a9c0d4cdb5dac1728f991ea59",
+  "publicApiInventorySha256": "7bf07b90e801c42e4bdad514d023bb845598829aafc69b8ece924c8355dbd6b8",
+  "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+  "fixtureSha256ByCapability": {
+    "session.anonymous-stream.v1": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4"
+  },
+  "publicApis": {
+    "npm": 1454,
+    "python": 1057,
+    "rust": 1320
+  },
+  "openGaps": [
+    "sdk.account [rust] partial: Typed Rust account reads/preferences exist; equivalent complete account, deletion/export, privacy and error-boundary conformance remain unverified.",
+    "sdk.account [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.account [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.anonymous [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.anonymous [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.anonymous [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.api-keys [rust] partial: Cookie-auth typed list/create-full-access-unlimited-no-expiration/revoke and one-time secret-safe output exist with focused mocked tests. Limited grants/policies, interactive reauthentication, bearer-management/device/session operations, complete facade parity and shared cross-language conformance remain unsupported or unverified.",
+    "sdk.api-keys [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.api-keys [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.apps [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.apps [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.apps [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.benchmark [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.benchmark [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.benchmark [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.billing [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.billing [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.billing [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.chats [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.chats [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.chats [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.configuration [rust] partial: Native public APIs exist, but complete cross-language behavioral conformance is not established for this family.",
+    "sdk.configuration [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.configuration [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.connected-accounts [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.connected-accounts [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.connected-accounts [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.design [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.design [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.design [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.docs [rust] partial: Public credential-free typed documentation list/search/get and slug validation exist with focused tests. Complete namespace/facade parity, independent cross-language semantic fixtures, live backend compatibility and full error/download behavior remain unverified.",
+    "sdk.docs [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.docs [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.drafts [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.drafts [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.drafts [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.embeds [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.embeds [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.embeds [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.errors [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.feedback [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.feedback [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.feedback [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.finance [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.finance [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.finance [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.history [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.history [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.history [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.ideabucket [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.ideabucket [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.ideabucket [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.inspirations [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.inspirations [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.inspirations [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.key-management [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.key-management [npm] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.key-management [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.learning-mode [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.learning-mode [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.learning-mode [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.memories [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.memories [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.memories [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.models [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.models [npm] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.models [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.new-chat-suggestions [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.new-chat-suggestions [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.new-chat-suggestions [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.notifications [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.notifications [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.notifications [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.plans [rust] partial: Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
+    "sdk.plans [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.plans [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.privacy-policy [rust] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.privacy-policy [npm] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.privacy-policy [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.projects [rust] partial: Typed Project CRUD/settings/ask and focused mocked tests exist; complete public family parity, shared selectors/permission/error/recovery coverage, live backend behavior and filesystem/focus execution remain unverified.",
+    "sdk.projects [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.projects [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.public-utilities [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.public-utilities [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.public-utilities [python] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.reminders [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.reminders [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.reminders [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.session-client [rust] partial: Typed send collector and explicit consent/incognito/queue policies exist with focused unit coverage; complete cross-language send/stream/recovery semantics, live backend behavior and all cancellation/admission races remain unverified.",
+    "sdk.session-client [npm] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
+    "sdk.session-client [python] partial: Native-backed session facade APIs are exported, but packaged native binaries, complete shared auth/stream/consent/recovery tests and cross-language operation parity are not yet established.",
+    "sdk.settings [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.settings [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.settings [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.tasks [rust] partial: Shared Rust service APIs exist, but complete equivalent operation coverage, request/state/error semantics and cross-language fixture evidence are not yet established.",
+    "sdk.tasks [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.tasks [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.teams [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.teams [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.teams [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.transport [rust] missing: Equivalent public API and cross-language implementation evidence are not yet established.",
+    "sdk.transport [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.transport [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.wikipedia [rust] partial: Explicit session-auth title search/summary/learning methods exist with backend-default routing and learning policy gates. API-key Wiki transport, namespace facade parity, complete error/privacy behavior, real learning/inference and shared cross-language conformance remain unverified.",
+    "sdk.wikipedia [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.wikipedia [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.workflows [rust] partial: Typed graph/CRUD/YAML/run/input/ask/template/project-link APIs and focused mocked tests exist; shared cross-language Workflow family conformance, live execution and complete encryption/error/recovery behavior remain unverified.",
+    "sdk.workflows [npm] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.workflows [python] partial: Public APIs exist, but complete cross-language implementation and behavioral conformance are not established for this capability.",
+    "sdk.native-artifacts [rust] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "sdk.native-artifacts [npm] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "sdk.native-artifacts [python] partial: Host builds exist; supported-platform artifact inventory, clean package installation and cross-platform conformance are not yet fully verified.",
+    "session.password-totp-rotation.v1 [rust] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.password-totp-rotation.v1 [npm] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.password-totp-rotation.v1 [python] partial: Four synthetic transcript vectors prove bounded client behavior; live-backend auth/expiry/replay enforcement, complete recovery/stream and account-operation parity remain outside this case.",
+    "session.recovery-replay.v1 [rust] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "session.recovery-replay.v1 [npm] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "session.recovery-replay.v1 [python] partial: Eleven synthetic peer vectors cover bounded client recovery. Live backend transactions/lease expiry, typed-output and artifact dependency replay, Team recipients, pagination/compression and durable long-outage recovery remain unverified.",
+    "protocol.project-create.v1 [rust] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-create.v1 [npm] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-create.v1 [python] partial: Three synthetic vectors cover create only; live backend persistence/permissions, update/delete/ask and filesystem/focus execution remain outside this case.",
+    "protocol.project-task-sync.v1 [rust] partial: Focused synthetic reducer/crypto tests exist; cross-language shared conformance, authenticated socket integration, persistent cache restoration and foreground remote-access lifecycle remain unverified.",
+    "protocol.project-task-sync.v1 [npm] missing: Equivalent headless SDK scoped atomic Project Task sync reducer and shared conformance are not established; the legacy TypeScript foreground cache is application-owned.",
+    "protocol.project-task-sync.v1 [python] missing: Equivalent headless SDK scoped atomic Project Task sync reducer and shared conformance are not established; the legacy TypeScript foreground cache is application-owned.",
+    "session.work-crud.v1 [rust] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "session.work-crud.v1 [npm] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "session.work-crud.v1 [python] partial: Ten synthetic-peer vectors cover this bounded cookie CRUD slice; live backend compatibility, complete selectors/conflicts/pagination/references, AI execution, Plans/Workflows session operations, all foreign cancellation timings and native artifact portability remain unverified.",
+    "protocol.project-remote-crypto.v1 [rust] partial: Eight focused Rust unit cases establish bounded handshake/envelope primitives; cross-language shared fixtures, actual foreground session/source-host integration, authorization/revocation lifecycle and interoperable npm/Python SDK counterparts remain unverified.",
+    "protocol.project-remote-crypto.v1 [npm] missing: Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established; retained CLI remote crypto is application-owned.",
+    "protocol.project-remote-crypto.v1 [python] missing: Equivalent headless SDK Project remote handshake/session API and independent shared conformance are not established.",
+    "session.plans-workflows.v1 [rust] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.plans-workflows.v1 [npm] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.plans-workflows.v1 [python] partial: Fourteen synthetic-peer vectors prove this bounded slice, including encrypted Plan text/flows/master+Project wrappers, server-visible consented Workflow definitions, canonical synthetic run observation and exact cancellation/Team preflight isolation. Plan Team operations and Team Workflow execution/cancel are unavailable. Complete family/API semantics, live backend and AI behavior, owner-device ciphertext delivery, all race/recovery cases and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [rust] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [npm] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified.",
+    "session.anonymous-stream.v1 [python] partial: Nine synthetic-peer vectors establish signed/unsigned public header isolation, volatile identity, local PII restoration, allowance/redirect/SSE/private-context refusal and scoped cancel-then-fresh-send boundaries. Complete anonymous and cookie-incognito/history/learning-mode semantics, live allowance and inference, all stream/race/recovery cases, API-key/session facade equivalence and native platform artifacts remain unverified."
+  ],
+  "conformance": [
+    {
+      "capability": "session.anonymous-stream.v1",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "language": "rust",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "capability": "session.anonymous-stream.v1",
+      "language": "npm",
+      "status": "passed",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "capability": "session.anonymous-stream.v1",
+      "language": "python",
+      "status": "passed",
+      "fixtureSha256": "1aa71482dfb3dabfca9f756c7eea31273bc5feb7f04741c31bb8c7370a865de4",
+      "results": [
+        {
+          "id": "signed-session-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "unsigned-public-stream",
+          "status": "passed"
+        },
+        {
+          "id": "free-allowance-denied",
+          "status": "passed"
+        },
+        {
+          "id": "public-redirect-refused",
+          "status": "passed"
+        },
+        {
+          "id": "duplicate-sse-sequence-refused",
+          "status": "passed"
+        },
+        {
+          "id": "cancel-and-fresh-public-send",
+          "status": "passed"
+        },
+        {
+          "id": "invalid-id-and-context-before-dispatch",
+          "status": "passed"
+        },
+        {
+          "id": "private-operation-consent-refused",
+          "status": "passed"
+        },
+        {
+          "id": "unexpected-private-context-refused",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "releaseEligible": false,
+  "kind": "incremental-shared-library-conformance",
+  "completedAtUtc": "2026-10-21T16:25:20.560927+00:00",
+  "fixtureVectorIds": [
+    "cancel-and-fresh-public-send",
+    "duplicate-sse-sequence-refused",
+    "free-allowance-denied",
+    "invalid-id-and-context-before-dispatch",
+    "private-operation-consent-refused",
+    "public-redirect-refused",
+    "signed-session-public-stream",
+    "unexpected-private-context-refused",
+    "unsigned-public-stream"
+  ],
+  "conformanceSelection": [
+    "session.anonymous-stream.v1"
+  ],
+  "fullSuiteExecuted": false,
+  "runnerCommands": {
+    "rust": [
+      "cargo",
+      "run",
+      "--quiet",
+      "--locked",
+      "--manifest-path",
+      "packages/openmates-session-bindings/Cargo.toml",
+      "--example",
+      "session-anonymous-conformance",
+      "--",
+      "--fixture",
+      "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/tests/sdk-conformance/fixtures/session-anonymous.json",
+      "--capability",
+      "session.anonymous-stream.v1"
+    ],
+    "npm": [
+      "node",
+      "tests/sdk-conformance/runners/session-anonymous.mjs",
+      "--fixture",
+      "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/tests/sdk-conformance/fixtures/session-anonymous.json",
+      "--capability",
+      "session.anonymous-stream.v1"
+    ],
+    "python": [
+      "/tmp/rust-tui-sdk-python-venv/bin/python",
+      "tests/sdk-conformance/runners/session-anonymous.py",
+      "--fixture",
+      "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/tests/sdk-conformance/fixtures/session-anonymous.json",
+      "--capability",
+      "session.anonymous-stream.v1"
+    ]
+  },
+  "executionEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "OPENMATES_SDK_CONFORMANCE_PYTHON": "/tmp/rust-tui-sdk-python-venv/bin/python"
+  },
+  "retainedCheckpoints": [
+    {
+      "path": "docs/plans/rust-tui/sdk-conformance.json",
+      "sha256": "b55e4fba3bdc006893ae0fce7c6f6c1bae6fe5032a484f9f497abe0fa575af51",
+      "matrixSha256": "452a06ed0a45ab5b823bc5ea50a30abb8af21be6dd1ee21951c52c65d62b93d2",
+      "fixtureSha256ByCapability": {
+        "crypto.aes-gcm-combined.v1": "6b801d8323c23675f948423f07ecd01161b9dd8248fdc4eec4bd0ccb99e1465b",
+        "crypto.recovery-envelope.v1": "6b801d8323c23675f948423f07ecd01161b9dd8248fdc4eec4bd0ccb99e1465b",
+        "crypto.slug-lookup.v1": "6b801d8323c23675f948423f07ecd01161b9dd8248fdc4eec4bd0ccb99e1465b",
+        "protocol.generated-skills.v1": "6b801d8323c23675f948423f07ecd01161b9dd8248fdc4eec4bd0ccb99e1465b",
+        "session.native-boundary.v1": "6b801d8323c23675f948423f07ecd01161b9dd8248fdc4eec4bd0ccb99e1465b",
+        "session.password-totp-rotation.v1": "03029a6e600f1f0c3a753ae21361c69cceda2bc3ca110a26cf90199d9d3bf0f5",
+        "session.recovery-replay.v1": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
+        "protocol.project-create.v1": "c89e32290b9c50194b261b8af3fd67a88856338665f115c0f7acf5034bd56507",
+        "session.work-crud.v1": "665a49e7c14b7a3b4bb732032802d2a390acc71acb27895a7618f92511b50201"
+      },
+      "adapterRuns": 27,
+      "limits": "Earlier checkpoint retained without rerunning or relabeling its results."
+    },
+    {
+      "path": "docs/plans/rust-tui/sdk-conformance-plans-workflows.json",
+      "sha256": "1bd4410dfbc4037abc4ad85c9a86e426c2dd387132e8691bff3352ec11f0c742",
+      "matrixSha256": "67a9cff0e865f6cab75bb0a7a85991f5a8e572e62bced0a6e08643c19e27ff82",
+      "fixtureSha256ByCapability": {
+        "session.plans-workflows.v1": "f10723fe5d54efe7ca9cf5ccb23bb61f06145a4b3bb117c0c566c946428b1946"
+      },
+      "adapterRuns": 3,
+      "limits": "Earlier checkpoint retained without rerunning or relabeling its results."
+    },
+    {
+      "path": "docs/plans/rust-tui/sdk-conformance-aes-legacy-om.json",
+      "sha256": "18e13254bdebb7cd1cadaebf9c3253e22ddba0fd9b1487dee75f2249e49c858d",
+      "matrixSha256": "174033024565adf0a6d12c6f3de4a5d860ea5a3606229ca719e0340446f5bdbc",
+      "fixtureSha256ByCapability": {
+        "crypto.aes-gcm-combined.v1": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7"
+      },
+      "adapterRuns": 3,
+      "limits": "Earlier checkpoint retained without rerunning or relabeling its results."
+    }
+  ],
+  "limits": [
+    "Only the three anonymous adapters were executed in this selected run; earlier 27-adapter, Plans/Workflows and AES reports retain their original source/inventory/fixture provenance.",
+    "Synthetic signed/unsigned peer transport proves bounded credential/header isolation and refusal/cancellation boundaries; no live allowance, real inference, complete cookie-incognito/history/learning-mode behavior or platform portability is established."
+  ]
+}

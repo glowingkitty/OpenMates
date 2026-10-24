@@ -1,0 +1,2655 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-23",
+  "source": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+  "classification": "Legacy web BEFORE shared Rust/WASM runtime integration; attachment phase was unspecified.",
+  "full_approved_comparison_complete": false,
+  "runtime_bindings": {
+    "renderer": {
+      "request": "6064d0e93ef87fda8d4d18c69bb7af679c45372143fac24387e760b4e14d3dc3",
+      "run": 40030055784,
+      "harness": "55bd8e525c76fb155dd4c3ab15c41ada4c293042",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "binding_sha256": "c84c4e9361a51e27a902914dd13641db418d633a29a98a0d784c6a41e2d16acf",
+      "inventory_sha256": "4e767a051fc9c3ea238ca251c5d7a2510923f96c02dbbb34f581fe9e7b69613f",
+      "source_and_served_entry_inventory_binding": "verified",
+      "emitted_assets": {
+        "javascript": {
+          "brotliBytes": 10753287,
+          "count": 848,
+          "gzipBytes": 11993429,
+          "rawBytes": 43045222
+        },
+        "other": {
+          "brotliBytes": 67273433,
+          "count": 2750,
+          "gzipBytes": 68516618,
+          "rawBytes": 97406759
+        },
+        "wasm": {
+          "brotliBytes": 2770878,
+          "count": 1,
+          "gzipBytes": 3687160,
+          "rawBytes": 14239897
+        }
+      },
+      "emitted_javascript_wasm_combined": {
+        "brotliBytes": 13524165,
+        "gzipBytes": 15680589,
+        "rawBytes": 57285119
+      },
+      "compression": {
+        "brotliQuality": 6,
+        "gzipLevel": 9,
+        "interpretation": "Offline deterministic size estimates, not measured network transfer or a guarantee of server Content-Encoding.",
+        "nodeVersion": "24.22.1"
+      }
+    },
+    "navigation": {
+      "request": "3894c11352bb0bc0d884eeab1da51d5131d6b6234bf5078ef66384d53d37ffab",
+      "run": 40030060535,
+      "harness": "55bd8e525c76fb155dd4c3ab15c41ada4c293042",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "binding_sha256": "5d6f027622c8573368774864e78671877aace38436fa06387fc81d4a6203a69b",
+      "inventory_sha256": "2d6ed2ec4ab766f2c4188eb9ac72d3e57f7c4f9029b80725a1fc38947491785e",
+      "source_and_served_entry_inventory_binding": "verified",
+      "emitted_assets": {
+        "javascript": {
+          "brotliBytes": 10752925,
+          "count": 848,
+          "gzipBytes": 11992114,
+          "rawBytes": 43045222
+        },
+        "other": {
+          "brotliBytes": 67271411,
+          "count": 2750,
+          "gzipBytes": 68514249,
+          "rawBytes": 97406759
+        },
+        "wasm": {
+          "brotliBytes": 2770878,
+          "count": 1,
+          "gzipBytes": 3687160,
+          "rawBytes": 14239897
+        }
+      },
+      "emitted_javascript_wasm_combined": {
+        "brotliBytes": 13523803,
+        "gzipBytes": 15679274,
+        "rawBytes": 57285119
+      },
+      "compression": {
+        "brotliQuality": 6,
+        "gzipLevel": 9,
+        "interpretation": "Offline deterministic size estimates, not measured network transfer or a guarantee of server Content-Encoding.",
+        "nodeVersion": "24.22.1"
+      }
+    }
+  },
+  "measurements": {
+    "renderer": {
+      "selected_successful_attempt": 1,
+      "all_attempts_retained": true,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "failed_existing_50ms_max_operation",
+          "raw_attachment_sha256": "dd5da929876a707468cf16f8291891da807010d139defbec064052a91e9771fa",
+          "browser_provenance": {
+            "phase": "unspecified",
+            "frontendModeDeclared": "production-preview",
+            "runnerCheckoutHead": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+            "runnerCheckoutDirty": true,
+            "runtimeSourceCommitClaim": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+            "runtimeAssetInventorySha256Claim": "4e767a051fc9c3ea238ca251c5d7a2510923f96c02dbbb34f581fe9e7b69613f",
+            "fixtureDataSha256Claim": null,
+            "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+            "fixtureSha256": [
+              "92ee61d4928dbd19e034d649c5168831d9eeafb37cd611606c0339a2a3250486",
+              "53edb6fa526aef203a745d560f9ed8aa77d5461fb76f6c4bd9577f55c0129044"
+            ],
+            "browser": "chromium",
+            "browserVersion": "148.0.7778.96",
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "mobile": false,
+            "deviceScaleFactorDeclared": null,
+            "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+            "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+          },
+          "summary": {
+            "compileMs": {
+              "count": 116,
+              "median": 1.5999999998603016,
+              "p95": 5.899999999906868,
+              "longest": 9.600000000093132,
+              "invalidCount": 0
+            },
+            "applyMs": {
+              "count": 181,
+              "median": 0.39999999990686774,
+              "p95": 3.8999999999068677,
+              "longest": 61.699999999953434,
+              "invalidCount": 0
+            },
+            "perSampleCombinedP95Ms": [
+              3.199999999953434,
+              6.199999999953434,
+              4.800000000046566
+            ],
+            "medianSampleP95Ms": 4.800000000046566,
+            "longestPipelineMs": 61.699999999953434,
+            "idbWriteCounts": [
+              0,
+              0,
+              0
+            ],
+            "warmupExcluded": true
+          },
+          "runs": [
+            {
+              "run_index": 0,
+              "phase": "warmup",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 18,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 56800000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 1,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 17,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 56800000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 2,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 17,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 56800000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 3,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 18,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 56800000,
+              "resource_entries": 250
+            }
+          ]
+        },
+        {
+          "retry": 1,
+          "status": "passed",
+          "raw_attachment_sha256": "002e0a3b42b0777de6f040d1ff08915519b196f27a9a7f72260187343c7fd31d",
+          "browser_provenance": {
+            "phase": "unspecified",
+            "frontendModeDeclared": "production-preview",
+            "runnerCheckoutHead": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+            "runnerCheckoutDirty": true,
+            "runtimeSourceCommitClaim": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+            "runtimeAssetInventorySha256Claim": "4e767a051fc9c3ea238ca251c5d7a2510923f96c02dbbb34f581fe9e7b69613f",
+            "fixtureDataSha256Claim": null,
+            "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+            "fixtureSha256": [
+              "92ee61d4928dbd19e034d649c5168831d9eeafb37cd611606c0339a2a3250486",
+              "53edb6fa526aef203a745d560f9ed8aa77d5461fb76f6c4bd9577f55c0129044"
+            ],
+            "browser": "chromium",
+            "browserVersion": "148.0.7778.96",
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "mobile": false,
+            "deviceScaleFactorDeclared": null,
+            "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+            "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+          },
+          "summary": {
+            "compileMs": {
+              "count": 118,
+              "median": 1.5,
+              "p95": 2.800000000046566,
+              "longest": 5.800000000046566,
+              "invalidCount": 0
+            },
+            "applyMs": {
+              "count": 182,
+              "median": 0.39999999990686774,
+              "p95": 2.9000000001396984,
+              "longest": 11,
+              "invalidCount": 0
+            },
+            "perSampleCombinedP95Ms": [
+              2.2000000001862645,
+              4.300000000046566,
+              3
+            ],
+            "medianSampleP95Ms": 3,
+            "longestPipelineMs": 11,
+            "idbWriteCounts": [
+              0,
+              0,
+              0
+            ],
+            "warmupExcluded": true
+          },
+          "runs": [
+            {
+              "run_index": 0,
+              "phase": "warmup",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 18,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 53500000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 1,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 18,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 53500000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 2,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 17,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 53500000,
+              "resource_entries": 250
+            },
+            {
+              "run_index": 3,
+              "phase": "sample",
+              "metrics": {
+                "chunks": 40,
+                "flushes": 18,
+                "fullReplacements": 0,
+                "nodeViewMounts": 0,
+                "mapHydrations": 0
+              },
+              "heap_bytes": 53500000,
+              "resource_entries": 250
+            }
+          ]
+        }
+      ]
+    },
+    "navigation": {
+      "status": "all_three_tests_passed_first_attempt",
+      "raw_attachment_sha256": "7b6b5626e67bb2f5105e19bbab2fb917512026c0fdf3d8087b00d81231e9c351",
+      "browser_provenance": {
+        "phase": "unspecified",
+        "frontendModeDeclared": "production-preview",
+        "runnerCheckoutHead": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+        "runnerCheckoutDirty": true,
+        "runtimeSourceCommitClaim": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+        "runtimeAssetInventorySha256Claim": "2d6ed2ec4ab766f2c4188eb9ac72d3e57f7c4f9029b80725a1fc38947491785e",
+        "fixtureDataSha256Claim": null,
+        "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+        "fixtureSha256": [
+          "2b53bfd3fda1b61c7025c6087d8ded7ec36743633097254bcd6f93a9c652a846",
+          "a2510441b1d34b6251c3b66d828ad9b3edf3c0ebda3f6cdf31c8de2a60b49576"
+        ],
+        "browser": "chromium",
+        "browserVersion": "148.0.7778.96",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "mobile": false,
+        "deviceScaleFactorDeclared": null,
+        "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+        "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+      },
+      "samples": [
+        {
+          "routeRole": "root",
+          "domContentLoadedMs": 543,
+          "networkIdleMs": 4204,
+          "resources": {
+            "navigationOrdinal": 0,
+            "cacheAttempt": "first-navigation-context-cache-uncontrolled",
+            "frontendMode": "production-preview",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 53,
+                "transferBytes": 1161816,
+                "encodedBodyBytes": 1145916,
+                "decodedBodyBytes": 4066765,
+                "firstParty": 53,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 197,
+                "transferBytes": 742592,
+                "encodedBodyBytes": 683492,
+                "decodedBodyBytes": 3086022,
+                "firstParty": 197,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8610,
+              "encodedBodyBytes": 8310,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 250,
+            "omittedEntries": 0,
+            "usedJSHeapBytes": 47400000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          }
+        },
+        {
+          "routeRole": "docs-index",
+          "domContentLoadedMs": 100,
+          "networkIdleMs": 1215,
+          "resources": {
+            "navigationOrdinal": 1,
+            "cacheAttempt": "reused-context-cache-uncontrolled-see-scenario-route-role",
+            "frontendMode": "production-preview",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 129,
+                "transferBytes": 49202,
+                "encodedBodyBytes": 1498031,
+                "decodedBodyBytes": 5898139,
+                "firstParty": 129,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 125,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 125,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 121,
+                "transferBytes": 3376,
+                "encodedBodyBytes": 659396,
+                "decodedBodyBytes": 2911505,
+                "firstParty": 121,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 119,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 119,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 4371,
+              "encodedBodyBytes": 4071,
+              "decodedBodyBytes": 11510,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 250,
+            "omittedEntries": 0,
+            "usedJSHeapBytes": 47400000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          }
+        },
+        {
+          "routeRole": "first-doc-article",
+          "domContentLoadedMs": 791,
+          "networkIdleMs": 3386,
+          "resources": {
+            "navigationOrdinal": 2,
+            "cacheAttempt": "reused-context-cache-uncontrolled-see-scenario-route-role",
+            "frontendMode": "production-preview",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 138,
+                "transferBytes": 0,
+                "encodedBodyBytes": 3605127,
+                "decodedBodyBytes": 12316281,
+                "firstParty": 138,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 138,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 138,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 112,
+                "transferBytes": 1135,
+                "encodedBodyBytes": 613311,
+                "decodedBodyBytes": 2854093,
+                "firstParty": 112,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 111,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 111,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 7219,
+              "encodedBodyBytes": 6919,
+              "decodedBodyBytes": 26545,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 250,
+            "omittedEntries": 0,
+            "usedJSHeapBytes": 47400000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          }
+        }
+      ],
+      "definitions": {
+        "domContentLoadedMs": "Existing Node Date.now interval around goto(domcontentloaded), including automation overhead.",
+        "networkIdleMs": "Same start through existing networkidle wait; not usable-chat or WASM-init readiness.",
+        "transferBytes": "ResourceTiming transferSize, including reported headers; encoded/decoded body sizes are separate.",
+        "coldWarm": "Three different routes in one context; no matched cold/warm pair, no cache disable/clear added."
+      }
+    }
+  },
+  "limitations": [
+    "Initial c650 resource snapshots reached250entries without overflow evidence and remain lower bounds. Corrected b1 navigation capture contains284\u2013414entries with4096configured and0overflow events; TAO/opaque/cache qualifications still apply.",
+    "Initial observations lack paired cold/warm control; later controlled HTTP-cache checkpoints are separately source-qualified below. HTTP-cache control does not establish cold authentication/application/OS storage or a cold browser process.",
+    "Renderer replay excludes authentication, encryption, provider/inference, synchronization/recovery and full application latency.",
+    "Optional Chromium JS heap is not process RSS, full CPU or WASM linear memory.",
+    "Emitted build-directory bytes include lazy assets and existing third-party WASM, not initial page download. Compression sizes are offline estimates, not measured Content-Encoding transfer.",
+    "One Chromium desktop runner, no device/browser distribution or speedup claim."
+  ],
+  "selected_navigation_baseline": {
+    "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+    "request": "aceceb62de3e71b91eec1fdb3357757caf0cf7c8a67a27449f0aa20b85c922a3",
+    "run": 40034466423,
+    "status": "all_three_tests_passed_first_attempt",
+    "cleanup_verified": true,
+    "evidence_upload_exit": 0,
+    "raw_attachment_sha256": "6fac7a4ab78a031a988fb952ca1b7ab9ece8b50f2f4f83f860a9eeb68250cb59",
+    "binding_sha256": "000deac6faac900c41963b82a466cf59867f948c1289287d55ba23ae7768bfde",
+    "inventory_sha256": "8a9ce7923eeba63218f620cbba746dff9381551fd0411885b7aa06efc4082f8f",
+    "source_served_entry_inventory_binding": "verified",
+    "browser_provenance": {
+      "phase": "unspecified",
+      "frontendModeDeclared": "production-preview",
+      "runnerCheckoutHead": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+      "runnerCheckoutDirty": true,
+      "runtimeSourceCommitClaim": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+      "runtimeAssetInventorySha256Claim": "8a9ce7923eeba63218f620cbba746dff9381551fd0411885b7aa06efc4082f8f",
+      "fixtureDataSha256Claim": null,
+      "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+      "fixtureSha256": [
+        "48ae3af52e247639cb1365606e8b51b5f95dba3418b2dd926d887481f2620f8b",
+        "a2510441b1d34b6251c3b66d828ad9b3edf3c0ebda3f6cdf31c8de2a60b49576"
+      ],
+      "browser": "chromium",
+      "browserVersion": "148.0.7778.96",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "mobile": false,
+      "deviceScaleFactorDeclared": null,
+      "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+      "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+    },
+    "samples": [
+      {
+        "routeRole": "root",
+        "domContentLoadedMs": 532,
+        "networkIdleMs": 3746,
+        "resources": {
+          "navigationOrdinal": 0,
+          "cacheAttempt": "first-navigation-context-cache-uncontrolled",
+          "frontendMode": "production-preview",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 199,
+              "transferBytes": 4409764,
+              "encodedBodyBytes": 4350064,
+              "decodedBodyBytes": 15497799,
+              "firstParty": 198,
+              "thirdParty": 1,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 215,
+              "transferBytes": 1025794,
+              "encodedBodyBytes": 964294,
+              "decodedBodyBytes": 3367511,
+              "firstParty": 203,
+              "thirdParty": 12,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 10,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 8630,
+            "encodedBodyBytes": 8330,
+            "decodedBodyBytes": 38103,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 414,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 50400000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        }
+      },
+      {
+        "routeRole": "docs-index",
+        "domContentLoadedMs": 142,
+        "networkIdleMs": 1140,
+        "resources": {
+          "navigationOrdinal": 1,
+          "cacheAttempt": "reused-context-cache-uncontrolled-see-scenario-route-role",
+          "frontendMode": "production-preview",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 161,
+              "transferBytes": 49207,
+              "encodedBodyBytes": 4290752,
+              "decodedBodyBytes": 15457952,
+              "firstParty": 160,
+              "thirdParty": 1,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 157,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 157,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 123,
+              "transferBytes": 3376,
+              "encodedBodyBytes": 659396,
+              "decodedBodyBytes": 2911505,
+              "firstParty": 121,
+              "thirdParty": 2,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 119,
+              "allSizesZero": 2,
+              "deliveryCacheReported": 119,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 4371,
+            "encodedBodyBytes": 4071,
+            "decodedBodyBytes": 11510,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 284,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 50400000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        }
+      },
+      {
+        "routeRole": "first-doc-article",
+        "domContentLoadedMs": 603,
+        "networkIdleMs": 4440,
+        "resources": {
+          "navigationOrdinal": 2,
+          "cacheAttempt": "reused-context-cache-uncontrolled-see-scenario-route-role",
+          "frontendMode": "production-preview",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 161,
+              "transferBytes": 2514,
+              "encodedBodyBytes": 4291157,
+              "decodedBodyBytes": 15459028,
+              "firstParty": 159,
+              "thirdParty": 2,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 159,
+              "allSizesZero": 1,
+              "deliveryCacheReported": 159,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 195,
+              "transferBytes": 1135,
+              "encodedBodyBytes": 714795,
+              "decodedBodyBytes": 3094540,
+              "firstParty": 189,
+              "thirdParty": 6,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 189,
+              "allSizesZero": 5,
+              "deliveryCacheReported": 189,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 7219,
+            "encodedBodyBytes": 6919,
+            "decodedBodyBytes": 26545,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 356,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 50400000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        }
+      }
+    ],
+    "definitions": {
+      "domContentLoadedMs": "Existing Node Date.now interval around goto(domcontentloaded), including automation overhead.",
+      "networkIdleMs": "Same start through existing networkidle wait; not usable-chat or WASM-init readiness.",
+      "transferBytes": "ResourceTiming transferSize, including reported headers; encoded/decoded body sizes are separate.",
+      "coldWarm": "Three different routes in one context; no matched cold/warm pair, no cache disable/clear added."
+    },
+    "emitted_assets": {
+      "javascript": {
+        "brotliBytes": 10750387,
+        "count": 848,
+        "gzipBytes": 11993205,
+        "rawBytes": 43045222
+      },
+      "other": {
+        "brotliBytes": 67277539,
+        "count": 2750,
+        "gzipBytes": 68520972,
+        "rawBytes": 97419732
+      },
+      "wasm": {
+        "brotliBytes": 2770878,
+        "count": 1,
+        "gzipBytes": 3687160,
+        "rawBytes": 14239897
+      }
+    },
+    "emitted_javascript_wasm_combined": {
+      "brotliBytes": 13521265,
+      "gzipBytes": 15680365,
+      "rawBytes": 57285119
+    },
+    "qualification": "Legacy BEFORE measurement, not a Rust AFTER result or matched cold/warm trial. Increased observed resource bytes reflect corrected collection, not an application regression."
+  },
+  "authenticated_startup_reconnect_baseline": {
+    "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+    "request": "f6bfef4af244511ecfdf1a77f5722560a44d07c1c8d5d83cbfaef6182acadc5d",
+    "run": 40034470877,
+    "instrumented_cases": "both_passed_first_attempt",
+    "suite_status": "failure_5passed_1failed_both_attempts",
+    "legacy_failure": "Unmodified cached-window replay while IndexedDB reconciliation waits leaves selected history loading/hidden.",
+    "cleanup_verified": true,
+    "evidence_upload_exit": 0,
+    "measurements": [
+      {
+        "raw_attachment_sha256": "2e0d1cc8d1942b72404cd6754d421e4b8869eb7a1e74f333ccd41f05c4796597",
+        "fixture": {
+          "startupChats": 22,
+          "sharedOwnerChats": 1,
+          "phase2ExpectedTotalChats": 23,
+          "fixturePairing": "Same isolated runner provisioning required; compare source/data hashes and actual snapshots."
+        },
+        "browser_provenance": {
+          "phase": "unspecified",
+          "frontendModeDeclared": "unknown",
+          "runnerCheckoutHead": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "runnerCheckoutDirty": true,
+          "runtimeSourceCommitClaim": null,
+          "runtimeAssetInventorySha256Claim": null,
+          "fixtureDataSha256Claim": null,
+          "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+          "fixtureSha256": [
+            "5fb727c8a4d0624ebb3b373e5a164b819e2df42f0e2d45a0b443b2ce82b6191f",
+            "3807a1e26ea95eeb6c2b1eab4ebb659ee82bb28093191a5416caa0c8d06d8486",
+            "759a13b39c96e777f91d37a9356810eeaa158ca9c426966dd669758f4fca7162"
+          ],
+          "browser": "chromium",
+          "browserVersion": "148.0.7778.96",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "mobile": false,
+          "deviceScaleFactorDeclared": null,
+          "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+          "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+        },
+        "received": {
+          "frames": 12,
+          "utf8ApplicationBytes": 74664,
+          "nonJsonFrames": 0,
+          "types": {
+            "server_capabilities": 1,
+            "other": 7,
+            "sync_status_response": 2,
+            "phase_2_last_20_chats_ready": 1,
+            "phase_1b_chat_content_ready": 1
+          },
+          "shapes": {
+            "chats": 33,
+            "messages": 20,
+            "embeds": 1,
+            "embedKeys": 2,
+            "codeOutputs": 0,
+            "notebookOutputs": 0,
+            "wrappers": 0
+          }
+        },
+        "count_snapshots": [
+          {
+            "stage": "phase-receipts-observed-before-ready-check",
+            "counts": {
+              "available": true,
+              "chats": 23,
+              "messages": 20
+            }
+          }
+        ],
+        "phase_receipts_ms_from_first_socket": {
+          "phase1b": 8826,
+          "phase2": 3991
+        },
+        "windows": [
+          {
+            "role": "startup-transport",
+            "elapsedDefinition": "First runner-observed socket through phase wait, login/reminder automation and readiness checks; not pure transport-ready latency. phaseReceiptMs separately records frame receipt.",
+            "elapsedMs": 9446,
+            "received": {
+              "frames": 12,
+              "utf8ApplicationBytes": 74664,
+              "nonJsonFrames": 0,
+              "types": {
+                "server_capabilities": 1,
+                "other": 7,
+                "sync_status_response": 2,
+                "phase_2_last_20_chats_ready": 1,
+                "phase_1b_chat_content_ready": 1
+              },
+              "shapes": {
+                "chats": 33,
+                "messages": 20,
+                "embeds": 1,
+                "embedKeys": 2,
+                "codeOutputs": 0,
+                "notebookOutputs": 0,
+                "wrappers": 0
+              }
+            },
+            "phaseReceiptMs": {
+              "phase1b": 8826,
+              "phase2": 3991
+            },
+            "supported": true,
+            "count": 0,
+            "durationMs": 0,
+            "maxDurationMs": 0,
+            "omittedDocumentTasks": 0,
+            "thresholdMs": 50,
+            "maxStoredDocumentTasks": 4096,
+            "persistedCountsSnapshot": {
+              "stage": "after-existing-ready-check",
+              "startedMsAfterWindowEnd": 0,
+              "completedMsAfterWindowEnd": 5,
+              "counts": {
+                "available": true,
+                "chats": 23,
+                "messages": 20
+              }
+            }
+          }
+        ],
+        "resources": {
+          "navigationOrdinal": 0,
+          "cacheAttempt": "first-navigation-context-cache-uncontrolled",
+          "frontendMode": "unknown",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 204,
+              "transferBytes": 4443491,
+              "encodedBodyBytes": 4406391,
+              "decodedBodyBytes": 15600545,
+              "firstParty": 203,
+              "thirdParty": 1,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 2,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 2,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 252,
+              "transferBytes": 1025840,
+              "encodedBodyBytes": 964340,
+              "decodedBodyBytes": 3367511,
+              "firstParty": 203,
+              "thirdParty": 49,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 47,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 8622,
+            "encodedBodyBytes": 8322,
+            "decodedBodyBytes": 38101,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 456,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 60300000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        },
+        "limitations": [
+          "Resource capture is bounded to 4096 entries and may be incomplete; inspect shared resource evidence buffer-full, omitted and uncaptured status. No full resource snapshot completeness claim.",
+          "Phase receipt does not prove persistence; count snapshots follow existing waitForChatReady and do not attest every fixture record or completed decryption.",
+          "Long tasks cover only the current document and tasks starting in each window; cross-process Date.now/performance.timeOrigin alignment is approximate. Tasks crossing the boundary are excluded.",
+          "Transport window starts at runner-observed socket creation, which is not an authentication-completion timestamp. Elapsed values include overlapping login/reminder automation and runner scheduling; reconnect also includes the existing carousel sampling loop. Count snapshots run after the frozen window endpoint and report their own start/completion offsets.",
+          "Only JSON frames processed by the existing listeners contribute to runtime counters; non-JSON traffic is not captured by those listeners.",
+          "Application-frame UTF-8 bytes exclude wire framing/compression/TLS and do not measure wire traffic.",
+          "Cold/empty-store and warm reload pairing remains unmeasured; no browser cache, authentication store or chat store is cleared.",
+          "Heap deltas are not recorded; heap is the optional end-of-scenario JS heap from resource evidence. No inference or runtime Rust integration is introduced."
+        ]
+      },
+      {
+        "raw_attachment_sha256": "e6097e48cb95e3229ee3e90fd86203a6a39abd3c04eec38c76edfb926b05a771",
+        "fixture": {
+          "startupChats": 22,
+          "sharedOwnerChats": 1,
+          "phase2ExpectedTotalChats": 23,
+          "fixturePairing": "Same isolated runner provisioning required; compare source/data hashes and actual snapshots."
+        },
+        "browser_provenance": {
+          "phase": "unspecified",
+          "frontendModeDeclared": "unknown",
+          "runnerCheckoutHead": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "runnerCheckoutDirty": true,
+          "runtimeSourceCommitClaim": null,
+          "runtimeAssetInventorySha256Claim": null,
+          "fixtureDataSha256Claim": null,
+          "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+          "fixtureSha256": [
+            "5fb727c8a4d0624ebb3b373e5a164b819e2df42f0e2d45a0b443b2ce82b6191f",
+            "3807a1e26ea95eeb6c2b1eab4ebb659ee82bb28093191a5416caa0c8d06d8486",
+            "759a13b39c96e777f91d37a9356810eeaa158ca9c426966dd669758f4fca7162"
+          ],
+          "browser": "chromium",
+          "browserVersion": "148.0.7778.96",
+          "viewport": {
+            "width": 1366,
+            "height": 900
+          },
+          "mobile": false,
+          "deviceScaleFactorDeclared": null,
+          "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+          "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+        },
+        "received": {
+          "frames": 15,
+          "utf8ApplicationBytes": 56875,
+          "nonJsonFrames": 0,
+          "types": {
+            "server_capabilities": 2,
+            "other": 9,
+            "sync_status_response": 2,
+            "phase_2_last_20_chats_ready": 2
+          },
+          "shapes": {
+            "chats": 23,
+            "messages": 0,
+            "embeds": 0,
+            "embedKeys": 0,
+            "codeOutputs": 0,
+            "notebookOutputs": 0,
+            "wrappers": 0
+          }
+        },
+        "count_snapshots": [
+          {
+            "stage": "phase-receipts-observed-before-ready-check",
+            "counts": {
+              "available": true,
+              "chats": 23,
+              "messages": 0
+            }
+          }
+        ],
+        "phase_receipts_ms_from_first_socket": {
+          "phase1b": null,
+          "phase2": 2810
+        },
+        "windows": [
+          {
+            "role": "startup-transport",
+            "elapsedDefinition": "First runner-observed socket through phase wait, login/reminder automation and readiness checks; not pure transport-ready latency. phaseReceiptMs separately records frame receipt.",
+            "elapsedMs": 3430,
+            "received": {
+              "frames": 8,
+              "utf8ApplicationBytes": 44815,
+              "nonJsonFrames": 0,
+              "types": {
+                "server_capabilities": 1,
+                "other": 5,
+                "sync_status_response": 1,
+                "phase_2_last_20_chats_ready": 1
+              },
+              "shapes": {
+                "chats": 23,
+                "messages": 0,
+                "embeds": 0,
+                "embedKeys": 0,
+                "codeOutputs": 0,
+                "notebookOutputs": 0,
+                "wrappers": 0
+              }
+            },
+            "phaseReceiptMs": {
+              "phase1b": null,
+              "phase2": 2810
+            },
+            "supported": true,
+            "count": 0,
+            "durationMs": 0,
+            "maxDurationMs": 0,
+            "omittedDocumentTasks": 0,
+            "thresholdMs": 50,
+            "maxStoredDocumentTasks": 4096,
+            "persistedCountsSnapshot": {
+              "stage": "after-existing-ready-check",
+              "startedMsAfterWindowEnd": 0,
+              "completedMsAfterWindowEnd": 10,
+              "counts": {
+                "available": true,
+                "chats": 23,
+                "messages": 0
+              }
+            }
+          },
+          {
+            "role": "established-reconnect",
+            "elapsedDefinition": "Socket-close automation through existing two-second carousel sampling, replacement-phase wait, readiness checks and runner scheduling; not pure transport-ready latency. phaseReceiptMs separately records frame receipt.",
+            "elapsedMs": 4070,
+            "received": {
+              "frames": 7,
+              "utf8ApplicationBytes": 12060,
+              "nonJsonFrames": 0,
+              "types": {
+                "server_capabilities": 1,
+                "other": 4,
+                "sync_status_response": 1,
+                "phase_2_last_20_chats_ready": 1
+              },
+              "shapes": {
+                "chats": 0,
+                "messages": 0,
+                "embeds": 0,
+                "embedKeys": 0,
+                "codeOutputs": 0,
+                "notebookOutputs": 0,
+                "wrappers": 0
+              }
+            },
+            "phaseReceiptMs": {
+              "phase1b": null,
+              "phase2": 3775
+            },
+            "supported": true,
+            "count": 0,
+            "durationMs": 0,
+            "maxDurationMs": 0,
+            "omittedDocumentTasks": 0,
+            "thresholdMs": 50,
+            "maxStoredDocumentTasks": 4096,
+            "persistedCountsSnapshot": {
+              "stage": "after-existing-ready-check",
+              "startedMsAfterWindowEnd": 0,
+              "completedMsAfterWindowEnd": 26,
+              "counts": {
+                "available": true,
+                "chats": 23,
+                "messages": 0
+              }
+            }
+          }
+        ],
+        "resources": {
+          "navigationOrdinal": 0,
+          "cacheAttempt": "first-navigation-context-cache-uncontrolled",
+          "frontendMode": "unknown",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 204,
+              "transferBytes": 4426509,
+              "encodedBodyBytes": 4389409,
+              "decodedBodyBytes": 15600545,
+              "firstParty": 203,
+              "thirdParty": 1,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 2,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 2,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 265,
+              "transferBytes": 1025794,
+              "encodedBodyBytes": 964294,
+              "decodedBodyBytes": 3367511,
+              "firstParty": 203,
+              "thirdParty": 62,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 60,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 8622,
+            "encodedBodyBytes": 8322,
+            "decodedBodyBytes": 38101,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 469,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 86400000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        },
+        "limitations": [
+          "Resource capture is bounded to 4096 entries and may be incomplete; inspect shared resource evidence buffer-full, omitted and uncaptured status. No full resource snapshot completeness claim.",
+          "Phase receipt does not prove persistence; count snapshots follow existing waitForChatReady and do not attest every fixture record or completed decryption.",
+          "Long tasks cover only the current document and tasks starting in each window; cross-process Date.now/performance.timeOrigin alignment is approximate. Tasks crossing the boundary are excluded.",
+          "Transport window starts at runner-observed socket creation, which is not an authentication-completion timestamp. Elapsed values include overlapping login/reminder automation and runner scheduling; reconnect also includes the existing carousel sampling loop. Count snapshots run after the frozen window endpoint and report their own start/completion offsets.",
+          "Only JSON frames processed by the existing listeners contribute to runtime counters; non-JSON traffic is not captured by those listeners.",
+          "Application-frame UTF-8 bytes exclude wire framing/compression/TLS and do not measure wire traffic.",
+          "Cold/empty-store and warm reload pairing remains unmeasured; no browser cache, authentication store or chat store is cleared.",
+          "Heap deltas are not recorded; heap is the optional end-of-scenario JS heap from resource evidence. No inference or runtime Rust integration is introduced."
+        ]
+      }
+    ],
+    "qualification": "Fixed encrypted fixture shape and source-bound CI environment; timing windows include documented automation, not pure auth/decrypt completion. CPU/RSS/cold-warm/empty-store and full usable-history completion remain unmeasured."
+  },
+  "selected_renderer_baseline": {
+    "request": "e456ebf6620c2420c3ae22ad1c8c955f03a42d41e887eabea16aca06b026b15f",
+    "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+    "run": 40034458115,
+    "state": "success",
+    "cleanup_verified": true,
+    "evidence_upload_exit": 0,
+    "inventory_sha256": "258a2ea204ee5a80368e4332dfbf38e46c6f4735cff1fcb7a331cf0171a44c9c",
+    "attempts": [
+      {
+        "retry": 0,
+        "status": "passed",
+        "attachment_sha256": "1a0c5dcea4571aa85a1241ccfa7ea03561f9aa5261d488d135b3b807ed4def68",
+        "browser_provenance": {
+          "phase": "unspecified",
+          "frontendModeDeclared": "production-preview",
+          "runnerCheckoutHead": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "runnerCheckoutDirty": true,
+          "runtimeSourceCommitClaim": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "runtimeAssetInventorySha256Claim": "258a2ea204ee5a80368e4332dfbf38e46c6f4735cff1fcb7a331cf0171a44c9c",
+          "fixtureDataSha256Claim": null,
+          "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+          "fixtureSha256": [
+            "92ee61d4928dbd19e034d649c5168831d9eeafb37cd611606c0339a2a3250486",
+            "53edb6fa526aef203a745d560f9ed8aa77d5461fb76f6c4bd9577f55c0129044"
+          ],
+          "browser": "chromium",
+          "browserVersion": "148.0.7778.96",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "mobile": false,
+          "deviceScaleFactorDeclared": null,
+          "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+          "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+        },
+        "summary": {
+          "compileMs": {
+            "count": 114,
+            "median": 1.3000000000465661,
+            "p95": 3.8999999999068677,
+            "longest": 12.5,
+            "invalidCount": 0
+          },
+          "applyMs": {
+            "count": 180,
+            "median": 0.40000000002328306,
+            "p95": 3.199999999953434,
+            "longest": 19.79999999993015,
+            "invalidCount": 0
+          },
+          "perSampleCombinedP95Ms": [
+            3.599999999976717,
+            4.900000000023283,
+            3
+          ],
+          "medianSampleP95Ms": 3.599999999976717,
+          "longestPipelineMs": 19.79999999993015,
+          "idbWriteCounts": [
+            0,
+            0,
+            0
+          ],
+          "warmupExcluded": true
+        },
+        "resources": [
+          {
+            "run": 0,
+            "phase": "warmup",
+            "entries": 411,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "heap_bytes": 53500000
+          },
+          {
+            "run": 1,
+            "phase": "sample",
+            "entries": 411,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "heap_bytes": 53500000
+          },
+          {
+            "run": 2,
+            "phase": "sample",
+            "entries": 411,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "heap_bytes": 53500000
+          },
+          {
+            "run": 3,
+            "phase": "sample",
+            "entries": 411,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "heap_bytes": 53500000
+          }
+        ]
+      }
+    ],
+    "scope": "Renderer-only legacy Svelte replay; not an authenticated full-application measurement or Rust speedup."
+  },
+  "controlled_authenticated_http_cache_baseline": {
+    "source": "f6dc7f67f700e037c3281985c43a00627d7ba277",
+    "request": "98701b48d4a8a3380d35dc6c548e84d5c41e52f145644093b91b332a42d3f95a",
+    "run": 40040141700,
+    "measured_case": "passed_first_attempt",
+    "suite": "6 passed, unmodified cached-window replay failed both attempts",
+    "cleanup_verified": true,
+    "evidence_upload": "completed command reported separately",
+    "attachment_sha256": "a0f3546d2063b70d2a2b4071055c7a15c6880b53f10ac97d2e114c77075bd978",
+    "evidence": {
+      "schemaVersion": 1,
+      "scenario": "authenticated-http-cache-cold-fill-warm-reloads",
+      "status": "observed",
+      "samples": [
+        {
+          "ordinal": 0,
+          "role": "http-cache-cold-fill",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 663,
+          "reloadToReadyMs": 5601,
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 9429.999999999998,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 0,
+            "noLongerReportedOrReplacedProcessCount": 0,
+            "before": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 791969792
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 840978432
+            },
+            "elapsedBetweenSnapshotStartsMs": 5608,
+            "beforeSnapshotDurationMs": 5,
+            "afterSnapshotDurationMs": 3,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "resources": {
+            "navigationOrdinal": 1,
+            "cacheAttempt": "http-cache-cold-fill-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 4414193,
+                "encodedBodyBytes": 4353893,
+                "decodedBodyBytes": 15513400,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 235,
+                "transferBytes": 1025794,
+                "encodedBodyBytes": 964294,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 32,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 30,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8612,
+              "encodedBodyBytes": 8312,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 436,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 68000000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        },
+        {
+          "ordinal": 1,
+          "role": "same-route-warm-1",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 386,
+          "reloadToReadyMs": 5334,
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 9010.000000000002,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 0,
+            "noLongerReportedOrReplacedProcessCount": 0,
+            "before": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 841781248
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 868229120
+            },
+            "elapsedBetweenSnapshotStartsMs": 5340,
+            "beforeSnapshotDurationMs": 5,
+            "afterSnapshotDurationMs": 3,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "resources": {
+            "navigationOrdinal": 2,
+            "cacheAttempt": "same-route-warm-1-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 300,
+                "encodedBodyBytes": 4353874,
+                "decodedBodyBytes": 15513381,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 200,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 200,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 235,
+                "transferBytes": 204952,
+                "encodedBodyBytes": 964294,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 32,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 204,
+                "allSizesZero": 30,
+                "deliveryCacheReported": 204,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8612,
+              "encodedBodyBytes": 8312,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 436,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 68000000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        },
+        {
+          "ordinal": 2,
+          "role": "same-route-warm-2",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 438,
+          "reloadToReadyMs": 4393,
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 7580.000000000002,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 0,
+            "noLongerReportedOrReplacedProcessCount": 0,
+            "before": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 869105664
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 4,
+              "summedReportedProcessRssBytes": 949764096
+            },
+            "elapsedBetweenSnapshotStartsMs": 4398,
+            "beforeSnapshotDurationMs": 4,
+            "afterSnapshotDurationMs": 5,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 0
+          },
+          "resources": {
+            "navigationOrdinal": 3,
+            "cacheAttempt": "same-route-warm-2-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 319,
+                "encodedBodyBytes": 4353893,
+                "decodedBodyBytes": 15513400,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 200,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 200,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 231,
+                "transferBytes": 204952,
+                "encodedBodyBytes": 964294,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 28,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 204,
+                "allSizesZero": 26,
+                "deliveryCacheReported": 204,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8612,
+              "encodedBodyBytes": 8312,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 432,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 68000000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        }
+      ],
+      "completeApprovedWebComparison": false,
+      "fixture": {
+        "startupChats": 22,
+        "sharedOwnerChats": 1,
+        "phase2ExpectedTotalChats": 23
+      },
+      "definitions": {
+        "cache": "HTTP cache cleared after login, then cache enabled for one cold-fill and two warm reload attempts of the same route. SW bypass held constant. Cache eligibility/hits are observed, never asserted.",
+        "login": "Existing login, security-reminder dismissal, phase2 and waitForChatReady helper automation. Includes navigation/network/KDF/UI/runner work; KDF duration is not isolated.",
+        "reload": "Node wall interval from immediately before reload(domcontentloaded) to phase2 plus existing authentication/editor/router/transport readiness. Does not prove complete durable fixture/decryption completion.",
+        "process": "CPU and RSS endpoints span the measurement automation and sequential sampler overhead; raw process identities never leave the helper. See per-sample qualifications.",
+        "storage": "No auth, cookies, IndexedDB, local/session storage or application caches cleared. This is not cold authentication, cold app storage, cold OS disk cache, cold code cache or a fresh browser process.",
+        "memory": "Optional ResourceTiming helper JS heap is separate from procfs summed RSS; WASM linear memory is unavailable. No inference or Rust browser runtime introduced."
+      },
+      "loginAutomation": {
+        "begin": {
+          "available": true
+        },
+        "elapsedMs": 9879,
+        "process": {
+          "available": true,
+          "stableReportedProcessCpuMs": 13990.000000000004,
+          "stableProcessCount": 4,
+          "invalidCpuPairs": 0,
+          "newlyReportedOrReplacedProcessCount": 0,
+          "noLongerReportedOrReplacedProcessCount": 0,
+          "before": {
+            "reportedVerifiedProcessCount": 4,
+            "summedReportedProcessRssBytes": 320729088
+          },
+          "after": {
+            "reportedVerifiedProcessCount": 4,
+            "summedReportedProcessRssBytes": 797908992
+          },
+          "elapsedBetweenSnapshotStartsMs": 9888,
+          "beforeSnapshotDurationMs": 5,
+          "afterSnapshotDurationMs": 4,
+          "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+          "limitations": [
+            "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+            "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+            "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+            "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+            "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+          ]
+        },
+        "acceptance": {
+          "accepted": true,
+          "reason": "valid_endpoints_within_declared_partial_process_scope"
+        }
+      },
+      "cacheProtocol": {
+        "available": true,
+        "definition": "Browser HTTP cache cleared once after login; cache enabled for cold fill and two same-route warm reload attempts; service-worker bypass held true for all samples. Auth/IDB/application data untouched. Warm cache hits are observations, not guaranteed."
+      },
+      "routePathSha256": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1",
+      "provenance": {
+        "phase": "unspecified",
+        "frontendModeDeclared": "unknown",
+        "runnerCheckoutHead": "f6dc7f67f700e037c3281985c43a00627d7ba277",
+        "runnerCheckoutDirty": true,
+        "runtimeSourceCommitClaim": null,
+        "runtimeAssetInventorySha256Claim": null,
+        "fixtureDataSha256Claim": null,
+        "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+        "fixtureSha256": [
+          "5fb727c8a4d0624ebb3b373e5a164b819e2df42f0e2d45a0b443b2ce82b6191f",
+          "48e24783923c9eaca065a4b30a67478fa17a973b44f5f2b995e0f950834fbb25",
+          "4f9df2f1b05c6a0887d87b8c14b8093d57c94e51e615e5bfb2345454eedb9806"
+        ],
+        "browser": "chromium",
+        "browserVersion": "148.0.7778.96",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "mobile": false,
+        "deviceScaleFactorDeclared": null,
+        "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+        "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+      }
+    },
+    "qualification": "HTTP-cache cold fill and same-route warm reloads preserve auth and IndexedDB. Observed CPU is the stable verified browser-process subset; summed RSS endpoints can double-count shared pages. This metadata-only fixture snapshot has23chats/0messages, not selected-chat decryption CPU, full lifetime CPU, peak RAM, cold authentication, WASM memory or Rust AFTER evidence."
+  },
+  "selected_decrypted_chat_http_cache_before_2026_10_24": {
+    "date": "2026-10-24",
+    "source": "5fbd6ca2a375554fba4d790227945a5489cb11c4",
+    "tree": "17efdbc17e480a97bb3d868c4d3fcfc21809036e",
+    "legacy_runtime_base": "4a73ca4d30e05030ac78bafb81ee6284f1933c17",
+    "runtime_base_diff_paths": [
+      "frontend/apps/web_app/tests/startup-sync-contract.spec.ts"
+    ],
+    "classification": "Legacy browser BEFORE integration: selected real decrypted fixture chat; stronger endpoint than historical zero-message shell observations. Inactive Worker/WASM foundation and working SDK portability drafts are excluded.",
+    "request": "cb42b64350ce6899d315fa1076f2865be6d3168cf7b31308c84dca70be0793d3",
+    "run": 40072459544,
+    "harness": "b9a8d62d70515fae0e1956c015ce99d2fc4e353c",
+    "spec": "startup-sync-contract.spec.ts",
+    "case_title": "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads",
+    "coverage_scope": "single-case",
+    "suite_not_executed": true,
+    "case_result": "passed_first_attempt",
+    "attempts": [
+      {
+        "status": "passed",
+        "retry": 0,
+        "duration": 41989,
+        "workerIndex": 0,
+        "parallelIndex": 0
+      }
+    ],
+    "stats": {
+      "startTime": "2026-10-24T07:17:54.604Z",
+      "duration": 45141.04,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "retrieval": "normal coordinator retrieval exit 0; source/run identity accepted",
+    "cleanup_verified": true,
+    "attachment_sha256": "c60d02e3f01e8f36483f89d08835ddfbbf3f667ce98df4de42e04f2ab45c3304",
+    "attachment_encoding": "base64 application/json body in ci-spec-0.json; SHA-256 is over decoded original bytes",
+    "runtime_binding": {
+      "frontend_source": "5fbd6ca2a375554fba4d790227945a5489cb11c4",
+      "renderer": "sveltekit-preview",
+      "entry_asset_sha256": {
+        "_app/immutable/entry/app.DFvmONHk.js": "4f81bf2bd5837e72c093561e1b9076d71502f6c7a207f2d28f302ebc456f5fdf",
+        "_app/immutable/entry/start.B4DgK2f2.js": "97231c9ca94a6f4ce3935b454e4905c0e7b26a4af16a156b85bc42cb68f5f786"
+      },
+      "served_index_sha256": "8ffaee74293e95b99e0a3248f679af7b97a02e4f8af6075a0d81a422d02d7d82",
+      "qualification": "CI environment binds the SvelteKit preview and served entries to source. Attachment itself declares phase unspecified/frontend mode unknown, checkout dirty and null runtime source/asset-inventory/fixture-data claims. No new complete compressed production asset inventory is present in this run; retain earlier inventories separately."
+    },
+    "evidence": {
+      "schemaVersion": 2,
+      "scenario": "authenticated-http-cache-selected-decrypted-chat-cold-fill-warm-reloads",
+      "status": "observed",
+      "samples": [
+        {
+          "ordinal": 0,
+          "role": "http-cache-cold-fill",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 674,
+          "phase2ObservedMs": 7542,
+          "reloadToReadyMs": 7742,
+          "usable": {
+            "loadedMessages": 6,
+            "sourceMessages": 6,
+            "decryptedFixtureMessageVisible": true,
+            "editorUsable": true,
+            "counts": {
+              "available": true,
+              "chats": 23,
+              "messages": 20
+            }
+          },
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 12459.999999999998,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 1,
+            "noLongerReportedOrReplacedProcessCount": 1,
+            "before": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 908738560
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 991178752
+            },
+            "elapsedBetweenSnapshotStartsMs": 7754,
+            "beforeSnapshotDurationMs": 7,
+            "afterSnapshotDurationMs": 3,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "resources": {
+            "navigationOrdinal": 1,
+            "cacheAttempt": "http-cache-cold-fill-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 4414603,
+                "encodedBodyBytes": 4354303,
+                "decodedBodyBytes": 15513400,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 236,
+                "transferBytes": 1025762,
+                "encodedBodyBytes": 964262,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 33,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 31,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8632,
+              "encodedBodyBytes": 8332,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 437,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 76600000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        },
+        {
+          "ordinal": 1,
+          "role": "same-route-warm-1",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 408,
+          "phase2ObservedMs": 6267,
+          "reloadToReadyMs": 6570,
+          "usable": {
+            "loadedMessages": 6,
+            "sourceMessages": 6,
+            "decryptedFixtureMessageVisible": true,
+            "editorUsable": true,
+            "counts": {
+              "available": true,
+              "chats": 23,
+              "messages": 20
+            }
+          },
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 10719.999999999996,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 1,
+            "noLongerReportedOrReplacedProcessCount": 1,
+            "before": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 989564928
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 1002127360
+            },
+            "elapsedBetweenSnapshotStartsMs": 6574,
+            "beforeSnapshotDurationMs": 3,
+            "afterSnapshotDurationMs": 4,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "resources": {
+            "navigationOrdinal": 2,
+            "cacheAttempt": "same-route-warm-1-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 300,
+                "encodedBodyBytes": 4354284,
+                "decodedBodyBytes": 15513381,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 200,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 200,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 235,
+                "transferBytes": 204952,
+                "encodedBodyBytes": 964262,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 32,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 204,
+                "allSizesZero": 30,
+                "deliveryCacheReported": 204,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8632,
+              "encodedBodyBytes": 8332,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 436,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 76600000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        },
+        {
+          "ordinal": 2,
+          "role": "same-route-warm-2",
+          "begin": {
+            "available": true
+          },
+          "sameRouteAsInitial": true,
+          "domContentLoadedMs": 566,
+          "phase2ObservedMs": 6427,
+          "reloadToReadyMs": 6663,
+          "usable": {
+            "loadedMessages": 6,
+            "sourceMessages": 6,
+            "decryptedFixtureMessageVisible": true,
+            "editorUsable": true,
+            "counts": {
+              "available": true,
+              "chats": 23,
+              "messages": 20
+            }
+          },
+          "process": {
+            "available": true,
+            "stableReportedProcessCpuMs": 10870,
+            "stableProcessCount": 4,
+            "invalidCpuPairs": 0,
+            "newlyReportedOrReplacedProcessCount": 1,
+            "noLongerReportedOrReplacedProcessCount": 1,
+            "before": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 1005109248
+            },
+            "after": {
+              "reportedVerifiedProcessCount": 5,
+              "summedReportedProcessRssBytes": 994603008
+            },
+            "elapsedBetweenSnapshotStartsMs": 6666,
+            "beforeSnapshotDurationMs": 2,
+            "afterSnapshotDurationMs": 20,
+            "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+            "limitations": [
+              "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+              "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+              "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+              "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+              "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+            ]
+          },
+          "countsBefore": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "countsAfter": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          },
+          "resources": {
+            "navigationOrdinal": 3,
+            "cacheAttempt": "same-route-warm-2-controlled-http-only",
+            "frontendMode": "unknown",
+            "productionClaimConflictsWithObservedDev": false,
+            "totals": {
+              "javascript": {
+                "count": 201,
+                "transferBytes": 319,
+                "encodedBodyBytes": 4354303,
+                "decodedBodyBytes": 15513400,
+                "firstParty": 200,
+                "thirdParty": 1,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 200,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 200,
+                "serviceWorkerIntercepted": 0
+              },
+              "observedWasmResource": {
+                "count": 0,
+                "transferBytes": 0,
+                "encodedBodyBytes": 0,
+                "decodedBodyBytes": 0,
+                "firstParty": 0,
+                "thirdParty": 0,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 0,
+                "allSizesZero": 0,
+                "deliveryCacheReported": 0,
+                "serviceWorkerIntercepted": 0
+              },
+              "other": {
+                "count": 235,
+                "transferBytes": 204952,
+                "encodedBodyBytes": 964262,
+                "decodedBodyBytes": 3367511,
+                "firstParty": 203,
+                "thirdParty": 32,
+                "opaqueOrigin": 0,
+                "zeroTransferWithBody": 204,
+                "allSizesZero": 30,
+                "deliveryCacheReported": 204,
+                "serviceWorkerIntercepted": 0
+              }
+            },
+            "navigation": {
+              "transferBytes": 8632,
+              "encodedBodyBytes": 8332,
+              "decodedBodyBytes": 38103,
+              "zeroTransferWithBody": false,
+              "allSizesZero": false,
+              "deliveryCacheReported": false,
+              "serviceWorkerIntercepted": false
+            },
+            "totalEntries": 436,
+            "omittedEntries": 0,
+            "capture": {
+              "installed": true,
+              "requestedCapacity": 4096,
+              "bufferFullEvents": 0,
+              "mayBeIncomplete": false
+            },
+            "usedJSHeapBytes": 76600000,
+            "observedDevice": {
+              "pixelRatio": 1,
+              "hardwareConcurrency": 4,
+              "deviceMemoryGiB": 16
+            },
+            "serviceWorkerControlled": false,
+            "limits": [
+              "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+              "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+              "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+              "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+            ]
+          },
+          "acceptance": {
+            "accepted": true,
+            "reason": "valid_endpoints_within_declared_partial_process_scope"
+          }
+        }
+      ],
+      "completeApprovedWebComparison": false,
+      "fixture": {
+        "startupChats": 22,
+        "sharedOwnerChats": 1,
+        "phase2ExpectedTotalChats": 23,
+        "startupSeedMessages": 32,
+        "selectedSeedMessages": 6,
+        "persistedCountsAreObserved": true
+      },
+      "definitions": {
+        "cache": "HTTP cache cleared after login, then cache enabled for one cold-fill and two warm reload attempts of the same route. SW bypass held constant. Cache eligibility/hits are observed, never asserted.",
+        "login": "Login automation through phase2, explicit selection of a six-message encrypted startup fixture chat, real decrypted message DOM and usable editor. Includes navigation/network/KDF/UI/runner work and read-only fixture selection; KDF duration is not isolated.",
+        "reload": "Node wall interval from immediately before reload(domcontentloaded) through phase2 and selected-chat readiness: matching active identity, nonzero loaded/source message counts, real decrypted synthetic message DOM, coherent message identity/order, usable editor and nonzero persisted messages. Does not attest full fixture persistence/decryption.",
+        "process": "CPU and RSS endpoints span the measurement automation and sequential sampler overhead; raw process identities never leave the helper. See per-sample qualifications.",
+        "storage": "No auth, cookies, IndexedDB, local/session storage or application caches cleared. This is not cold authentication, cold app storage, cold OS disk cache, cold code cache or a fresh browser process.",
+        "memory": "Optional ResourceTiming helper JS heap is separate from procfs summed RSS; WASM linear memory is unavailable. No inference introduced. The same collector is intended for legacy BEFORE and integrated AFTER; no assumed Rust/WASM overhead.",
+        "initialization": "DOMContentLoaded and application usable-ready wall intervals are observed. WASM compile/instantiate/init duration is unavailable without runtime hooks; do not infer it from zero observed WASM or total startup.",
+        "resources": "Bounded ResourceTiming transfer/encoded/decoded sizes cover this selected route only. Offline production JS/WASM compression inventories and served-source receipts remain separate evidence; encodedBodyBytes is observed HTTP body size, not proof of Content-Encoding or complete asset size.",
+        "coverage": "One cold HTTP-cache fill and two warm attempts; no distribution, peak memory, all-core-flow or complete approved before/after comparison claim. The separate required cached-replay 1.5s regression remains unchanged."
+      },
+      "loginAutomation": {
+        "begin": {
+          "available": true
+        },
+        "elapsedMs": 20299,
+        "authenticatedShellReadyMs": 14257,
+        "usable": {
+          "loadedMessages": 6,
+          "sourceMessages": 6,
+          "decryptedFixtureMessageVisible": true,
+          "editorUsable": true,
+          "counts": {
+            "available": true,
+            "chats": 23,
+            "messages": 20
+          }
+        },
+        "process": {
+          "available": true,
+          "stableReportedProcessCpuMs": 29770,
+          "stableProcessCount": 4,
+          "invalidCpuPairs": 0,
+          "newlyReportedOrReplacedProcessCount": 1,
+          "noLongerReportedOrReplacedProcessCount": 0,
+          "before": {
+            "reportedVerifiedProcessCount": 4,
+            "summedReportedProcessRssBytes": 327335936
+          },
+          "after": {
+            "reportedVerifiedProcessCount": 5,
+            "summedReportedProcessRssBytes": 903397376
+          },
+          "elapsedBetweenSnapshotStartsMs": 20305,
+          "beforeSnapshotDurationMs": 3,
+          "afterSnapshotDurationMs": 4,
+          "scope": "Verified local same-UID processes reported by this sole-context Chromium CDP session; CPU deltas only for matching PID+birth endpoints.",
+          "limitations": [
+            "CPU is cumulative CDP all-thread CPU seconds differenced for stable reported processes; it includes browser/automation/sampler work and is not per-page CPU or utilization.",
+            "Processes born and exited between endpoint lists are unobserved. Churn is counted, not estimated. This is never a complete browser CPU claim.",
+            "RSS is summed per-process resident memory at each sampled endpoint, can double-count shared pages and excludes unreported/exited processes. It is not peak RSS, PSS, unique physical RAM or page-only RAM.",
+            "JS heap and WASM linear memory are separate; neither is inferred from RSS. WASM linear memory is unavailable without runtime hooks.",
+            "Endpoint collection is sequential and non-atomic; diagnostic overhead and scheduling are included. No continuous process monitor or global procfs scan is used."
+          ]
+        },
+        "resources": {
+          "navigationOrdinal": 0,
+          "cacheAttempt": "first-navigation-context-cache-uncontrolled",
+          "frontendMode": "unknown",
+          "productionClaimConflictsWithObservedDev": false,
+          "totals": {
+            "javascript": {
+              "count": 204,
+              "transferBytes": 4426653,
+              "encodedBodyBytes": 4389553,
+              "decodedBodyBytes": 15600550,
+              "firstParty": 203,
+              "thirdParty": 1,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 2,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 2,
+              "serviceWorkerIntercepted": 0
+            },
+            "observedWasmResource": {
+              "count": 0,
+              "transferBytes": 0,
+              "encodedBodyBytes": 0,
+              "decodedBodyBytes": 0,
+              "firstParty": 0,
+              "thirdParty": 0,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 0,
+              "allSizesZero": 0,
+              "deliveryCacheReported": 0,
+              "serviceWorkerIntercepted": 0
+            },
+            "other": {
+              "count": 258,
+              "transferBytes": 1025762,
+              "encodedBodyBytes": 972864,
+              "decodedBodyBytes": 3376113,
+              "firstParty": 204,
+              "thirdParty": 54,
+              "opaqueOrigin": 0,
+              "zeroTransferWithBody": 1,
+              "allSizesZero": 52,
+              "deliveryCacheReported": 1,
+              "serviceWorkerIntercepted": 0
+            }
+          },
+          "navigation": {
+            "transferBytes": 8632,
+            "encodedBodyBytes": 8332,
+            "decodedBodyBytes": 38103,
+            "zeroTransferWithBody": false,
+            "allSizesZero": false,
+            "deliveryCacheReported": false,
+            "serviceWorkerIntercepted": false
+          },
+          "totalEntries": 462,
+          "omittedEntries": 0,
+          "capture": {
+            "installed": true,
+            "requestedCapacity": 4096,
+            "bufferFullEvents": 0,
+            "mayBeIncomplete": false
+          },
+          "usedJSHeapBytes": 76600000,
+          "observedDevice": {
+            "pixelRatio": 1,
+            "hardwareConcurrency": 4,
+            "deviceMemoryGiB": 16
+          },
+          "serviceWorkerControlled": false,
+          "limits": [
+            "ResourceTiming sizes may be zero from cache, opaque responses or Timing-Allow-Origin restrictions; zero is not definitive cache proof.",
+            "ResourceTiming may discard entries when its buffer fills. Uninstalled capture, buffer-full events or omitted entries make totals lower bounds; event count is not a dropped-entry count.",
+            "Observed WASM means resources whose URL pathname ends .wasm, including third-party counters. Zero observed WASM does not rule out inline/embedded/data-url or differently named WASM.",
+            "Dev-module bytes are not production bundle/download size. Heap is Chromium-only JS heap when exposed, not RSS/full process memory. WASM initialization, full CPU and essential app flows are unmeasured here."
+          ]
+        },
+        "acceptance": {
+          "accepted": true,
+          "reason": "valid_endpoints_within_declared_partial_process_scope"
+        }
+      },
+      "cacheProtocol": {
+        "available": true,
+        "definition": "Browser HTTP cache cleared once after login; cache enabled for cold fill and two same-route warm reload attempts; service-worker bypass held true for all samples. Auth/IDB/application data untouched. Warm cache hits are observations, not guaranteed."
+      },
+      "routePathSha256": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1",
+      "provenance": {
+        "phase": "unspecified",
+        "frontendModeDeclared": "unknown",
+        "runnerCheckoutHead": "5fbd6ca2a375554fba4d790227945a5489cb11c4",
+        "runnerCheckoutDirty": true,
+        "runtimeSourceCommitClaim": null,
+        "runtimeAssetInventorySha256Claim": null,
+        "fixtureDataSha256Claim": null,
+        "runtimeIdentityQualification": "Runner-supplied claims require matching CI environment/build receipts; checkout identity alone does not attest the served runtime.",
+        "fixtureSha256": [
+          "5fb727c8a4d0624ebb3b373e5a164b819e2df42f0e2d45a0b443b2ce82b6191f",
+          "5e9b43096805bdc2f085a2a255997b3742dc1227bdfa472bbf08a7d6540e0aec",
+          "4f9df2f1b05c6a0887d87b8c14b8093d57c94e51e615e5bfb2345454eedb9806",
+          "7b78806bac7c8fc7888c0db70661096b12ac4cb4f3084e1fa913ef7ad25dde24",
+          "759a13b39c96e777f91d37a9356810eeaa158ca9c426966dd669758f4fca7162"
+        ],
+        "browser": "chromium",
+        "browserVersion": "148.0.7778.96",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "mobile": false,
+        "deviceScaleFactorDeclared": null,
+        "cache": "Not disabled or forcibly cleared; fresh context is not proof of disk/network coldness. Repeated navigations reuse context. Inspect per-run cache/SW observations.",
+        "network": "Existing CI/browser configuration unchanged; no bandwidth/CPU shaping added by this patch."
+      }
+    },
+    "recording": {
+      "kind": "video",
+      "attempt": 0,
+      "result": "passed",
+      "source_commit": "5fbd6ca2a375554fba4d790227945a5489cb11c4",
+      "run_id": 40072459544,
+      "upload": "uploaded",
+      "delivery": "pending",
+      "bucket": "dev-openmates-opencode-response-media",
+      "key": "review-responses/2026/10/24/077cd11b44a3-b7ff63cec1cc0500-video.webm",
+      "sha256": "b7ff63cec1cc05009a73f192c644db46b6dbf7d4b249b68d0e34be17a3496c0c",
+      "local_video_removed": true
+    },
+    "qualification": [
+      "One controlled HTTP-cache cold fill plus two same-selected-route warm attempts on one Chromium desktop runner; not a latency distribution or cold authentication/application/OS cache. Auth/IndexedDB/application stores were preserved; service-worker bypass was held for all reload samples.",
+      "All four usable endpoints attest selected active identity, six loaded/source messages, a visible known decrypted synthetic message, usable editor and available persisted snapshots of 23 chats/20 messages. This proves actual selected encrypted chat usability, not full fixture decryption or persistence of all seeded messages.",
+      "CPU is cumulative stable reported-process endpoint delta, includes automation/sampling and omits transient processes. Every reload has four stable processes and one reported replacement; RSS endpoints sum five reported processes and may double-count shared pages. No full CPU, peak/physical/page RAM claim.",
+      "ResourceTiming records actual selected-route transfer/encoded/decoded sizes, with 4096-entry capture installed, zero buffer-full/omitted counters and 436\u2013462 entries. TAO/opaque/cache limitations remain. Zero observed .wasm-path resources does not establish zero embedded or differently named WASM.",
+      "Login automation to usable is 20299 ms, including fixture selection/readiness checks; shell readiness is 14257 ms. Reload usable endpoints include protocol/UI/assertion/runner work and are not pure transport latency, isolated KDF or WASM initialization.",
+      "The prior schemaVersion1 controlled checkpoint retained zero persisted messages and is historical shell/process evidence; its readiness numbers are not directly comparable to this stronger endpoint. Earlier private-base checkout failure produced no browser result; flattening the same intended source tree onto the public base repaired source delivery, not product behavior.",
+      "Only this exact case executed and passed on retry0. The independently required 1.5s cached-window replay regression remains unresolved and was neither weakened nor rerun here.",
+      "Full before/after comparison remains incomplete: matched integrated Rust/WASM AFTER, WASM initialization/linear memory, essential streaming/cancel/sync/recovery responsiveness, wider CPU/RAM behavior and complete matched production compression/transfer evidence remain required. No Rust speedup or minimal overhead claim."
+    ]
+  }
+}

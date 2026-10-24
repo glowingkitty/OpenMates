@@ -1,0 +1,1846 @@
+{
+  "schema_version": 1,
+  "session": "d1c4",
+  "date": "2026-10-24",
+  "recording_scope": "Coordinator status at this docs checkpoint; root alone monitors CI. No runtime, Cargo, product or CI execution in this documentation task.",
+  "parallel_preview": {
+    "status": "installed_side_by_side",
+    "evidence": "parallel-rust-preview-install-2026-10-23.json",
+    "source": "1b2813974be468b4e37bfdebc0500abb0c82cf0a",
+    "tree": "4c3dbb6a71e0f197a57b10fe5ce6da027d3c5f17",
+    "essential_core_verified": false,
+    "legacy_global_command_unchanged": true
+  },
+  "security": {
+    "clipboard_win": {
+      "path": "frontend/packages/openmates-tui-native/Cargo.lock",
+      "package": "clipboard-win",
+      "from": "5.4.1",
+      "to": "5.4.3",
+      "checksum": "052af7878466feccda12ba7a6a67d019d712f296809559b47c12c8cc196d3a9a",
+      "rawByteDiffVersionChecksumOnly": true,
+      "newNativeLockSha256": "309a5e50729a0bb15689a44f39800b17d449affece7167faebb7704ba31e3de6",
+      "manifestsAndSDKBindingsLocksUnchanged": true
+    },
+    "audit_tool": "cargo-audit0.22.2",
+    "advisory_database_commit": "84d943a6deeb8cc6c6f632531aaf4f1c62275239",
+    "all_six_manifest_locks_stable_during_audit": true,
+    "results": [
+      {
+        "name": "sdk",
+        "lockfile": "packages/openmates-rust/Cargo.lock",
+        "sha256": "495e7eedef5f8c375ae658963b7d233adebc3a82a89c82bb0b2596dfb9ff9364",
+        "dependencyCount": 227,
+        "exitCode": 0,
+        "vulnerabilities": 0,
+        "unsound": 0,
+        "yanked": 0,
+        "maintenance": 0,
+        "maintenanceNotices": []
+      },
+      {
+        "name": "bindings",
+        "lockfile": "packages/openmates-session-bindings/Cargo.lock",
+        "sha256": "b5f95b2ff884812dcd2ffa3176eb33965234756f912ec32f281ee3e1136a2a48",
+        "dependencyCount": 247,
+        "exitCode": 0,
+        "vulnerabilities": 0,
+        "unsound": 0,
+        "yanked": 0,
+        "maintenance": 0,
+        "maintenanceNotices": []
+      },
+      {
+        "name": "native",
+        "lockfile": "frontend/packages/openmates-tui-native/Cargo.lock",
+        "sha256": "309a5e50729a0bb15689a44f39800b17d449affece7167faebb7704ba31e3de6",
+        "dependencyCount": 428,
+        "exitCode": 0,
+        "vulnerabilities": 0,
+        "unsound": 0,
+        "yanked": 0,
+        "maintenance": 3,
+        "maintenanceNotices": [
+          {
+            "id": "RUSTSEC-2026-0371",
+            "package": "zbus_names",
+            "version": "3.0.0"
+          },
+          {
+            "id": "RUSTSEC-2026-0370",
+            "package": "zvariant",
+            "version": "4.2.0"
+          },
+          {
+            "id": "RUSTSEC-2026-0372",
+            "package": "zvariant_derive",
+            "version": "4.2.0"
+          }
+        ]
+      }
+    ],
+    "original": {
+      "private_path": "/tmp/d1c4-clipboard-win-lock-patch-20261023/receipt.json",
+      "sha256": "36a17ceac260e3449b2efa98f8775f1a038618785a7a5f77de2542ac97af9149",
+      "original_retained": true
+    },
+    "qualification": "Fresh audits report0vulnerabilities/0unsound/0yanked in all3 crates, with3 native maintenance notices. This resolves the specific yanked clipboard dependency, not whole-product security acceptance or Windows support proof."
+  },
+  "sdk_host_prerequisite": {
+    "results": {
+      "full_sdk_lib": "316 passed; 0 failed; 0 ignored; 0 filtered",
+      "introduced_host_regressions": "14 passed within final 316 suite; prior standalone 14 also passed",
+      "strict_sdk_all_targets_clippy": "PASS -D warnings",
+      "whole_sdk_rustfmt": "PASS"
+    },
+    "introduced_host_regressions": 14,
+    "fences_identical": true,
+    "fenced_file_count": 292,
+    "input_manifest_sha256": "20714c3075abe5bdf322a47b6ea325d24476eebc72260e4ef54058af8dd89d5f",
+    "original": {
+      "private_path": "/tmp/d1c4-project-source-host/checks/admission-receipt.json",
+      "sha256": "4d4a6d8b5e6adfc1aaf774b0cdbef178a12a3c60625ab99eecf5b9c29b949ca1",
+      "original_retained": true
+    },
+    "status": "locally_admitted_parked_off_essential_critical_path",
+    "qualification": "Historical source-host checkpoint316 includes14host regressions and strict all-target Clippy/fmt. New recovery source is outside that pass. No native filesystem host, FFI/facade/all3SDK conformance, product or full capability proof."
+  },
+  "native_goal": {
+    "focused_tests": 35,
+    "breakdown": {
+      "goal": 12,
+      "send_ephemeral": 16,
+      "workspace_fallback": 7
+    },
+    "strict_clippy_fmt_assets_inventory": "passed",
+    "qualification": "Focused local evidence; not a full essential synchronization or product gate."
+  },
+  "trusted_ci_harness": {
+    "official_node_acquisition": "1edab52 published by coordinated other chat",
+    "cache_anchor_and_failure_envelope_candidate": "26c990",
+    "deployed_commit": "4a14fa15eea8a42eff490bb1723f573afb9e9335",
+    "changed_paths": 6,
+    "checks": {
+      "node": 11,
+      "python": 41,
+      "ruff": "passed",
+      "specification_and_lint_gates": "passed"
+    },
+    "world_write_guard_unchanged": true,
+    "raw_suppliers_unmodified": true,
+    "qualification": "Harness deployment/local checks, not native product CI success."
+  },
+  "current_ci": {
+    "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+    "request": "11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070",
+    "run_id": 40061556469,
+    "status": "FAILED_NO_ESSENTIAL_ACCEPTANCE",
+    "phase": "monitor_reconnect_replay",
+    "failure_code": "one_idle_native_ws_presence",
+    "native_units": {
+      "passed": 465,
+      "failed": 0,
+      "intentional_integration_ignored": 4
+    },
+    "native_auth": "all3profilesPASS",
+    "checks": {
+      "nativeCookieAuth": true,
+      "cliIncrementalSavedTurn": true,
+      "cliJsonContinuation": true,
+      "independentEncryptedReadback": true,
+      "liveCrossClientSync": true,
+      "ownedCleanupAcknowledged": true
+    },
+    "first_tui_paint": "PASS",
+    "cli_to_tui_live_sync": "PASS",
+    "native_command_failure": null,
+    "native_send_processes_or_ui_submissions": 3,
+    "recovery_retained": false,
+    "cleanup_failed": false,
+    "lease_count_recorded": false,
+    "ss_K_reached": false,
+    "precise_cause": "UNPROVEN; exact-one presence was asserted immediately and can race legitimate short-lived interactive-TUI readonly sync/recovery sockets. No permanent orphan is established.",
+    "remaining_product_proof": [
+      "monitor reconnect/replay",
+      "cancellation",
+      "kill/restart recovery",
+      "remaining essential gates"
+    ],
+    "retrieval_exit": 0,
+    "evidence_upload_exit": 0,
+    "pass_claim": false,
+    "proof_receipt_sha256": "5c8e28e86850ba36ce0a7e68a8e19b22cfc97cdab8b82856b78bd436b7db7e42",
+    "owner": "root coordinator only",
+    "qualification": "Actual5aaa product evidence now includes saved continuation/readback and first TUI paint/live CLI-to-TUI sync; the exact-one presence check still fails before ss-K. No essential acceptance/WASM start. Later server-only defensive encoding is outside this run.",
+    "readiness_change": "Reviewed stable-singleton readiness and finite counts integrated within the same20second absolute budget for readiness, owned cut and replacement; product verification pending.",
+    "readiness_patch_sha256": "0cbe1cf05585deacdf7d2d25cbf64b6a001d8f6c7be94449690869a92c06d273",
+    "readiness_inert_tests": 152,
+    "readiness_independent_tests": 10
+  },
+  "preceding_034_diagnostic_retry": {
+    "source": "034a77d428aea2400950db8daa75c5dc56439da2",
+    "request_prefix": "955847",
+    "run": 39989316185,
+    "status": "failed",
+    "boundary": "attested_Node_producer_source_mode",
+    "observed_node": {
+      "version": "v24.21.0",
+      "architecture": "x64",
+      "mode": "00777",
+      "owner": "current operator",
+      "nlink": 1,
+      "canonical_path_stable": true,
+      "proc_identity_verified": true
+    },
+    "diagnostic_written": true,
+    "coordinator_retrieval_attempts": 1,
+    "retrieval_result": "identity_mismatch",
+    "normal_receipt": "not_approved",
+    "upload": "not_claimed",
+    "cleanup": "not_established",
+    "earlier_39986942686": "Exact mode remains unknown for that separate earlier run; later diagnostics are not backfilled."
+  },
+  "essential_gate": {
+    "status": "VERIFIED_LINUX_BROWSER_ADMITTED",
+    "gaps": [],
+    "private_implementation": "Actual source3a96 passes467 native tests plus all12 essential product gates; sourcef96 passes396 SDK and36 binding tests plus54 adapters/615 outcomes including48 essential outcomes.",
+    "planned_private_product_cases": 12,
+    "product_execution": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+    "qualification": "Verified Linux essential milestone admits browser/WASM now. Installed preview refresh, actual macOS acceptance, full CLI parity, selfhost readiness and SDK publication remain separately required.",
+    "standalone_e2e": {
+      "status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+      "functional_patch_sha256": "d53bbb136a650b47b7373e6468f63082dbef24cd92cd26d0e1d3b9bb19085d1c",
+      "visual_patch_sha256": "d99f2770bd3f27382c183281957c5abe05a8918e327ed221c1f025b82a7f9352",
+      "post_review_change": "One Python trailing whitespace removed without AST change.",
+      "inert_python_tests": 20,
+      "inert_node_tests": 12,
+      "strict_new_typescript_files": "passed",
+      "product_gates": 12,
+      "actual_product_execution": "Source3a96/run40065596506 all12checksPASS;467nativeunitsPASS;4intentionalignores",
+      "real_native_recordings_required": 2,
+      "real_native_recordings_execution": "Two actual CLI/TUI terminal videos uploaded without reconstruction; object identities in latest_native_runtime.real_terminal_videos.",
+      "original_benchmark_target": "restored_exact_sha256_79882ec6b469f3a04b2bbb43545cd0c88e6870eb829421c414a4eed2aee2854e"
+    },
+    "trusted_private_backend_selector": {
+      "deployed": "0dd1c1f78cd492d74af72afa6ca3f58a1c160e8e",
+      "focused_tests": 10,
+      "fixture_profile": "committed_fixture_AI_worker_required_no_provider_credentials_or_override"
+    },
+    "recovery_core": {
+      "status": "reviewed_source_integrated_native_activation_unverified",
+      "sdk_patch_sha256": "b1d1a064c6bbdca1541880ff5556984da8f58b30be040a07ab9d41f57c5b2b07",
+      "native_patch_sha256": "89f7122d2cfa248dec1cb40485f372eed42751b7ab46b6b6026bd7e4ff2d22a2",
+      "files": 7,
+      "review": "CLEAR_source_only",
+      "sdk_tests": 24,
+      "native_tests": 5,
+      "execution": "SDK24pass_in_release;native5UNRUN;TUI/native product activation unproved",
+      "security": "Team wrapper version/epoch/expiry preflight, immutable uncertain ciphertext, exact durable receipt before commit, fresh authorization on resume, durable saved/fresh fairness cursors, security/cancel fail closed.",
+      "direct_chat_qualification": "Recipient envelope controls chat-key authority; later canonical reconciliation still loads Team context. End-to-end Team-direct completion remains unproved.",
+      "sdk_test_execution": {
+        "status": "passed",
+        "tests": 24,
+        "profile": "explicit_Cargo_release",
+        "receipt_private_path": "/tmp/d1c4-essential-release-verification-20261023/receipts/1792786036641805731-sdk-recovery-release/result.json",
+        "receipt_sha256": "0a3ae87c2233adec7abc8d29943852852dcc538b780df05f6add2b578b63e43d",
+        "source_lock_pin_library_fences": "passed_unchanged",
+        "fenced_inputs": 796,
+        "elapsed_seconds": 308.32298948522657,
+        "minimum_free_GiB": 33.09105682373047,
+        "qualification": "Actual Rust SDK synthetic-protocol unit tests; not native CLI/TUI, foreign SDK conformance, product CI or default debug-profile proof."
+      }
+    },
+    "monitor_core": {
+      "production_patch_sha256": "6489a413fb75e54beae8631bccdfc63edecfa589f8bfdba22094d1dc9888d3af",
+      "full_patch_sha256": "dc82d47b9f65aeded6589aabd5e3157fefe6358c51e60cba5d42230a50b75ed0",
+      "files": 8,
+      "review": "CLEAR_source_only",
+      "shared_merge": "Contextual application matches independent clean three-way merge; recovery additions preserved.",
+      "tests": 58,
+      "execution": "All42SDK monitor release regressions pass after authentic test-only hint correction; wholeSDK382pass. Native/UI evidence remains open.",
+      "protocol_gap": "No canonical external rewind broadcast found; authenticated refresh/reconnect must accept stable lower counts and exact history.",
+      "first_release_attempt": {
+        "passed": 41,
+        "failed": 1,
+        "failed_case": "cancelled_read_hint_can_be_requeued_only_for_its_same_valid_instance",
+        "cause": "Private test helper built chats-only refresh=false hint; actual decoded chat invalidations require refresh=true.",
+        "independent_review": "rust_ui and author confirmed source invariant",
+        "correction": "Only failing case now obtains hint through real record_change/take_pending; retains cancellation, chat/version and Team-change rejection assertions. Shared helper and production behavior unchanged.",
+        "corrected_test_sha256": "c01427f575b6dcdaebcec931e6349091583a8fbb9ef0970587da9de6d320a92a",
+        "rerun": "passed_release_42cases",
+        "original_receipt": "/tmp/d1c4-essential-release-verification-20261023/receipts/1792786374871527612-sdk-monitor-live-release/result.json"
+      },
+      "corrected_release_receipt": {
+        "path": "/tmp/d1c4-essential-release-verification-20261023/receipts/1792786708073004180-sdk-monitor-live-release/result.json",
+        "sha256": "c52c4f7bfb8ebf2bb1d05cedd83c0cdf5fdbd19fe7663b094d43e4ec21a4310d",
+        "passed": 42
+      }
+    },
+    "cli_recovery_activation": {
+      "patch_sha256": "a8ed4b5b509b9362b0159ce1be87a90dd635b77ad0a1758d7ddd171acc8d8b41",
+      "files": 6,
+      "review": "CLEAR_source_only",
+      "tests": 14,
+      "execution": "Native unit tests pass; actualCLIproductrecoveryUNRUN.",
+      "security": "App-only saved reads, pre-I/O UUID validation, Drop-safe grant/scope cleanup and output zeroization through final profile write; existing mutation receipt paths preserved."
+    },
+    "sdk_library_checkpoint": {
+      "status": "passed",
+      "tests": 382,
+      "profile": "explicit_Cargo_release",
+      "scope": "Whole Rust SDK library, including24recovery and42monitor cases; synthetic unit/protocol peers only.",
+      "receipt_private_path": "/tmp/d1c4-essential-release-verification-20261023/receipts/1792787324234042336-sdk-full-lib-release/result.json",
+      "receipt_sha256": "fd082fa7b6a9482a0e208f0d6bc47f07e64d36c27732eb00039dacba2b40d0ac",
+      "elapsed_seconds": 7.768810676410794,
+      "minimum_free_GiB": 32.687599182128906,
+      "source_lock_pin_library_fences": "all_unchanged_during_run",
+      "post_check_source_changes": "Two SDK files mechanically rustfmt-formatted only; subsequent native hook and benchmark-harness changes are outside SDK execution scope.",
+      "foreign_sdk_product_platform_proof": false
+    },
+    "tui_recovery_activation": {
+      "status": "reviewed_source_integrated",
+      "hook_patch_sha256": "deca8df54652d5c982310168f205193e0423164f88b340858190a6faca1648cb",
+      "adapter_delta_sha256": "852022db107c1ae1f6f6aee82f1bfeef98029bfe16f65b4ef7a2f45ee435f4fb",
+      "review": "CLEAR_combined_source",
+      "actor_tests": 12,
+      "adapter_tests": 7,
+      "execution": "Native compiled and relevant unit tests pass inside458; actualTUIproductrecoveryUNRUN.",
+      "behavior": "Cold startup/reconnect, explicit reads and bounded hints/deferred revisit pump before fresh view; exact scoped persistence; corrupt local records quiesce with bytes preserved."
+    },
+    "local_native_admission": {
+      "status": "blocked_by_unchanged_disk_floor_before_Cargo",
+      "attempts": 2,
+      "second_attempt_after": "successful CI evidence upload",
+      "cargo_started": false,
+      "debug_caches_used": false,
+      "cleanup_owner": "parent7d08_only",
+      "fallback": "Reviewed isolated GitHub native unit stage is integrated and queued with the essential product flow; no guard relaxation."
+    },
+    "isolated_ci": {
+      "source": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+      "tree": "b55b1e82869c6667a1cb1c8c8fc24563514c8232",
+      "request": "a67c3f4c860a43308b92598bdc184f0d8538160311205c10d9972629f3d9192f",
+      "status": "failed_native_unit_tests_before_product",
+      "run_id": 40029480804,
+      "preflight": "passed_after_regenerating_derived_specification_indexes",
+      "independent_source_census": "598_of598_changed_dirty_untracked_blobs_and_modes_match",
+      "source_audit_private_path": "/tmp/d1c4-essential-integrated-source-audit-20261023.json",
+      "native_unit_stage": {
+        "patch_sha256": "71d67fdf65efa1f1bf15c0a02bf40f6028bc82675af7e47a0d5f5de54fefdcae",
+        "review": "CLEAR_source_only",
+        "inert_cases": 21,
+        "source_scoped_retries": 0,
+        "attempt_budget_minutes": 18,
+        "finalization_reserve_seconds": 60,
+        "trusted_runner_minutes": 20,
+        "trusted_job_minutes": 60,
+        "actual_fit": "Cold compile plus failed library run finished in482444ms of1080000ms; complete units+12product gates still unproved."
+      },
+      "required_product_gates": 12,
+      "required_native_recordings": 2,
+      "product_execution": "UNRUN",
+      "owner": "root coordinator only",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "native_compilation": "release command compiled successfully; native library execution reached",
+      "unit_library_results": {
+        "passed": 385,
+        "failed": 7,
+        "ignored": 0,
+        "failure_family": "cli::handlers::saved_read_recovery_tests",
+        "binary_actor_and_product_execution": "not_reached_after_library_failure"
+      },
+      "fixture_correction": {
+        "patch_sha256": "a18bd1074538ef20425450c14bc37c427a2784ad8e6f5c323ca4d753344466ec",
+        "files": 2,
+        "independent_review": "CLEAR",
+        "applied": true,
+        "production_changes": false,
+        "causes": [
+          "Explicit 0700 owned fixture directory required; exact failed CI mode unmeasured.",
+          "Ordinary saved reads need their exact task-capable WebSocket set; recovery-only fixture had refused it.",
+          "Claim lease must use exact JS UTC milliseconds instead of Python microseconds/+00:00."
+        ],
+        "checks": "Pure fixture loopback/negative/ciphertext checks pass; Rust rerun pending."
+      }
+    },
+    "corrected_isolated_ci": {
+      "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+      "tree": "83698a6e07d531de4282e1ca52977bb1f2943bce",
+      "request": "3613eea506674230a5d8aa44852efe6074e4de76efb5618083240ccb819e869a",
+      "status": "native_units_passed_auth_harness_failed_before_product",
+      "run_id": 40034462564,
+      "preflight_and_602_path_all_dirty_untracked_blob_mode_census": "passed",
+      "unit_fixture_fix": "a18bd1074538ef20425450c14bc37c427a2784ad8e6f5c323ca4d753344466ec plus mechanical Rustfmt",
+      "all_12_product_gates": "retained_pending",
+      "owner": "root coordinator only",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "unit_results": {
+        "passed": 458,
+        "ignored": 4,
+        "failed": 0,
+        "library": 392,
+        "main_binary": 30,
+        "remaining": 36,
+        "elapsed_ms": 630656,
+        "qualification": "Compilation and synthetic unit/security/protocol tests, not application performance."
+      },
+      "product_execution": "NOT_REACHED_PAIR_INITIATE_REFUSED",
+      "failure": {
+        "phase": "auth",
+        "code": "actual_cli_exited_before_prompt",
+        "sends": 0,
+        "source_exact_cause": "Harness rewrote browser app Origin from localhost5173 to127.0.0.15173; canonical backend correctly returned403."
+      },
+      "harness_correction": {
+        "patch_sha256": "25c77456cd272747401494f749230d3a0b5eabbfce4e1a562492d21cd99e1d1c",
+        "review": "CLEAR",
+        "applied": true,
+        "focused_tests": "11JavaScript+33Pythonpass",
+        "backend_cors_and_application_logic": "unchanged",
+        "product_rerun": "pending"
+      }
+    },
+    "origin_repaired_isolated_ci": {
+      "source": "f6dc7f67f700e037c3281985c43a00627d7ba277",
+      "tree": "e2e2920d834fb05d9bf9b6503baa919a87f2d658",
+      "source_census": "605 dirty/untracked paths match all bytes and modes",
+      "production_sdk_bindings_cli_web_runtime_inputs": "unchanged from prior verified captures",
+      "request": "e7ff5f469c5c1159fb79d86eb99b0fc0e22a63a42025c08dddf8dc04a2ea0b15",
+      "run_id": 40040138284,
+      "status": "failed_first_send_observation_after_authentication",
+      "last_observed_phase": "Start isolated backend",
+      "all_12_product_gates": "required, no pass yet",
+      "owner": "root only",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "unit_stage": "passed_again",
+      "unit_elapsed_ms": 627472,
+      "native_authentication": "All three profiles pair and pass identity checks; nativeCookieAuth true.",
+      "failure": {
+        "phase": "cli_new_incremental",
+        "code": "native_exited_before_observation",
+        "send_attempts": 1,
+        "recovery_retained": true,
+        "original_exit_status": "not retained",
+        "cause": "Unknown: fast/unexpected successful output versus nonzero Rust error cannot be distinguished.",
+        "next": "Test-only original-status and bounded stream fingerprint diagnostics; no guessed product change or blind resend."
+      }
+    },
+    "first_send_diagnostics": {
+      "patch_sha256": "652223b84c57af40696456de99c6771eb069b35e96ebdb83e878340f4a7b1b1a",
+      "applied": true,
+      "review": "CLEAR",
+      "focused_checks": "43 Python tests and12 Node tests pass; independent6focusedcases pass.",
+      "scope": "Original exit status before cleanup, bounded ready drain, stream counts/digests/EOF and fixed-fixture flags; no raw text or private paths. All12 gates, no-resend and uncertain journal remain unchanged.",
+      "actual_product_cause": "unknown"
+    },
+    "saved_send_scope_fix_2026_10_24": {
+      "status": "REVIEWED_APPLIED_RUST_EXECUTION_PENDING",
+      "review": "independent_CLEAR",
+      "patch_sha256": "b7292981bad3f773f016dac4ec394d8f061f0f5f2572507e98834d4df969570a",
+      "reviewed_after_sha256": "32ed92a0c082798b3b297a3c4c842391450316e852964d2cae058803047eeaa9",
+      "formatted_after_sha256": "970ec026be5c48d5ca32950d3a1d0b7cacda5edf9e0e4dbaeb51e0f78d245754",
+      "source_finding": "Clap inherits Personal/Team flags and execute_inner applies them, but send options rejected them before dispatch. Allow only saved sends; retain explicit anonymous/incognito rejection and unchanged scope/auth/restoration.",
+      "tests": "3newparsedCLIregressions;RustUNRUN;directrustfmtedition2024passes;original12productgatesretained.",
+      "historical_cause": "Earlier discarded exit code remains unknown; source defect is definite, not a backfilled runtime cause.",
+      "obsolete_native_request": "efb58393b90233a56592f6bf68e03ad7bd221507dfcde018cdf2561458f5da1a",
+      "obsolete_native_run": 40044944548,
+      "obsolete_status": "cancelled_by_root_while_building_web_due_definite_argv_refusal;not_product_failure_or_pass",
+      "sdk_source_c15f_still_valid": "CLI-only change does not alter SDK or peer production inputs.",
+      "first_actual_verification": {
+        "source": "aad791fce2bba321e1857ae7bc4a8244522ca1d4",
+        "run": 40046131637,
+        "request": "46304224f96637a67336b6e36e8531b43bb4a49f4cce2ffb24df134259b552ec",
+        "result": "UNIT_TEST_COMPILATION_FAILED_E0277",
+        "boundary": "New regression options(...).expect required Debug on existing non-Debug CliError. No product gates executed.",
+        "correction": "Only use existing Display-based unwrap_or_else panic style in the test; production code/error type/security unchanged.",
+        "corrected_source_sha256": "8b39f6dae137854bf8709eb02681b760bcd1197c56eafff6bd6d546739208efb",
+        "direct_rustfmt": "passed",
+        "actual_rust_retry": "pending_new_source",
+        "cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "original_scope_defect": "Still source-confirmed; runtime correction unproved."
+      }
+    },
+    "passive_monitor_security_followup": {
+      "status": "CORE_AND_PEER_REVIEWED_APPLIED_ACTUAL_EXECUTION_PENDING",
+      "source_chain": "Monitor refresh calls ordinary sync_chats. Its socket advertises task_update_jobs; sync captures offers and invokes task claims/persistence, workflow persistence and output replay. Peer rejects the capability before upgrade, causing observed stage Authentication.",
+      "backend_qualification": "Capability alone discovers job metadata; mutation occurs on claim. Source traces actual consumer path. No cross-account authorization bypass established.",
+      "decision": "Reject fixture-only allowance. Add explicit read-only monitor snapshot sync policy while preserving ordinary public sync defaults and canonical data/decryption logic.",
+      "verification": "Offer real pending task/workflow/replay work; assert zero claims/persistence/replay. Retain passive socket capability guard and all current8vectors. Add SDK library unit stage to isolated conformance lane with strict result validation.",
+      "scope": "No new architecture decision or weakening; fixes unintended effects in essential passive read path.",
+      "current_native_source_qualification": "Active8485 run predates this fix and cannot alone close the essential security gate.",
+      "core_patch_sha256": "0738364d23c3b07e9b0e5506498faa7cc6196c91115347bf5db5d59190ac457b",
+      "core_review": "independent_CLEAR_v2",
+      "core_applied_files": 4,
+      "core_unit_drafts": 3,
+      "transport_selection_finding": "Shared ordinary socket also sent set_active_chat, scheduling durable last_opened/signup_completed writes. ExplicitPassive transport now suppresses selection for monitor open and refresh; ordinary wrappers preserve Announce.",
+      "core_checks": "Directrustfmt2024andsourceinspectionPASS;RustUNRUN",
+      "peer_patch_sha256": "4c95f3be97df34c6dca86e7e1a5ef2637643da6f82a79688b4f0cb53052ba526",
+      "peer_review": "independent_CLEAR",
+      "peer_pure_tests": 10,
+      "peer_subtests": 84,
+      "peer_scope": "Three nonempty canonical pending summaries sent onlyon phased snapshot; anyjob/replaywritefailsstatus. Existing CAS/data-change explicitforegroundlist receivesoneexactintentafteradvance; truepassivetransportsretainnojob/recoverycapguards. All8vectorsunchanged.",
+      "trusted_ci_patch_sha256": "4f42c62a725a5c1240bb355bc5e132ffb9e240041e5156b6fa0c4b56b4e122c8",
+      "trusted_ci_review": "CIstageindependentCLEAR;59author+3independentfocusedPASS;exact2reviewedpeerprogrampinsonly",
+      "trusted_ci_status": "Publisheda05d4494;4deployedblobsverified;new12stageSDKgatecaughttestcompileerrorsbeforebindings/conformance.",
+      "acceptance": "HelduntilcurrentwholeSDKlibunits,all3essentialconformanceandcurrentnative12gatespass;installedpreviewstill1b.",
+      "actual_sdk_verification": "source73b/run40051150538:385SDKunits36bindingunits54adapters615outcomespass,includingpending-offer/zerowrites;nativeproductproofstillpending."
+    },
+    "latest_native_runtime_before_passive_fix": {
+      "source": "8485a10fcb45c3518dd77187d33f7783baf96da2",
+      "run": 40048254370,
+      "request": "08675bb63aef271b662f08a4709fc1561d7139894786cc1b4239dc55ade6b90e",
+      "units_passed": 461,
+      "units_ignored": 4,
+      "unit_families": "395library30main36other",
+      "native_auth": "all3profilespass",
+      "first_send": "Firstcontentobservedandwholeexpectedfixturestreamed;thenexit1",
+      "stdout_bytes": 1195,
+      "stderr_bytes": 267,
+      "stderr_sha256": "6514682b4cf7e583a270a35943c66c858402aeb836905cc3f3859b80c9982845",
+      "native_cause": "unknown_no_rawstderrretained;fullresponseprecedesfalliblefinalization",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "security_qualification": "Predatesread-onlymonitorfix;notcurrentessentialacceptance."
+    },
+    "native_stderr_classifier": {
+      "patch": "1bff34c64174459a5b5aee964b789f19fbd13006e505ceddbab7bf996e97b7c7",
+      "status": "independent_CLEAR_APPLIED",
+      "author_python_checks": 111,
+      "unchanged_node_checks": 12,
+      "independent_privacy_checks": 2,
+      "privacy": "CompleteEOFstrictUTF8<=1024B,anchoredexactstaticDisplay/envelopegrammar,UUIDsvalidateddiscarded,finitefieldsorunknown;no rawtext/IDs/paths.",
+      "proof_semantics": "All12gates/failure/retention/ready-onlycapture unchanged",
+      "stderr_prefix_check": "No consentprefix underReject policies;onlyStatusproducer returnsQueued beforefixturestream,so no expectedprefixforobservedfullresponse.",
+      "actual_execution": "pending_new_source"
+    },
+    "essential_sdk_protocol_security": "PASSED_SOURCE_F96_RUN40062768021_ALL48ESSENTIAL_OUTCOMES",
+    "separate_final_discovery_order_gap": {
+      "status": "SOURCE_REVIEWED_APPLIED_RUNTIME_VERIFICATION_PENDING",
+      "producer": "backend/core/api/app/routes/websockets.py1437-1485 and1519-1554 await available-recovery discovery before forwarding final ai_message_update; helper sends discovery completion before return.",
+      "consumer": "packages/openmates-rust/src/client/send.rs471-472 records discovery;579-588 resets final_discovery=false onfinal;613 waits for another marker.",
+      "predicted_effect": "Potential laterwait/Offline whenno furthermarker;doesnotexplainobservedProtocolandisnotclaimedcausal.",
+      "required_regression": "Exactcanonicaldiscovery-before-final plusstale/unrelatedowner/turn/jobmarkers;successonlysameadmittedturn/job/namespace/key-boundrecoveryanddurableACK. Neverblindlyacceptanearlierglobalmarker.",
+      "implementation": "Globaldiscoverymarkernolonger gatesmaincompletion. Currentadmitted+confirmedturnfinalmustvalidate;unchangedboundeddrain,authoritativeclaim/chat-turn-assistant-key/seal-owner-job,persistACKandcanonicalrereadremainmandatory.",
+      "patch_sha256": "a5d3d2086d31a679eb68cf6e15c6c2acf27a3013d4583215f2e11f0bdd895ae4",
+      "independent_review": "CLEAR",
+      "unit_drafts": 3,
+      "wire_cases": 15,
+      "strict_errors": "Everymarkerprocessedbyexistingmainloop/drainstillvalidatesandfailedstatusreturnsProtocol.",
+      "negative_qualification": "Wrongfinalassistantmayneedauthoritativeclaimtoindependentlyreject;nopersistence/Completed. Stalemarker/no-final/wrongturnclaimrefusalcovered.",
+      "actual_execution": "UNRUN;notclaimedfixforobservedProtocol."
+    },
+    "planned_closed_send_phase_diagnostic": {
+      "status": "independent_CLEAR_APPLIED_EXECUTION_PENDING",
+      "scope": "SDKsendprivateper-operationtrace+nativeproofhelper+Pythonchecks;publicError/StreamUpdate/SendOptions/defaultoutputandbuildfeaturesunchanged.",
+      "activation": "Exacttestflagonlyonownedcli_stream;SDKreadsitonlywhenoriginalErrorProtocolescapesandemitsonebest-effortfixedlabelmarker.",
+      "fields": "12finitephases,finite discovery status,final_seen boolean;noIDs/payload/paths/secrets.",
+      "evidence_limits": "No proven Protocol substage yet;rawstderr remains excluded.",
+      "patch_sha256": "dca0c5b813cfd14ccc5b8ea5f0a88b68e81945a4b547b85408dc49e4f260b1aa",
+      "files": 3,
+      "author_inert_python": 142,
+      "independent_checks": 7,
+      "new_rust_helper_tests": 4,
+      "rust_execution": "UNRUN",
+      "source_preservation": "OriginalRustoperation/result/closebytesrestoreexactlywithdiagnosticadditionsremoved;Pythonproofsuccess/failure/gatesunchanged.",
+      "next": "ExactsourceSDKandnativeisolatedrerun;noactualfailurephaseclaimyet."
+    },
+    "protocol_security_checkpoint": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+      "run": 40062768021,
+      "essential_outcomes_passed": 48,
+      "native_product_acceptance": true
+    },
+    "previous_native_runtime": {
+      "source": "73b78b7e46e6522fafed8e2d28cc96f76d85e514",
+      "harness": "a05d4494b8268ea0be27e9abf3d5067e324544cc",
+      "run": 40051153680,
+      "request": "ff604190c3bc1f64b03aef30841bf84dc4599a96c91bc678ffb538c6e0727700",
+      "unit_tests": 461,
+      "unit_failed": 0,
+      "unit_ignored": 4,
+      "unit_elapsed_ms": 617122,
+      "native_auth": "all3profilespass",
+      "phase": "cli_new_incremental",
+      "full_fixture_observed": true,
+      "exit_code": 1,
+      "classified_envelope": "pending_turn",
+      "classified_cause": "invalid_server_response",
+      "admitted": true,
+      "source_mapping": "CliError::PendingTurn.source=Error::Protocol from SDKsend;postcommandnativeprofilepersistreturnedOk. AdmissionmeanspreflightORusermessageconfirmation,notterminalsuccess.",
+      "exact_sdk_failure_stage": "unknown_pending_closedphaseinstrumentation",
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0
+    },
+    "latest_native_runtime": {
+      "source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+      "tree": "db2be0ac83cb484f43aacf22f6bb1fe12a110d07",
+      "request": "0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c",
+      "run": 40065596506,
+      "status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+      "native_units": {
+        "passed": 467,
+        "failed": 0,
+        "intentional_integration_ignored": 4
+      },
+      "checks": {
+        "nativeCookieAuth": true,
+        "cliIncrementalSavedTurn": true,
+        "cliJsonContinuation": true,
+        "independentEncryptedReadback": true,
+        "liveCrossClientSync": true,
+        "monitorReconnectLiveSync": true,
+        "tuiSubmitIncrementalPersistence": true,
+        "tuiCancelNoBlindResend": true,
+        "cliCancelNoBlindResend": true,
+        "cliRestartRecoveryOnce": true,
+        "tuiRestartRecoveryOnce": true,
+        "ownedCleanupAcknowledged": true
+      },
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "cleanup": {
+        "run_id": "40065596506",
+        "harness_commit": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+        "containers_remaining": 0,
+        "volumes_remaining": 0,
+        "private_account_files_removed": true,
+        "account_allowlist_identities_removed": 2
+      },
+      "cleanup_verified": true,
+      "native_command_failure": null,
+      "monitor_presence_observation": {
+        "initial_matching_count": 2,
+        "fresh_matching_count": 2,
+        "minimum": 0,
+        "maximum": 2,
+        "samples": 8,
+        "samples_capped": false
+      },
+      "real_terminal_videos": [
+        {
+          "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-tui/raw-terminal.mp4",
+          "sha256": "1396968f0c80e1f7108abc1fa37338a3c75573753205a26e4b916945bec9bf47",
+          "bucket": "dev-openmates-opencode-response-media",
+          "key": "review-responses/2026/10/24/15bbf5c939aa-1396968f0c80e1f7-raw-terminal.mp4",
+          "upload": "uploaded",
+          "local_video_removed": true
+        },
+        {
+          "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-cli/raw-terminal.mp4",
+          "sha256": "cabb3786c83c78ff5cbaaf57ed4e4052e272fa4505570560d2bcdde208b9d4c7",
+          "bucket": "dev-openmates-opencode-response-media",
+          "key": "review-responses/2026/10/24/caa02ec5a77c-cabb3786c83c78ff-raw-terminal.mp4",
+          "upload": "uploaded",
+          "local_video_removed": true
+        }
+      ],
+      "terminal_capture": "Actual CLI/TUI terminal capture; no reconstruction.",
+      "qualification": "Verified Linux essential milestone admits browser/WASM now. Installed preview refresh, actual macOS acceptance, full CLI parity, selfhost readiness and SDK publication remain separately required."
+    },
+    "current_native_retry": {
+      "source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+      "tree": "db2be0ac83cb484f43aacf22f6bb1fe12a110d07",
+      "request": "0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c",
+      "run": 40065596506,
+      "status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+      "native_units": {
+        "passed": 467,
+        "failed": 0,
+        "intentional_integration_ignored": 4
+      },
+      "checks": {
+        "nativeCookieAuth": true,
+        "cliIncrementalSavedTurn": true,
+        "cliJsonContinuation": true,
+        "independentEncryptedReadback": true,
+        "liveCrossClientSync": true,
+        "monitorReconnectLiveSync": true,
+        "tuiSubmitIncrementalPersistence": true,
+        "tuiCancelNoBlindResend": true,
+        "cliCancelNoBlindResend": true,
+        "cliRestartRecoveryOnce": true,
+        "tuiRestartRecoveryOnce": true,
+        "ownedCleanupAcknowledged": true
+      },
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "cleanup": {
+        "run_id": "40065596506",
+        "harness_commit": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+        "containers_remaining": 0,
+        "volumes_remaining": 0,
+        "private_account_files_removed": true,
+        "account_allowlist_identities_removed": 2
+      },
+      "cleanup_verified": true,
+      "native_command_failure": null,
+      "monitor_presence_observation": {
+        "initial_matching_count": 2,
+        "fresh_matching_count": 2,
+        "minimum": 0,
+        "maximum": 2,
+        "samples": 8,
+        "samples_capped": false
+      },
+      "real_terminal_videos": [
+        {
+          "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-tui/raw-terminal.mp4",
+          "sha256": "1396968f0c80e1f7108abc1fa37338a3c75573753205a26e4b916945bec9bf47",
+          "bucket": "dev-openmates-opencode-response-media",
+          "key": "review-responses/2026/10/24/15bbf5c939aa-1396968f0c80e1f7-raw-terminal.mp4",
+          "upload": "uploaded",
+          "local_video_removed": true
+        },
+        {
+          "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-cli/raw-terminal.mp4",
+          "sha256": "cabb3786c83c78ff5cbaaf57ed4e4052e272fa4505570560d2bcdde208b9d4c7",
+          "bucket": "dev-openmates-opencode-response-media",
+          "key": "review-responses/2026/10/24/caa02ec5a77c-cabb3786c83c78ff-raw-terminal.mp4",
+          "upload": "uploaded",
+          "local_video_removed": true
+        }
+      ],
+      "terminal_capture": "Actual CLI/TUI terminal capture; no reconstruction.",
+      "qualification": "Verified Linux essential milestone admits browser/WASM now. Installed preview refresh, actual macOS acceptance, full CLI parity, selfhost readiness and SDK publication remain separately required."
+    },
+    "previous_native_runtime_94": {
+      "source": "94b9f0e34336aca06a40be881b35f27618c92b5a",
+      "harness": "a05d4494b8268ea0be27e9abf3d5067e324544cc",
+      "request": "2b5549d604c4a588ec7444d11b5b15ee69834511b06bf41e512568d652098fd5",
+      "run": 40054978679,
+      "status": "failed_first_saved_send_at_isolated_epoch_zero",
+      "protocol_phase": "frame_validation",
+      "discovery_status": "disabled",
+      "final_seen": true,
+      "classified_cause": "invalid_server_response",
+      "fixture_cause": "Exact essential spec was absent from guarded marker epoch1 selector; isolated backend remained at default epoch0. No earlier failure is retroactively attributed.",
+      "cleanup_verified": true,
+      "epoch_selector_harness_correction": "d38a78af5b51c2bb39f6e308e560d621ac0af835"
+    },
+    "current_sdk_retry": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+      "request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+      "run": 40062768021,
+      "status": "PASSED",
+      "wrapper_regressions_actual_passed": 4,
+      "qualification": "396SDK36bindingunits54adapters615outcomes;releasefalse156gaps"
+    },
+    "previous_native_runtime_5aaa": {
+      "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+      "request": "11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070",
+      "run_id": 40061556469,
+      "status": "FAILED_NO_ESSENTIAL_ACCEPTANCE",
+      "phase": "monitor_reconnect_replay",
+      "failure_code": "one_idle_native_ws_presence",
+      "native_units": {
+        "passed": 465,
+        "failed": 0,
+        "intentional_integration_ignored": 4
+      },
+      "native_auth": "all3profilesPASS",
+      "checks": {
+        "nativeCookieAuth": true,
+        "cliIncrementalSavedTurn": true,
+        "cliJsonContinuation": true,
+        "independentEncryptedReadback": true,
+        "liveCrossClientSync": true,
+        "ownedCleanupAcknowledged": true
+      },
+      "first_tui_paint": "PASS",
+      "cli_to_tui_live_sync": "PASS",
+      "native_command_failure": null,
+      "native_send_processes_or_ui_submissions": 3,
+      "recovery_retained": false,
+      "cleanup_failed": false,
+      "lease_count_recorded": false,
+      "ss_K_reached": false,
+      "precise_cause": "UNPROVEN; exact-one presence was asserted immediately and can race legitimate short-lived interactive-TUI readonly sync/recovery sockets. No permanent orphan is established.",
+      "remaining_product_proof": [
+        "monitor reconnect/replay",
+        "cancellation",
+        "kill/restart recovery",
+        "remaining essential gates"
+      ],
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "pass_claim": false,
+      "proof_receipt_sha256": "5c8e28e86850ba36ce0a7e68a8e19b22cfc97cdab8b82856b78bd436b7db7e42",
+      "owner": "root coordinator only",
+      "qualification": "Actual5aaa product evidence now includes saved continuation/readback and first TUI paint/live CLI-to-TUI sync; the exact-one presence check still fails before ss-K. No essential acceptance/WASM start. Later server-only defensive encoding is outside this run.",
+      "readiness_change": "Reviewed stable-singleton readiness and finite counts integrated within the same20second absolute budget for readiness, owned cut and replacement; product verification pending.",
+      "readiness_patch_sha256": "0cbe1cf05585deacdf7d2d25cbf64b6a001d8f6c7be94449690869a92c06d273",
+      "readiness_inert_tests": 152,
+      "readiness_independent_tests": 10
+    }
+  },
+  "wasm_readiness": {
+    "original": {
+      "private_path": "/tmp/d1c4-wasm-readiness-inventory-20261023.json",
+      "sha256": "ad11f24513a23b8e770223957c91764b651ff82fb1cdd9d66a114293110a537c",
+      "original_retained": true
+    },
+    "status": "BROWSER_ADMITTED_IMPLEMENTATION_IN_PROGRESS",
+    "admission": "Linux essential native admission achieved on source3a96/run40065596506. TASK-9558 in_progress; continue original BEFORE measurements and browser/WASM integration now. Exhaustive CLI,156 SDK gaps,selfhost and macOS are not browser admission blockers.",
+    "performance_instrumentation": {
+      "patch_sha256": "8113088c2d80139eecced9ca8ee9e7b5bc142e90c272b32921ce6b22be111001",
+      "pure_node_tests": 10,
+      "production_build_attachment_hook": {
+        "status": "deployed",
+        "commit": "a439ae4dc822235f04b84e67083380b37011519f",
+        "reviewed_candidate": "a069703909542f9d1e7f631cbdf89753042bdafb",
+        "patch_sha256": "0ae5567f61a9dfa166b9ed08faf0a1c478d166897c44bbc8074be392863a5493",
+        "paths": 4,
+        "focused_inert_tests": 32,
+        "source_blob_verification": "all_four_passed",
+        "deployment_specification_and_lint_gates": "passed",
+        "qualification": "Trusted tooling only; inventory at actual fresh/restored production readiness still UNRUN on the real application."
+      },
+      "actual_before_measurements": "Partial legacy baseline retrieved; renderer succeeds on retry, page-load all3firstpass. ResourceTiming default250-entry saturation makes transfer totals lower bounds.",
+      "typescript_qualification": "Three unchanged pre-existing IndexedDB hook diagnostics verified against source1b; no whole-spec strict pass.",
+      "before_requests": [
+        {
+          "request": "6064d0e93ef87fda8d4d18c69bb7af679c45372143fac24387e760b4e14d3dc3",
+          "spec": "chat-streaming-render-performance.spec.ts",
+          "status": "success",
+          "run_id": 40030055784,
+          "cleanup_verified": true,
+          "evidence_upload_exit": 0
+        },
+        {
+          "request": "3894c11352bb0bc0d884eeab1da51d5131d6b6234bf5078ef66384d53d37ffab",
+          "spec": "page-load-performance.spec.ts",
+          "status": "success",
+          "run_id": 40030060535,
+          "cleanup_verified": true,
+          "evidence_upload_exit": 0
+        }
+      ],
+      "before_scope": "Exactsourcec650 legacy browser load/renderer plus production asset inventory only. Cold/warm control, wider CPU/RAM/auth/sync/recovery and later WASM initialization comparison remain required; no measured baseline completed yet.",
+      "curated_before_evidence": "docs/plans/rust-tui/web-before-performance-2026-10-23.json",
+      "resource_capture_correction": "Real b1navigationCI40034466423 passesall3tests;284\u2013414entries observed,4096capacity,0bufferfull/omitted. Cleanup/upload and productionasset/servedentrybindings verified.",
+      "startup_patch": {
+        "sha256": "eca5fbd60f22fd6b629666854c80f2f3fa792e74c2e5185677b305b843c31d05",
+        "review": "CLEAR",
+        "inert_tests": 8,
+        "instrumented": "Existing bounded startup and established reconnect; no runtime Rust introduced.",
+        "remaining": "No empty-store recovery/cold-warm/decryption-completion or total CPU/RSS proof."
+      },
+      "corrected_before_requests": [
+        {
+          "spec": "chat-streaming-render-performance.spec.ts",
+          "request": "e456ebf6620c2420c3ae22ad1c8c955f03a42d41e887eabea16aca06b026b15f",
+          "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "status": "queued"
+        },
+        {
+          "spec": "page-load-performance.spec.ts",
+          "request": "aceceb62de3e71b91eec1fdb3357757caf0cf7c8a67a27449f0aa20b85c922a3",
+          "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "status": "success",
+          "run_id": 40034466423,
+          "cleanup_verified": true,
+          "evidence_upload_exit": 0
+        },
+        {
+          "spec": "startup-sync-contract.spec.ts",
+          "request": "f6bfef4af244511ecfdf1a77f5722560a44d07c1c8d5d83cbfaef6182acadc5d",
+          "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+          "status": "failure",
+          "run_id": 40034470877,
+          "cleanup_verified": true
+        }
+      ],
+      "startup_ci": {
+        "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+        "request": "f6bfef4af244511ecfdf1a77f5722560a44d07c1c8d5d83cbfaef6182acadc5d",
+        "run": 40034470877,
+        "status": "failure",
+        "passed_cases": 5,
+        "failed_cases": 1,
+        "failed_attempts": 2,
+        "instrumented_startup_and_reconnect": "both_passed_first_attempt_and_measurements_retained",
+        "failure": "Unmodified recent chats replay selected window while IndexedDB reconciliation waits; cached history remains loading/hidden during delayed reconciliation.",
+        "cleanup_verified": true,
+        "evidence_upload": 0,
+        "qualification": "Legacy browser failure before WASM runtime changes; preserve the assertion and resolve as required browser sync/persistence work. Partial passing measurements do not make the suite green."
+      },
+      "controlled_http_cpu_memory_source": {
+        "patch_sha256": "fd7ee4f62bfba76f5247060685f4a59e9e5d84a178e2a47aa791bdd1ec9a5a33",
+        "review": "CLEAR",
+        "inert_tests": 8,
+        "applied": true,
+        "actual_browser_measurements": "UNRUN",
+        "scope": "HTTP-cache cold fill and two same-route warm reloads; preserves auth and IDB,23chats/0loadedmessages. Stable verified browser-process CPU subset and summed RSS endpoints only; no selected-chat decryption CPU, peak/full RAM, cold-auth or WASM-memory claim.",
+        "isolated_ci": {
+          "source": "f6dc7f67f700e037c3281985c43a00627d7ba277",
+          "request": "98701b48d4a8a3380d35dc6c548e84d5c41e52f145644093b91b332a42d3f95a",
+          "run_id": 40040141700,
+          "status": "measured_case_passed_suite_failed_existing_replay",
+          "measurements": "UNRUN",
+          "passed_cases": 6,
+          "failed_cases": 1,
+          "failed_attempts": 2,
+          "cleanup_verified": true,
+          "evidence_upload_exit": 0
+        }
+      },
+      "corrected_renderer_result": {
+        "source": "b1e24c099161b709509f463e6e3f65cb2da201f5",
+        "request": "e456ebf6620c2420c3ae22ad1c8c955f03a42d41e887eabea16aca06b026b15f",
+        "run": 40034458115,
+        "status": "passed_first_attempt",
+        "median_sample_p95_ms": 3.599999999976717,
+        "maximum_pipeline_ms": 19.79999999993015,
+        "resource_entries_per_navigation": 411,
+        "configured_resource_capacity": 4096,
+        "buffer_full_events": 0,
+        "cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "scope": "Legacy renderer replay only; no Rust integration or full-application speedup."
+      }
+    },
+    "portable_split_preparation_2026_10_24": {
+      "status": "READ_ONLY_NOT_IMPLEMENTED_OR_COMPILED",
+      "default_preservation": "One SDK crate with native defaults retained; optional browser-core excludes native transport, executor and OS dependencies. Optional privacy/ICU surfaces may be omitted from first payload without changing existing SDK defaults.",
+      "boundaries": [
+        "Gate account/client/sdk/generated/work and reqwest error conversion behind native adapters.",
+        "Move the exact task decoding/key/AAD closure from work into transport-free internal task_codec; reuse it from native work and the existing reducer.",
+        "Replace reducer-private CancellationToken-only new/cancel/is_cancelled use with shared invalidation state.",
+        "Add explicit-clock session expiry predicate while retaining native clock adapter; never expose native stored cookie/key session serialization to browser consumers."
+      ],
+      "persistence_constraint": "ProjectTaskSync.accept immediately stages and commits. Browser facade must expose bounded owned stage/checkpoint/commit/discard/restore effects; actual IndexedDB transaction completion precedes commit, publication and cursor ACK. Existing crate-private methods require an owned SDK facade, not a separate duplicate reducer.",
+      "entropy_and_keys": "Explicitly wire every selected getrandom generation to browser CSPRNG; preserve Argon2 password64MiB/3/1 and pairing8MiB/3/1; off-main-thread worker with bounded opaque key handles and explicit credentials.",
+      "first_acceptance": "Actual wasm32 target check with no native transport/OS graph; shared crypto vectors plus browser worker staged encrypted batch with delayed/failed/committed IndexedDB and revocation. No portable-target or runtime pass inferred.",
+      "sequence": "Implementation begins after essential native and essential three-SDK proof; exhaustive CLI commands and156releasegaps are separate."
+    },
+    "same_client_platform_seam_preparation": {
+      "status": "READ_ONLY_NOT_IMPLEMENTED",
+      "foundation_qualification": "Gating entire Client native yields onlycrypto/reducer foundation, not essential browser migration. Browser must compile the same essential Client modules after platform effects move below them.",
+      "http": "Bounded request/response independent of reqwest; Rust owns endpoint/scope/auth/status/retry/cancellation/error policy. Native/browser adapters onlyperformIO.",
+      "websocket": "Bounded async send/receive/close replaces concreteTungsteniteinner; pendingframes,protocol,identity,capabilityselection andPassivepolicy stayRust.",
+      "runtime_clock": "Abstractsleep/monotonicdeadlines/spawn/epochmilliseconds acrossauth/send/sync/monitor/recovery. Browserfuture/taskmaybelocal;nofakeSendforJSobjects. Preservecancellationpriority/heartbeats/absoluteexpiry.",
+      "credentials_keys": "Logicalidentity/revision/expiry/keyrefs separatedfromnativecookies;browserusesmanagedcredentialsandcannotreadSetCookie/arbitraryWSheaders. NeverexportnativeCookieSessionJSON;opaqueWorkerkeyhandles/typedhostcrypto bridge preservingnonce/AAD/framing.",
+      "durability": "Ownedstagehandles overexistingreceipt/commit APIs;authority/generation/scope/exactbytes/discard/publicationremainRust. IDBtransactioncompletionauthorizesreceipt;noatomicityclaimoverIDBandbrowsercookies.",
+      "sequence": "Extractseams withnativeadapterdefaults andexistingnativecontracts first;compileexistingauth/send/sync/monitor/completionrecovery/recovery againstthem;then singleWorkerbrowseradapter andfixtures beforeTSownershipreplacement.",
+      "passive_policy": "Browsertransportmaynotaddjobcaps,announceactivechat or executeofferedwork during passive refresh. Logout/Team/account/expiry/abort/workerterminationinvalidatependinghandles.",
+      "entry_gate": "EssentialcurrentnativeandSDKproof remainsrequired;no browserimplementationdone."
+    }
+  },
+  "sdk_release_gate": {
+    "registered_gaps": 156,
+    "historical_source_authoring_checkpoint": {
+      "adapters": 48,
+      "results": 567,
+      "release_eligible": false,
+      "qualification": "Retained exact-source historical checkpoint, not a current all3 pass for later Rust host/monitor/recovery additions."
+    },
+    "new_rust_capabilities": "Actual f96:396 SDK units,36 binding units,54 adapters/615 outcomes including48essential and all4wrapper regressions PASS;2097inputs/source/load/artifact/cleanup fences held.156gaps still block release.",
+    "matrix_capabilities": 59,
+    "source_audit": "Historical sourcef96 source-only inventory:1555Rust1515npm1126Python;156gaps. Actual54/615 execution is separately receipt-bound; working27-file portability and10-file binding foundation are uncompiled/unverified.",
+    "essential_bindings": {
+      "patch_sha256": "cf9495475a5716ee2ab942f0fb4108a2f37dc9b4accd441513f4f900e2428d92",
+      "applied_files": 26,
+      "independent_review": "CLEAR_source_only_all_four_HIGH_findings_addressed",
+      "baseline_and_applied_hashes": "all_verified",
+      "shared_results": 48,
+      "internal_tests": 10,
+      "execution": "ALL3ESSENTIAL48OUTCOMES_PASS_WITH_CURRENT385SDK_UNITS36BINDING_UNITS",
+      "extra_reclamation_assertion": "Actual featureless binding library suite passes36tests in GitHub CI, including the integrated reclamation source; no full foreign adapter pass.",
+      "reclamation_patch_sha256": "6a415af48f41751bd49210675afc54af098368ec7794a0a8fffe7c40aec325d8"
+    },
+    "candidate_ci_route": {
+      "status": "passed_registered_conformance_current73b_full_release_blocked_156gaps",
+      "commit": "8377dc49badcecddb70471dda9a3e7556b555fae",
+      "reviewed_candidate": "f61076a1d366cb54778364f329b39084d81dfcfd",
+      "patch_sha256": "39b54e610b6a2d1540f89a03a061d749caf866351c51c7d44fd6e482b6764cc2",
+      "deployed_blobs": "all8verified",
+      "materialized_specification_lint": "passed",
+      "inert_tests": 42,
+      "independent_review": "CLEAR",
+      "source": "fbaff6293a42ac41916951bba030b05fafced6e6",
+      "source_603_path_census": "passed",
+      "request": "1eb2478d18f3d245312bcc6500a7d7399c177db5e750ccc175810914e6223e02",
+      "run_id": 40036855972,
+      "planned_runs": 54,
+      "planned_vector_outcomes": 615,
+      "forecast_is_execution_proof": false,
+      "open_release_gaps": 156,
+      "protection": "Pinned reviewed executor and programs; independent gap derivation, real binding units, NAPI/PyO3 builds, source/artifact/load fences and strict retrieval.",
+      "evidence_upload_exit": 0,
+      "private_cleanup_verified": true,
+      "failed_stage": "node-dependencies",
+      "stage_exit_code": 1,
+      "actual_binding_units": "NOT_REACHED",
+      "actual_foreign_builds_vectors": "NOT_REACHED",
+      "diagnostic_qualification": "2430-byte rawsetup log remained private and expired with runner. Its hash/size survive; precise child cause unknown. Fixed recipe/closed package diagnostics under investigation before retry.",
+      "setup_correction": {
+        "commit": "cfa47ff6a69ccdce4e370b02c21c20e92cb9aef3",
+        "candidate": "94105953ca021d2c9ded8a12a5a05f8841156058",
+        "patch_sha256": "a9bacee82c66b42b94aca445b234385557b1e05569f770c36ab3d94a3afc79bc",
+        "review": "CLEAR",
+        "author_inert_tests": 54,
+        "materialized_specification_lint": "passed",
+        "deployed_blobs": "both_verified",
+        "request": "4010dcd5a30c24df0888ddb0ad7d7ef3317d762791563effdcac9c01518ad02e",
+        "status": "failed_before_python_environment_command",
+        "app_source": "fbaff6293a42ac41916951bba030b05fafced6e6",
+        "prior_failure_cause": "unknown_no_lock_defect_claim",
+        "run_id": 40039175771,
+        "failure_code": "command_executable_identity",
+        "private_cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "qualification": "New command-identity guard rejected the selected interpreter before execution; exact combined rejection facet unknown. The earlier run executed Python setup successfully. A bounded approved-image identity correction is preparing; no unchanged retry."
+      },
+      "interpreter_correction": {
+        "commit": "b167d8959ac6217655f9cd7b05d7b3e74e7fbadc",
+        "candidate": "be64e3d644599a8709375ccb63148f9e4e610988",
+        "patch_sha256": "4263349d584524e979f5936cd6e721da6131632c7ca6934c7a2c79accde59b7f",
+        "review": "CLEAR",
+        "inert_tests": 62,
+        "deployed_blobs": "both verified",
+        "materialized_specification_lint": "passed",
+        "original_rejection_facet": "unknown"
+      },
+      "actual_attempt3": {
+        "source": "fbaff6293a42ac41916951bba030b05fafced6e6",
+        "request": "c49fba065c3db54b424bb7c262399f93777b95ee281ce191c46b14fa78545988",
+        "run": 40041975631,
+        "status": "failed_real_conformance",
+        "passed_stages": [
+          "toolchain",
+          "private Python environment",
+          "Node dependencies",
+          "Python dependencies",
+          "binding-library-units",
+          "NAPI build",
+          "PyO3 build",
+          "SDK facade build",
+          "NAPI load",
+          "Python load"
+        ],
+        "binding_units": {
+          "passed": 36,
+          "failed": 0,
+          "ignored": 0
+        },
+        "failed_capability": "session.recovery-replay.v1",
+        "failed_language": "rust",
+        "failed_vector": "unknown, suite-only attribution",
+        "driver_stderr_bytes": 42,
+        "driver_stderr_sha256": "b9d00df64bb31823a1a97b156e41ce4e3739f39fbad00a3461c1c00a8ee3786b",
+        "private_cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "end_to_end_source_artifact_fences": "not completed after failed adapter; no full conformance pass",
+        "next": "Source/protocol diagnosis and bounded vector attribution before another attempt.",
+        "source_evident_fixture_drift": "Legacy synthetic sealed main completion omits mandatory nullable category/model_name fields emitted by the canonical backend producer and required by the current shared decoder. Test-only correction under review; no claim it is the sole observed failure."
+      },
+      "actual_attempt4": {
+        "source": "c15f89c51ad688f8be090eac0643a3aa6eb6bafe",
+        "harness": "512de41bfe0efc49181331f73af1a602c645ea7d",
+        "request": "1aee964b522ce0620dc1213ac4b6f566da1d62f56b628f22283fc1ffa54126fb",
+        "run": 40044941597,
+        "status": "failed_real_conformance_monitor",
+        "passed_stages": [
+          "toolchain",
+          "private Python environment",
+          "Node/Python dependencies",
+          "binding-library-units",
+          "NAPI build/load",
+          "PyO3 build/load",
+          "SDK facade build"
+        ],
+        "first_failed_capability": "session.chat-change-monitor.v1",
+        "language": "rust",
+        "known_vectors": 8,
+        "failed_vector": "unknown_suite_only",
+        "stderr_bytes": 42,
+        "stderr_sha256": "29a4b5260fecd6542113150388c92d57c022cd204005d25a17c957fcdc8afc97",
+        "conformance_elapsed_seconds": 287.603,
+        "cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "qualification": "Gate progressed past prior recovery replay failure; not a full prefix or final source/artifact-fence acceptance. Monitor and foreground essential48outcomes remain open.",
+        "next": "Bounded source/fixture diagnosis with closed vector attribution if needed; never weaken monitor authorization/durable publication checks."
+      },
+      "actual_attempt5": {
+        "source": "bba55e961acb311900686358a5963b5ed04e7f47",
+        "harness": "502d7fd932bb1b754148ad87c1326f8532f16d1c",
+        "request": "94ca1a225d0dac1af3987e71593d30476a93d23a8c0b39dc957cb96a7944b9a5",
+        "run": 40047663298,
+        "status": "failed_real_conformance_exact_vector",
+        "capability": "session.chat-change-monitor.v1",
+        "language": "rust",
+        "vector": "monitor-durable-opaque",
+        "phase": "stage",
+        "error_code": "authentication",
+        "cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "diagnostic_projection": "exact_identity_bound_closed_fields_worked",
+        "final_fences": "not_reached_no_aggregate_pass"
+      },
+      "actual_attempt6": {
+        "source": "d6b829890e2123acda01f9f097250488f2b96e4b",
+        "harness": "a05d4494b8268ea0be27e9abf3d5067e324544cc",
+        "request": "8628c697e6e9682f807be73f057194030e266e4c26548eb8567fe3f95cd845d1",
+        "run": 40050078530,
+        "status": "failed_sdk_library_test_compilation",
+        "compiler_codes": [
+          "E0308",
+          "E0369",
+          "E0277"
+        ],
+        "location": "monitor_live_tests queue-preservation regression",
+        "cause": "New test inserted raw JSON into typed CompletionRecoveryJob maps and compared non-Debug/non-PartialEq domainvalues.",
+        "correction_patch": "f08d796e48a49985da0e0be96ee6e43a7cd20879107efe68337b4cc338a3a35c",
+        "correction_status": "root_independent_CLEAR_APPLIED;realtypedjobsandserializedbytecomparison;productionunchanged;Rustexecutionpending",
+        "cleanup_verified": true,
+        "evidence_upload_exit": 0,
+        "no_runtime_acceptance": true
+      }
+    },
+    "shared_fixture_correction": {
+      "patch_sha256": "ac4628a586a2571314016b0d18811afc8ee3c7ad2d48a37ac7f874d962db45e8",
+      "review": "CLEAR",
+      "applied": true,
+      "essential_peer_sha256": "f2c0515c7248b4d70f80593ac1b3aea236bdaa27d97230054c1085b121992bf0",
+      "pure_tests": 3,
+      "subtests": 8,
+      "scope": "Shared synthetic claim timestamps match actual Directus DateJSON24charUTCmilliseconds; CLI-only normalization wrapper removed. Production SDK/app inputs unchanged; actual3SDKexecutionUNRUN."
+    },
+    "legacy_recovery_fixture_correction": {
+      "app_patch_sha256": "98afd2020853c9add8004ddff55d7a04b755f806d71b68fcc75ce7f9550275e3",
+      "harness_pin_patch_sha256": "00b3aa5148881d92b96a6f7dc1c82e18cd3d25a3cb7f180fead5150457e21239",
+      "app_applied": true,
+      "review": "CLEAR",
+      "independent_pure_tests": 5,
+      "independent_subtests": 15,
+      "scope": "Add canonical nullable category/model_name to synthetic sealed main payload; all11vectors and expected errors preserved. No SDK/core change.",
+      "original_failed_vector": "unknown; source mismatch is definite but not proven sole observed cause.",
+      "harness_pin_commit": "512de41bfe0efc49181331f73af1a602c645ea7d",
+      "next_request": "1aee964b522ce0620dc1213ac4b6f566da1d62f56b628f22283fc1ffa54126fb"
+    },
+    "monitor_failure_diagnostics": {
+      "status": "APP_AND_TRUSTED_PROJECTION_REVIEWED_PUBLISHED_ACTUAL_RETRY_SUBMITTED",
+      "app_patch_sha256": "cab5a2fda52d35ff85462a72686592ed46fdfa4cf031a137fe30cd6f1f2745fc",
+      "app_after_sha256": "7fe298b93e37197fdad84f01fbaab875391786bddc29e466d403cd3ae5c91417",
+      "app_review": "independent_CLEAR_v2",
+      "app_checks": "Directrustfmt2024and7sourceinvariantsPASS;RustUNRUN",
+      "harness_patch_sha256": "d48ba26332388aa0fd175a74bb325a61b0a3140f49ab95c7d9e380c4128071aa",
+      "harness_review": "independent_CLEAR",
+      "harness_inert_tests": 41,
+      "scope": "Failure-only actual fixture vector plus finite phase/error code; strict full fixture identity and failed-result binding, no raw text/payload/keys/paths. Existing8vectors,operations,assertions,15sdeadline,successstdout,releasegaps unchanged.",
+      "causal_qualification": "Monitor failure cause unknown; instrumentation is not a claimed fix or pass.",
+      "harness_commit": "502d7fd932bb1b754148ad87c1326f8532f16d1c",
+      "harness_candidate": "ffca78f64e80f0e0b72d47af0d4bbaa7280d2fae",
+      "deployed_hashes": "all4verified",
+      "materialized_deploy_gates": "passed",
+      "source": "bba55e961acb311900686358a5963b5ed04e7f47",
+      "tree": "448c4b9352db4a688fe15ddf511a79f65d060f4f",
+      "source_census": "passed606blobs_and_modes",
+      "request": "94ca1a225d0dac1af3987e71593d30476a93d23a8c0b39dc957cb96a7944b9a5",
+      "actual_acceptance": "pending_no_pass_claim"
+    },
+    "latest_actual_pass": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+      "harness": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+      "request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+      "run": 40062768021,
+      "status": "passed_current_registered_conformance",
+      "runtimeProfile": "sdk-conformance",
+      "sdkLibraryUnits": {
+        "failed": 0,
+        "filteredOut": 0,
+        "ignored": 0,
+        "measured": 0,
+        "passed": 396
+      },
+      "bindingLibraryUnits": {
+        "failed": 0,
+        "filteredOut": 0,
+        "ignored": 0,
+        "measured": 0,
+        "passed": 36
+      },
+      "adapterRuns": 54,
+      "vectorOutcomes": 615,
+      "newEssentialMonitorRecoveryOutcomes": 48,
+      "sourceHeld": true,
+      "loadIdentityVerified": true,
+      "fencedInputs": 2097,
+      "inputSetSha256": "39220ec3f58c09805a56fbade863556227acc2687577fcbe614e3efcb81adcc9",
+      "receiptSha256": "61f13ffa4509659c01f7e0a8ff5b4e80399e838f54d9b6bbc14bff55f46b32b2",
+      "artifactSha256ByLanguage": {
+        "npm": "47740133237a748e8b012f8b216b9d9fa91884f9a001243b0ee57b46d4d8968e",
+        "python": "552fcf444418ed10c3dd8b96f2a6b0b653a68446acfb28687b6c7201b9075bd8"
+      },
+      "cleanupVerified": true,
+      "evidenceUploadExit": 0,
+      "publication": false,
+      "qualification": "Actual Linux x64 f96 SDK conformance and all four wrapper regressions pass. 156 capability gaps still block release; no native product/Mac/WASM acceptance claimed.",
+      "staticInventory": {
+        "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+        "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+        "kind": "source-only audit; no conformance execution",
+        "publicApiInventorySha256": "4ebb567536850935667ec2ded850403cb7dee57a8d1b2f48274bb1de79b82025",
+        "matrixSha256": "17b0b2ea8006c8e269b8a1059faa643298a657ddd303a0f669c79fb79671ee3e",
+        "matchedCapturedInputCount": 2097,
+        "currentCapturedInputsUnchanged": true
+      },
+      "previousVerifiedCheckpoint": {
+        "source": "7fd65b7ed3be96d254eae93fa0936dbcd5cd930d",
+        "tree": "9d6ff0833f15aaf96a47f3a038919dd1ef0ce740",
+        "harness": "a05d4494b8268ea0be27e9abf3d5067e324544cc",
+        "request": "cf8974d2e29ed98428c479f8e276be3e9fe60534438e8eafcfc11b6a2f36a803",
+        "run": 40056159685,
+        "sdkLibraryUnits": {
+          "failed": 0,
+          "filteredOut": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 392
+        },
+        "bindingLibraryUnits": {
+          "failed": 0,
+          "filteredOut": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 36
+        },
+        "adapterRuns": 54,
+        "vectorOutcomes": 615,
+        "receiptSha256": "35a6f694d525e38d4cece475f2ddf5cd8340ceeb9dd997286b194877f4fee45f"
+      },
+      "supersededReport": {
+        "sha256": "b55e4fba3bdc006893ae0fce7c6f6c1bae6fe5032a484f9f497abe0fa575af51",
+        "adapterRuns": 27,
+        "openGaps": 135,
+        "qualification": "Historicalcheckpointreplacedbycurrentregisteredconformance;originalprivatebytesretained."
+      },
+      "wrapperRegressionsActualPassed": 4
+    }
+  },
+  "remaining_full_cli_parity_task": "083cfc56-4db3-43c2-85d4-325e2bb8b429",
+  "specification_semantics_changed": false,
+  "benchmark_preparation_diagnostics": {
+    "status": "integrated_source_not_product_executed",
+    "patch_sha256": "4a6aa6acc001c7113171dd827ea0af145f9e436aef55ab6cdd1794645e833647",
+    "inert_tests": 26,
+    "closed_failure_codes": 53,
+    "raw_output_retained": false,
+    "previous_failure_cause": "unknown",
+    "whole_helper_strict_typescript": "Six diagnostics are identical to baseline source1b with matching target/options/dependency resolution; no new diagnostics and no whole-helper strict pass.",
+    "isolated_diagnostic_run": {
+      "source": "5128b2bd167d3704c5984df5f22b31d6803e346b",
+      "request": "48f4fb7fa6a5b31def11b27d123b92581f217d11a0ecceb297c9c1429582eca4",
+      "status": "failure",
+      "run_id": 40014172598,
+      "scope": "Exactly two closed-code diagnostic helper files differ from source1b; all application compile inputs identical. No underlying fix claimed.",
+      "owner": "root coordinator only",
+      "closed_code": "actual_cli_exited_before_prompt",
+      "retention": "Both retries inline/base64 attachment52 in ci-spec-0.json; diagnostic wiring works.",
+      "unknown": [
+        "backend",
+        "token_or_PIN_wait",
+        "exit_status_or_signal",
+        "underlying_cause"
+      ],
+      "cleanup_verified": true,
+      "evidence_upload_exit": 0,
+      "uploaded_videos": 20,
+      "uploaded_images": 2
+    },
+    "buffered_pty_exit_fix": {
+      "patch_sha256": "f9af4dd8965f51297ea9038d3d78a11a3ded8ed1697e8c830f4e3eca33d2e11d",
+      "status": "reviewed_source_integrated",
+      "inert_tests": 47,
+      "guards": "Original deadline, byte cap, missing-prompt refusal, credentials, storage, readback and cleanup preserved.",
+      "ci_failure_causation": "UNPROVED"
+    }
+  },
+  "macos_verification": {
+    "status": "required_open",
+    "configured_mac_reachable": false,
+    "online_mac_visible": false,
+    "rust_toolchain_runtime_readiness": "unverified",
+    "admission": "Coordinated Mac handoff or admitted typed remote capability; no raw SSH bypass.",
+    "apple_client_implementation": "later_after_web_verification"
+  },
+  "capacity_coordination": {
+    "cleaner": "parent7d08_only",
+    "disposable_confirmed": [
+      "frontend/packages/openmates-tui-native/target/debug/deps/*.rlib",
+      "frontend/packages/openmates-tui-native/target/debug/deps/*.rmeta"
+    ],
+    "preserve": [
+      "native_executables",
+      "shared_libraries",
+      "release_builds",
+      "source",
+      "registry_crate_caches",
+      "proof_artifacts"
+    ],
+    "deletion_by_this_chat": false,
+    "debug_target_builds_paused_during_cleanup": true,
+    "release_unit_admission_started": true,
+    "release_unit_qualification": "Root selected explicit Cargo release profile using retained release caches; debug compiler caches remain unused and disposable for parent7d08. All environment flags and disk/process/source/pin guards are preserved. No debug-profile or runtime pass inferred.",
+    "last_idle_confirmation_utc": "2026-10-24T00:22:00Z",
+    "last_idle_confirmation": "No cargo/rustc/rustdoc active; root has not deleted compiler caches or started new local builds."
+  },
+  "current_selfhost_ci": {
+    "source": "685cb024b42e163750150a5fabe0ae0ad096df4f",
+    "tree": "e55fc1e662408cbdc4d6cecbe419d67afce1c691",
+    "request": "ecc2f7a574f9105280db76bc18b118836dcf5ef4962123061313a009bbf1bb6b",
+    "status": "cancelled_at_job_limit_no_verified_receipt",
+    "owner": "root coordinator only",
+    "task": "5702",
+    "reviewed_patch_sha256": "7b9beefb48026bde9cdf6a5434cbd39b34a98d4ee0dab6cb89c397d7f0848112",
+    "independent_security_review": "CLEAR",
+    "pure_tests_passed": 74,
+    "source_census_paths": 613,
+    "source_census_bytes_and_modes": "passed",
+    "verified_prior_sdk_input_count": 2096,
+    "prior_sdk_input_mismatches": [],
+    "fresh_database_proof": "Official PostgreSQL first-PGDATA hook plus transactional zero-user-relation guard; canonical epoch1 INSERT only, no UPDATE or deferred marker.",
+    "metadata": "Only missing canonical Directus collection/field metadata registered; existing data and protocol state preserved.",
+    "required_runtime_checks": [
+      "source fresh epoch1/unpaused",
+      "source restart epoch1/unpaused",
+      "image fresh epoch1/unpaused",
+      "image restart epoch1/unpaused",
+      "owned image epoch0/paused preserved through restart and actual update",
+      "owned image epoch1/paused preserved through restart and actual update",
+      "empty fixture restored to ready1 before unchanged browser flows",
+      "strict cleanup and normal retrieval/upload"
+    ],
+    "qualification": "Rust/PostgreSQL/Directus execution is pending. Earlier sourcef6 lifecycle16steps/4browserflows did not test saved-chat readiness. This required selfhost work adds no browser/WASM gate.",
+    "freshness_guard": {
+      "status": "reviewed_integrated_not_in_source685",
+      "patch_sha256": "aa3d3ba2da1af561fa04cb2a4a7d9b128fd899961d14c30d72eb5fb7dd59961b",
+      "pure_readiness_tests_passed": 95,
+      "independent_review": "CLEAR",
+      "behavior": "Read-only bounded Docker volume enumeration must prove exact PostgreSQL volume absence before both fresh Rust installs; fail closed without deletion.",
+      "qualification": "Current685 runtime evidence requires independent proof of both fresh volume creations; readiness1 alone can reuse an existing volume."
+    },
+    "current_request_includes_explicit_volume_absence_guard": false,
+    "working_source_with_explicit_volume_absence_guard": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+    "freshness_guard_patch_sha256": "aa3d3ba2da1af561fa04cb2a4a7d9b128fd899961d14c30d72eb5fb7dd59961b",
+    "freshness_guard_inert_checks": 95,
+    "freshness_guard_review": "CLEAR",
+    "freshness_guard_runtime_acceptance": "UNRUN; source685 pending request predates this guard; no actual whole-v2 PostgreSQL/Directus proof claimed.",
+    "defensive_compose_encoding": {
+      "status": "APPLIED_DEFENSIVE_SERVER_ONLY_RUNTIME_UNVERIFIED",
+      "working_checkpoint": "b738066d",
+      "patch_sha256_prefix": "882afb",
+      "scope": "Defensive Compose encoding for selected environment values; ordinary install write_environment already rejects dollar signs, so no ordinary-install vulnerability is claimed.",
+      "inert_tests_passed": 7,
+      "new_escaped_path_rust_cases": "2 drafts UNRUN",
+      "prior_native_bootstrap_cases": "4 existing cases actually PASS in source5aaa native465unit run",
+      "sdk_inputs": "All2097capturedf96 SDK inputs unchanged",
+      "selfhost685_request_includes_change": false,
+      "runtime_acceptance": "UNRUN; no native install/PostgreSQL/Directus acceptance for this change"
+    },
+    "run": 40060656160,
+    "normal_artifact_retrieval": "rejected_source_run_identity_mismatch",
+    "verified_product_acceptance": false,
+    "diagnostic_only": {
+      "source": "authenticated GitHub run log; not a validated subject receipt",
+      "elapsed_minutes": 90,
+      "completed_step_exit0_count": 9,
+      "last_completed_step": "Image-mode self-hosted install and timing",
+      "next_step": "Preserve existing protocol epochs across restart and update",
+      "qualification": "Separate preservation step did not emit completion before cancellation; no exact inner operation or accepted runtime success inferred."
+    },
+    "budget_correction": {
+      "status": "PRIVATE_FROZEN_IN_INDEPENDENT_REVIEW",
+      "canonical_patch_sha256": "0d65c9f9f662ef2bb31c59ad08d60372b75e71997b3d4f89fa986184d46625d7",
+      "bound_patch_sha256": "146eea34932ce5a40b7484dc87d40fdeae06d3a354f129a01eec59642a7628c5",
+      "qualification": "Old cancelled source685 evidence remains diagnostic only; no accepted selfhost readiness proof."
+    }
+  },
+  "latest_checkpoint": {
+    "recorded_utc": "2026-10-24T06:47:30.836248+00:00",
+    "source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+    "tree": "db2be0ac83cb484f43aacf22f6bb1fe12a110d07",
+    "source_census": "614 captured files match bytes and modes; source-audit passed",
+    "production_changes_since_f6dc": true,
+    "native_request": "0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c",
+    "sdk_request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+    "status": "NATIVE_3A96_ALL12_PASS_BROWSER_ADMITTED_SDK_F96_SOURCE_QUALIFIED",
+    "native_diagnostics": {
+      "patch_sha256": "652223b84c57af40696456de99c6771eb069b35e96ebdb83e878340f4a7b1b1a",
+      "review": "CLEAR",
+      "pure_python_checks": 43,
+      "pure_node_checks": 12,
+      "scope": "Preserve original observed exit/signal, bounded stream byte counts/hashes and fixed fixture marker booleans. No raw output, private paths, secrets or argument export. All12gates and budgets unchanged.",
+      "historical_failure": "f6dc run40040138284 authenticates3nativeprofiles and passes458units, then first send exits before observation. Original exit status was not retained; no cause or Rust fix inferred."
+    },
+    "recovery_fixture": {
+      "app_patch_sha256": "98afd2020853c9add8004ddff55d7a04b755f806d71b68fcc75ce7f9550275e3",
+      "trusted_pin_commit": "512de41bfe0efc49181331f73af1a602c645ea7d",
+      "deployed_pin_sha256": "0a1b501eaa0b328cb480c696c2e6e971fd3cf49d3ad6afb4c9531ee36906d6ff",
+      "review": "CLEAR",
+      "pure_tests": 5,
+      "pure_subtests": 15,
+      "scope": "Canonical producer emits category/model_name even when null; synthetic sealed peer now matches. All11vectors and typed errors preserved. No SDK/core production change.",
+      "qualification": "Earlier suite-only failure does not prove this drift was its sole cause."
+    },
+    "acceptance": "Verified Linux essential milestone admits browser/WASM now. Installed preview refresh, actual macOS acceptance, full CLI parity, selfhost readiness and SDK publication remain separately required.",
+    "installed_preview": "source1b remains installed alongside npm; later fixes are not installed and npm retirement is not accepted.",
+    "native_status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+    "native_fixed_source": {
+      "source": "aad791fce2bba321e1857ae7bc4a8244522ca1d4",
+      "tree": "d14d31f3c530d72120573cb5ab20faa8b6ce0b47",
+      "source_census": "passed606blobs_and_modes",
+      "request": "46304224f96637a67336b6e36e8531b43bb4a49f4cce2ffb24df134259b552ec",
+      "status": "submitted_no_new_unit_or_product_pass"
+    },
+    "native_corrected_test_source": {
+      "source": "8485a10fcb45c3518dd77187d33f7783baf96da2",
+      "tree": "ca544dceea7d38d0a0b09a5022ded4297c65515e",
+      "source_census": "passed606blobs_and_modes",
+      "request": "08675bb63aef271b662f08a4709fc1561d7139894786cc1b4239dc55ade6b90e",
+      "status": "submitted_no_new_native_pass",
+      "source_change": "Only regression uses existing Display panic style instead of Debug-requiring expect; production scope fix unchanged.",
+      "formatted_send_sha256": "8b39f6dae137854bf8709eb02681b760bcd1197c56eafff6bd6d546739208efb"
+    },
+    "previous_joint_retry": {
+      "source": "73b78b7e46e6522fafed8e2d28cc96f76d85e514",
+      "tree": "5b176697492f6bcb1b101f78998317fc089cb78e",
+      "source_census": "passed606blobs_and_modes",
+      "protected_program_contract_pins": "all_matched_current_a05",
+      "harness": "a05d4494b8268ea0be27e9abf3d5067e324544cc",
+      "sdk_request": "d4fa88e46184eacdcaeae3b4c944e3c435fd2e715813f21a8a8df44a9f2a426c",
+      "native_request": "ff604190c3bc1f64b03aef30841bf84dc4599a96c91bc678ffb538c6e0727700",
+      "status": "historical_sdk_pass_native_protocol_failure",
+      "scope": "Typedqueueregressioncorrection+boundednativeerrorclassifier;read-onlycoreproductionfixunchangedfromd6b.",
+      "next": "CurrentwholeSDKunits/all3conformanceandnative12gates;noWASMimplementationuntilessentialproof.",
+      "sdk_run": 40051150538,
+      "native_run": 40051153680
+    },
+    "previous_phase_retry": {
+      "source": "94b9f0e34336aca06a40be881b35f27618c92b5a",
+      "tree": "7671bff2f67d7baebd96a71ed7251116f573a2ef",
+      "source_census": "passed606blobs_and_modes",
+      "protected_pins": "all_matched_current_a05",
+      "sdk_request": "3c28bc177545534a170aeacaf969805189573ad4cc62cf0a711c8b984c0e9fcf",
+      "native_request": "2b5549d604c4a588ec7444d11b5b15ee69834511b06bf41e512568d652098fd5",
+      "status": "historical_sdk_pass_native_epoch0_failure",
+      "scope": "PrivateProtocolerrorphasehook+strictownedprocessharness;defaultSDK/humanoutputs/publicAPIs/featuresunchanged."
+    },
+    "current_sdk_success": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+      "harness": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+      "request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+      "run": 40062768021,
+      "sdkLibraryUnits": {
+        "failed": 0,
+        "filteredOut": 0,
+        "ignored": 0,
+        "measured": 0,
+        "passed": 396
+      },
+      "bindingLibraryUnits": {
+        "failed": 0,
+        "filteredOut": 0,
+        "ignored": 0,
+        "measured": 0,
+        "passed": 36
+      },
+      "adapterRuns": 54,
+      "vectorOutcomes": 615,
+      "newEssentialMonitorRecoveryOutcomes": 48,
+      "wrapperRegressionsActualPassed": 4,
+      "sourceHeld": true,
+      "loadIdentityVerified": true,
+      "cleanupVerified": true,
+      "receiptSha256": "61f13ffa4509659c01f7e0a8ff5b4e80399e838f54d9b6bbc14bff55f46b32b2"
+    },
+    "current_native_retry": {
+      "source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+      "tree": "db2be0ac83cb484f43aacf22f6bb1fe12a110d07",
+      "request": "0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c",
+      "run": 40065596506,
+      "status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+      "evidence": "essential_gate.latest_native_runtime"
+    },
+    "selfhost_readiness": {
+      "task": "5702",
+      "status": "CANCELLED_DIAGNOSTIC_ONLY_BUDGET_PATCH_IN_REVIEW",
+      "qualification": "Historical16 lifecycle steps and4 browser flows remain source-qualified; they did not exercise saved-chat epoch behavior. This requirement is separate and adds no browser/WASM admission gate.",
+      "current_request_includes_explicit_volume_absence_guard": false,
+      "working_source_with_explicit_volume_absence_guard": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "freshness_guard_patch_sha256": "aa3d3ba2da1af561fa04cb2a4a7d9b128fd899961d14c30d72eb5fb7dd59961b",
+      "freshness_guard_inert_checks": 95,
+      "freshness_guard_review": "CLEAR",
+      "freshness_guard_runtime_acceptance": "Old source685 cancelled; normal retrieval rejected identity mismatch. No accepted whole-v2 PostgreSQL/Directus readiness proof.",
+      "defensive_compose_encoding": {
+        "status": "APPLIED_DEFENSIVE_SERVER_ONLY_RUNTIME_UNVERIFIED",
+        "working_checkpoint": "b738066d",
+        "patch_sha256_prefix": "882afb",
+        "scope": "Defensive Compose encoding for selected environment values; ordinary install write_environment already rejects dollar signs, so no ordinary-install vulnerability is claimed.",
+        "inert_tests_passed": 7,
+        "new_escaped_path_rust_cases": "2 drafts UNRUN",
+        "prior_native_bootstrap_cases": "4 existing cases actually PASS in source5aaa native465unit run",
+        "sdk_inputs": "All2097capturedf96 SDK inputs unchanged",
+        "selfhost685_request_includes_change": false,
+        "runtime_acceptance": "UNRUN; no native install/PostgreSQL/Directus acceptance for this change"
+      }
+    },
+    "original_benchmark_retry": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+      "spec": "cli-rust-tui-proof.spec.ts",
+      "request": "d3feae557e5fe9c57bdd54e6364837a395ba22476ec352a45c98bf969b7ba8dc",
+      "status": "failed_preparation_pair_prompt_mask_guard",
+      "pass_claim": false,
+      "benchmark_metrics_claimed": false,
+      "owner": "root coordinator only",
+      "correction_patch_sha256": "06f86eded983651a9aa4b965b4e813ec13888ec322ad3b74355710e57f9a5e2e",
+      "inert_checks": {
+        "python": 67,
+        "node": 27
+      },
+      "qualification": "Both attempts hit the preserved masking guard before metrics; actual runtime masking cause is unproven. Source review is checking prompt publication versus raw-mode readiness.",
+      "run": 40062770545,
+      "failure_code": "pair_prompt_must_be_masked",
+      "retrieval_exit": 0
+    },
+    "previous_native_epoch1_failure": {
+      "source": "7fd65b7ed3be96d254eae93fa0936dbcd5cd930d",
+      "tree": "9d6ff0833f15aaf96a47f3a038919dd1ef0ce740",
+      "harness": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+      "request": "f6047886f3fda93f935f7b46846977e648e0ac2f5678b438e88fb2c5d065d2e5",
+      "status": "FAILED",
+      "pass_claim": false,
+      "required_product_gates": 12,
+      "owner": "root coordinator only",
+      "run_id": 40058192303,
+      "qualification": "Exact7fd epoch1 check passes first incremental saved stream and canonical persistence, then saved JSON continuation fails strict immutable wrapper preflight. Backend guard stays unchanged. No essential acceptance or WASM start; upload completed, no new native TUI recording.",
+      "phase": "cli_json_continuation",
+      "failure_code": "native_exit",
+      "precise_cause": "Saved Personal send re-encrypts the existing chat key with a fresh nonce; backend preflight requires exact canonical wrapper equality and rejects immutable_chat_key_mismatch/409.",
+      "native_command_failure": null,
+      "native_units": {
+        "passed": 461,
+        "failed": 0,
+        "intentional_integration_ignored": 4
+      },
+      "native_auth": "all3profilesPASS",
+      "checks": {
+        "nativeCookieAuth": true,
+        "cliIncrementalSavedTurn": true
+      },
+      "native_send_processes_or_ui_submissions": 2,
+      "recovery_retained": true,
+      "cleanup_failed": false,
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "native_tui_recording": "not reached; target failed before Zutty phases",
+      "proof_receipt_sha256": "8564aea48660ff6bac543ef7fb33b112ff8a0b68515b4b00c330160de086fa0e",
+      "backend_receipt": {
+        "stage": "prepare_preflight",
+        "code": "immutable_chat_key_mismatch",
+        "status": 409
+      },
+      "source_evidence": [
+        "packages/openmates-rust/src/client/send.rs:287-298",
+        "backend/core/directus/extensions/chat-recovery-transaction/src/operations.js:2282-2283"
+      ],
+      "fix_status": "Reviewed authenticated-wrapper reuse is integrated; product verification is still pending."
+    },
+    "previous_sdk_wrapper_test_compile_failure": {
+      "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+      "request": "2b18860a15db0784dd89748e6ee13ed2f62e10c65233286139ce0ee89be852f4",
+      "run": 40061553941,
+      "status": "FAILED_TEST_COMPILATION",
+      "compiler_code": "E0308",
+      "cause": "New regression plaintext argument needs explicit .as_ref slice conversion. Test-only correction captured in f96; no new unit or conformance pass.",
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0
+    },
+    "previous_original_benchmark_origin_failure": {
+      "source": "7fd65b7ed3be96d254eae93fa0936dbcd5cd930d",
+      "request": "cac3674c16ba880b32b1953ab5b2c6f6ae92630c928e4eb8c3e9344d0d7d03df",
+      "run": 40059428921,
+      "status": "FAILED_PREPARATION",
+      "both_attempts": "actual_cli_exited_before_prompt",
+      "cause": "Comparison helper rewrote browser app Origin to127; original pinned CLI used it for pairing Origin, rejected with CORS403.",
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "benchmark_metrics_claimed": false
+    },
+    "native_source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+    "current_sdk_retry": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "tree": "f3b1a2ac29647e1ab6dca563837779f9a426ccaa",
+      "request": "584d7df9d6bad890d220bb141fd482b3e1d4ab53365f00e1a85e4454c1a2a2be",
+      "run": 40062768021,
+      "status": "PASSED",
+      "wrapper_regressions_actual_passed": 4,
+      "qualification": "396SDK36bindingunits54adapters615outcomes;releasefalse156gaps"
+    },
+    "defensive_compose_encoding": {
+      "status": "APPLIED_DEFENSIVE_SERVER_ONLY_RUNTIME_UNVERIFIED",
+      "working_checkpoint": "b738066d",
+      "patch_sha256_prefix": "882afb",
+      "scope": "Defensive Compose encoding for selected environment values; ordinary install write_environment already rejects dollar signs, so no ordinary-install vulnerability is claimed.",
+      "inert_tests_passed": 7,
+      "new_escaped_path_rust_cases": "2 drafts UNRUN",
+      "prior_native_bootstrap_cases": "4 existing cases actually PASS in source5aaa native465unit run",
+      "sdk_inputs": "All2097capturedf96 SDK inputs unchanged",
+      "selfhost685_request_includes_change": false,
+      "runtime_acceptance": "UNRUN; no native install/PostgreSQL/Directus acceptance for this change"
+    },
+    "working_sdk_status": "27-file portability plus10-file binding foundation UNCOMPILED_UNVERIFIED",
+    "previous_native_retry_5aaa": {
+      "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+      "request": "11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070",
+      "run_id": 40061556469,
+      "status": "FAILED_NO_ESSENTIAL_ACCEPTANCE",
+      "phase": "monitor_reconnect_replay",
+      "failure_code": "one_idle_native_ws_presence",
+      "native_units": {
+        "passed": 465,
+        "failed": 0,
+        "intentional_integration_ignored": 4
+      },
+      "native_auth": "all3profilesPASS",
+      "checks": {
+        "nativeCookieAuth": true,
+        "cliIncrementalSavedTurn": true,
+        "cliJsonContinuation": true,
+        "independentEncryptedReadback": true,
+        "liveCrossClientSync": true,
+        "ownedCleanupAcknowledged": true
+      },
+      "first_tui_paint": "PASS",
+      "cli_to_tui_live_sync": "PASS",
+      "native_command_failure": null,
+      "native_send_processes_or_ui_submissions": 3,
+      "recovery_retained": false,
+      "cleanup_failed": false,
+      "lease_count_recorded": false,
+      "ss_K_reached": false,
+      "precise_cause": "UNPROVEN; exact-one presence was asserted immediately and can race legitimate short-lived interactive-TUI readonly sync/recovery sockets. No permanent orphan is established.",
+      "remaining_product_proof": [
+        "monitor reconnect/replay",
+        "cancellation",
+        "kill/restart recovery",
+        "remaining essential gates"
+      ],
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "pass_claim": false,
+      "proof_receipt_sha256": "5c8e28e86850ba36ce0a7e68a8e19b22cfc97cdab8b82856b78bd436b7db7e42",
+      "owner": "root coordinator only",
+      "qualification": "Actual5aaa product evidence now includes saved continuation/readback and first TUI paint/live CLI-to-TUI sync; the exact-one presence check still fails before ss-K. No essential acceptance/WASM start. Later server-only defensive encoding is outside this run.",
+      "readiness_change": "Reviewed stable-singleton readiness and finite counts integrated within the same20second absolute budget for readiness, owned cut and replacement; product verification pending.",
+      "readiness_patch_sha256": "0cbe1cf05585deacdf7d2d25cbf64b6a001d8f6c7be94449690869a92c06d273",
+      "readiness_inert_tests": 152,
+      "readiness_independent_tests": 10
+    },
+    "historical_f96_source_audit": {
+      "sha256": "0e7faf854b852a261cc79cc2474b0377511833f39c619137d5b2a14561c863fd",
+      "candidate_path_count": 614,
+      "working_path_count": 614,
+      "status": "passed",
+      "delta_from_5aaa": "SDK regression-test .as_ref plaintext conversion only; shared/native runtime, manifests, locks, bindings and protected conformance unchanged",
+      "qualification": "Historical f96 capture comparison only; working27-file SDK portability and10-file binding foundation are outside its evidence."
+    }
+  },
+  "previous_installed_preview_ci": {
+    "source": "1b2813974be468b4e37bfdebc0500abb0c82cf0a",
+    "request": "ddc01465815219a4bc4da6636f2d042d1463e07bc6571c09554890db4cb811c3",
+    "status": "failed_authenticated_benchmark_preparation",
+    "run_id": 39992845748,
+    "owner": "root coordinator only",
+    "pass_claim": false,
+    "boundary": "preparation_child_failed_both_attempts",
+    "precise_child_refusal": "unknown_old_helper_discarded_code",
+    "passed": [
+      "repaired_Node_startup",
+      "native_SDK_protocol_checks",
+      "15_authenticated_terminal_checks",
+      "browser_pairing",
+      "Workflow_unlink"
+    ],
+    "metrics_reached": false,
+    "artifact_retrieval": "normal_guarded_retry_passed_after_initial_capacity_refusal",
+    "cleanup": {
+      "containers_remaining": 0,
+      "volumes_remaining": 0,
+      "private_account_files_removed": true,
+      "allowlist_identities_removed": 2
+    },
+    "evidence_upload": {
+      "exit_code": 0,
+      "videos_uploaded": 20,
+      "images_uploaded": 2,
+      "upload_failures": 0
+    },
+    "qualification": "Earlier source1b result; essential standalone gates and private later core/binding implementations were not part of this run."
+  },
+  "current_wrapper_repair": {
+    "status": "reviewed_production_integrated_test_compile_argument_corrected_pending_ci",
+    "patch_sha256": "0b1341330ff64bdbd8b34cc4cc713c57925a2c7af336e2622ba475abdc6a0ab3",
+    "independent_review": "CLEAR",
+    "scope": [
+      "packages/openmates-rust/src/client/send.rs",
+      "packages/openmates-rust/src/client/sync.rs",
+      "packages/openmates-rust/tests/continuation_wrapper/mod.rs"
+    ],
+    "behavior": "Reuse exact authenticated scoped ciphertext on saved continuation; reject canonical/ambiguous wrapper conflicts before admission; only new/draft chats create a wrapper.",
+    "security": "Preserve backend immutability guard, Direct recipient envelope, Team no-fallback, send completion pipeline and credential lifecycle.",
+    "performance": "Ordinary reads retain prior first-match early exit; ambiguity scanning only for saved sends.",
+    "verification": "Pinned Rustfmt passes all three files; four new Rust test cases including public two-turn wire/recovery-key/canonical-reread path and pre-third-admission negatives remain unrun.",
+    "acceptance": "New exact-source SDK/native CI required. Earlier source7fd SDK and native evidence remains source-qualified; no essential acceptance or WASM start.",
+    "sdk_attempt": {
+      "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+      "request": "2b18860a15db0784dd89748e6ee13ed2f62e10c65233286139ce0ee89be852f4",
+      "run": 40061553941,
+      "status": "failed_sdk_library_units_compile",
+      "diagnostic": "E0308 at continuation_wrapper/mod.rs422: encrypt_bytes plaintext argument",
+      "correction": "Test-only &Key changed to key.as_ref(); production hashes unchanged.",
+      "retrieval_exit": 0,
+      "evidence_upload_exit": 0,
+      "cleanup_verified": true,
+      "unit_or_conformance_pass_claimed": false
+    },
+    "pending_native": {
+      "source": "5aaa768a65725ef9f79ad937b7c6eae847d01f09",
+      "request": "11dcf682919205f4d2f2496a2631719621948c31a1a8efa5c438cc48e67ce070",
+      "status": "pending",
+      "qualification": "The new SDK-test-only correction does not change production native inputs."
+    }
+  },
+  "current_original_benchmark_ci": {
+    "source": "7fd65b7ed3be96d254eae93fa0936dbcd5cd930d",
+    "request": "cac3674c16ba880b32b1953ab5b2c6f6ae92630c928e4eb8c3e9344d0d7d03df",
+    "run": 40059428921,
+    "status": "failed_preparation_no_metrics",
+    "attempts": 2,
+    "code": "actual_cli_exited_before_prompt",
+    "passed_before_failure": [
+      "anonymous",
+      "public_docs",
+      "authenticated_protocol",
+      "real_terminal_signal_checks",
+      "browser_pairing",
+      "workflow_unlink"
+    ],
+    "qualification": "Buffered-PTY fix did not resolve preparation failure; bounded investigation open. No renderer/full-application speedup claimed.",
+    "retrieval_exit": 0,
+    "evidence_upload_exit": 0,
+    "cause": "Comparison helper passed API loopback alias as OPENMATES_APP_URL; pinned original CLI uses it for Origin, retained current backend logs confirm pair-init CORS403.",
+    "correction": {
+      "status": "reviewed_integrated_product_unrun",
+      "patch_sha256": "06f86eded983651a9aa4b965b4e813ec13888ec322ad3b74355710e57f9a5e2e",
+      "python_inert_passed": 67,
+      "node_inert_passed": 27,
+      "independent_review": "CLEAR",
+      "preserved": "Original CLI/source pins, comparison target hash, CORS, timing and assertions unchanged."
+    }
+  },
+  "current_native_readiness_ci": {
+    "source": "3a962e77b1277e8a64c36af3fefbd72859c1bb8e",
+    "tree": "db2be0ac83cb484f43aacf22f6bb1fe12a110d07",
+    "request": "0b77be3590d211c4ecaec620e9b43bb5574b79434a09f09a7a9ee1671467b24c",
+    "run": 40065596506,
+    "status": "PASSED_ALL_12_ESSENTIAL_NATIVE_GATES",
+    "native_units": {
+      "passed": 467,
+      "failed": 0,
+      "intentional_integration_ignored": 4
+    },
+    "checks": {
+      "nativeCookieAuth": true,
+      "cliIncrementalSavedTurn": true,
+      "cliJsonContinuation": true,
+      "independentEncryptedReadback": true,
+      "liveCrossClientSync": true,
+      "monitorReconnectLiveSync": true,
+      "tuiSubmitIncrementalPersistence": true,
+      "tuiCancelNoBlindResend": true,
+      "cliCancelNoBlindResend": true,
+      "cliRestartRecoveryOnce": true,
+      "tuiRestartRecoveryOnce": true,
+      "ownedCleanupAcknowledged": true
+    },
+    "retrieval_exit": 0,
+    "evidence_upload_exit": 0,
+    "cleanup": {
+      "run_id": "40065596506",
+      "harness_commit": "d38a78af5b51c2bb39f6e308e560d621ac0af835",
+      "containers_remaining": 0,
+      "volumes_remaining": 0,
+      "private_account_files_removed": true,
+      "account_allowlist_identities_removed": 2
+    },
+    "cleanup_verified": true,
+    "native_command_failure": null,
+    "monitor_presence_observation": {
+      "initial_matching_count": 2,
+      "fresh_matching_count": 2,
+      "minimum": 0,
+      "maximum": 2,
+      "samples": 8,
+      "samples_capped": false
+    },
+    "real_terminal_videos": [
+      {
+        "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-tui/raw-terminal.mp4",
+        "sha256": "1396968f0c80e1f7108abc1fa37338a3c75573753205a26e4b916945bec9bf47",
+        "bucket": "dev-openmates-opencode-response-media",
+        "key": "review-responses/2026/10/24/15bbf5c939aa-1396968f0c80e1f7-raw-terminal.mp4",
+        "upload": "uploaded",
+        "local_video_removed": true
+      },
+      {
+        "path": "subject/frontend/apps/web_app/test-results/ci-0/cli-rust-core-essential-na-0aa49-rs-with-real-terminal-views/native-essential-terminal-cli/raw-terminal.mp4",
+        "sha256": "cabb3786c83c78ff5cbaaf57ed4e4052e272fa4505570560d2bcdde208b9d4c7",
+        "bucket": "dev-openmates-opencode-response-media",
+        "key": "review-responses/2026/10/24/caa02ec5a77c-cabb3786c83c78ff-raw-terminal.mp4",
+        "upload": "uploaded",
+        "local_video_removed": true
+      }
+    ],
+    "terminal_capture": "Actual CLI/TUI terminal capture; no reconstruction.",
+    "qualification": "Verified Linux essential milestone admits browser/WASM now. Installed preview refresh, actual macOS acceptance, full CLI parity, selfhost readiness and SDK publication remain separately required."
+  },
+  "masked_pair_prompt_readiness": {
+    "status": "reviewed_applied_product_unverified",
+    "patch_sha256": "ff2f1b94a5eac41c66cb62734fb9832b4201aa32ff6ad719c0f74fc6c7088cf9",
+    "inert_passed": 78,
+    "independent_inert_passed": 11,
+    "behavior": "Exact prompt bytes and echo-off in same45s wait, followed by unchanged pre-write masking, PIN-not-echoed and cleanup checks.",
+    "qualification": "Real inert PTY proves the pinned question-before-readline readiness race; historical runtime transition is unknown. No original CLI/source-pin/server/CORS/SDK change.",
+    "current_comparison_failure": {
+      "source": "f96b2cd4d34aa8dcb96fabb7e75aacbeb2650445",
+      "run": 40062770545,
+      "request": "d3feae557e5fe9c57bdd54e6364837a395ba22476ec352a45c98bf969b7ba8dc",
+      "retrieval_exit": 0,
+      "upload_exit": 0,
+      "code": "pair_prompt_must_be_masked",
+      "actual_historical_transition": "unknown"
+    }
+  },
+  "working_sdk_portability_and_bindings": {
+    "status": "UNCOMPILED_UNVERIFIED",
+    "sdk_portability_paths": 27,
+    "binding_foundation_paths": 10,
+    "qualification": "Working source changes are outside the sourcef96 SDK execution. No current-tree compile, conformance or portability pass is claimed. Historical sourcef96396+36/54adapters615outcomes remains valid only for its exact captured inputs;156 declared gaps still block publication."
+  },
+  "task_status_checkpoint": {
+    "TASK-9393": "done",
+    "TASK-1233": "open: preview refresh and actual macOS acceptance remain",
+    "TASK-9558": "in_progress",
+    "qualification": "Linux essential browser admission achieved; no full migration or retirement acceptance."
+  }
+}
