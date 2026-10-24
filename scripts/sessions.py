@@ -184,8 +184,8 @@ DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
-WORKTREE_CLEANUP_IDLE_HOURS = 48
-WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
+WORKTREE_CLEANUP_IDLE_HOURS = 4 * 24
+WORKTREE_HARD_MAX_AGE_HOURS = 4 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
@@ -4611,16 +4611,16 @@ def _hard_expiry_record_is_live(
     if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
         return True
     worktree = session.get("worktree") or {}
-    if worktree.get("status") in {"merged", "ended"}:
-        return False
-    last_active = session.get("last_active") or worktree.get("last_active")
-    if not isinstance(last_active, str) or not last_active.strip():
-        return False
-    try:
-        last_active_timestamp = _parse_iso(last_active).timestamp()
-    except (TypeError, ValueError):
-        return False
-    return now_timestamp - last_active_timestamp < idle_hours * 3600
+    for last_active in (session.get("last_active"), worktree.get("last_active")):
+        if not isinstance(last_active, str) or not last_active.strip():
+            continue
+        try:
+            last_active_timestamp = _parse_iso(last_active).timestamp()
+        except (TypeError, ValueError):
+            continue
+        if now_timestamp - last_active_timestamp < idle_hours * 3600:
+            return True
+    return False
 
 
 WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({
