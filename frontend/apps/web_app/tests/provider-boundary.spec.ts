@@ -16,7 +16,7 @@ test('catalog omits every source-free skill and retains supported metadata', asy
     const app = apps.find((entry: any) => entry.id === appId);
     expect(app?.skills?.some((entry: any) => entry.id === skillId) ?? false, `${appId}.${skillId}`).toBe(false);
   }
-  for (const [appId, skillId] of [['events', 'search'], ['jobs', 'search'], ['videos', 'search'], ['business', 'company_financials']]) {
+  for (const [appId, skillId] of [['web', 'read'], ['events', 'search'], ['jobs', 'search'], ['videos', 'search'], ['business', 'company_financials']]) {
     expect(apps.find((entry: any) => entry.id === appId)?.skills.some((entry: any) => entry.id === skillId), `${appId}.${skillId}`).toBe(true);
   }
   const events = apps.find((entry: any) => entry.id === 'events').skills.find((entry: any) => entry.id === 'search');

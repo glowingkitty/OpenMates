@@ -264,17 +264,19 @@ assertions:
 
   - id: app-skills.providers.permitted-only
     type: security
-    must: External data integrations use documented provider-supported APIs, explicitly licensed feeds or written
+    must: Provider-specific data integrations use documented provider-supported APIs, explicitly licensed feeds or written
       authorization covering intended access and downstream use, respecting commercial-use, display, retention, attribution and rate-limit conditions. Current retained routes include official JobTech
       for Swedish jobs, supported conference schedules for events, media.ccc.de published captions, Bluesky and Mastodon
       social APIs and Brave text image search. Metadata and dispatch do not advertise or route retired sources, undocumented
-      endpoints, browser automation or proxy/RSS substitutes. Generic data models do not establish source permission.
+      endpoints, browser automation or proxy/RSS substitutes. General on-demand public-page reading follows its
+      separate crawler-exclusion and no-bypass contract and preserves full extracted text in saved history.
+      Generic data models and crawler access do not establish source-content permission.
     depends_on:
     - examples.provider_boundary
   - id: app-skills.providers.unavailable-no-network
     type: failure
     must: When no permitted provider remains, health appointment, home, shopping product, fitness, electronic component,
-      domain, trademark, 3D catalog, travel connection/stay, web-page read and reverse-image discovery return explicit
+      domain, trademark, 3D catalog, travel connection/stay and reverse-image discovery return explicit
       unavailable failures. Metadata requires a provider and lists none; assistant, REST, CLI, SDK and GUI do not
       expose an active discovery capability. Rejected requests make no upstream, proxy, browser or replacement-source
       request, do not perform inference enrichment and do not charge for successful work. Unsupported general events,

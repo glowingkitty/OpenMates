@@ -836,7 +836,8 @@
         "example-chat-embed-uuid-isolation.spec.ts",
         "multi-tab-session-routing.spec.ts",
         "offline-draft-replay.spec.ts",
-        "assistant-speech-availability.spec.ts"
+        "assistant-speech-availability.spec.ts",
+        "web-read-public-page.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

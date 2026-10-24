@@ -1626,8 +1626,18 @@ capabilities:
       radius_km: 5
     output_schema: *search_output
   web.read:
-    available: false
-    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - url: https://openmates.org
+          formats: [markdown]
+          only_main_content: true
     output_schema:
       type: object
       properties:

@@ -29,7 +29,7 @@ from typing import Dict, Any, List, Optional
 logger = logging.getLogger(__name__)
 
 # Default timeout for skill execution (in seconds)
-# Reduced from 30s to 20s to fail faster and allow retry with different proxy IP
+# Other skills select a bounded envelope below when their work needs more time.
 DEFAULT_SKILL_TIMEOUT = 20.0
 
 
@@ -43,6 +43,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     keep their default.
     Callers passing an explicit timeout to the executor retain that exact value.
     """
+    # Public page reads include robots checks, bounded source retrieval and the
+    # inherited output-safety scan before delivery of complete extracted text.
+    if (app_id, skill_id) == ("web", "read"):
+        return 75.0
     # Public class search spans up to fourteen dates plus venue enrichment.
     if (app_id, skill_id) == ("fitness", "search_classes"):
         return 60.0
@@ -70,7 +74,7 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
 DEFAULT_SKILL_MAX_RETRIES = 1
 
 # Delay between retry attempts (in seconds)
-# Short delay to allow proxy rotation but not delay user too much
+# Bound the delay between retryable execution failures.
 RETRY_DELAY_SECONDS = 1.0
 
 # Redis key prefix for cancelled skill tasks

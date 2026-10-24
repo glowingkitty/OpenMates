@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: f5c30c795dc9b3f5a6000fcd50f01c9d20ddf72e2ac50cae23e7377c6364ca74
+    fingerprint: 2b10bd5c621f55b61efb4c32c6dab7a962715cd4356aaef89c89ce07912a20e1
     required_applies_to:
     - rest_api
     - cli
@@ -326,6 +326,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.web-read:
+    version: 1
+    status: draft
+    path: features/app-skills/web-read
+    fingerprint: 242acb2bd0d08b3864419947ce6c81c51125a9fb5b8a0fe2b4318642ce8f3f8e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.web-search:
     version: 1
     status: draft
@@ -1153,7 +1164,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 56dc9970e3a9739a0fecb390e8dc9c973c919a215911fd2ff8dac3df22160d97
+    fingerprint: 1d11d85682fd2f7a3a04a2cfbfde69303415b4349e055ef537370ef2dc2d066d
     required_applies_to:
     - rest_api
     - cli
@@ -1165,7 +1176,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: failure
-    fingerprint: 8a9784498e12b7a47538d9b453ea2d5996d3d6ad52c5fea7b656bee7b6af8170
+    fingerprint: fa3050a47ef351c1f5dadc555e5ed8a2e0572c60c6435fab20b5a517c9aa3fe9
     required_applies_to:
     - rest_api
     - cli
@@ -4314,6 +4325,61 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  web-read.public-page:
+    specification: feature.app-skill.web-read@1
+    specification_id: feature.app-skill.web-read
+    type: behavior
+    fingerprint: 3f5a43c06608f65a2a3c18c60d1fb6ff8ee0701a844cef2b1eebb606bdb0153b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-read.crawler-exclusions:
+    specification: feature.app-skill.web-read@1
+    specification_id: feature.app-skill.web-read
+    type: security
+    fingerprint: 31133b2059b11e3de198ede55349575d6a621980b1a3acff871d7aa79ce61c3d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-read.transport-boundary:
+    specification: feature.app-skill.web-read@1
+    specification_id: feature.app-skill.web-read
+    type: security
+    fingerprint: c522656e43be30a6021eb4fe2b7fa7099721c9f43b3ef8cd5f38f68fc27823f0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-read.saved-full-text:
+    specification: feature.app-skill.web-read@1
+    specification_id: feature.app-skill.web-read
+    type: parity
+    fingerprint: d62f8f98e38c880da2b2f70203b07949f1b6fcf19fdde8bc635f4aad8e300697
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-read.billing:
+    specification: feature.app-skill.web-read@1
+    specification_id: feature.app-skill.web-read
+    type: behavior
+    fingerprint: 2e4b445eb465c7ef38ae5b69b44f0f43cc2c98032656ac518c146f861a1c3ae6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   web-search.request.validated:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search

@@ -657,6 +657,8 @@ async def _charge_workflow_skill_result(
                 usage_details=usage_details,
                 idempotency_key=operation_id,
                 raise_on_error=True,
+                **({"server_result_group": result["results"][item_index]}
+                   if (app_id, skill_id) == ("web", "read") else {}),
                 **({"team_id": billing_context["team_id"]} if billing_context.get("team_id") else {}),
             )
             actual_credits = charge_result.get("charged_credits") if isinstance(charge_result, dict) else None

@@ -80,7 +80,7 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
 TEAM_ASYNC_SKILL_BILLING = {
     ("images", "generate"), ("images", "generate_draft"),
     ("videos", "generate"), ("videos", "create"),
@@ -1379,6 +1379,20 @@ def get_variable_result_charge_items(
         return None
     data = _as_dict(result_data)
     results = data.get("results")
+    if (app_id, skill_id) == ("web", "read"):
+        # Only server-produced, successful page groups are billable. Never use
+        # caller-supplied usage or a missing-result fallback to set the amount.
+        return [
+            (index, 20)
+            for index, group in enumerate(results[:5] if isinstance(results, list) else [])
+            if isinstance(group, dict) and not group.get("error")
+            and isinstance(group.get("usage"), dict)
+            and group["usage"].get("credits_charged") == 20
+            and isinstance(group.get("results"), list)
+            and any(isinstance(page, dict) and not page.get("error")
+                    and isinstance(page.get("markdown"), str) and page["markdown"].strip()
+                    for page in group["results"])
+        ]
     if not isinstance(results, list):
         return None
 
@@ -1424,6 +1438,14 @@ def get_variable_preflight_reserved_credits(
             raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return 0
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.apps.web.skills.read_skill import ReadRequest
+        from pydantic import ValidationError
+        try:
+            validated = ReadRequest.model_validate(input_data)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_web_read_request"}) from exc
+        return 20 * len(validated.requests)
     if app_id == "code" and skill_id == "image_to_html":
         from backend.apps.code.skills.image_to_html_skill import (
             DEFAULT_MAX_CORRECTION_PASSES,
@@ -1504,6 +1526,10 @@ def get_variable_result_usage_details(
     if not isinstance(results, list) or request_index >= len(results):
         return {}
     result = _as_dict(results[request_index])
+    if (app_id, skill_id) == ("web", "read"):
+        return {"web_read_credits_charged": 20} if get_variable_result_charge_items(
+            app_id, skill_id, {"results": [result]}
+        ) else {}
     if app_id == "audio":
         details: Dict[str, Any] = {}
         model = result.get("model")
@@ -1620,6 +1646,7 @@ async def charge_credits_via_internal_api(
     idempotency_key: Optional[str] = None,
     raise_on_error: bool = False,
     team_id: Optional[str] = None,
+    server_result_group: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Charge credits via the internal billing API.
@@ -1636,6 +1663,8 @@ async def charge_credits_via_internal_api(
         device_hash: Optional SHA-256 hash of the device that created this usage entry
         idempotency_key: Stable caller-owned identity for retry-safe background work.
         raise_on_error: Propagate billing failures when the caller must fail closed.
+        server_result_group: Internal web.read output for post-debit creator share.
+            Never included in billing payloads or populated from request input.
     """
     if credits <= 0:
         logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
@@ -1684,6 +1713,9 @@ async def charge_credits_via_internal_api(
             response.raise_for_status()
             logger.info(f"Successfully charged {credits} credits for skill '{app_id}.{skill_id}'")
             response_data = response.json()
+            if (app_id, skill_id) == ("web", "read") and server_result_group is not None:
+                from backend.core.api.app.services.creators.paid_web_read_income import record_paid_web_read_income
+                await record_paid_web_read_income(server_result_group, response_data)
             return response_data if isinstance(response_data, dict) else None
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
@@ -3223,6 +3255,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][i]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             
@@ -3585,6 +3619,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][request_index]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             
@@ -3707,6 +3743,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **({"server_result_group": _as_dict(result)["results"][i]}
+                                               if (captured_app_id, captured_skill.id) == ("web", "read") else {}),
                                             **_team_billing_kwargs(user_info),
                                         )
                             

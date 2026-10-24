@@ -1266,7 +1266,7 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("videos", "create"),
     ("videos", "generate"),
 }
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
 
 
 def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
@@ -2312,6 +2312,10 @@ def _get_variable_preflight_reserved_credits(
         return [decision_quote(has_assets=bool(validated.assets))]
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.apps.web.skills.read_skill import ReadRequest
+        validated = ReadRequest.model_validate(parsed_args)
+        return [20] * len(validated.requests)
     requests = parsed_args.get("requests")
     items = requests if isinstance(requests, list) else [parsed_args]
     if app_id == "audio" and skill_id == "generate":
@@ -3217,6 +3221,19 @@ def _get_result_declared_charge_items(
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
 
+    if (app_id, skill_id) == ("web", "read"):
+        return [
+            (index, 20, group)
+            for index, group in enumerate(results[:5])
+            if isinstance(group, dict) and not group.get("error")
+            and isinstance(group.get("usage"), dict)
+            and group["usage"].get("credits_charged") == 20
+            and isinstance(group.get("results"), list)
+            and any(isinstance(page, dict) and not page.get("error")
+                    and isinstance(page.get("markdown"), str) and page["markdown"].strip()
+                    for page in group["results"])
+        ]
+
     charge_items: List[Tuple[int, int, Dict[str, Any]]] = []
     found_result_declared_billing = False
     for result_index, result in enumerate(results):
@@ -3245,6 +3262,11 @@ def _get_result_declared_usage_details(
 ) -> Dict[str, Any]:
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return {}
+
+    if (app_id, skill_id) == ("web", "read"):
+        return {"web_read_credits_charged": 20} if _get_result_declared_charge_items(
+            app_id, skill_id, [result]
+        ) else {}
 
     details: Dict[str, Any] = {}
     if app_id == "audio":
@@ -3400,7 +3422,10 @@ async def _charge_skill_credits(
             decision_credits = decision_result_credits(decision_result, has_assets=bool(parsed_args.get("assets")))
             result_declared_charge_items = [(0, decision_credits, {})]
         else:
-            result_declared_charge_items = _get_result_declared_charge_items(app_id, skill_id, results)
+            result_declared_charge_items = _get_result_declared_charge_items(
+                app_id, skill_id,
+                (grouped_results or []) if (app_id, skill_id) == ("web", "read") else results,
+            )
         if result_declared_charge_items is not None:
             if not result_declared_charge_items:
                 logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no result-declared successful charges, skipping billing.")
@@ -3560,6 +3585,9 @@ async def _charge_skill_credits(
                 logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {charge_position + 1}/{charge_count}).")
                 response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
                 response.raise_for_status()
+                if (app_id, skill_id) == ("web", "read"):
+                    from backend.core.api.app.services.creators.paid_web_read_income import record_paid_web_read_income
+                    await record_paid_web_read_income(result_item, response.json())
                 charged_operation_ids.add(operation_id)
                 logger.debug(f"{log_prefix} Charged request {charge_position + 1}/{charge_count} for '{app_id}.{skill_id}': {response.json()}")
             

@@ -9020,8 +9020,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'web',
   'app_namespace_py': 'web',
   'app_namespace_ts': 'web',
-  'description': 'Web content reading is unavailable until a supported content reader is '
-                 'configured. Do not use this as a fallback for unavailable provider connectors.',
+  'description': 'Read public HTTPS pages directly when the user provides a URL or asks to read a '
+                 'source. Respect robots.txt and page crawler exclusions. Authentication, '
+                 'paywalls, CAPTCHA, blocked pages, private addresses and unsupported content fail '
+                 'visibly without proxies or bypasses. Returns complete extracted markdown for '
+                 'saved embeds and history. This is not a replacement for unavailable specialized '
+                 'connectors. Use at most five URLs per call.',
   'description_key': 'web.read.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of read request objects '
                                                         'for parallel processing (up to 5 '
@@ -9037,37 +9041,46 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         '"https://example.com/article1"}, {"id": '
                                                         '2, "url": '
                                                         '"https://example.com/article2"}]}\n'
-                                                        "Each object must contain 'id' (unique "
-                                                        "identifier) and 'url' (webpage URL), and "
-                                                        'can include optional parameters (formats, '
+                                                        "Each object must contain 'url' (webpage "
+                                                        "URL); caller 'id' is optional and "
+                                                        'generated when omitted, and can include '
+                                                        'optional parameters (formats, '
                                                         'only_main_content, max_age, timeout).\n',
                                          'items': {'properties': {'formats': {'default': ['markdown'],
-                                                                              'description': 'List '
-                                                                                             'of '
+                                                                              'description': 'Markdown '
+                                                                                             'is '
+                                                                                             'the '
+                                                                                             'only '
+                                                                                             'supported '
                                                                                              'output '
-                                                                                             'formats '
-                                                                                             'to '
-                                                                                             'include '
-                                                                                             '(e.g., '
-                                                                                             "'markdown', "
-                                                                                             "'html', "
-                                                                                             "'summary')",
-                                                                              'items': {'type': 'string'},
+                                                                                             'format; '
+                                                                                             'full '
+                                                                                             'extracted '
+                                                                                             'text '
+                                                                                             'is '
+                                                                                             'retained.',
+                                                                              'items': {'enum': ['markdown'],
+                                                                                        'type': 'string'},
+                                                                              'maxItems': 1,
+                                                                              'minItems': 1,
                                                                               'type': 'array',
                                                                               'x-ui': {'basic': True}},
-                                                                  'max_age': {'description': 'Cache '
-                                                                                             'age '
-                                                                                             'in '
-                                                                                             'milliseconds '
-                                                                                             '(default: '
-                                                                                             '172800000 '
-                                                                                             '= 2 '
-                                                                                             'days). '
-                                                                                             'Returns '
-                                                                                             'cached '
-                                                                                             'version '
-                                                                                             'if '
+                                                                  'max_age': {'description': 'Legacy '
+                                                                                             'compatibility '
+                                                                                             'field; '
+                                                                                             'ignored. '
+                                                                                             'Source '
+                                                                                             'reads '
+                                                                                             'are '
+                                                                                             'always '
+                                                                                             'fresh. '
+                                                                                             'Full '
+                                                                                             'saved '
+                                                                                             'embed/history '
+                                                                                             'text '
+                                                                                             'remains '
                                                                                              'available.',
+                                                                              'minimum': 0,
                                                                               'type': 'integer',
                                                                               'x-ui': {'basic': True}},
                                                                   'only_main_content': {'default': True,
@@ -9084,24 +9097,39 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                        'etc.)',
                                                                                         'type': 'boolean',
                                                                                         'x-ui': {'basic': True}},
-                                                                  'timeout': {'description': 'Timeout '
+                                                                  'timeout': {'default': 20000,
+                                                                              'description': 'Complete '
+                                                                                             'source-read '
+                                                                                             'timeout '
                                                                                              'in '
-                                                                                             'milliseconds '
-                                                                                             'for '
+                                                                                             'milliseconds; '
                                                                                              'the '
-                                                                                             'request',
+                                                                                             'network '
+                                                                                             'batch '
+                                                                                             'is '
+                                                                                             'bounded '
+                                                                                             'to '
+                                                                                             '30 '
+                                                                                             'seconds.',
+                                                                              'maximum': 30000,
+                                                                              'minimum': 1000,
                                                                               'type': 'integer',
                                                                               'x-ui': {'basic': False}},
-                                                                  'url': {'description': 'URL of '
-                                                                                         'the '
+                                                                  'url': {'description': 'Public '
+                                                                                         'HTTPS '
                                                                                          'webpage '
-                                                                                         'to '
-                                                                                         'read/scrape',
+                                                                                         'URL to '
+                                                                                         'read '
+                                                                                         '(default '
+                                                                                         'port 443 '
+                                                                                         'only)',
                                                                           'format': 'uri',
                                                                           'type': 'string',
                                                                           'x-ui': {'basic': True}}},
                                                    'required': ['url'],
                                                    'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
                                          'type': 'array',
                                          'x-ui': {'basic': True}}},
              'required': ['requests'],
@@ -9736,7 +9764,7 @@ class WebAppSkills:
         self._run_skill = run_skill
 
     def read(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Web content reading is unavailable until a supported content reader is configured. Do not use this as a fallback for unavailable provider connectors.
+        """Read public HTTPS pages directly when the user provides a URL or asks to read a source. Respect robots.txt and page crawler exclusions. Authentication, paywalls, CAPTCHA, blocked pages, private addresses and unsupported content fail visibly without proxies or bypasses. Returns complete extracted markdown for saved embeds and history. This is not a replacement for unavailable specialized connectors. Use at most five URLs per call.
 
         Description key: web.read.description
         Skill: web/read

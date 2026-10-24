@@ -11,25 +11,35 @@ import httpx
 import pytest
 
 
+# contract-test: supporting surface=rest_api assertions=web-read.crawler-exclusions,web-read.transport-boundary
 @pytest.mark.asyncio
 @pytest.mark.parametrize("url", [
     "https://example.com/article", "https://youtube.com/watch?v=example",
     "http://127.0.0.1/", "https://source.example/redirect",
 ])
-async def test_web_reader_is_unavailable_without_source_client_or_network(monkeypatch, url):
-    from backend.apps.web.skills.read_skill import ReadSkill
+async def test_web_reader_boundary_denial_never_opens_an_alternate_network_path(monkeypatch, url):
+    from backend.apps.web.skills import read_skill as module
 
     def forbidden(*args, **kwargs):
-        pytest.fail("Unavailable content reading must not initialize network clients")
+        pytest.fail("A denied public page must not initialize an alternate network client")
 
     monkeypatch.setattr(httpx, "AsyncClient", forbidden)
-    credential_access = AsyncMock(side_effect=AssertionError("No credential access allowed"))
-    monkeypatch.setattr(ReadSkill, "_get_or_create_secrets_manager", credential_access)
-    skill = object.__new__(ReadSkill)
+    credential_access = AsyncMock(side_effect=AssertionError("No reader credential access allowed"))
+    monkeypatch.setattr(module.ReadSkill, "_get_or_create_secrets_manager", credential_access)
+    transport = AsyncMock(side_effect=module.PublicWebReadError("robots_denied", "The site excludes this crawler."))
+    monkeypatch.setattr(module, "read_public_web_page", transport)
+
+    async def sanitize(payload, context):
+        return payload
+
+    monkeypatch.setattr(module, "sanitize_app_skill_output", sanitize)
+    skill = module.ReadSkill(app=None, app_id="web", skill_id="read", skill_name="Read", skill_description="Public reader")
     result = await skill.execute(requests=[{"url": url}], secrets_manager=None)
-    assert result.results == []
-    assert result.provider == ""
-    assert result.error == "No supported content reader is configured."
+    assert result.results[0]["results"] == []
+    assert result.results[0]["error_code"] == "robots_denied"
+    assert result.results[0]["usage"]["credits_charged"] == 0
+    assert result.error == "The site excludes this crawler."
+    transport.assert_awaited_once()
     credential_access.assert_not_called()
 
 

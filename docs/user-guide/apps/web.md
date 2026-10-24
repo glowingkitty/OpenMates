@@ -23,7 +23,7 @@ The Web app gives your digital team mates the ability to search the internet. It
 **Available skills:**
 
 - **Search** -- Runs a web search and shows results with titles, descriptions, and links. You can search for multiple topics at once (up to 5 in parallel).
-Page reading is currently unavailable. Search results include links you can open directly.
+- **Read** -- Reads up to 5 public HTTPS pages per call and saves the full extracted text for embeds, history, and fullscreen reading. It respects crawler exclusions; sign-in pages, paywalls, CAPTCHA, and blocked pages report a visible failure without bypasses.
 
 **Focus mode (in development):**
 

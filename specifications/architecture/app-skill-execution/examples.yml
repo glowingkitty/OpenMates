@@ -299,7 +299,7 @@ jev_first_safety:
 provider_boundary:
 - id: no-source-request-rejected
   given: Alice requests a fresh housing, appointment, product, fitness, component, domain, trademark, catalog, route,
-    stay, page-read or reverse-image search.
+    stay or reverse-image search.
   when: The capability has no permitted provider.
   then: It is unavailable in discovery and direct invocation fails without provider requests, proxy use, replacement
     sources, inference enrichment or success billing.
@@ -315,6 +315,13 @@ provider_boundary:
   assertion_ids:
   - app-skills.providers.permitted-only
   - app-skills.providers.unavailable-no-network
+- id: public-page-reader-is-separate
+  given: Alice asks to read a public documentation page and the site permits OpenMatesReader in robots.txt.
+  when: The reader retrieves the selected page without a proxy or access-control bypass.
+  then: It returns the complete extracted text and saves it in the existing encrypted result; it does not enable
+    a retired platform connector or claim a content licence from crawler access.
+  assertion_ids:
+  - app-skills.providers.permitted-only
 provider_history:
 - id: saved-cards-survive-source-retirement
   given: Alice has encrypted saved listing, product, appointment, route, domain, trademark and model cards, including

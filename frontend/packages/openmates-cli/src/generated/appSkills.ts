@@ -9230,7 +9230,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "web",
     "skill_method_py": "read",
     "description_key": "web.read.description",
-    "description": "Web content reading is unavailable until a supported content reader is configured. Do not use this as a fallback for unavailable provider connectors.",
+    "description": "Read public HTTPS pages directly when the user provides a URL or asks to read a source. Respect robots.txt and page crawler exclusions. Authentication, paywalls, CAPTCHA, blocked pages, private addresses and unsupported content fail visibly without proxies or bypasses. Returns complete extracted markdown for saved embeds and history. This is not a replacement for unavailable specialized connectors. Use at most five URLs per call.",
     "schema": {
       "type": "object",
       "properties": {
@@ -9239,7 +9239,9 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED: Array of read request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single URL.\nExample for single URL: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article\"}]}\nExample for multiple URLs: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article1\"}, {\"id\": 2, \"url\": \"https://example.com/article2\"}]}\nEach object must contain 'id' (unique identifier) and 'url' (webpage URL), and can include optional parameters (formats, only_main_content, max_age, timeout).\n",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "REQUIRED: Array of read request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single URL.\nExample for single URL: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article\"}]}\nExample for multiple URLs: {\"requests\": [{\"id\": 1, \"url\": \"https://example.com/article1\"}, {\"id\": 2, \"url\": \"https://example.com/article2\"}]}\nEach object must contain 'url' (webpage URL); caller 'id' is optional and generated when omitted, and can include optional parameters (formats, only_main_content, max_age, timeout).\n",
           "items": {
             "type": "object",
             "properties": {
@@ -9249,16 +9251,21 @@ export const APP_SKILL_METADATA = [
                 },
                 "type": "string",
                 "format": "uri",
-                "description": "URL of the webpage to read/scrape"
+                "description": "Public HTTPS webpage URL to read (default port 443 only)"
               },
               "formats": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "array",
-                "description": "List of output formats to include (e.g., 'markdown', 'html', 'summary')",
+                "description": "Markdown is the only supported output format; full extracted text is retained.",
+                "minItems": 1,
+                "maxItems": 1,
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "markdown"
+                  ]
                 },
                 "default": [
                   "markdown"
@@ -9277,14 +9284,18 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "integer",
-                "description": "Cache age in milliseconds (default: 172800000 = 2 days). Returns cached version if available."
+                "minimum": 0,
+                "description": "Legacy compatibility field; ignored. Source reads are always fresh. Full saved embed/history text remains available."
               },
               "timeout": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Timeout in milliseconds for the request"
+                "minimum": 1000,
+                "maximum": 30000,
+                "default": 20000,
+                "description": "Complete source-read timeout in milliseconds; the network batch is bounded to 30 seconds."
               }
             },
             "required": [
@@ -10029,7 +10040,7 @@ export class WebAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Web content reading is unavailable until a supported content reader is configured. Do not use this as a fallback for unavailable provider connectors.
+   * Read public HTTPS pages directly when the user provides a URL or asks to read a source. Respect robots.txt and page crawler exclusions. Authentication, paywalls, CAPTCHA, blocked pages, private addresses and unsupported content fail visibly without proxies or bypasses. Returns complete extracted markdown for saved embeds and history. This is not a replacement for unavailable specialized connectors. Use at most five URLs per call.
    * Description key: web.read.description
    * Skill: web/read
    */

@@ -11,7 +11,7 @@ Frontend: Svelte/TypeScript, `frontend/apps/web_app`, `frontend/packages/ui`.
 Backend: Python/FastAPI, `backend/apps`, `backend/core`, `backend/shared`.
 Read relevant source/tests, reuse utilities and keep patches focused.
 
-External data integrations must use provider-supported documented APIs,
+Provider-specific data integrations must use provider-supported documented APIs,
 explicitly licensed open-data feeds, or written authorization covering the
 intended access and downstream use. Published official API terms or a feed
 licence suffice when they permit that use; separate provider outreach is not
@@ -24,6 +24,13 @@ volume and silence in terms do not establish permission. If no permitted route
 exists, report the capability gap instead of implementing a fallback; contact
 providers only when instructed by the user. See
 `docs/contributing/guides/add-api.md`.
+
+General on-demand web reading is a separate capability: fetch public pages with
+an identified reader, honor applicable robots.txt exclusions, and stop at access
+denials, login/paywall or CAPTCHA barriers. Use no proxy, impersonation or bypass
+retry. Preserve complete extracted text in existing encrypted saved embeds and
+history. This does not authorize hidden APIs or platform-specific collection.
+Applicable rights and terms still apply; crawler access is not a content licence.
 
 Client architecture: shared Rust owns reusable headless operations, crypto, auth,
 storage policy, sync/reconnect/recovery; CLI/TUI is native Rust, web and Apple keep

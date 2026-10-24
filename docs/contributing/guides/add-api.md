@@ -9,7 +9,7 @@ Provider access policy, test script templates, and documentation format.
 
 ## Permitted Access
 
-Implement external data integrations only through a provider-supported documented
+Implement provider-specific data integrations only through a provider-supported documented
 API, an explicitly licensed open-data feed, or written authorization covering the
 intended automated access and downstream use. Published official API terms or a
 feed licence are sufficient when they permit that use. Separate company contact
@@ -29,6 +29,22 @@ If no permitted interface exists, report the capability gap and propose a
 documented API or licensed-data alternative. Do not replace the missing interface
 with a scraper, proxy, browser workflow or platform-specific agent instructions.
 Respectful request rates, `robots.txt` and fragility warnings are not permission.
+
+## General public-page reading
+
+The generic `web.read` capability may read selected public pages for a user task,
+including links found through search. It does not require a provider API for
+every ordinary page. Identify the reader, honor applicable `robots.txt` rules
+before fetching a page and again for redirected targets, and stop when crawler
+policy cannot be established or access is denied. Missing robots files do not
+establish a copyright licence. Respect applicable rights and known restrictions.
+
+Use verified TLS and bounded public-address requests without proxies, cookies,
+authentication, CAPTCHA solving, browser impersonation or retries that evade a
+block. Do not crawl whole sites, call hidden website/mobile APIs or recreate a
+retired platform connector through the reader. Keep the complete extracted text,
+source metadata and existing safety processing in encrypted saved embeds and
+history; this capability does not change retention or delete existing results.
 
 ---
 

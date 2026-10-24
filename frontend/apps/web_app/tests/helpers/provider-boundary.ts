@@ -4,7 +4,6 @@ import { splitApiKeyCredential } from '../../../../packages/openmates-cli/src/cr
 import { waitForComponentPreview } from './component-preview';
 
 export const unavailableSkills = [
-  ['web', 'read'],
   ['shopping', 'search_products'], ['health', 'search_appointments'],
   ['fitness', 'search_locations'], ['fitness', 'search_classes'],
   ['electronics', 'search_components'], ['home', 'search'],

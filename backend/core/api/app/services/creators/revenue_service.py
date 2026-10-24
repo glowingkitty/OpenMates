@@ -7,6 +7,7 @@ import logging
 import time
 import asyncio
 from typing import Optional
+from uuid import UUID
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import (
     EncryptionService,
@@ -50,7 +51,8 @@ class CreatorRevenueService:
         skill_id: str,
         credits: int,
         income_source: str = "skill_usage",  # 'skill_usage' or 'tip'
-        processed_at: Optional[int] = None
+        processed_at: Optional[int] = None,
+        entry_id: Optional[str] = None,
     ) -> bool:
         """
         Create a creator_income entry asynchronously.
@@ -67,6 +69,7 @@ class CreatorRevenueService:
             credits: Number of credits to reserve for creator
             income_source: Source of income ('skill_usage' or 'tip')
             processed_at: Unix timestamp when content was processed (defaults to now)
+            entry_id: Optional stable UUID primary key for retry-safe paid income.
         
         Returns:
             True if income entry was created successfully, False otherwise
@@ -80,10 +83,11 @@ class CreatorRevenueService:
             return False
         
         if not owner_id or not content_id:
-            logger.warning(f"Cannot create creator income entry: missing owner_id or content_id")
+            logger.warning("Cannot create creator income entry: missing owner_id or content_id")
             return False
         
         try:
+            stable_entry_id = str(UUID(str(entry_id))) if entry_id is not None else None
             # Hash all identifiers for privacy
             hashed_owner_id = hash_owner_id(owner_id)
             hashed_content_id = hash_content_id(content_id)
@@ -91,7 +95,7 @@ class CreatorRevenueService:
             hashed_skill_id = hash_skill_id(skill_id)
             
             if not all([hashed_owner_id, hashed_content_id, hashed_app_id, hashed_skill_id]):
-                logger.error(f"Failed to hash identifiers for creator income entry")
+                logger.error("Failed to hash identifiers for creator income entry")
                 return False
             
             # Encrypt credits using system key
@@ -121,6 +125,9 @@ class CreatorRevenueService:
                 "updated_at": timestamp
             }
             
+            if stable_entry_id is not None:
+                income_data["id"] = stable_entry_id
+
             # Create entry in Directus
             # create_item returns a tuple (success: bool, data: dict)
             success, result_data = await self.directus_service.create_item(

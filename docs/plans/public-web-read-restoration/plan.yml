@@ -1,0 +1,40 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: public-web-read-restoration
+title: Restore public page reading with crawler exclusions and complete saved text
+goal: Restore the web read functionality, respect explicit crawler exclusions, use no proxy or CAPTCHA bypass, and still save the website in the embed.
+task: TASK-2945
+approved_by_user: true
+scope:
+  in:
+    - Restore bounded direct public HTTPS reading with applicable robots.txt checks.
+    - Preserve complete extracted text in encrypted saved embeds, history and fullscreen readers.
+    - Preserve existing output safety, successful-page pricing and funded creator accounting.
+    - Clarify the separate general-reader and provider-integration policy boundaries.
+    - Verify focused transport checks and isolated real API, CLI, SDK and saved-reader behavior, then deploy to development.
+  out:
+    - Restore retired platform connectors, hidden APIs, proxies, access-block evasion or browser automation.
+    - Reduce saved text, delete user data or change existing encryption boundaries.
+    - Update shared satellites or production in this task.
+specifications:
+  - architecture.app-skill-execution@1
+  - feature.app-skill.web-read@1
+acceptance_criteria:
+  - An allowed page returns complete extracted text and metadata through existing supported surfaces.
+  - An applicable crawler exclusion prevents the protected page request, including redirect targets.
+  - Unsafe addresses, access barriers, policy failures and resource limits fail visibly without bypass traffic.
+  - Complete saved text survives reload and fullscreen navigation, including the last paragraph.
+  - Other removed provider capabilities remain unavailable and existing historical results remain readable.
+verification:
+  - Focused unit checks for robots matching, DNS pinning, TLS, redirects, bytes, time, extraction and batching.
+  - Isolated provider-free API, CLI/SDK and browser proof using a controlled HTTPS fixture and preserved security checks.
+  - Development source identity, availability and health verification after the scoped deployment.
+approvals:
+  specification:
+    status: approved
+    basis: User explicitly approved restoring the crawler-respecting no-proxy reader and explicitly required retaining the website text in its embed in this conversation on 2026-10-24.
+    exact_fingerprint_presentation: false
+  plan:
+    status: approved
+    basis: This Plan transcribes the existing implementation approval and latest full-text-storage clarification; it does not claim a separately presented fingerprint approval.

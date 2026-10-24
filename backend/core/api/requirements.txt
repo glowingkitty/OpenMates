@@ -3,6 +3,9 @@ uvicorn[standard]==0.40.0
 pydantic[email]==2.11.3
 jsonschema==4.26.0
 httpx==0.28.1
+Protego==0.7.0  # RFC 9309 crawler-exclusion parsing
+markdownify==1.2.3  # Full HTML-to-Markdown extraction
+beautifulsoup4==4.15.0  # Static HTML parsing (no browser execution)
 h2==4.4.1 # HTTP/2 transport for APNs push notifications
 python-dotenv==1.2.2
 redis==5.2.1
