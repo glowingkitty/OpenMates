@@ -1708,6 +1708,11 @@ export async function sendNewMessageImpl(
 			retainedJournal = !!(await readPendingMessageJournal(
 				message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD,
 			));
+			if (!retainedJournal && personalTurn.predecessor === null && (chat?.messages_v ?? 0) > 1) {
+				const { recoverCompletedRepliesBeforeSend } = await import('./chatSyncServiceHandlersRecovery');
+				predecessorVersion = await recoverCompletedRepliesBeforeSend(serviceInstance, message.chat_id);
+				chat = await chatDB.getChat(message.chat_id) ?? chat;
+			}
 			// A retained frame binds created_at in its encrypted intent MAC. A retry
 			// after a long disconnect must preserve that exact timestamp and identity.
 			if (!retainedJournal) {
@@ -3011,7 +3016,7 @@ export async function sendNewMessageImpl(
 					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, hashedChatId);
 					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, undefined);
 					await embedStore.putEncrypted(
-						`embed:${encryptedEmbed.embed_id}`, encryptedEmbed,
+						`embed:${encryptedEmbed.embed_id}`, { ...encryptedEmbed },
 						source.type as EmbedType, source.content
 					);
 				}

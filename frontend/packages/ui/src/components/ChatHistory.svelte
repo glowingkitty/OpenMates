@@ -820,6 +820,7 @@ import { storageArchiveFetch } from "../config/api";
   let timelineNavigating = $state(false);
   let timelineCursor: TimelineCursor | null = null;
   let timelineGeneration = 0;
+  let timelineNavigationGeneration = 0;
   let timelineController: AbortController | null = null;
   const timelineSections = new Map<string, Promise<GlobalMessage[]>>();
   $effect(() => {
@@ -828,6 +829,7 @@ import { storageArchiveFetch } from "../config/api";
     timelineController?.abort();
     timelineController = new AbortController();
     timelineGeneration++;
+    timelineNavigationGeneration++;
     timelineCatalogue = [];
     timelineCursor = null;
     timelineSection = null;
@@ -904,6 +906,7 @@ import { storageArchiveFetch } from "../config/api";
 
   async function positionTimelineTarget(id: string, scope: string, generation: number): Promise<void> {
     if (!container) throw new Error('Timeline viewport unavailable');
+    const navigation = timelineNavigationGeneration;
     timelineNavigating = true;
     ensureVirtualMessageRendered(id);
     await tick();
@@ -912,7 +915,7 @@ import { storageArchiveFetch } from "../config/api";
         const deadline = performance.now() + 2400;
         let stableSince = performance.now(), previousHeight = -1;
         const align = () => {
-          if (scope !== timelineScopeKey || generation !== timelineGeneration) return reject(new Error('Timeline scope changed'));
+          if (scope !== timelineScopeKey || generation !== timelineGeneration || navigation !== timelineNavigationGeneration) return reject(new Error('Timeline scope changed'));
           const target = timelineTarget(id);
           if (target) {
             const viewport = container.getBoundingClientRect(), row = target.getBoundingClientRect();
@@ -930,7 +933,7 @@ import { storageArchiveFetch } from "../config/api";
         requestAnimationFrame(align);
       });
     } finally {
-      if (scope === timelineScopeKey && generation === timelineGeneration) {
+      if (scope === timelineScopeKey && generation === timelineGeneration && navigation === timelineNavigationGeneration) {
         timelineNavigating = false;
         checkIfAtBottomForUI();
       }
@@ -939,8 +942,9 @@ import { storageArchiveFetch } from "../config/api";
 
   async function activateTimelineExchange(entry: TimelineEntry): Promise<void> {
     const scope = timelineScopeKey, generation = timelineGeneration;
+    const navigation = timelineNavigationGeneration;
     const rows = await readTimelineSection(entry);
-    if (scope !== timelineScopeKey || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+    if (scope !== timelineScopeKey || generation !== timelineGeneration || navigation !== timelineNavigationGeneration) return;
     const previous = { section: timelineSection, visible: timelineVisibleMessageId, top: container?.scrollTop ?? 0, pin: timelinePinnedId, start: virtualStartIndex, end: virtualEndIndex };
     cancelPendingNewUserMessageScroll();
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
@@ -956,6 +960,7 @@ import { storageArchiveFetch } from "../config/api";
       await positionTimelineTarget(entry.message_id, scope, generation);
       timelinePinnedId = entry.message_id;
     } catch (error) {
+      if (navigation !== timelineNavigationGeneration) return;
       if (scope === timelineScopeKey && generation === timelineGeneration) {
         timelineSection = previous.section; timelineVisibleMessageId = previous.visible;
         clampVirtualRange(previous.start, previous.end);
@@ -2269,6 +2274,34 @@ import { storageArchiveFetch } from "../config/api";
     messages = [...messages, messageForHistory];
   }
 
+  /** A local submission returns from a historical exchange to the live chat.
+   * Reveal its row now; response alignment still waits for authored content. */
+  export async function revealSubmittedMessage(messageId: string): Promise<void> {
+    const chatId = currentChatId;
+    const navigation = ++timelineNavigationGeneration;
+    timelineSection = null;
+    timelinePinnedId = null;
+    timelineNavigating = false;
+    timelineOverlayOpen = false;
+    cancelPendingNewUserMessageScroll();
+    lastUserMessageId = messageId;
+    shouldScrollToNewUserMessage = true;
+    isScrolling = false;
+    userHasScrolledAway = false;
+    ensureVirtualMessageRendered(messageId);
+    await tick();
+    if (currentChatId !== chatId || lastUserMessageId !== messageId || !container) return;
+    try {
+      // Reuse the stable-layout positioning used by timeline navigation. A
+      // lazy message editor can gain height after its wrapper first appears.
+      await positionTimelineTarget(messageId, timelineScopeKey, timelineGeneration);
+    } catch (error) {
+      if (currentChatId === chatId && navigation === timelineNavigationGeneration) {
+        console.warn('[ChatHistory] Could not reveal submitted message:', error);
+      }
+    }
+  }
+
   /**
    * Exposed function to clear chat messages.
    * It triggers a fade-out animation and returns a promise that resolves
@@ -2554,7 +2587,7 @@ import { storageArchiveFetch } from "../config/api";
   // Make room for the response once its first content and the generated header
   // are rendered. Later chunks never restart this one-time scroll.
   $effect(() => {
-    if (isNewChatGeneratingTitle || timelineSection) return;
+    if (isNewChatGeneratingTitle || timelineSection || timelineNavigating) return;
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       const userIndex = messages.findIndex(message => message.id === lastUserMessageId);
       const responseStarted = userIndex >= 0 && messages.slice(userIndex + 1).some(message =>

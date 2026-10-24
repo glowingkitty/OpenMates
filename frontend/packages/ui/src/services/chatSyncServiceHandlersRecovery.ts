@@ -41,7 +41,7 @@ import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedD
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
-import { clearRecoveryFinalTimestamps, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
+import { clearRecoveryFinalTimestamps, recoveryFinalTimestamp, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { clearPersonalChatTurnBarriers, completePersonalChatTurn, failMatchingPersonalChatTurn } from "./personalChatTurnBarrier";
 import {
   hasAcknowledgedRecoveredEmbed, markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite,
@@ -59,6 +59,7 @@ const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
+const recoveryJobSettlements = new Map<string, Promise<boolean>>();
 const metadataJobsInProgress = new Set<string>();
 const metadataChatQueues = new Map<string, Promise<void>>();
 let metadataRecoveryObserved = false;
@@ -184,6 +185,7 @@ let recoveryServiceInstance: ChatSynchronizationService | null = null;
 let recoveryLifecycleTeardown: (() => void) | null = null;
 const pendingForegroundWaiters = new Set<{ resolve: () => void; reject: (error: Error) => void }>();
 const pendingRecoveryRequests = new Set<(error: unknown) => void>();
+const pendingReplyDiscoveries = new Set<(error: unknown) => void>();
 
 function waitForForegroundDiscovery(): Promise<void> {
   if (canRunRecovery()) return Promise.resolve();
@@ -215,9 +217,11 @@ export function resetRecoveryLifecycleImpl(): void {
   foregroundDiscoveryOutputs.clear();
   const ended = new RecoverySessionEndedError("Recovery session ended.");
   for (const cancel of [...pendingRecoveryRequests]) cancel(ended);
+  for (const cancel of [...pendingReplyDiscoveries]) cancel(ended);
   for (const waiter of pendingForegroundWaiters) waiter.reject(ended);
   pendingForegroundWaiters.clear();
   recoveryJobsInProgress.clear();
+  recoveryJobSettlements.clear();
   metadataJobsInProgress.clear();
   metadataChatQueues.clear();
   metadataRecoveryObserved = false;
@@ -333,6 +337,123 @@ interface AvailableRecoveryJob {
   turn_id: string;
   assistant_message_id: string;
   chat_key_version: number;
+  created_at?: number;
+}
+
+type ReplyDiscovery = { jobs: AvailableRecoveryJob[]; pending: AvailableRecoveryJob[] };
+let sendRecoveryDiscovery: { connection: object; promise: Promise<ReplyDiscovery> } | null = null;
+
+/** The discovery fence follows every completion-job page on this socket. It
+ * does not imply that the local encrypted persistence handlers have finished. */
+function discoverRepliesForSend(): Promise<ReplyDiscovery> {
+  const connection = webSocketService.getConnectionForSend();
+  if (!connection || !recoveryPageIsVisible()) return Promise.reject(new Error('Reply recovery requires a connected foreground chat.'));
+  if (sendRecoveryDiscovery?.connection === connection) return sendRecoveryDiscovery.promise;
+  const requestId = crypto.randomUUID();
+  const promise = new Promise<ReplyDiscovery>((resolve, reject) => {
+    const jobs = new Map<string, AvailableRecoveryJob>(), pending = new Map<string, AvailableRecoveryJob>();
+    let acknowledged = false;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      webSocketService.removeEventListener('message', received);
+      webSocketService.removeEventListener('close', closed);
+      pendingReplyDiscoveries.delete(cancel);
+    };
+    const cancel = (error: unknown) => { cleanup(); reject(error); };
+    const closed = () => cancel(new RecoverySessionEndedError('Reply recovery connection ended.'));
+    const ack = (raw: unknown) => {
+      if ((raw as { is_foreground?: boolean })?.is_foreground === true) acknowledged = true;
+    };
+    const page = (raw: unknown) => {
+      const value = raw as { request_id?: string; jobs?: AvailableRecoveryJob[]; pending_jobs?: AvailableRecoveryJob[] };
+      if (value.request_id !== requestId) return;
+      for (const job of value.jobs ?? []) { jobs.set(job.job_id, job); pending.set(job.job_id, job); }
+      for (const job of value.pending_jobs ?? []) pending.set(job.job_id, job);
+    };
+    const complete = (raw: unknown) => {
+      if ((raw as { request_id?: string })?.request_id !== requestId) return;
+      if (!acknowledged) return;
+      if (webSocketService.getConnectionForSend() !== connection || (raw as { status?: string })?.status !== 'completed') {
+        cancel(new Error('Completed reply discovery did not finish.'));
+        return;
+      }
+      cleanup(); resolve({ jobs: [...jobs.values()], pending: [...pending.values()] });
+    };
+    const received = (event: Event) => {
+      const frame = (event as CustomEvent<{ type?: string; payload?: unknown }>).detail;
+      if (frame?.type === 'native_client_lifecycle_ack') ack(frame.payload);
+      else if (frame?.type === 'recovery_jobs_available') page(frame.payload);
+      else if (frame?.type === 'recovery_outputs_discovery_complete') complete(frame.payload);
+    };
+    const timeout = setTimeout(() => cancel(new Error('Completed reply discovery timed out.')), CHAT_RECOVERY_EVENT_TIMEOUT_MS);
+    pendingReplyDiscoveries.add(cancel);
+    // Raw frame events are synchronous and precede typed async handlers. A job
+    // handler waiting for initial sync must not let its completion fence pass it.
+    webSocketService.addEventListener('message', received);
+    webSocketService.addEventListener('close', closed);
+    try { webSocketService.requestForegroundRecoveryDiscovery(requestId); } catch (error) { cancel(error); }
+  });
+  const request = { connection, promise };
+  sendRecoveryDiscovery = request;
+  const release = () => { if (sendRecoveryDiscovery === request) sendRecoveryDiscovery = null; };
+  void promise.then(release, release);
+  return promise;
+}
+
+/** Reload discards in-memory predecessor turns. Restore already completed
+ * replies before taking a new history snapshot; active inference has no job. */
+export async function recoverCompletedRepliesBeforeSend(
+  service: ChatSynchronizationService, chatId: string,
+): Promise<number | null> {
+  prepareRecoveryLifecycleImpl(service);
+  const generation = recoveryLifecycleGeneration, connection = webSocketService.getConnectionForSend();
+  const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
+  const observed = new Map<string, AvailableRecoveryJob>();
+  do {
+    assertRecoverySession(generation);
+    if (connection !== webSocketService.getConnectionForSend()) throw new RecoverySessionEndedError('Reply recovery connection changed.');
+    const discovery = await discoverRepliesForSend();
+    const pending = discovery.pending.filter(job => job.chat_id === chatId);
+    for (const job of pending) observed.set(job.job_id, job);
+    const available = discovery.jobs.filter(job => job.chat_id === chatId);
+    await handleRecoveryJobsAvailableImpl(service, { jobs: available });
+    assertRecoverySession(generation);
+    for (const job of available) {
+      let recovered = await recoveryJobSettlements.get(job.job_id);
+      if (!recovered && deferredRecoveryJobs.has(job.job_id) && canRunRecovery()) {
+        // The fresh discovery fence canceled an older background claim. Its
+        // settled failure is not the outcome of this newly authorized attempt.
+        deferredRecoveryJobs.delete(job.job_id);
+        await handleRecoveryJobsAvailableImpl(service, { jobs: [job] });
+        recovered = await recoveryJobSettlements.get(job.job_id);
+      }
+      if (recovered !== true) throw new Error('The previous encrypted reply could not be recovered.');
+    }
+    // A live lease on another connection must settle or expire before this send.
+    if (pending.some(job => !available.some(value => value.job_id === job.job_id))) {
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+      continue;
+    }
+    if (observed.size === 0) return null;
+    await service.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+    for (const job of observed.values()) {
+      let row = await chatDB.getMessage(job.assistant_message_id);
+      const hydrationDeadline = Math.min(deadline, Date.now() + 5_000);
+      while ((!row || row.chat_id !== chatId || row.role !== 'assistant') && Date.now() < hydrationDeadline) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        assertRecoverySession(generation);
+        if (connection !== webSocketService.getConnectionForSend()) throw new RecoverySessionEndedError('Reply recovery connection changed.');
+        row = await chatDB.getMessage(job.assistant_message_id);
+      }
+      if (!row || row.chat_id !== chatId || row.role !== 'assistant') throw new Error('The previous encrypted reply has not hydrated.');
+    }
+    const chat = await chatDB.getChat(chatId);
+    const canonical = chat ? await refreshRecoveryChatVersion(chat) : null;
+    assertRecoverySession(generation);
+    if (!canonical) throw new Error('The recovered reply has no canonical chat version.');
+    return canonical.messages_v;
+  } while (Date.now() < deadline);
+  throw new Error('The previous encrypted reply is still being recovered.');
 }
 
 interface AvailableRecoveryOutput {
@@ -1040,6 +1161,7 @@ export async function handleRecoveryJobsAvailableImpl(
   payload: { jobs?: AvailableRecoveryJob[] },
 ): Promise<void> {
   prepareRecoveryLifecycleImpl(serviceInstance);
+  if (!payload.jobs?.length) return;
   const generation = recoveryLifecycleGeneration;
   if (!canRunRecovery()) {
     for (const job of payload.jobs ?? []) if (job.job_id) {
@@ -1051,8 +1173,12 @@ export async function handleRecoveryJobsAvailableImpl(
   await waitForInitialSync(serviceInstance);
   if (generation !== recoveryLifecycleGeneration) return;
   await Promise.allSettled((payload.jobs ?? []).map(async (job) => {
-    if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) return;
+    if (!job.job_id) return;
+    if (recoveryJobsInProgress.has(job.job_id)) return recoveryJobSettlements.get(job.job_id);
     recoveryJobsInProgress.add(job.job_id);
+    let settled!: (success: boolean) => void;
+    recoveryJobSettlements.set(job.job_id, new Promise(resolve => { settled = resolve; }));
+    let success = false;
     try {
       assertRecoverySession(generation);
       // A local synced/delivered row can still be browser-only if the user logs out
@@ -1101,6 +1227,7 @@ export async function handleRecoveryJobsAvailableImpl(
           await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
           completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
           if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
+          success = true;
         } else {
           failMatchingPersonalChatTurn(job.chat_id, job.turn_id, new Error('Terminal reply has not hydrated locally.'));
         }
@@ -1168,9 +1295,14 @@ export async function handleRecoveryJobsAvailableImpl(
         ? existingAssistantMessage.user_message_id
         : undefined;
       const now = Math.floor(Date.now() / 1000);
-      // The authenticated final stream marker shares the AI-cache timestamp.
-      // A takeover device that missed it still completes recovery with a cold cache boundary.
-      const assistantCreatedAt = await waitForRecoveryFinalTimestamp(
+      // Keep a previously rendered timestamp or the matched final marker. A
+      // cold client uses the durable job creation time, never its takeover time.
+      const discoveredCreatedAt = Number.isSafeInteger(job.created_at) && job.created_at! > 0 ? job.created_at : undefined;
+      const existingCreatedAt = existingAssistantMessage?.role === 'assistant' && existingAssistantMessage.chat_id === job.chat_id
+        && Number.isSafeInteger(existingAssistantMessage.created_at) && existingAssistantMessage.created_at > 0
+        ? existingAssistantMessage.created_at : undefined;
+      const assistantCreatedAt = existingCreatedAt ?? recoveryFinalTimestamp(job.chat_id, job.assistant_message_id, job.job_id, job.turn_id)
+        ?? discoveredCreatedAt ?? await waitForRecoveryFinalTimestamp(
         job.chat_id, job.assistant_message_id, job.job_id, job.turn_id,
       ) ?? now;
       assertRecoverySession(generation);
@@ -1286,6 +1418,7 @@ export async function handleRecoveryJobsAvailableImpl(
           },
         }),
       );
+      success = true;
     } catch (error) {
       if (error instanceof RecoverySessionEndedError) return;
       if (error instanceof RecoveryForegroundDeferredError) {
@@ -1302,7 +1435,12 @@ export async function handleRecoveryJobsAvailableImpl(
       console.error(`[ChatSyncService:Recovery] Failed recovery job ${job.job_id}:`, error);
       failMatchingPersonalChatTurn(job.chat_id, job.turn_id, error);
     } finally {
+      settled(success);
       recoveryJobsInProgress.delete(job.job_id);
+      if (recoveryJobSettlements.size > 256) {
+        const oldest = [...recoveryJobSettlements.keys()].find(id => !recoveryJobsInProgress.has(id));
+        if (oldest) recoveryJobSettlements.delete(oldest);
+      }
     }
   }));
 }

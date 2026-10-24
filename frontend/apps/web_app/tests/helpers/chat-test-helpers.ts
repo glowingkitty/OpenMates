@@ -67,6 +67,8 @@ type TestStateDeclaration = {
 type SendMessageOptions = {
 	testMockMarker?: string;
 	preserveExistingContent?: boolean;
+	/** Pending-send tests assert server acceptance themselves after observing the visible row. */
+	waitUntil?: 'visible' | 'accepted';
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -1433,7 +1435,7 @@ async function sendMessage(
 				assistantCountBeforeSend
 			)
 		) {
-			await waitForUserMessageAcceptedByServer(
+			if (options.waitUntil !== 'visible') await waitForUserMessageAcceptedByServer(
 				page,
 				userMessages,
 				assistantMessages,
@@ -1446,14 +1448,14 @@ async function sendMessage(
 				assistantMessageIds: assistantMessageIdsBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
 			});
-			logCheckpoint('Message send accepted after synthetic send fallback.', {
+			logCheckpoint(options.waitUntil === 'visible' ? 'Message visible after synthetic send fallback.' : 'Message send accepted after synthetic send fallback.', {
 				assistantCountBeforeSend
 			});
 			return;
 		}
 		throw error;
 	}
-	await waitForUserMessageAcceptedByServer(
+	if (options.waitUntil !== 'visible') await waitForUserMessageAcceptedByServer(
 		page,
 		userMessages,
 		assistantMessages,
@@ -1466,7 +1468,7 @@ async function sendMessage(
 		assistantMessageIds: assistantMessageIdsBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
 	});
-	logCheckpoint('Message send accepted after send.', {
+	logCheckpoint(options.waitUntil === 'visible' ? 'Message visible after send.' : 'Message send accepted after send.', {
 		assistantCountBeforeSend
 	});
 }

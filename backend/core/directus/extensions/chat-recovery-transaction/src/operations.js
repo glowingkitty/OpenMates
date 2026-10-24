@@ -470,6 +470,7 @@ function availableJobMetadata(row) {
     assistant_message_id: row.assistant_message_id,
     chat_key_version: row.chat_key_version,
     state: row.state,
+    ...(row.created_at ? { created_at: Math.floor(new Date(row.created_at).getTime() / 1000) } : {}),
   };
 }
 
@@ -4898,8 +4899,19 @@ async function listAvailableJobs(database, raw, now) {
       'assistant_message_id',
       'chat_key_version',
       'state',
+      'created_at',
     ]);
-  return { jobs: rows.map(availableJobMetadata) };
+  // A reconnect must also learn that a completed answer is still leased by its
+  // previous connection. Keep those jobs out of claimable delivery, but expose
+  // owner-scoped identities so a follow-up cannot mistake them for no answer.
+  const leased = await database(JOBS)
+    .where({ hashed_user_id: ownerHash, state: 'LEASED' })
+    .whereNull('invalidated_at')
+    .andWhere('lease_expires_at', '>', now)
+    .orderBy('created_at', 'asc').orderBy('id', 'asc')
+    .limit(MAX_AVAILABLE_JOBS)
+    .select(['id', 'chat_id', 'turn_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'state', 'created_at']);
+  return { jobs: rows.map(availableJobMetadata), pending_jobs: leased.map(availableJobMetadata) };
 }
 
 function activeJob(row, ownerHash, now) {

@@ -442,9 +442,10 @@ async def send_available_recovery_jobs(
     user_id_hash: str,
     device_fingerprint_hash: str,
     user_otel_attrs: dict | None = None,
-) -> None:
+    request_id: str | None = None,
+) -> bool:
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
-        return
+        return False
     _otel_span, _otel_token = _start_ws_span(
         "send_available_recovery_jobs",
         user_id,
@@ -461,12 +462,17 @@ async def send_available_recovery_jobs(
             },
         )
         jobs = result.get("jobs")
-        if jobs and manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        pending_jobs = result.get("pending_jobs")
+        if (jobs or pending_jobs) and manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
-                {"type": "recovery_jobs_available", "payload": {"jobs": jobs}},
+                {"type": "recovery_jobs_available", "payload": {
+                    "jobs": jobs or [], **({"pending_jobs": pending_jobs} if pending_jobs else {}),
+                    **({"request_id": request_id} if request_id else {}),
+                }},
                 user_id,
                 device_fingerprint_hash,
             )
+        return True
     except ChatRecoveryProtocolError as exc:
         if exc.status_code != 404:
             logger.warning(
@@ -475,6 +481,7 @@ async def send_available_recovery_jobs(
                 device_fingerprint_hash[:8],
                 exc.code,
             )
+        return False
     finally:
         _end_ws_span(_otel_span, _otel_token)
 
@@ -482,7 +489,9 @@ async def send_available_recovery_jobs(
 async def send_available_recovery_outputs(
     *, manager: Any, directus_service: Any, user_id: str,
     user_id_hash: str, device_fingerprint_hash: str,
+    request_id: str | None = None,
 ) -> None:
+    discovery = {"request_id": request_id} if request_id else {}
     supports_typed = getattr(manager, "supports_typed_recovery_outputs", None)
     if not callable(supports_typed) or not supports_typed(user_id, device_fingerprint_hash):
         return
@@ -500,7 +509,7 @@ async def send_available_recovery_outputs(
                 return
             if result.get("outputs"):
                 await manager.send_personal_message(
-                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"]}},
+                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"], **discovery}},
                     user_id, device_fingerprint_hash,
                 )
             next_cursor = result.get("next_cursor")
@@ -512,7 +521,7 @@ async def send_available_recovery_outputs(
     except Exception:
         try:
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         except Exception:
@@ -521,7 +530,7 @@ async def send_available_recovery_outputs(
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
         return
     await manager.send_personal_message(
-        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"}},
+        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed", **discovery}},
         user_id, device_fingerprint_hash,
     )
 

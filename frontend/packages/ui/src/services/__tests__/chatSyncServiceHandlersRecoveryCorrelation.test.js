@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
     on: vi.fn(),
     off: vi.fn(),
     sendMessage: vi.fn(),
+    getConnectionForSend: vi.fn(),
+    requestForegroundRecoveryDiscovery: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
@@ -58,6 +62,7 @@ vi.mock("../../utils/chatCompletionRecovery", () => ({
 const {
   handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
   prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
+  recoverCompletedRepliesBeforeSend,
 } = await import("../chatSyncServiceHandlersRecovery.ts");
 
 const { getEncryptedFields } = await import("../db/chatKeyManagement.ts");
@@ -511,4 +516,188 @@ describe("recovery job request correlation", () => {
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "chatUpdated" }));
   });
 
+});
+
+describe('completed predecessor recovery before a reloaded-chat send', () => {
+  const job = { job_id: 'send-job', chat_id: 'send-chat', turn_id: 'prior-turn',
+    assistant_message_id: 'prior-assistant', chat_key_version: 1, created_at: 1_800_000_001 };
+  let listeners, emit, service, saved, persistRequest;
+  beforeEach(() => {
+    vi.clearAllMocks(); vi.useFakeTimers(); resetRecoveryLifecycleImpl();
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    listeners = new Map(); saved = false; persistRequest = null;
+    emit = (type, payload) => {
+      if (type !== 'close') for (const fn of [...(listeners.get('message') ?? [])]) {
+        fn(new CustomEvent('message', { detail: { type, payload } }));
+      }
+      // Match WebSocketService: handlers of one frame await each other, while
+      // the next frame's synchronous message event can arrive independently.
+      void (async () => { for (const fn of [...(listeners.get(type) ?? [])]) await fn(payload); })();
+    };
+    mocks.webSocketService.on.mockImplementation((type, fn) => {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(fn);
+    });
+    mocks.webSocketService.off.mockImplementation((type, fn) => listeners.get(type)?.delete(fn));
+    mocks.webSocketService.addEventListener.mockImplementation(mocks.webSocketService.on);
+    mocks.webSocketService.removeEventListener.mockImplementation(mocks.webSocketService.off);
+    mocks.webSocketService.getConnectionForSend.mockReturnValue({});
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: 'send-chat', user_id: 'owner', messages_v: 4 });
+    mocks.chatDB.getMessage.mockImplementation(async () => saved
+      ? { chat_id: 'send-chat', message_id: 'prior-assistant', role: 'assistant', created_at: job.created_at } : null);
+    mocks.chatDB.saveMessage.mockImplementation(async () => { saved = true; });
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({ encrypted_content: 'sealed', encrypted_sender_name: 'sealed-name' });
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: 'private', publicKey: 'public' });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+      job_id: job.job_id, chat_id: job.chat_id, turn_id: job.turn_id,
+      assistant_message_id: job.assistant_message_id, key_version: 1,
+      content: 'The completed first answer', category: null, model_name: null,
+    })));
+    mocks.webSocketService.sendMessage.mockImplementation(async (type, payload) => {
+      if (type === 'recovery_job_claim') emit('recovery_job_claimed', {
+        ...job, request_id: payload.request_id, state: 'LEASED', lease_token: 'lease', lease_generation: 1,
+        sealed_payload: '{}',
+      });
+      if (type === 'recovery_job_persist') persistRequest = payload;
+    });
+    service = { hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined), dispatchEvent: vi.fn() };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ chat_id: 'send-chat', messages_v: 4 }) })));
+  });
+  afterEach(() => { resetRecoveryLifecycleImpl(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  const discover = (jobs = [], pending_jobs = [], status = 'completed') => {
+    const request_id = mocks.webSocketService.requestForegroundRecoveryDiscovery.mock.calls.at(-1)?.[0];
+    emit('native_client_lifecycle_ack', { is_foreground: true });
+    emit('recovery_jobs_available', { jobs, pending_jobs, request_id });
+    emit('recovery_outputs_discovery_complete', { status, request_id });
+  };
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced,chats.message.identity-idempotent
+  it('waits past discovery for the canonical persist ACK and preserves the original job time without a final marker', async () => {
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([job]));
+    const finished = vi.fn();
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id).then(finished);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(persistRequest).toBeTruthy();
+    expect(persistRequest.encrypted_assistant_message.created_at).toBe(job.created_at);
+    expect(finished).not.toHaveBeenCalled();
+    emit('recovery_job_persisted', { job_id: job.job_id, request_id: persistRequest.request_id,
+      state: 'TERMINAL', committed_messages_v: 4 });
+    await waiting;
+    expect(finished).toHaveBeenCalledWith(4);
+    expect(saved).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.sync.key-gated-recovery
+  it('blocks when a discovered reply cannot be persisted', async () => {
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(false);
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([job]));
+    await expect(recoverCompletedRepliesBeforeSend(service, job.chat_id)).rejects.toThrow('could not be recovered');
+    expect(persistRequest).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('keeps a prior live lease pending until another connection finishes and its row hydrates', async () => {
+    let scans = 0;
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {
+      scans += 1;
+      if (scans === 1) discover([], [job]);
+      else { saved = true; discover(); }
+    });
+    const finished = vi.fn();
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id).then(finished);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(finished).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await waiting;
+    expect(scans).toBe(2);
+    expect(finished).toHaveBeenCalledWith(4);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it('ignores another chat and permits an active inference with no completed job', async () => {
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([], [{ ...job, chat_id: 'other' }]));
+    await expect(recoverCompletedRepliesBeforeSend(service, job.chat_id)).resolves.toBeNull();
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.sync.key-gated-recovery
+  it('rejects discovery failure and a socket change instead of admitting incomplete history', async () => {
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => discover([], [], 'failed'));
+    await expect(recoverCompletedRepliesBeforeSend(service, job.chat_id)).rejects.toThrow('did not finish');
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {});
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id);
+    const rejection = expect(waiting).rejects.toThrow('connection ended');
+    emit('close', {});
+    await rejection;
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.sync.key-gated-recovery
+  it('survives the foreground discovery handoff and shares concurrent scans on the same socket', async () => {
+    vi.mocked(document.hasFocus).mockReturnValue(false);
+    prepareRecoveryLifecycleImpl(service);
+    vi.mocked(document.hasFocus).mockReturnValue(true);
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {});
+    const first = recoverCompletedRepliesBeforeSend(service, job.chat_id);
+    const second = recoverCompletedRepliesBeforeSend(service, 'another-chat');
+    discover();
+    await expect(first).resolves.toBeNull();
+    await expect(second).resolves.toBeNull();
+    expect(mocks.webSocketService.requestForegroundRecoveryDiscovery).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.sync.key-gated-recovery
+  it('rejects an outstanding scan when its workspace lifecycle is reset', async () => {
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {});
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id);
+    const rejection = expect(waiting).rejects.toThrow('session ended');
+    resetRecoveryLifecycleImpl();
+    await rejection;
+    expect(listeners.get('recovery_outputs_discovery_complete')?.size ?? 0).toBe(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+  it('ignores an old scan fence whose predecessor page arrived before the send subscribed', async () => {
+    emit('recovery_jobs_available', { jobs: [job], request_id: 'old-scan' });
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {});
+    const finished = vi.fn();
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id).then(finished);
+    emit('native_client_lifecycle_ack', { is_foreground: true });
+    emit('recovery_outputs_discovery_complete', { status: 'completed', request_id: 'old-scan' });
+    emit('recovery_outputs_discovery_complete', { status: 'completed' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finished).not.toHaveBeenCalled();
+    discover([job]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(persistRequest).toBeTruthy();
+    expect(finished).not.toHaveBeenCalled();
+    emit('recovery_job_persisted', { job_id: job.job_id, request_id: persistRequest.request_id,
+      state: 'TERMINAL', committed_messages_v: 4 });
+    await waiting;
+    expect(finished).toHaveBeenCalledWith(4);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
+  it('collects a pending page before an earlier async availability handler can delay it', async () => {
+    let release;
+    const earlierHandler = new Promise(resolve => { release = resolve; });
+    mocks.webSocketService.on('recovery_jobs_available', () => earlierHandler);
+    let scans = 0;
+    mocks.webSocketService.requestForegroundRecoveryDiscovery.mockImplementation(() => {
+      scans += 1;
+      if (scans === 1) discover([], [job]);
+      else { saved = true; discover(); }
+    });
+    const finished = vi.fn();
+    const waiting = recoverCompletedRepliesBeforeSend(service, job.chat_id).then(finished);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(finished).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await waiting;
+    expect(finished).toHaveBeenCalledWith(4);
+    release();
+  });
 });

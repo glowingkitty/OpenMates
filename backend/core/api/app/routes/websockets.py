@@ -542,7 +542,9 @@ async def _discover_foreground_recovery(
     directus_service: DirectusService, user_id: str, user_id_hash: str,
     device_fingerprint_hash: str, supports_typed_recovery_outputs: bool,
     user_otel_attrs: dict,
+    request_id: str | None = None,
 ) -> None:
+    discovery = {"request_id": request_id} if request_id else {}
     # Both v1 jobs and typed outputs require the authoritative recovery epoch.
     try:
         epoch = await ChatRecoveryCutoverController(
@@ -552,7 +554,7 @@ async def _discover_foreground_recovery(
         logger.exception("Foreground recovery discovery epoch read failed")
         if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         return
@@ -560,23 +562,26 @@ async def _discover_foreground_recovery(
         return
     if epoch < 1:
         await manager.send_personal_message(
-            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled", **discovery}},
             user_id, device_fingerprint_hash,
         )
         return
     # Job discovery must finish before the typed output completion fence.
     try:
-        await send_available_recovery_jobs(
+        discovered = await send_available_recovery_jobs(
             manager=manager, directus_service=directus_service,
             user_id=user_id, user_id_hash=user_id_hash,
             device_fingerprint_hash=device_fingerprint_hash,
             user_otel_attrs=user_otel_attrs,
+            **discovery,
         )
+        if discovered is False:
+            raise RuntimeError("Completion job discovery did not finish")
     except Exception:
         logger.exception("Foreground recovery job discovery failed")
         if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
-                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed", **discovery}},
                 user_id, device_fingerprint_hash,
             )
         return
@@ -587,6 +592,7 @@ async def _discover_foreground_recovery(
             manager=manager, directus_service=directus_service,
             user_id=user_id, user_id_hash=user_id_hash,
             device_fingerprint_hash=device_fingerprint_hash,
+            **discovery,
         )
     except Exception:
         logger.exception("Foreground recovery output discovery failed")
@@ -3240,7 +3246,7 @@ async def websocket_endpoint(
     else:
         manager.mark_volatile_session_unavailable(websocket)
 
-    def schedule_foreground_recovery_discovery(*, replace: bool) -> None:
+    def schedule_foreground_recovery_discovery(*, replace: bool, request_id: str | None = None) -> None:
         nonlocal foreground_recovery_discovery_task
         if foreground_recovery_discovery_task is not None and not foreground_recovery_discovery_task.done():
             if not replace:
@@ -3252,6 +3258,7 @@ async def websocket_endpoint(
             user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
             supports_typed_recovery_outputs=supports_typed_recovery_outputs,
             user_otel_attrs=user_otel_attrs,
+            request_id=request_id,
         ))
 
     disconnect_reason = "Server closed connection"
@@ -4219,7 +4226,16 @@ async def websocket_endpoint(
                         }}, user_id, device_fingerprint_hash,
                     )
                 else:
-                    schedule_foreground_recovery_discovery(replace=False)
+                    request_id = payload.get("request_id")
+                    if request_id is not None and (not isinstance(request_id, str) or not 0 < len(request_id) <= 128):
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"code": "invalid_request_id", "message": "Invalid recovery discovery request."}},
+                            user_id, device_fingerprint_hash,
+                        )
+                        continue
+                    # A correlated send needs all pages from a fresh scan. Old
+                    # background fences cannot release its history snapshot.
+                    schedule_foreground_recovery_discovery(replace=request_id is not None, request_id=request_id)
             elif message_type == "chat_message_viewed":
                 try:
                     viewed = await handle_notification_read_receipt(

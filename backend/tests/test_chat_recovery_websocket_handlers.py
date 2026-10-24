@@ -823,3 +823,72 @@ async def test_foreground_discovery_emits_completion_barrier_for_zero_outputs(mo
         user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
     )
     assert manager.messages == []
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover
+async def test_discovery_delivers_live_lease_metadata_without_claimable_jobs(monkeypatch) -> None:
+    pending = {"job_id": "job-1", "chat_id": "chat-1", "state": "LEASED", "created_at": 1800000001}
+
+    class Recovery:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            assert operation == "list_available_jobs"
+            assert data["hashed_user_id"] == "owner-hash"
+            return {"jobs": [], "pending_jobs": [pending]}
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+    manager = FakeManager(typed=True)
+    assert await chat_recovery_job_handlers.send_available_recovery_jobs(
+        manager=manager, directus_service=object(), user_id="owner",
+        user_id_hash="owner-hash", device_fingerprint_hash="new-device",
+    ) is True
+    assert manager.messages == [{"type": "recovery_jobs_available", "payload": {"jobs": [], "pending_jobs": [pending]}}]
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced
+async def test_failed_job_discovery_cannot_be_reported_as_a_complete_empty_scan(monkeypatch) -> None:
+    epoch = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
+    monkeypatch.setattr(websocket_routes, "ChatRecoveryCutoverController", lambda *_: epoch)
+    monkeypatch.setattr(websocket_routes, "send_available_recovery_jobs", AsyncMock(return_value=False))
+    typed = AsyncMock()
+    monkeypatch.setattr(websocket_routes, "send_available_recovery_outputs", typed)
+    manager = FakeManager(typed=True)
+    await websocket_routes._discover_foreground_recovery(
+        manager=manager, cache_service=object(), directus_service=object(),
+        user_id="owner", user_id_hash="owner-hash", device_fingerprint_hash="device",
+        supports_typed_recovery_outputs=True, user_otel_attrs={},
+    )
+    assert manager.messages == [{"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}}]
+    typed.assert_not_awaited()
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced
+async def test_correlated_discovery_tags_job_pages_and_the_matching_completion_fence(monkeypatch) -> None:
+    class Recovery:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, _data: dict) -> dict:
+            if operation == "list_available_jobs":
+                return {"jobs": [{"job_id": "prior-job", "chat_id": "chat-1"}]}
+            assert operation == "list_pending_outputs"
+            return {"outputs": []}
+
+    epoch = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
+    monkeypatch.setattr(websocket_routes, "ChatRecoveryCutoverController", lambda *_: epoch)
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+    manager = FakeManager(typed=True)
+    await websocket_routes._discover_foreground_recovery(
+        manager=manager, cache_service=object(), directus_service=object(),
+        user_id="owner", user_id_hash="owner-hash", device_fingerprint_hash="device",
+        supports_typed_recovery_outputs=True, user_otel_attrs={}, request_id="send-scan",
+    )
+    assert manager.messages == [
+        {"type": "recovery_jobs_available", "payload": {"jobs": [{"job_id": "prior-job", "chat_id": "chat-1"}], "request_id": "send-scan"}},
+        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed", "request_id": "send-scan"}},
+    ]

@@ -1478,10 +1478,10 @@ class WebSocketService extends EventTarget {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
-  public requestForegroundRecoveryDiscovery(): void {
+  public requestForegroundRecoveryDiscovery(requestId?: string): void {
     if (typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()) {
       this.sendClientLifecycle(true, "recovery_requires_foreground");
-      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: {} }));
+      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: requestId ? { request_id: requestId } : {} }));
     }
   }
 

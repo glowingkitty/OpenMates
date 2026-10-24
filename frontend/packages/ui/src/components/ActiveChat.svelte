@@ -327,6 +327,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
         scrollToTop: () => void;
         scrollToBottom: (smooth?: boolean) => void;
+        revealSubmittedMessage: (messageId: string) => Promise<void>;
         restoreScrollPosition: (messageId: string) => void;
         scrollToLatestAssistantMessage: () => void;
     };
@@ -7960,6 +7961,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory", { count: currentMessages.length });
             // Distinguish the optimistic first turn from loaded history.
             chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
+            void chatHistoryRef.revealSubmittedMessage(message.message_id);
         }
         showWelcome = false;
 
@@ -7994,7 +7996,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const message = event.detail.message;
         if (currentChat?.chat_id !== message.chat_id) return;
         const index = currentMessages.findIndex(candidate => candidate.message_id === message.message_id);
-        if (index < 0) return;
+        if (index < 0) {
+            // A same-chat reload may have replaced the optimistic window while
+            // preparation was running. Reconcile the same accepted user row.
+            void handleSendMessage(new CustomEvent('sendMessage', { detail: { message } }));
+            return;
+        }
         currentMessages = currentMessages.map((candidate, candidateIndex) => candidateIndex === index ? message : candidate);
         chatHistoryRef?.updateMessages(currentMessages);
     }
@@ -9659,6 +9666,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (messagesUpdatedInPlace) {
+            if (detail.type === 'recovery_job_persisted') {
+                // Recovery may publish an older turn while a new user row is
+                // already visible. Show conversation order, not arrival order.
+                currentMessages = [...currentMessages].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
+            }
             if (chatHistoryRef) {
                 console.debug('[ActiveChat] handleChatUpdated: Calling chatHistoryRef.updateMessages with new currentMessages.');
                 chatHistoryRef.updateMessages(currentMessages);

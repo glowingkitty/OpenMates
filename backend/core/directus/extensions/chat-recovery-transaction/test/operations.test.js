@@ -71,7 +71,30 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
         })
         .slice(0, limitCount);
       const addWhere = (args) => {
-        if (typeof args[0] === 'object') {
+        if (typeof args[0] === 'function') {
+          let matches = () => true;
+          const clause = (nested) => {
+            const checks = [];
+            const nestedQuery = {
+              where(...values) { checks.push(values); return nestedQuery; },
+              andWhere(...values) { checks.push(values); return nestedQuery; },
+            };
+            if (typeof nested[0] === 'function') nested[0].call(nestedQuery);
+            else checks.push(nested);
+            return (row) => checks.every((values) => {
+              if (typeof values[0] === 'object') return Object.entries(values[0]).every(([key, value]) => compare(row[key], '=', value));
+              const [field, operator, value] = values.length === 2 ? [values[0], '=', values[1]] : values;
+              return compare(row[field], operator, value);
+            });
+          };
+          const group = {
+            where(...values) { const before = matches, next = clause(values); matches = row => before(row) && next(row); return group; },
+            andWhere(...values) { return group.where(...values); },
+            orWhere(...values) { const before = matches, next = clause(values); matches = row => before(row) || next(row); return group; },
+          };
+          args[0].call(group);
+          predicates.push(row => matches(row));
+        } else if (typeof args[0] === 'object') {
           predicates.push((row) => Object.entries(args[0]).every(([key, value]) => compare(row[key], '=', value)));
         } else {
           const [field, operator, value] = args.length === 2 ? [args[0], '=', args[1]] : args;
@@ -4877,4 +4900,34 @@ test('personal draft registration and account deletion serialize on the account 
     assert.equal(database.rows.chat_recovery_account_fences[0].id, OWNER);
     await assert.rejects(register(), (error) => error.code === 'account_recovery_fenced');
   }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover
+test('discovery exposes an owner live lease as pending without making it claimable or leaking its secrets', async () => {
+  const seed = leasedSeed();
+  const start = new Date('2029-01-01T00:00:00Z');
+  seed.chat_completion_recovery_jobs[0].created_at = new Date(start.getTime() - 5_000);
+  const database = fakeDatabase(seed);
+  await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, device_hash: 'old-connection',
+  }, start);
+  const pending = await executeOperation(database, 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'reloaded-connection',
+  }, new Date(start.getTime() + 1_000));
+  assert.equal(pending.jobs.length, 0);
+  assert.equal(pending.pending_jobs.length, 1);
+  assert.equal(pending.pending_jobs[0].job_id, JOB_ID);
+  assert.equal(pending.pending_jobs[0].created_at, Math.floor(start.getTime() / 1000) - 5);
+  for (const key of ['sealed_payload', 'lease_token', 'lease_token_digest', 'lease_holder_hash']) {
+    assert.equal(key in pending.pending_jobs[0], false);
+  }
+  const foreign = await executeOperation(database, 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: 'e'.repeat(64), device_hash: 'foreign',
+  }, start);
+  assert.deepEqual(foreign, { jobs: [], pending_jobs: [] });
+  const expired = await executeOperation(database, 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'reloaded-connection',
+  }, new Date(start.getTime() + 60_001));
+  assert.equal(expired.jobs[0].job_id, JOB_ID);
+  assert.equal(expired.pending_jobs.length, 0);
 });

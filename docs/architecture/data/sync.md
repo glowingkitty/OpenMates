@@ -223,6 +223,12 @@ Client-side Phase 1a handling must use the shared chat metadata merge policy (`m
 - Used when opening a metadata-only parent chat or any sub-chat.
 - Returns encrypted messages, embeds, embed keys, Code Run outputs, compression checkpoints, and version data for requested chats only.
 
+### Completed Replies Before A Saved-Chat Follow-Up
+
+After reload, the web sender performs a fresh foreground recovery discovery before building a saved-chat follow-up when no retained submission or in-memory predecessor already owns that ordering. An optional `request_id` correlates the job pages and completion fence. The sender collects these frames in wire order, waits for completed replies in the same chat to be canonically persisted and hydrated, then reads the refreshed history and version. Discovery, key, lease or persistence failures stop admission rather than sending incomplete history.
+
+Discovery reports an unexpired lease as owner-scoped `pending_jobs` metadata; it does not expose the lease token or make the job claimable. The sender waits and rescans until recovery settles or its bounded deadline expires. A stable job creation timestamp preserves the original assistant position when the final stream marker was missed. These fields are additive; uncorrelated discovery and the sealed reply payload retain their existing format.
+
 ### App Settings And Memories
 
 - Automatic after startup metadata sync
