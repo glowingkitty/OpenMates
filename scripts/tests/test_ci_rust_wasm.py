@@ -777,5 +777,450 @@ class BrowserPackagingTests(unittest.TestCase):
 
 
 
+class ProvenanceDiagnosticTests(unittest.TestCase):
+    """Actual provenance/producer/check functions; synthetic files, no child process."""
+
+    def fixture(self, root):
+        private, work = root / "private", root / "work"
+        private.mkdir()
+        work.mkdir()
+        binary = install_bindgen_fixture(private, work)
+        package = private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129"
+        archive = (
+            private / "cargo/registry/cache/inert-index/wasm-bindgen-cli-0.2.129.crate"
+        )
+        return private, work, binary, package, archive
+
+    def test_actual_provenance_each_guard_failure_has_exact_checkpoint(self):
+        cases = (
+            ("source-missing", "unique-count", None),
+            ("source-duplicate", "unique-count", None),
+            ("archive-missing", "unique-count", None),
+            ("archive-duplicate", "unique-count", None),
+            ("manifest-missing", "manifest-read", None),
+            ("manifest-invalid", "manifest-read", None),
+            ("manifest-package-type", "manifest-identity", None),
+            ("manifest-name", "manifest-identity", "manifestNameMatches"),
+            ("manifest-version", "manifest-identity", "manifestVersionMatches"),
+            ("checksum-missing", "checksum-read", None),
+            ("checksum-invalid-json", "checksum-read", None),
+            ("checksum-missing-package", "checksum-read", None),
+            ("checksum-shape", "checksum-validation", "checksumWellFormed"),
+            ("checksum-mismatch", "checksum-validation", "checksumMatches"),
+            ("archive-world-writable", "archive-read", None),
+            ("lock-missing", "published-lock-read", None),
+            ("lock-invalid", "published-lock-read", None),
+            ("lock-root", "published-lock-root", "publishedLockRootMatches"),
+            ("binary-missing", "binary-stat", None),
+            ("binary-symlink", "binary-read", "binaryRegular"),
+            ("binary-world-writable", "binary-read", "binaryModeSafe"),
+            ("binary-no-exec", "binary-identity", "binaryExecutable"),
+            ("binary-hardlink", "binary-identity", "binarySingleLink"),
+            ("binary-size", "binary-read", "binarySizeWithinLimit"),
+            ("binary-owner", "binary-read", "binaryOwner"),
+            ("binary-identity", "binary-identity", "binaryIdentityMatches"),
+        )
+        for fault, substage, false_check in cases:
+            with (
+                self.subTest(fault=fault),
+                TemporaryDirectory() as directory,
+                ExitStack() as stack,
+            ):
+                root = Path(directory)
+                private, work, binary, package, archive = self.fixture(root)
+                if fault == "source-missing":
+                    lane.shutil.rmtree(package)
+                elif fault == "source-duplicate":
+                    duplicate = package.parent.parent / "another-index" / package.name
+                    duplicate.mkdir(parents=True)
+                elif fault == "archive-missing":
+                    archive.unlink()
+                elif fault == "archive-duplicate":
+                    duplicate = archive.parent.parent / "another-index" / archive.name
+                    duplicate.parent.mkdir()
+                    duplicate.write_bytes(b"synthetic")
+                elif fault == "manifest-missing":
+                    (package / "Cargo.toml").unlink()
+                elif fault == "manifest-invalid":
+                    (package / "Cargo.toml").write_text("[PRIVATE_INVALID")
+                elif fault == "manifest-package-type":
+                    (package / "Cargo.toml").write_text('package="PRIVATE_STRING"\n')
+                elif fault in {"manifest-name", "manifest-version"}:
+                    (package / "Cargo.toml").write_text(
+                        '[package]\nname="'
+                        + (
+                            "PRIVATE_NAME"
+                            if fault == "manifest-name"
+                            else "wasm-bindgen-cli"
+                        )
+                        + '"\nversion="'
+                        + (
+                            "PRIVATE_VERSION"
+                            if fault == "manifest-version"
+                            else lane.BINDGEN_VERSION
+                        )
+                        + '"\n'
+                    )
+                elif fault == "checksum-missing":
+                    (package / ".cargo-checksum.json").unlink()
+                elif fault == "checksum-invalid-json":
+                    (package / ".cargo-checksum.json").write_text(
+                        "PRIVATE_INVALID_JSON"
+                    )
+                elif fault == "checksum-missing-package":
+                    (package / ".cargo-checksum.json").write_text("{}")
+                elif fault in {"checksum-shape", "checksum-mismatch"}:
+                    (package / ".cargo-checksum.json").write_text(
+                        json.dumps(
+                            {
+                                "package": "PRIVATE_CHECKSUM"
+                                if fault == "checksum-shape"
+                                else "0" * 64
+                            }
+                        )
+                    )
+                elif fault == "archive-world-writable":
+                    archive.chmod(0o666)
+                elif fault == "lock-missing":
+                    (package / "Cargo.lock").unlink()
+                elif fault == "lock-invalid":
+                    (package / "Cargo.lock").write_text("[PRIVATE_INVALID")
+                elif fault == "lock-root":
+                    (package / "Cargo.lock").write_text(
+                        'version=4\n[[package]]\nname="PRIVATE_ROOT"\nversion="0"\n'
+                    )
+                elif fault == "binary-missing":
+                    binary.unlink()
+                elif fault == "binary-symlink":
+                    target = binary.with_name("inert-target")
+                    binary.rename(target)
+                    binary.symlink_to(target)
+                elif fault == "binary-world-writable":
+                    binary.chmod(0o702)
+                elif fault == "binary-no-exec":
+                    binary.chmod(0o600)
+                elif fault == "binary-hardlink":
+                    os.link(binary, binary.with_name("inert-link"))
+                elif fault == "binary-size":
+                    with binary.open("r+b") as stream:
+                        stream.truncate(64 * 1024**2 + 1)
+                elif fault == "binary-owner":
+                    actual_uid = lane.os.getuid()
+                    stack.enter_context(
+                        patch.object(
+                            lane.os,
+                            "getuid",
+                            side_effect=lambda: (
+                                actual_uid + 1
+                                if state["substage"] == "binary-read"
+                                else actual_uid
+                            ),
+                        )
+                    )
+                    # The pre-read diagnostic observes the same wrong-owner predicate.
+                    actual_lstat = Path.lstat
+
+                    def lstat(path):
+                        info = actual_lstat(path)
+                        if path == binary:
+                            fields = {
+                                name: getattr(info, name)
+                                for name in dir(info)
+                                if name.startswith("st_")
+                            }
+                            fields["st_uid"] += 1
+                            return SimpleNamespace(**fields)
+                        return info
+
+                    stack.enter_context(patch.object(Path, "lstat", lstat))
+                elif fault == "binary-identity":
+                    actual_regular = lane.sdk.regular
+
+                    def read_and_replace(path, *args):
+                        data = actual_regular(path, *args)
+                        if path == binary:
+                            binary.chmod(0o500)
+                        return data
+
+                    stack.enter_context(
+                        patch.object(lane.sdk, "regular", side_effect=read_and_replace)
+                    )
+                state = lane.new_provenance_diagnostic()
+                with self.assertRaises(Exception) as caught:
+                    lane.installed_bindgen_provenance(private, work, state)
+                diagnostic = lane.closed_provenance_diagnostic(state, caught.exception)
+                self.assertEqual(diagnostic["substage"], substage)
+                if false_check:
+                    self.assertIs(diagnostic[false_check], False)
+                if substage in {"unique-count", "manifest-read"}:
+                    self.assertIsNone(diagnostic["checksumMatches"])
+                    self.assertIsNone(diagnostic["binaryRegular"])
+                if fault in {"manifest-name", "manifest-package-type"}:
+                    self.assertIsNone(diagnostic["manifestVersionMatches"])
+                if fault in {"binary-no-exec", "binary-hardlink"}:
+                    self.assertIsNone(diagnostic["binaryIdentityMatches"])
+                self.assertIsNone(diagnostic["beforeVersionFreeBytes"])
+                encoded = json.dumps(diagnostic)
+                for private_value in ("PRIVATE", str(root), archive.name, binary.name):
+                    self.assertNotIn(private_value, encoded)
+                self.assertIn(diagnostic["exceptionClass"], lane.PROVENANCE_CLASSES)
+                if fault.endswith("duplicate"):
+                    self.assertEqual(
+                        diagnostic[
+                            "sourceCount"
+                            if fault.startswith("source")
+                            else "archiveCount"
+                        ],
+                        2,
+                    )
+
+    def test_success_provenance_output_matches_synthetic_fixture(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = self.fixture(Path(directory))
+            state = lane.new_provenance_diagnostic()
+            info = binary.stat()
+            expected = {
+                "package": "wasm-bindgen-cli",
+                "version": "0.2.129",
+                "registry": "crates.io",
+                "url": "https://crates.io/crates/wasm-bindgen-cli/0.2.129",
+                "crateSha256": hashlib.sha256(
+                    b"synthetic published crate fixture"
+                ).hexdigest(),
+                "publishedCargoLockSha256": hashlib.sha256(
+                    b'version=4\n[[package]]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n'
+                ).hexdigest(),
+                "binarySha256": hashlib.sha256(b"inert fixture binary").hexdigest(),
+                "binaryIdentity": {
+                    "device": info.st_dev,
+                    "inode": info.st_ino,
+                    "bytes": len(b"inert fixture binary"),
+                    "mtimeNs": info.st_mtime_ns,
+                    "ctimeNs": info.st_ctime_ns,
+                    "mode": info.st_mode,
+                    "uid": os.getuid(),
+                    "links": 1,
+                },
+            }
+            result = lane.installed_bindgen_provenance(private, work, state)
+            self.assertEqual(result, expected)
+            self.assertTrue(all(state[key] is True for key in lane.PROVENANCE_BOOLEANS))
+            self.assertEqual(state["sourceCount"], 1)
+            self.assertEqual(state["archiveCount"], 1)
+            self.assertIsNone(state["beforeVersionFreeBytes"])
+            self.assertNotIn("packagingDiagnostic", result)
+
+    def test_closed_schema_refuses_private_unknown_wrong_type_and_unbounded_fields(
+        self,
+    ):
+        changes = {
+            "substage": "PRIVATE_PHASE",
+            "sourceCount": 3,
+            "archiveCount": -1,
+            "binaryBytes": 2**63,
+            "checksumMatches": "PRIVATE_TRUE",
+            "beforeVersionFreeBytes": True,
+            "beforeVersionMinimumFreeBytes": -1,
+            "minimumReserveBytes": 2**64,
+        }
+        for key, value in changes.items():
+            state = lane.new_provenance_diagnostic()
+            state[key] = value
+            with self.subTest(key=key), self.assertRaises(lane.sdk.Refused):
+                lane.closed_provenance_diagnostic(state, RuntimeError("PRIVATE_KEY"))
+        state = lane.new_provenance_diagnostic()
+        state["argv"] = "PRIVATE_KEY"
+        with self.assertRaises(lane.sdk.Refused):
+            lane.closed_provenance_diagnostic(state, RuntimeError())
+        for error in (
+            lane.sdk.Refused("PRIVATE_PIN"),
+            ValueError("PRIVATE_PATH"),
+            type("PRIVATE_CLASS", (Exception,), {})("PRIVATE_KEY"),
+        ):
+            diagnostic = lane.closed_provenance_diagnostic(
+                lane.new_provenance_diagnostic(), error
+            )
+            self.assertNotIn("PRIVATE", json.dumps(diagnostic))
+            self.assertEqual(diagnostic["code"], "unclassified")
+
+    def test_actual_before_version_disk_and_deadline_guards_still_precede_step_append(
+        self,
+    ):
+        for code in ("artifact_reserve", "deadline"):
+            with TemporaryDirectory() as directory:
+                root = Path(directory)
+                runner = lane.WasmCommands(
+                    root, root, {"PATH": os.defpath}, time.monotonic() + 100
+                )
+                state = lane.new_provenance_diagnostic()
+                state["substage"] = "before-version"
+                runner.packaging_diagnostic = state
+                if code == "deadline":
+                    runner.deadline = 0
+                with (
+                    patch.object(
+                        lane.shutil,
+                        "disk_usage",
+                        return_value=SimpleNamespace(free=123),
+                    ),
+                    patch.object(
+                        lane.sdk.subprocess,
+                        "Popen",
+                        side_effect=AssertionError("no process permitted"),
+                    ),
+                    self.assertRaises(lane.sdk.Refused) as caught,
+                ):
+                    runner.run(
+                        "bindgen-version",
+                        lane.commands()[4],
+                        seconds=lane.STAGE_SECONDS[4],
+                    )
+                self.assertEqual(caught.exception.args, (code,))
+                self.assertEqual(runner.steps, [])
+                diagnostic = lane.closed_provenance_diagnostic(state, caught.exception)
+                self.assertEqual(diagnostic["code"], code)
+                self.assertEqual(diagnostic["beforeVersionFreeBytes"], 123)
+                self.assertEqual(diagnostic["minimumReserveBytes"], lane.sdk.RESERVE)
+                if code == "artifact_reserve":
+                    self.assertEqual(diagnostic["beforeVersionMinimumFreeBytes"], 123)
+
+    def test_producer_receipt_checkpoint_and_observer_failure_preserve_primary_exception(
+        self,
+    ):
+        original_fixture = install_bindgen_fixture
+        module = sys.modules[__name__]
+
+        def corrupt(private, work, executable=b"inert fixture binary"):
+            result = original_fixture(private, work, executable)
+            package = (
+                private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129"
+            )
+            (package / "Cargo.lock").write_text("version=4\n")
+            return result
+
+        with patch.object(module, "install_bindgen_fixture", side_effect=corrupt):
+            receipt = WasmRunTests().execute()[0]
+        self.assertEqual(receipt["status"], "failed")
+        self.assertEqual(receipt["code"], "packaging")
+        self.assertEqual(receipt["steps"][-1]["stage"], "bindgen-install")
+        self.assertEqual(
+            receipt["packagingDiagnostic"]["substage"], "published-lock-root"
+        )
+        self.assertFalse(receipt["packagingDiagnostic"]["publishedLockRootMatches"])
+        self.assertTrue(receipt["cleanupVerified"])
+        with (
+            patch.object(module, "install_bindgen_fixture", side_effect=corrupt),
+            patch.object(
+                lane,
+                "closed_provenance_diagnostic",
+                side_effect=RuntimeError("PRIVATE_OBSERVER"),
+            ),
+        ):
+            receipt = WasmRunTests().execute()[0]
+        self.assertEqual(receipt["code"], "packaging")
+        self.assertNotIn("packagingDiagnostic", receipt)
+        self.assertNotIn("PRIVATE", json.dumps(receipt))
+        self.assertNotIn("packagingDiagnostic", WasmRunTests().execute()[0])
+
+    def test_discovery_failures_leave_unreached_counts_and_checks_null(self):
+        for stage in ("source-discovery", "archive-discovery"):
+            with TemporaryDirectory() as directory:
+                private, work, binary, package, archive = self.fixture(Path(directory))
+                original_glob = Path.glob
+
+                def glob(path, pattern):
+                    if path.name == ("src" if stage == "source-discovery" else "cache"):
+                        raise PermissionError("PRIVATE_PATH_KEY")
+                    return original_glob(path, pattern)
+
+                state = lane.new_provenance_diagnostic()
+                with (
+                    patch.object(Path, "glob", glob),
+                    self.assertRaises(PermissionError) as caught,
+                ):
+                    lane.installed_bindgen_provenance(private, work, state)
+                diagnostic = lane.closed_provenance_diagnostic(state, caught.exception)
+                self.assertEqual(diagnostic["substage"], stage)
+                self.assertIsNone(diagnostic["archiveCount"])
+                self.assertIsNone(diagnostic["manifestNameMatches"])
+                self.assertEqual(
+                    diagnostic["sourceCount"],
+                    None if stage == "source-discovery" else 1,
+                )
+                self.assertNotIn("PRIVATE", json.dumps(diagnostic))
+
+    def test_count_and_byte_caps_and_original_error_identity_are_preserved(self):
+        original_glob = Path.glob
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = self.fixture(Path(directory))
+
+            def glob(path, pattern):
+                if path.name in {"src", "cache"}:
+                    return iter([package] * 100)
+                return original_glob(path, pattern)
+
+            state = lane.new_provenance_diagnostic()
+            with (
+                patch.object(Path, "glob", glob),
+                self.assertRaises(lane.sdk.Refused) as caught,
+            ):
+                lane.installed_bindgen_provenance(private, work, state)
+            diagnostic = lane.closed_provenance_diagnostic(state, caught.exception)
+            self.assertEqual(
+                (diagnostic["sourceCount"], diagnostic["archiveCount"]), (2, 2)
+            )
+            primary = lane.sdk.Refused("packaging")
+            with (
+                patch.object(lane, "locked_bindgen_version", side_effect=primary),
+                patch.object(
+                    lane,
+                    "closed_provenance_diagnostic",
+                    side_effect=RuntimeError("PRIVATE_OBSERVER"),
+                ),
+                self.assertRaises(lane.sdk.Refused) as observed,
+            ):
+                lane.produce_browser_package(object(), private, work, binary, work, {})
+            self.assertIs(observed.exception, primary)
+
+    def test_initial_all_checks_are_unreached_and_safe_exception_classes_are_closed(
+        self,
+    ):
+        state = lane.new_provenance_diagnostic()
+        self.assertTrue(
+            all(value is None for key, value in state.items() if key != "substage")
+        )
+        for error in (
+            lane.sdk.Refused("packaging"),
+            FileNotFoundError("PRIVATE"),
+            PermissionError("PRIVATE"),
+            OSError("PRIVATE"),
+            KeyError("PRIVATE"),
+            TypeError("PRIVATE"),
+            ValueError("PRIVATE"),
+            UnicodeDecodeError("utf8", b"PRIVATE", 0, 1, "PRIVATE"),
+        ):
+            result = lane.closed_provenance_diagnostic(state, error)
+            self.assertIn(result["exceptionClass"], lane.PROVENANCE_CLASSES)
+            self.assertNotIn("PRIVATE", json.dumps(result))
+        for field in lane.PROVENANCE_BOOLEANS:
+            for invalid in (0, 1, "PRIVATE", [], {}):
+                state = lane.new_provenance_diagnostic()
+                state[field] = invalid
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.closed_provenance_diagnostic(state, RuntimeError())
+
+    def test_diagnostic_values_cannot_become_guard_authority(self):
+        class Forged(dict):
+            def __getitem__(self, key):
+                return True
+
+        with TemporaryDirectory() as directory:
+            private, work, binary, package, archive = self.fixture(Path(directory))
+            (package / ".cargo-checksum.json").write_text(
+                json.dumps({"package": "0" * 64})
+            )
+            with self.assertRaises(lane.sdk.Refused):
+                lane.installed_bindgen_provenance(private, work, Forged())
+
 if __name__ == "__main__":
     unittest.main()

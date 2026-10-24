@@ -151,27 +151,103 @@ def package_inventory(folder):
             "inventorySha256": sdk.sha(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode())}
 
 
-def installed_bindgen_provenance(private, work):
+PROVENANCE_SUBSTAGES = frozenset({
+    "locked-version", "install", "source-discovery", "archive-discovery", "unique-count",
+    "manifest-read", "manifest-identity", "checksum-read", "archive-read", "checksum-validation",
+    "published-lock-read", "published-lock-root", "binary-stat", "binary-read", "binary-identity",
+    "before-version", "version-output", "package-output",
+})
+PROVENANCE_CODES = frozenset({"packaging", "unsafe_file", "changed_file", "deadline", "artifact_reserve",
+                             "stage_deadline", "child_failed", "diagnostic_bound", "unclassified"})
+PROVENANCE_BOOLEANS = (
+    "manifestNameMatches", "manifestVersionMatches", "checksumWellFormed", "checksumMatches",
+    "publishedLockRootMatches", "binaryRegular", "binaryOwner", "binaryModeSafe", "binarySizeWithinLimit",
+    "binaryExecutable", "binarySingleLink", "binaryIdentityMatches",
+)
+PROVENANCE_CLASSES = frozenset({"Refused", "FileNotFoundError", "PermissionError", "OSError", "TOMLDecodeError",
+                                "JSONDecodeError", "UnicodeDecodeError", "KeyError", "TypeError", "AttributeError", "ValueError", "other"})
+
+
+def new_provenance_diagnostic():
+    return {"substage": "locked-version", "sourceCount": None, "archiveCount": None,
+            **{key: None for key in PROVENANCE_BOOLEANS}, "binaryBytes": None,
+            "beforeVersionFreeBytes": None, "beforeVersionMinimumFreeBytes": None, "minimumReserveBytes": None}
+
+
+def closed_provenance_diagnostic(state, error):
+    """A closed diagnostic only; never stringify exceptions, paths or private data."""
+    sdk.require(type(state) is dict and set(state) == set(new_provenance_diagnostic()), "packaging")
+    sdk.require(type(state["substage"]) is str and state["substage"] in PROVENANCE_SUBSTAGES, "packaging")
+    for key in PROVENANCE_BOOLEANS:
+        sdk.require(state[key] is None or type(state[key]) is bool, "packaging")
+    for key, limit in (("sourceCount", 2), ("archiveCount", 2), ("binaryBytes", 64 * 1024**2 + 1),
+                       ("beforeVersionFreeBytes", 2**63 - 1), ("beforeVersionMinimumFreeBytes", 2**63 - 1),
+                       ("minimumReserveBytes", 2**63 - 1)):
+        value = state[key]
+        sdk.require(value is None or type(value) is int and 0 <= value <= limit, "packaging")
+    classes = {sdk.Refused: "Refused", FileNotFoundError: "FileNotFoundError", PermissionError: "PermissionError",
+               OSError: "OSError", tomllib.TOMLDecodeError: "TOMLDecodeError", json.JSONDecodeError: "JSONDecodeError",
+               UnicodeDecodeError: "UnicodeDecodeError", KeyError: "KeyError", TypeError: "TypeError", AttributeError: "AttributeError", ValueError: "ValueError"}
+    code = error.args[0] if type(error) is sdk.Refused and len(error.args) == 1 else None
+    code = code if type(code) is str and code in PROVENANCE_CODES else "unclassified"
+    return {**state, "exceptionClass": classes.get(type(error), "other"), "code": code}
+
+
+def installed_bindgen_provenance(private, work, diagnostic=None):
+    diagnostic = new_provenance_diagnostic() if diagnostic is None else diagnostic
     name = "wasm-bindgen-cli-" + BINDGEN_VERSION
+    diagnostic["substage"] = "source-discovery"
     sources = list((private / "cargo/registry/src").glob("*/" + name))
+    diagnostic["sourceCount"] = min(len(sources), 2)
+    diagnostic["substage"] = "archive-discovery"
     archives = list((private / "cargo/registry/cache").glob("*/" + name + ".crate"))
+    diagnostic["archiveCount"] = min(len(archives), 2)
+    diagnostic["substage"] = "unique-count"
     sdk.require(len(sources) == len(archives) == 1, "packaging")
+    diagnostic["substage"] = "manifest-read"
     package = tomllib.loads(sdk.regular(sources[0] / "Cargo.toml").decode())
+    diagnostic["substage"] = "manifest-identity"
+    metadata = package.get("package", {})
+    name_matches = isinstance(metadata, dict) and metadata.get("name") == "wasm-bindgen-cli"
+    diagnostic["manifestNameMatches"] = name_matches
+    diagnostic["manifestVersionMatches"] = metadata.get("version") == BINDGEN_VERSION if name_matches else None
     sdk.require(package.get("package", {}).get("name") == "wasm-bindgen-cli"
                 and package["package"].get("version") == BINDGEN_VERSION, "packaging")
+    diagnostic["substage"] = "checksum-read"
     checksum = json.loads(sdk.regular(sources[0] / ".cargo-checksum.json"))["package"]
+    diagnostic["substage"] = "archive-read"
     archive = sdk.regular(archives[0])
-    sdk.require(isinstance(checksum, str) and re.fullmatch(r"[0-9a-f]{64}", checksum)
-                and sdk.sha(archive) == checksum, "packaging")
+    diagnostic["substage"] = "checksum-validation"
+    well_formed = isinstance(checksum, str) and re.fullmatch(r"[0-9a-f]{64}", checksum)
+    diagnostic["checksumWellFormed"] = bool(well_formed)
+    checksum_matches = sdk.sha(archive) == checksum if well_formed else None
+    diagnostic["checksumMatches"] = checksum_matches
+    sdk.require(well_formed and checksum_matches, "packaging")
+    diagnostic["substage"] = "published-lock-read"
     published_lock = sdk.regular(sources[0] / "Cargo.lock")
     locked = tomllib.loads(published_lock.decode())
-    sdk.require(any(row.get("name") == "wasm-bindgen-cli" and row.get("version") == BINDGEN_VERSION
-                    for row in locked.get("package", [])), "packaging")
+    diagnostic["substage"] = "published-lock-root"
+    root_matches = any(row.get("name") == "wasm-bindgen-cli" and row.get("version") == BINDGEN_VERSION
+                       for row in locked.get("package", []))
+    diagnostic["publishedLockRootMatches"] = root_matches
+    sdk.require(root_matches, "packaging")
     binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    diagnostic["substage"] = "binary-stat"
     identity = binary.lstat()
+    diagnostic.update(binaryBytes=min(max(identity.st_size, 0), 64 * 1024**2 + 1),
+                      binaryRegular=stat.S_ISREG(identity.st_mode), binaryOwner=identity.st_uid == os.getuid(),
+                      binaryModeSafe=not bool(identity.st_mode & 0o002), binarySizeWithinLimit=identity.st_size <= 64 * 1024**2,
+                      binaryExecutable=bool(identity.st_mode & 0o111), binarySingleLink=identity.st_nlink == 1)
+    diagnostic["substage"] = "binary-read"
     executable = sdk.regular(binary)
+    diagnostic["substage"] = "binary-identity"
+    # Keep the original short-circuit: do not read an identity guard we never reached.
+    identity_matches = None
+    if identity.st_mode & 0o111 and identity.st_nlink == 1:
+        identity_matches = sdk.file_identity(identity) == sdk.file_identity(binary.lstat())
+    diagnostic["binaryIdentityMatches"] = identity_matches
     sdk.require(identity.st_mode & 0o111 and identity.st_nlink == 1
-                and sdk.file_identity(identity) == sdk.file_identity(binary.lstat()), "packaging")
+                and identity_matches, "packaging")
     return {"package": "wasm-bindgen-cli", "version": BINDGEN_VERSION, "registry": "crates.io",
             "url": "https://crates.io/crates/wasm-bindgen-cli/" + BINDGEN_VERSION,
             "crateSha256": checksum, "publishedCargoLockSha256": sdk.sha(published_lock),
@@ -183,41 +259,54 @@ def installed_bindgen_provenance(private, work):
 
 def produce_browser_package(runner, private, work, artifact, artifact_dir, receipt):
     """Execute the real installed bindgen producer and inventory its emitted bytes."""
-    locked_bindgen_version(work)
-    runner.run("bindgen-install", commands()[3], seconds=STAGE_SECONDS[3])
-    provenance = installed_bindgen_provenance(private, work)
-    runner.env["PATH"] = str(work / ".ci-bindgen/bin") + os.pathsep + runner.env["PATH"]
-    version_log = runner.run("bindgen-version", commands()[4], seconds=STAGE_SECONDS[4])
-    sdk.require(sdk.regular(version_log, 65536).decode().strip() == "wasm-bindgen " + BINDGEN_VERSION, "packaging")
-    pending = work / ".ci-packaging"
-    pending.mkdir(mode=0o700)
-    generated = pending / "pkg"
-    generated.mkdir(mode=0o700)
-    raw = copy_compiled_wasm(artifact, pending / "input.wasm")
-    sdk.require(raw["sha256"] == receipt["artifact"]["sha256"], "outputs")
-    runner.run("bindgen-package", commands()[5], seconds=STAGE_SECONDS[5])
-    sdk.require(all(row["command"]["executableSha256"] == provenance["binarySha256"] for row in runner.steps[-2:]), "packaging")
-    sdk.require(installed_bindgen_provenance(private, work) == provenance, "packaging")
-    inventory = package_inventory(generated)
-    exported = artifact_dir / "package"
-    exported.mkdir(mode=0o700)
-    for row in inventory["files"]:
-        data = sdk.regular(generated / row["path"])
-        sdk.require(sdk.sha(data) == row["sha256"] and len(data) == row["rawBytes"], "outputs")
-        with (exported / row["path"]).open("xb") as stream:
-            os.fchmod(stream.fileno(), 0o600)
-            stream.write(data)
-    sdk.require(package_inventory(exported) == inventory and package_inventory(generated) == inventory, "outputs")
-    manifest = {"schemaVersion": 1, "status": "passed", "source_commit": receipt["source_commit"],
-                "source_tree": receipt["source_tree"], "harness_commit": receipt["harness_commit"], "run_id": receipt["run_id"],
-                "inputs": receipt["inputs"], "inputSetSha256": receipt["inputSetSha256"], "locks": receipt["locks"],
-                "target": "wasm32-unknown-unknown", "toolchain": "1.98.1", "inputWasmSha256": raw["sha256"],
-                "wasmBindgenVersion": BINDGEN_VERSION, "toolSha256": provenance["binarySha256"],
-                "toolProvenance": provenance, "inventory": inventory, "browserRuntimeProof": False,
-                "requestedMode": receipt["requestedMode"], "requestedTargets": receipt["requestedTargets"]}
-    sdk.write(artifact_dir / "package-manifest.json", manifest)
-    return {"manifestSha256": sdk.sha(sdk.regular(artifact_dir / "package-manifest.json")),
-            "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}
+    diagnostic = new_provenance_diagnostic()
+    try:
+        locked_bindgen_version(work)
+        diagnostic["substage"] = "install"
+        runner.run("bindgen-install", commands()[3], seconds=STAGE_SECONDS[3])
+        provenance = installed_bindgen_provenance(private, work, diagnostic)
+        runner.env["PATH"] = str(work / ".ci-bindgen/bin") + os.pathsep + runner.env["PATH"]
+        diagnostic["substage"] = "before-version"
+        runner.packaging_diagnostic = diagnostic
+        version_log = runner.run("bindgen-version", commands()[4], seconds=STAGE_SECONDS[4])
+        diagnostic["substage"] = "version-output"
+        sdk.require(sdk.regular(version_log, 65536).decode().strip() == "wasm-bindgen " + BINDGEN_VERSION, "packaging")
+        diagnostic["substage"] = "package-output"
+        pending = work / ".ci-packaging"
+        pending.mkdir(mode=0o700)
+        generated = pending / "pkg"
+        generated.mkdir(mode=0o700)
+        raw = copy_compiled_wasm(artifact, pending / "input.wasm")
+        sdk.require(raw["sha256"] == receipt["artifact"]["sha256"], "outputs")
+        runner.run("bindgen-package", commands()[5], seconds=STAGE_SECONDS[5])
+        sdk.require(all(row["command"]["executableSha256"] == provenance["binarySha256"] for row in runner.steps[-2:]), "packaging")
+        sdk.require(installed_bindgen_provenance(private, work) == provenance, "packaging")
+        inventory = package_inventory(generated)
+        exported = artifact_dir / "package"
+        exported.mkdir(mode=0o700)
+        for row in inventory["files"]:
+            data = sdk.regular(generated / row["path"])
+            sdk.require(sdk.sha(data) == row["sha256"] and len(data) == row["rawBytes"], "outputs")
+            with (exported / row["path"]).open("xb") as stream:
+                os.fchmod(stream.fileno(), 0o600)
+                stream.write(data)
+        sdk.require(package_inventory(exported) == inventory and package_inventory(generated) == inventory, "outputs")
+        manifest = {"schemaVersion": 1, "status": "passed", "source_commit": receipt["source_commit"],
+                    "source_tree": receipt["source_tree"], "harness_commit": receipt["harness_commit"], "run_id": receipt["run_id"],
+                    "inputs": receipt["inputs"], "inputSetSha256": receipt["inputSetSha256"], "locks": receipt["locks"],
+                    "target": "wasm32-unknown-unknown", "toolchain": "1.98.1", "inputWasmSha256": raw["sha256"],
+                    "wasmBindgenVersion": BINDGEN_VERSION, "toolSha256": provenance["binarySha256"],
+                    "toolProvenance": provenance, "inventory": inventory, "browserRuntimeProof": False,
+                    "requestedMode": receipt["requestedMode"], "requestedTargets": receipt["requestedTargets"]}
+        sdk.write(artifact_dir / "package-manifest.json", manifest)
+        return {"manifestSha256": sdk.sha(sdk.regular(artifact_dir / "package-manifest.json")),
+                "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}
+    except Exception as error:
+        try:
+            receipt["packagingDiagnostic"] = closed_provenance_diagnostic(diagnostic, error)
+        except Exception:
+            pass  # Observation must not replace the producer's original failure.
+        raise
 
 
 def retain_failure_diagnostic(private, output, receipt, stage):
@@ -249,9 +338,21 @@ def retain_failure_diagnostic(private, output, receipt, stage):
 
 class WasmCommands(sdk.Commands):
     def run(self, stage, command, **kwargs):
+        diagnostic = getattr(self, "packaging_diagnostic", None) if stage == "bindgen-version" else None
+        if diagnostic is not None:
+            try:
+                diagnostic["beforeVersionFreeBytes"] = shutil.disk_usage(self.root).free
+                diagnostic["minimumReserveBytes"] = sdk.RESERVE
+            except Exception:
+                pass
         try:
             return super().run(stage, command, **kwargs)
         finally:
+            if diagnostic is not None:
+                try:
+                    diagnostic["beforeVersionMinimumFreeBytes"] = self.minimum_free
+                except Exception:
+                    pass
             if self.steps and stage in STAGES:
                 self.steps[-1]["command"]["tool"] = ("cargo" if stage in {"wasm-build", "bindgen-install"} else
                     "wasm-bindgen" if stage.startswith("bindgen-") else "rustup")
