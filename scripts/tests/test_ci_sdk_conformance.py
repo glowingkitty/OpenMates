@@ -514,7 +514,7 @@ def test_reviewed_window_pins_preserve_every_unrelated_program_and_contract():
     )
     assert (
         contracts["config/sdk-capabilities.json"]
-        == "310f1caf168c4f8b42e9533c8fc270fe16b17692ef849dfd242961738379697e"
+        == "d5d2ef678ead7614228b01559f9aea9a050bf0e16a783a1be732a134fdb3d01e"
     )
     contracts["config/sdk-capabilities.json"] = (
         "8d8236ac9eeddcfb6f62dd85e9015c02e9fd9035ba171ff80238db9dc22bbe0e"
