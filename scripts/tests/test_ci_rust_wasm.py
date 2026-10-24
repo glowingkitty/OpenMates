@@ -30,13 +30,29 @@ retrieval = load("wasm_results", "ci_results.py")
 WASM = b"\0asm\x01\0\0\0\0\x01\0"
 
 
+def install_bindgen_fixture(private, work, executable=b"inert fixture binary"):
+    binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(executable)
+    binary.chmod(0o700)
+    package = private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129"
+    package.mkdir(parents=True)
+    (package / "Cargo.toml").write_text('[package]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n')
+    (package / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen-cli"\nversion="0.2.129"\n')
+    archive = private / "cargo/registry/cache/inert-index/wasm-bindgen-cli-0.2.129.crate"
+    archive.parent.mkdir(parents=True)
+    archive.write_bytes(b"synthetic published crate fixture")
+    (package / ".cargo-checksum.json").write_text(json.dumps({"package": hashlib.sha256(archive.read_bytes()).hexdigest()}))
+    return binary
+
+
 class WasmReceiptTests(unittest.TestCase):
     def fixture(self):
         inputs = {root + "/Cargo.toml": "a" * 64 for root in lane.ROOTS}
         inputs.update({name: "b" * 64 for name in lane.LOCKS})
         steps = [{"stage": stage, "status": "passed", "started": True, "returncode": 0,
                   "terminatedReturncode": 0, "elapsedSeconds": 1,
-                  "command": {"tool": "cargo" if index == 2 else "rustup", "admission": "strict-owner-mode",
+                  "command": {"tool": "cargo" if index in {2, 3} else "wasm-bindgen" if index in {4, 5} else "rustup", "admission": "strict-owner-mode",
                               "entryPackage": None, "argvSha256": hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest(),
                               "executableSha256": "c" * 64, "executableBytes": 100, "executableKind": "elf"}}
                  for index, (stage, command) in enumerate(zip(lane.STAGES, lane.commands()))]
@@ -44,11 +60,31 @@ class WasmReceiptTests(unittest.TestCase):
         report = {"runtime_profile": "rust-wasm", "results": [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}]}
         receipt = {"schemaVersion": 1, "runtime_profile": "rust-wasm", "status": "passed", "code": None,
                    "source_commit": job["source"], "source_tree": "e" * 40, "harness_commit": "f" * 40, "run_id": "123",
-                   "compilationProof": True, "browserRuntimeProof": False, "conformanceProof": False, "releaseProof": False,
+                   "compilationProof": True, "packagingProof": True, "browserRuntimeProof": False, "conformanceProof": False, "releaseProof": False,
                    "publication": False, "services": {}, "cleanupVerified": True, "sourceHeld": True, "inputs": inputs,
+                   "requestedMode": "rust-wasm", "requestedTargets": ["rust-wasm"],
                    "inputSetSha256": hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(),
                    "locks": {name: inputs[name] for name in lane.LOCKS}, "artifact": lane.wasm_metadata(WASM), "steps": steps}
-        return report, receipt, job, {"expected_inputs": inputs, "expected_tree": "e" * 40, "artifact": WASM}
+        files = {lane.PACKAGE_FILES[0]: b"export default function init() {}", lane.PACKAGE_FILES[1]: WASM,
+                 lane.PACKAGE_FILES[2]: b"export default function init(): Promise<void>;"}
+        rows = [{"path": name, "sha256": hashlib.sha256(data).hexdigest(), "rawBytes": len(data)} for name, data in sorted(files.items())]
+        inventory = {"files": rows, "rawBytes": sum(len(data) for data in files.values()),
+                     "inventorySha256": hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
+        provenance = {"package": "wasm-bindgen-cli", "version": lane.BINDGEN_VERSION, "registry": "crates.io",
+                      "url": "https://crates.io/crates/wasm-bindgen-cli/" + lane.BINDGEN_VERSION,
+                      "crateSha256": "1" * 64, "publishedCargoLockSha256": "2" * 64, "binarySha256": "c" * 64,
+                      "binaryIdentity": {"device": 1, "inode": 1, "bytes": 100, "mtimeNs": 1, "ctimeNs": 1, "mode": 0o100700, "uid": 1000, "links": 1}}
+        manifest = {"schemaVersion": 1, "status": "passed", "source_commit": job["source"], "source_tree": "e" * 40,
+                    "harness_commit": "f" * 40, "run_id": "123", "inputs": inputs, "inputSetSha256": receipt["inputSetSha256"],
+                    "locks": receipt["locks"], "target": "wasm32-unknown-unknown", "toolchain": "1.98.1",
+                    "inputWasmSha256": receipt["artifact"]["sha256"], "wasmBindgenVersion": lane.BINDGEN_VERSION,
+                    "toolSha256": provenance["binarySha256"], "toolProvenance": provenance, "inventory": inventory,
+                    "browserRuntimeProof": False, "requestedMode": "rust-wasm", "requestedTargets": ["rust-wasm"]}
+        manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
+        receipt["package"] = {"manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                              "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}
+        return report, receipt, job, {"expected_inputs": inputs, "expected_tree": "e" * 40, "artifact": WASM,
+                                     "package_manifest": manifest_bytes, "package_files": files}
 
     def valid(self, values):
         report, receipt, job, kwargs = values
@@ -59,7 +95,7 @@ class WasmReceiptTests(unittest.TestCase):
         for values in ([], ["sdk-conformance"], ["rust-wasm", "rust-wasm"]):
             with self.assertRaises(lane.sdk.Refused):
                 lane.validate_targets(values)
-        self.assertEqual(lane.commands()[-1], ["cargo", "+1.98.1", "build", "--locked", "--release", "--manifest-path",
+        self.assertEqual(lane.commands()[2], ["cargo", "+1.98.1", "build", "--locked", "--release", "--manifest-path",
                                                "packages/openmates-browser-bindings/Cargo.toml", "--target", "wasm32-unknown-unknown", "--lib"])
         self.assertEqual(lane.commands()[1], ["rustup", "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"])
         self.assertTrue(self.valid(self.fixture()))
@@ -208,7 +244,7 @@ class WasmReceiptTests(unittest.TestCase):
 
 
 class WasmRunTests(unittest.TestCase):
-    def execute(self, scenario="success", diagnostic_probe=None):
+    def execute(self, scenario="success", diagnostic_probe=None, browser_e2e=False):
         with TemporaryDirectory() as directory, ExitStack() as stack:
             base = Path(directory)
             subject, runtime = base / "subject", base / "runner"
@@ -216,6 +252,7 @@ class WasmRunTests(unittest.TestCase):
             runtime.mkdir()
             (subject / "test-results").mkdir()
             lock = b'version = 4\n[[package]]\nname = "openmates-sdk"\nversion = "0.1.0"\n'
+            lock += b'[[package]]\nname = "wasm-bindgen"\nversion = "0.2.129"\n'
             for root in lane.ROOTS:
                 crate = subject / root
                 (crate / "src").mkdir(parents=True)
@@ -226,23 +263,39 @@ class WasmRunTests(unittest.TestCase):
             before = {str(path.relative_to(subject)): lane.sdk.sha(path.read_bytes())
                       for path in subject.rglob("*") if path.is_file()}
             source, tree, harness = "a" * 40, "b" * 40, "c" * 40
-            start = time.monotonic() - (lane.BUDGET + 1 if scenario == "expired" else 0)
+            budget = lane.BROWSER_BUDGET if browser_e2e else lane.BUDGET
+            start = time.monotonic() - (budget + 1 if scenario == "expired" else 0)
             ambient = {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted", "OPENMATES_CI_ISOLATED": "1",
                        "CI_SPECS_JSON": '["rust-wasm"]', "BUILD_COMMIT_SHA": source, "CI_CANDIDATE_TREE": tree,
                        "CI_HARNESS_COMMIT": harness, "GITHUB_RUN_ID": "123", "RUNNER_TEMP": str(runtime),
                        "CI_RUST_WASM_STARTED_MONOTONIC": str(start), "CI_RUST_WASM_DEADLINE_MONOTONIC": str(start + lane.BUDGET),
                        "SENTINEL_SECRET": "must-not-reach-cargo"}
+            if browser_e2e:
+                ambient.update(CI_TEST_MODE="e2e", CI_SPECS_JSON=json.dumps([lane.BROWSER_SPEC]),
+                    CI_BROWSER_PACKAGE_STARTED_MONOTONIC=str(start), CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC=str(start + budget))
+            unchanged_ambient = dict(ambient)
             observed = []
             _, sample, _, _ = WasmReceiptTests().fixture()
             class FakeCommands:
                 def __init__(self, work, private, env, deadline):
-                    self.work, self.private, self.steps = work, private, []
+                    self.work, self.private, self.env, self.steps = work, private, env, []
                     observed.append((work, dict(env)))
                 def run(self, stage, command, **kwargs):
                     index = lane.STAGES.index(stage)
                     row = json.loads(json.dumps(sample["steps"][index]))
+                    if stage in {"bindgen-version", "bindgen-package"}:
+                        binary = self.work / ".ci-bindgen/bin/wasm-bindgen"
+                        row["command"].update(executableSha256=hashlib.sha256(binary.read_bytes()).hexdigest(), executableBytes=binary.stat().st_size)
                     self.steps.append(row)
-                    (self.private / (stage + ".log")).write_text("failed to select a version\n")
+                    log_path = self.private / (stage + ".log")
+                    log_path.write_text("wasm-bindgen 0.2.129\n" if stage == "bindgen-version" else "failed to select a version\n")
+                    if stage == "bindgen-install":
+                        install_bindgen_fixture(self.private, self.work)
+                    if stage == "bindgen-package":
+                        generated = self.work / ".ci-packaging/pkg"
+                        (generated / lane.PACKAGE_FILES[0]).write_bytes(b"export default function init() {}")
+                        (generated / lane.PACKAGE_FILES[1]).write_bytes(WASM)
+                        (generated / lane.PACKAGE_FILES[2]).write_bytes(b"export default function init(): Promise<void>;")
                     if scenario in {"cargo", "large-cargo"} and stage == "wasm-build":
                         if scenario == "large-cargo":
                             (self.private / (stage + ".log")).write_bytes(b"x" * (lane.DIAGNOSTIC_LIMIT + 16) + b"final compiler failure\n")
@@ -256,6 +309,7 @@ class WasmRunTests(unittest.TestCase):
                         (self.work / lane.LOCKS[0]).write_bytes(lock + b"# changed\n")
                     if scenario == "mutation" and stage == "wasm-build":
                         (subject / lane.ROOTS[0] / "src/lib.rs").write_text("// mutated\n")
+                    return log_path
             def git(root, *args):
                 if root == subject:
                     return tree if args[-1] == "HEAD^{tree}" else source
@@ -292,9 +346,15 @@ class WasmRunTests(unittest.TestCase):
                 return original_remove(path, *args, **kwargs)
             stack.enter_context(patch.object(lane.shutil, "rmtree", side_effect=remove))
             if scenario == "receipt-output":
-                stack.enter_context(patch.object(lane.sdk, "write", side_effect=OSError("fixture receipt refusal")))
+                original_json_write = lane.sdk.write
+                def write_json(path, value):
+                    if path.name == "ci-rust-wasm.json":
+                        raise OSError("fixture receipt refusal")
+                    return original_json_write(path, value)
+                stack.enter_context(patch.object(lane.sdk, "write", side_effect=write_json))
             results = []
-            receipt = lane.run(subject, results, environ=ambient)
+            receipt = lane.run(subject, results, environ=ambient, browser_e2e=browser_e2e)
+            self.assertEqual(ambient, unchanged_ambient)
             receipt_path = subject / "test-results/ci-rust-wasm.json"
             saved = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
             artifact = subject / "test-results/rust-wasm" / lane.WASM_NAME
@@ -321,6 +381,21 @@ class WasmRunTests(unittest.TestCase):
         self.assertNotIn("SENTINEL_SECRET", env)
         self.assertNotEqual(env["HOME"], str(Path.home()))
         self.assertIn(str(work.parent), env["CARGO_HOME"])
+
+    def test_browser_e2e_preparation_preserves_real_selector_and_separate_deadline(self):
+        captured = {}
+        def probe(subject, receipt):
+            captured.update(json.loads((subject / "test-results/rust-wasm/package-manifest.json").read_bytes()))
+        receipt, _, _, _, _, original_held, _ = self.execute(diagnostic_probe=probe, browser_e2e=True)
+        self.assertEqual(receipt["status"], "passed")
+        self.assertEqual(receipt["runtime_profile"], "rust-browser-package-for-e2e")
+        self.assertEqual(captured["requestedMode"], "e2e")
+        self.assertEqual(captured["requestedTargets"], [lane.BROWSER_SPEC])
+        self.assertTrue(original_held)
+        self.assertFalse(captured["browserRuntimeProof"])
+        failed = self.execute("expired", browser_e2e=True)[0]
+        self.assertEqual(failed["code"], "deadline")
+        self.assertFalse(failed["packagingProof"])
 
     def test_expired_clock_refuses_before_launch(self):
         receipt, saved, results, wasm, observed, _, _ = self.execute("expired")
@@ -398,7 +473,7 @@ class WasmRunTests(unittest.TestCase):
             self.assertFalse(Path("/proc", str(parent)).exists())
             try:
                 child_stat = Path("/proc", str(child), "stat").read_text()
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 child_stat = None
             if child_stat is not None:
                 self.assertEqual(child_stat.split(") ", 1)[1].split()[0], "Z")
@@ -483,6 +558,222 @@ class WasmDiagnosticTests(unittest.TestCase):
             "subject/test-results/ci-rust-wasm-private/cargo-tail.log", "subject/test-results/ci-rust-wasm-private/identity.json"])
         public = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")
         self.assertNotIn("ci-rust-wasm-private", public["with"]["path"])
+
+
+class BrowserPackagingTests(unittest.TestCase):
+    def actual_producer(self, variant="valid"):
+        with TemporaryDirectory() as directory:
+            private = Path(directory)
+            work, logs, exported = private / "source", private / "logs", private / "export"
+            for folder in (work, logs, exported):
+                folder.mkdir(mode=0o700)
+            crate = work / lane.ROOTS[-1]
+            crate.mkdir(parents=True)
+            version = "0.2.128" if variant == "lock-mismatch" else lane.BINDGEN_VERSION
+            (crate / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen"\nversion="' + version + '"\n')
+            artifact = private / "compiled.wasm"
+            artifact.write_bytes(WASM)
+            report, receipt, job, kwargs = WasmReceiptTests().fixture()
+            receipt["artifact"] = lane.wasm_metadata(WASM)
+            if variant == "changed-input":
+                artifact.write_bytes(WASM + b"changed")
+            script = ("#!" + sys.executable + "\n" +
+                "import hashlib,pathlib,sys\n"
+                "args=sys.argv[1:]\n"
+                "if args==['--version']:\n"
+                " print('wasm-bindgen " + ("0.2.128" if variant == "version-mismatch" else lane.BINDGEN_VERSION) + "');sys.exit(0)\n"
+                "assert args[1:3]==['--target','web'] and args[-2:]==['--out-name','openmates_browser']\n"
+                "raw=pathlib.Path(args[0]).read_bytes()\n"
+                "out=pathlib.Path(args[args.index('--out-dir')+1]);out.mkdir(exist_ok=True)\n"
+                "(out/'openmates_browser.js').write_text(\"export const inputSha='\"+hashlib.sha256(raw).hexdigest()+\"'; export default async function init() {}\")\n"
+                "(out/'openmates_browser_bg.wasm').write_bytes(raw)\n" +
+                ("" if variant == "missing-types" else "(out/'openmates_browser.d.ts').write_text('export default function init(): Promise<void>;')\n") +
+                ("(out/'undeclared-helper.js').write_text('extra')\n" if variant == "extra-helper" else ""))
+            installed = []
+            class ProducerRunner(lane.WasmCommands):
+                def run(self, stage, command, **options):
+                    if stage == "bindgen-install":
+                        installed.append(command)
+                        install_bindgen_fixture(private, work, script.encode())
+                        self.steps.append(json.loads(json.dumps(receipt["steps"][3])))
+                        return logs / "bindgen-install.log"
+                    result = super().run(stage, command, **options)
+                    if variant == "tool-lock-tamper" and stage == "bindgen-version":
+                        package = private / "cargo/registry/src/inert-index/wasm-bindgen-cli-0.2.129/Cargo.lock"
+                        package.write_text(package.read_text() + "# changed after admission\n")
+                    return result
+            runner = ProducerRunner(work, logs, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 10)
+            runner.steps = receipt["steps"][:3]
+            if variant != "valid":
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
+                if variant == "lock-mismatch":
+                    self.assertEqual(installed, [])
+                return
+            package = lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
+            receipt["package"], receipt["steps"] = package, runner.steps
+            manifest = (exported / "package-manifest.json").read_bytes()
+            files = {path.name: path.read_bytes() for path in (exported / "package").iterdir()}
+            self.assertIn(hashlib.sha256(WASM).hexdigest().encode(), files[lane.PACKAGE_FILES[0]])
+            self.assertEqual(files[lane.PACKAGE_FILES[1]], WASM)
+            self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40,
+                expected_inputs=kwargs["expected_inputs"], expected_tree="e" * 40, artifact=WASM,
+                package_manifest=manifest, package_files=files))
+            self.assertEqual(installed, [lane.commands()[3]])
+            self.assertIn("--locked", installed[0])
+            self.assertEqual(json.loads(manifest)["toolProvenance"]["version"], "0.2.129")
+            self.assertFalse(json.loads(manifest)["browserRuntimeProof"])
+            self.assertEqual((exported / "package-manifest.json").stat().st_mode & 0o777, 0o600)
+
+    def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(self):
+        self.actual_producer()
+
+    def test_producer_refuses_lock_version_tool_version_and_unexpected_generated_content(self):
+        for variant in ("lock-mismatch", "version-mismatch", "missing-types", "extra-helper", "tool-lock-tamper", "changed-input"):
+            self.actual_producer(variant)
+
+    def test_package_manifest_identity_provenance_and_byte_forgery_are_rejected(self):
+        for fault in ("missing-package", "changed-js", "extra-helper", "manifest-hash", "wrong-source", "wrong-mode", "tool-lock", "tool-binary"):
+            values = WasmReceiptTests().fixture()
+            report, receipt, job, kwargs = values
+            if fault == "missing-package":
+                kwargs["package_files"].pop(lane.PACKAGE_FILES[2])
+            elif fault == "changed-js":
+                kwargs["package_files"][lane.PACKAGE_FILES[0]] += b"changed"
+            elif fault == "extra-helper":
+                kwargs["package_files"]["helper.js"] = b"extra"
+            elif fault == "manifest-hash":
+                kwargs["package_manifest"] += b" "
+            else:
+                manifest = json.loads(kwargs["package_manifest"])
+                if fault == "wrong-source":
+                    manifest["source_commit"] = "0" * 40
+                elif fault == "wrong-mode":
+                    manifest["requestedMode"] = "e2e"
+                elif fault == "tool-lock":
+                    manifest["toolProvenance"]["publishedCargoLockSha256"] = "untrusted"
+                else:
+                    manifest["toolSha256"] = "0" * 64
+                kwargs["package_manifest"] = json.dumps(manifest).encode()
+                receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
+            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs), fault)
+
+    def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(self):
+        report, receipt, job, kwargs = WasmReceiptTests().fixture()
+        report["runtime_profile"] = job["mode"] = "e2e"
+        job["specs"] = json.dumps([lane.BROWSER_SPEC])
+        receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
+        manifest = json.loads(kwargs["package_manifest"])
+        manifest.update(requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
+        kwargs["package_manifest"] = json.dumps(manifest).encode()
+        receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
+        self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+        self.assertFalse(receipt["browserRuntimeProof"])
+        job["specs"] = '["other.spec.ts"]'
+        self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+
+    def test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes(self):
+        _, receipt, _, kwargs = WasmReceiptTests().fixture()
+        receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
+        manifest = json.loads(kwargs["package_manifest"])
+        manifest.update(requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
+        raw = json.dumps(manifest).encode()
+        receipt["package"]["manifestSha256"] = hashlib.sha256(raw).hexdigest()
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "test-results/rust-wasm"
+            (folder / "package").mkdir(parents=True)
+            (folder / "package-manifest.json").write_bytes(raw)
+            (folder / lane.WASM_NAME).write_bytes(WASM)
+            for name, data in kwargs["package_files"].items():
+                (folder / "package" / name).write_bytes(data)
+            env = {"CI_TEST_MODE": "e2e", "CI_SPECS_JSON": json.dumps([lane.BROWSER_SPEC]), "BUILD_COMMIT_SHA": "d" * 40,
+                   "CI_CANDIDATE_TREE": "e" * 40, "GITHUB_RUN_ID": "123", "CI_HARNESS_COMMIT": "f" * 40,
+                   "OPENMATES_BROWSER_PACKAGE_MANIFEST": "/untrusted/caller/path"}
+            def git(_root, *args):
+                return "e" * 40 if args[-1] == "HEAD^{tree}" else "d" * 40
+            with patch.object(lane, "run", return_value=receipt) as producer, patch.object(lane.sdk, "git", side_effect=git), \
+                    patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]), \
+                    patch.object(lane, "snapshot", return_value=kwargs["expected_inputs"]), \
+                    patch.dict(sys.modules, {"scripts.ci_results": retrieval}):
+                values = lane.prepare_browser_e2e_package(root, environ=env)
+                producer.assert_called_once_with(root, [], environ=env, browser_e2e=True)
+                self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST"], str(folder / "package-manifest.json"))
+                self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256"], hashlib.sha256(raw).hexdigest())
+                (folder / "package" / lane.PACKAGE_FILES[0]).write_bytes(b"forged")
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.prepare_browser_e2e_package(root, environ=env)
+
+    def test_managed_result_retrieves_only_attested_real_package_inventory(self):
+        from io import BytesIO
+        import zipfile
+        for fault in (None, "tampered-js", "extra-helper"):
+            report, receipt, job, kwargs = WasmReceiptTests().fixture()
+            report.update(source_commit=job["source"], harness_commit="f" * 40, run_id=123, success=True)
+            job.update(id="managed-inert-package", state="success", url="https://github.com/org/repo/actions/runs/123")
+            packed = BytesIO()
+            with zipfile.ZipFile(packed, "w") as bundle:
+                bundle.writestr("subject/test-results/ci-results.json", json.dumps(report))
+                bundle.writestr("subject/test-results/ci-rust-wasm.json", json.dumps(receipt))
+                bundle.writestr("subject/test-results/rust-wasm/" + lane.WASM_NAME, WASM)
+                bundle.writestr("subject/test-results/rust-wasm/package-manifest.json", kwargs["package_manifest"])
+                for name, data in kwargs["package_files"].items():
+                    bundle.writestr("subject/test-results/rust-wasm/package/" + name,
+                                    data + b"forged" if fault == "tampered-js" and name.endswith(".js") else data)
+                if fault == "extra-helper":
+                    bundle.writestr("subject/test-results/rust-wasm/package/helper.js", b"extra")
+            archive = packed.getvalue()
+            class GitHub:
+                repo = "org/repo"
+                def request(self, endpoint):
+                    if endpoint.endswith("/jobs?per_page=100"):
+                        return {"jobs": [{"id": 1, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions inert"}]}
+                    if endpoint.endswith("/artifacts?per_page=100"):
+                        return {"artifacts": [{"id": 42, "name": "isolated-test-results", "expired": False, "size_in_bytes": len(archive)}]}
+                    return {"head_sha": "f" * 40}
+            def git(args, **options):
+                if args[1] == "show":
+                    return b'version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n'
+                return "e" * 40 + "\n"
+            with TemporaryDirectory() as directory, patch.object(retrieval, "download", side_effect=lambda _cmd, _root, stream: stream.write(archive)), \
+                    patch.object(retrieval.shutil, "disk_usage", return_value=SimpleNamespace(free=retrieval.RESERVE * 2)), \
+                    patch.object(retrieval.subprocess, "check_output", side_effect=git), \
+                    patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]):
+                if fault:
+                    with self.assertRaises(RuntimeError):
+                        retrieval._fetch_reserved(GitHub(), job, Path(directory))
+                    self.assertFalse((Path(directory) / "test-results/ci-runs/managed-inert-package").exists())
+                else:
+                    result = retrieval._fetch_reserved(GitHub(), job, Path(directory))
+                    self.assertEqual(result["browser_package"]["status"], "verified")
+                    self.assertFalse(result["browser_package"]["browserRuntimeProof"])
+                    manifest_path = Path(result["directory"]) / result["browser_package"]["manifest"]
+                    self.assertEqual(hashlib.sha256(manifest_path.read_bytes()).hexdigest(), result["browser_package"]["manifestSha256"])
+
+    def test_exact_e2e_hook_clock_private_backend_and_artifact_whitelist(self):
+        import yaml
+        source = (ROOT / "scripts/ci_run_tests.py").read_text()
+        tree = ast.parse(source)
+        run = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "run_e2e")
+        segment = ast.get_source_segment(source, run)
+        self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("subprocess.Popen"))
+        self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("provision_account"))
+        self.assertIn("specs != [RUST_BROWSER_SPEC]", segment)
+        self.assertNotIn('os.environ["CI_SPECS_JSON"] =', source)
+        environment = (ROOT / "scripts/ci_environment.py").read_text()
+        parsed = ast.parse(environment)
+        private = next(node for node in parsed.body if isinstance(node, ast.Assign)
+                       and any(isinstance(target, ast.Name) and target.id == "PRIVATE_BACKEND_SPECS" for target in node.targets))
+        self.assertIn(lane.BROWSER_SPEC, ast.literal_eval(private.value.args[0]))
+        steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
+        clock = next(step for step in steps if step.get("name") == "Start bounded same-source browser package clock")
+        self.assertEqual(clock["if"], "inputs.mode == 'e2e' && inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]'")
+        self.assertIn("started + 1800", clock["run"])
+        self.assertEqual(lane.BUDGET, 2700)
+        upload = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")
+        for name in lane.PACKAGE_FILES:
+            self.assertIn("subject/test-results/rust-wasm/package/" + name, upload["with"]["path"])
+        self.assertNotIn("rust-wasm/**", upload["with"]["path"])
 
 
 

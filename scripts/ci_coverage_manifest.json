@@ -924,6 +924,20 @@
         "components/chat-message-timeline.spec.ts",
         "chat-message-timeline.spec.ts"
       ]
+    },
+    "rust_core_session_harness": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only component presentation preview selected by the isolated component marker. No Rust or CLI build, WASM, account, backend services, external provider credentials or AI inference.",
+      "specs": [
+        "components/rust-core-session-harness.spec.ts"
+      ]
+    },
+    "rust_core_browser_session": {
+      "execution": "e2e",
+      "enabling_work": "Exact standalone browser authentication target uses fresh runner-private accounts and the isolated internal-network core API/CMS/cache/Vault. Builds the same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. The four cases cover session authentication, status and forgetting only; no AI inference, marker-chat epoch, send, sync or recovery fixtures.",
+      "specs": [
+        "rust-core-browser-session.spec.ts"
+      ]
     }
   },
   "holds": {

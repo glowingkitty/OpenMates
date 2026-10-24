@@ -63,6 +63,7 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-target.spec.ts", "storage-capacity-target-smoke.spec.ts",
 })
 TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
+RUST_BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
 APPROVED_RECOVERY_CASES = frozenset({
@@ -1362,6 +1363,8 @@ def run_e2e(
             or not name.endswith(".spec.ts")
         ):
             raise ValueError("Invalid spec selection")
+    if RUST_BROWSER_SPEC in specs and (specs != [RUST_BROWSER_SPEC] or artifact or component or visual_smoke or case_title):
+        raise ValueError("Rust browser package requires its exact unfiltered E2E selector")
     if artifact:
         verify_artifact_profile(specs)
     if component:
@@ -1372,6 +1375,10 @@ def run_e2e(
                 raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
+    browser_package_env = {}
+    if specs == [RUST_BROWSER_SPEC]:
+        from ci_rust_wasm import prepare_browser_e2e_package
+        browser_package_env = prepare_browser_e2e_package(ROOT)
     billing_fixtures: list[tuple[Path, Path]] = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None
@@ -1432,6 +1439,8 @@ def run_e2e(
                 identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
                 env = performance_environment(os.environ, name, performance_metadata)
+                if name == RUST_BROWSER_SPEC:
+                    env.update(browser_package_env)
                 env["PLAYWRIGHT_TEST_API_URL"] = API
                 recovery_epoch_receipt = None
                 if not (component or artifact):

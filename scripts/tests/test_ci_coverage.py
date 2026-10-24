@@ -120,3 +120,56 @@ def test_live_weather_batches_cannot_relax_replay_network_isolation():
     with pytest.raises(ValueError, match="separate batch"):
         validate_runtime_batch(specs)
     validate_runtime_batch(["cli-workflows-rain-real.spec.ts", "workflows-ready-run-tasks.spec.ts"])
+
+
+def test_rust_session_targets_have_exact_dependency_classification():
+    import json
+    from pathlib import Path
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    component = "components/rust-core-session-harness.spec.ts"
+    browser = "rust-core-browser-session.spec.ts"
+    allowed, held = partition([component, browser], manifest)
+    assert allowed == [component, browser]
+    assert held == {}
+    expected = {
+        "rust_core_session_harness": [component],
+        "rust_core_browser_session": [browser],
+    }
+    for name, specs in expected.items():
+        assert manifest["groups"][name]["execution"] == "e2e"
+        assert manifest["groups"][name]["specs"] == specs
+        assert manifest["groups"][name]["enabling_work"]
+    # Admission is exact, never a basename or prefix dependency exemption.
+    unknown = [
+        "rust-core-session-harness.spec.ts",
+        "components/rust-core-session-harness-extra.spec.ts",
+        "nested/components/rust-core-session-harness.spec.ts",
+        "rust-core-browser-session-extra.spec.ts",
+        "nested/rust-core-browser-session.spec.ts",
+    ]
+    allowed, held = partition(unknown, manifest)
+    assert allowed == []
+    assert set(held) == set(unknown)
+
+
+def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import COMPONENT_MARKER, execution_mode
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    component = "components/rust-core-session-harness.spec.ts"
+    browser = "rust-core-browser-session.spec.ts"
+    assert execution_mode(component, COMPONENT_MARKER) == "component"
+    assert execution_mode(browser) == "e2e"
+    component_dependency = manifest["groups"]["rust_core_session_harness"]["enabling_work"]
+    assert "Vite-only" in component_dependency
+    assert "No Rust or CLI build" in component_dependency
+    assert "account, backend services" in component_dependency
+    browser_dependency = manifest["groups"]["rust_core_browser_session"]["enabling_work"]
+    assert "runner-private accounts" in browser_dependency
+    assert "same job before Playwright" in browser_dependency
+    # Neither target silently joins AI replay or marker-chat fixture groups.
+    for name in ("ai_committed_fixtures", "workflow_core", "workflow_weather"):
+        assert not {component, browser}.intersection(manifest["groups"].get(name, {}).get("specs", []))

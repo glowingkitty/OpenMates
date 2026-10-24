@@ -316,22 +316,99 @@ def fetch_rust_wasm_diagnostic(github, job, root, artifacts, descriptor, harness
             "truncated": descriptor["identity"]["truncated"], "publicRawUpload": False}
 
 
-def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, artifact):
+def valid_browser_package(manifest_bytes, files, receipt, job, harness, expected_inputs, expected_tree):
+    """Independently validate the generated package and public tool provenance."""
+    try:
+        from scripts.ci_rust_wasm import BINDGEN_VERSION, PACKAGE_FILES
+    except ModuleNotFoundError:
+        from ci_rust_wasm import BINDGEN_VERSION, PACKAGE_FILES
+    if not isinstance(manifest_bytes, bytes) or len(manifest_bytes) > 2 * 1024**2 or not isinstance(files, dict):
+        return False
+    try:
+        manifest = json.loads(manifest_bytes)
+    except (ValueError, UnicodeError):
+        return False
+    keys = {"schemaVersion", "status", "source_commit", "source_tree", "harness_commit", "run_id", "inputs",
+            "inputSetSha256", "locks", "target", "toolchain", "inputWasmSha256", "wasmBindgenVersion", "toolSha256",
+            "toolProvenance", "inventory", "browserRuntimeProof", "requestedMode", "requestedTargets"}
+    package = receipt.get("package")
+    if (not isinstance(manifest, dict) or set(manifest) != keys or manifest.get("schemaVersion") != 1
+            or manifest.get("status") != "passed" or manifest.get("source_commit") != job["source"]
+            or manifest.get("source_tree") != expected_tree or manifest.get("harness_commit") != harness
+            or str(manifest.get("run_id")) != str(job["run_id"]) or manifest.get("inputs") != expected_inputs
+            or manifest.get("inputSetSha256") != receipt.get("inputSetSha256") or manifest.get("locks") != receipt.get("locks")
+            or manifest.get("target") != "wasm32-unknown-unknown" or manifest.get("toolchain") != "1.98.1"
+            or manifest.get("inputWasmSha256") != receipt.get("artifact", {}).get("sha256")
+            or manifest.get("wasmBindgenVersion") != BINDGEN_VERSION or manifest.get("browserRuntimeProof") is not False
+            or manifest.get("requestedMode") != job.get("mode") or manifest.get("requestedTargets") != json.loads(job["specs"])
+            or not isinstance(package, dict) or set(package) != {"manifestSha256", "inventorySha256", "toolProvenance"}
+            or package.get("manifestSha256") != hashlib.sha256(manifest_bytes).hexdigest()
+            or not set(PACKAGE_FILES[:3]) <= set(files) <= set(PACKAGE_FILES)):
+        return False
+    provenance = manifest.get("toolProvenance")
+    provenance_keys = {"package", "version", "registry", "url", "crateSha256", "publishedCargoLockSha256", "binarySha256", "binaryIdentity"}
+    if (not isinstance(provenance, dict) or set(provenance) != provenance_keys
+            or package.get("toolProvenance") != provenance or provenance.get("package") != "wasm-bindgen-cli"
+            or provenance.get("version") != BINDGEN_VERSION or provenance.get("registry") != "crates.io"
+            or provenance.get("url") != "https://crates.io/crates/wasm-bindgen-cli/" + BINDGEN_VERSION
+            or any(not isinstance(provenance.get(key), str) or not re.fullmatch(r"[0-9a-f]{64}", provenance[key])
+                   for key in ("crateSha256", "publishedCargoLockSha256", "binarySha256"))
+            or manifest.get("toolSha256") != provenance["binarySha256"]):
+        return False
+    identity = provenance.get("binaryIdentity")
+    if (not isinstance(identity, dict) or set(identity) != {"device", "inode", "bytes", "mtimeNs", "ctimeNs", "mode", "uid", "links"}
+            or any(type(value) is not int or value < 0 for value in identity.values()) or identity["links"] != 1
+            or not 0 < identity["bytes"] <= 256 * 1024**2 or not stat.S_ISREG(identity["mode"])
+            or not identity["mode"] & 0o111 or identity["mode"] & 0o002):
+        return False
+    steps = receipt.get("steps", [])
+    if len(steps) != 6 or any(row.get("command", {}).get("executableSha256") != provenance["binarySha256"]
+                              or row["command"].get("executableBytes") != identity["bytes"] for row in steps[-2:]):
+        return False
+    rows, total = [], 0
+    for name in sorted(files):
+        data = files[name]
+        if not isinstance(data, bytes) or not 0 < len(data) <= 64 * 1024**2:
+            return False
+        if name.endswith(".wasm"):
+            if data[:8] != b"\0asm\x01\0\0\0":
+                return False
+        else:
+            try:
+                data.decode("utf-8", errors="strict")
+            except UnicodeError:
+                return False
+        total += len(data)
+        rows.append({"path": name, "sha256": hashlib.sha256(data).hexdigest(), "rawBytes": len(data)})
+    inventory = {"files": rows, "rawBytes": total,
+                 "inventorySha256": hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
+    return (total <= 128 * 1024**2 and manifest.get("inventory") == inventory
+            and package.get("inventorySha256") == inventory["inventorySha256"])
+
+
+def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, artifact, package_manifest=None, package_files=None):
     """Credit one exact locked compiler invocation, without browser/runtime proof."""
     try:
-        from scripts.ci_rust_wasm import LOCKS, STAGES, commands, wasm_metadata
+        from scripts.ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, BROWSER_SPEC, commands, wasm_metadata
     except ModuleNotFoundError:
-        from ci_rust_wasm import LOCKS, STAGES, commands, wasm_metadata
+        from ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, BROWSER_SPEC, commands, wasm_metadata
+    browser_e2e = job.get("mode") == "e2e" and json.loads(job["specs"]) == [BROWSER_SPEC]
+    expected_mode = "e2e" if browser_e2e else "rust-wasm"
+    expected_targets = [BROWSER_SPEC] if browser_e2e else ["rust-wasm"]
+    expected_profile = "rust-browser-package-for-e2e" if browser_e2e else "rust-wasm"
     keys = {"schemaVersion", "runtime_profile", "status", "code", "compilationProof", "browserRuntimeProof",
-            "conformanceProof", "releaseProof", "publication", "services", "cleanupVerified", "sourceHeld",
-            "source_commit", "source_tree", "harness_commit", "run_id", "inputs", "inputSetSha256", "locks", "artifact", "steps"}
-    if (not isinstance(receipt, dict) or set(receipt) != keys or job.get("mode") != "rust-wasm"
-            or json.loads(job["specs"]) != ["rust-wasm"]
-            or any(job.get(key) for key in ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title"))
-            or report.get("runtime_profile") != "rust-wasm"
-            or report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}]
+            "conformanceProof", "releaseProof", "publication", "services", "cleanupVerified", "sourceHeld", "packagingProof", "package",
+            "source_commit", "source_tree", "harness_commit", "run_id", "inputs", "inputSetSha256", "locks", "artifact", "steps",
+            "requestedMode", "requestedTargets"}
+    if (not isinstance(receipt, dict) or set(receipt) != keys or job.get("mode") != expected_mode or json.loads(job["specs"]) != expected_targets
+            or receipt.get("requestedMode") != expected_mode or receipt.get("requestedTargets") != expected_targets
+            or any(job.get(key) for key in (("capacity_configuration", "case_title") if browser_e2e else
+                   ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title")))
+            or report.get("runtime_profile") != expected_mode
+            or (not browser_e2e and report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}])
             or receipt.get("schemaVersion") != 1 or receipt.get("status") != "passed" or receipt.get("code") is not None
-            or receipt.get("runtime_profile") != "rust-wasm" or receipt.get("compilationProof") is not True
+            or receipt.get("runtime_profile") != expected_profile or receipt.get("compilationProof") is not True
+            or receipt.get("packagingProof") is not True
             or any(receipt.get(key) is not False for key in ("browserRuntimeProof", "conformanceProof", "releaseProof", "publication"))
             or receipt.get("source_commit") != job["source"] or receipt.get("source_tree") != expected_tree
             or receipt.get("harness_commit") != harness or str(receipt.get("run_id")) != str(job["run_id"])
@@ -357,17 +434,17 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
                 or type(row.get("returncode")) is not int or row["returncode"] != 0
                 or type(row.get("terminatedReturncode")) is not int or row["terminatedReturncode"] != 0
                 or type(row.get("elapsedSeconds")) not in (int, float) or not math.isfinite(row["elapsedSeconds"])
-                or not 0 <= row["elapsedSeconds"] <= (1806 if index == 2 else 306)
+                or not 0 <= row["elapsedSeconds"] <= STAGE_SECONDS[index] + 6
                 or not isinstance(command, dict)
                 or set(command) != {"tool", "argvSha256", "executableSha256", "executableBytes", "executableKind", "admission", "entryPackage"}
-                or command.get("tool") != ("cargo" if index == 2 else "rustup")
+                or command.get("tool") != ("cargo" if index in {2, 3} else "wasm-bindgen" if index in {4, 5} else "rustup")
                 or command.get("admission") != "strict-owner-mode" or command.get("entryPackage") is not None
                 or command.get("argvSha256") != hashlib.sha256(json.dumps(argv, separators=(",", ":")).encode()).hexdigest()
                 or not isinstance(command.get("executableSha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", command["executableSha256"])
                 or type(command.get("executableBytes")) is not int or not 0 < command["executableBytes"] <= 256 * 1024**2
                 or command.get("executableKind") not in {"elf", "script", "regular"}):
             return False
-    return True
+    return valid_browser_package(package_manifest, package_files, receipt, job, harness, expected_inputs, expected_tree)
 
 
 def valid_sdk_lockfiles_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, outputs):
@@ -585,7 +662,8 @@ def fetch(github, job: dict, root: Path) -> dict:
     except ModuleNotFoundError:
         from resource_budget import reserve
     # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
-    diagnostic_reserve = 512 * 1024 if job.get("mode") == "rust-wasm" else 0
+    diagnostic_reserve = 512 * 1024 if (job.get("mode") == "rust-wasm" or
+        (job.get("mode") == "e2e" and json.loads(job.get("specs", "[]")) == ["rust-core-browser-session.spec.ts"])) else 0
     with reserve(root, MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve, min_free=RESERVE,
                  max_used_percent=100):
         return _fetch_reserved(github, job, root)
@@ -719,23 +797,43 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     report, environment_data, job,
                     expected_harness_commit=expected_harness_commit):
                 raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
-        if job["state"] == "success" and job.get("mode") == "rust-wasm":
+        browser_package_verified = False
+        browser_package_prefix = ""
+        browser_package_job = job.get("mode") == "e2e" and json.loads(job.get("specs", "[]")) == ["rust-core-browser-session.spec.ts"]
+        wasm_receipts = list(extracted.rglob("ci-rust-wasm.json")) if browser_package_job else []
+        e2e_wasm_receipt = json.loads(wasm_receipts[0].read_text()) if len(wasm_receipts) == 1 else {}
+        if ((job["state"] == "success" and job.get("mode") == "rust-wasm")
+                or (browser_package_job and (job["state"] == "success" or e2e_wasm_receipt.get("status") == "passed"))):
             try:
-                from scripts.ci_rust_wasm import WASM_NAME, source_inputs_from_git
+                from scripts.ci_rust_wasm import WASM_NAME, PACKAGE_FILES, BINDGEN_VERSION, source_inputs_from_git
             except ModuleNotFoundError:
-                from ci_rust_wasm import WASM_NAME, source_inputs_from_git
+                from ci_rust_wasm import WASM_NAME, PACKAGE_FILES, BINDGEN_VERSION, source_inputs_from_git
             receipts = list(extracted.rglob("ci-rust-wasm.json"))
             wasm_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
             roots = [path for path in extracted.rglob("rust-wasm") if path.is_dir()]
-            wasm = b""
+            wasm, manifest_bytes, generated_files = b"", b"", {}
             if len(roots) == 1:
                 inventory = {path.relative_to(roots[0]).as_posix(): path for path in roots[0].rglob("*") if path.is_file()}
-                if set(inventory) == {WASM_NAME}:
+                allowed = {WASM_NAME, "package-manifest.json", *("package/" + name for name in PACKAGE_FILES)}
+                required = {WASM_NAME, "package-manifest.json", *("package/" + name for name in PACKAGE_FILES[:3])}
+                if required <= set(inventory) <= allowed:
+                    browser_package_prefix = roots[0].relative_to(extracted).as_posix()
                     wasm = inventory[WASM_NAME].read_bytes()
+                    manifest_bytes = inventory["package-manifest.json"].read_bytes()
+                    generated_files = {name.removeprefix("package/"): path.read_bytes() for name, path in inventory.items()
+                                       if name.startswith("package/")}
             expected_tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"], cwd=root, text=True, timeout=15).strip()
+            import tomllib
+            browser_lock = subprocess.check_output(["git", "show", job["source"] + ":packages/openmates-browser-bindings/Cargo.lock"], cwd=root, timeout=15)
+            locked_versions = {row.get("version") for row in tomllib.loads(browser_lock.decode()).get("package", [])
+                               if row.get("name") == "wasm-bindgen"}
+            if locked_versions != {BINDGEN_VERSION}:
+                raise RuntimeError("Rust browser package tool does not match immutable app lock")
             if not valid_rust_wasm_receipt(report, wasm_receipt, job, expected_harness_commit,
-                    expected_inputs=source_inputs_from_git(root, job["source"]), expected_tree=expected_tree, artifact=wasm):
+                    expected_inputs=source_inputs_from_git(root, job["source"]), expected_tree=expected_tree, artifact=wasm,
+                    package_manifest=manifest_bytes, package_files=generated_files):
                 raise RuntimeError("Rust WASM compilation lacks exact locked source/output/command/cleanup evidence")
+            browser_package_verified = True
         if job["state"] == "success" and job.get("mode") == "sdk-lockfiles":
             try:
                 from scripts.ci_sdk_lockfiles import LOCKS, source_inputs_from_git
@@ -771,7 +869,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     != sorted(json.loads(job["specs"]))):
                 raise RuntimeError("Artifact proof lacks exact inventory or isolated runtime evidence")
         private_diagnostics = None
-        if job.get("mode") == "rust-wasm":
+        if job.get("mode") == "rust-wasm" or browser_package_job:
             receipts = list(extracted.rglob("ci-rust-wasm.json"))
             wasm_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
             descriptor = wasm_receipt.get("diagnostics")
@@ -814,6 +912,11 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "artifact_url": f"{job['url']}/artifacts/{artifact['id']}",
             "directory": str(destination),
         }
+        if browser_package_verified:
+            result["browser_package"] = {"status": "verified", "manifest": browser_package_prefix + "/package-manifest.json",
+                "directory": browser_package_prefix + "/package", "manifestSha256": wasm_receipt["package"]["manifestSha256"],
+                "inventorySha256": wasm_receipt["package"]["inventorySha256"], "source_commit": job["source"],
+                "browserRuntimeProof": False}
         if private_diagnostics is not None:
             result["private_diagnostics"] = private_diagnostics
         attach_cleanup(result, job, extracted)

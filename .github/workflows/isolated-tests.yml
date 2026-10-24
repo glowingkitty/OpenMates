@@ -125,6 +125,17 @@ jobs:
               output.write(f'CI_SELFHOST_WORK_DEADLINE_MONOTONIC={started + 6300}\n')
               output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
           PYSELFHOST
+      - name: Start bounded same-source browser package clock
+        if: inputs.mode == 'e2e' && inputs.specs_json == '["rust-core-browser-session.spec.ts"]'
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 - <<'PYBROWSER'
+          import os, time
+          started = time.monotonic()
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'CI_BROWSER_PACKAGE_STARTED_MONOTONIC={started}\n')
+              output.write(f'CI_BROWSER_PACKAGE_DEADLINE_MONOTONIC={started + 1800}\n')
+          PYBROWSER
       - name: Start bounded Rust WASM compilation clock
         if: inputs.mode == 'rust-wasm'
         working-directory: ${{ github.workspace }}
@@ -628,6 +639,11 @@ jobs:
             subject/test-results/ci-sdk-lockfiles.json
             subject/test-results/ci-rust-wasm.json
             subject/test-results/rust-wasm/openmates_browser_bindings.wasm
+            subject/test-results/rust-wasm/package-manifest.json
+            subject/test-results/rust-wasm/package/openmates_browser.js
+            subject/test-results/rust-wasm/package/openmates_browser_bg.wasm
+            subject/test-results/rust-wasm/package/openmates_browser.d.ts
+            subject/test-results/rust-wasm/package/openmates_browser_bg.wasm.d.ts
             subject/test-results/sdk-lockfiles/packages/openmates-rust/Cargo.lock
             subject/test-results/sdk-lockfiles/packages/openmates-session-bindings/Cargo.lock
             subject/test-results/sdk-lockfiles/frontend/packages/openmates-tui-native/Cargo.lock
@@ -640,7 +656,7 @@ jobs:
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
-        if: always() && inputs.mode == 'rust-wasm'
+        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && inputs.specs_json == '["rust-core-browser-session.spec.ts"]'))
         uses: actions/upload-artifact@v4
         with:
           name: isolated-rust-wasm-private-diagnostics

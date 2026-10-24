@@ -13,7 +13,8 @@ from scripts import ci_environment as runtime
 ROOT = Path(__file__).resolve().parents[2]
 NATIVE_SPEC = "cli-rust-tui-proof.spec.ts"
 ESSENTIAL_SPEC = "cli-rust-core-essential.spec.ts"
-PRIVATE_SPECS = (NATIVE_SPEC, ESSENTIAL_SPEC)
+BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+PRIVATE_SPECS = (NATIVE_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC)
 SOURCE_HASH = "a" * 40
 
 
@@ -79,9 +80,9 @@ def prepare_profile(
     return candidate, compose, json.loads(compose.read_text())
 
 
-@pytest.fixture
-def generated_profile(tmp_path, monkeypatch):
-    return prepare_profile(tmp_path, monkeypatch, [NATIVE_SPEC])
+@pytest.fixture(params=[NATIVE_SPEC, BROWSER_SPEC])
+def generated_profile(tmp_path, monkeypatch, request):
+    return prepare_profile(tmp_path, monkeypatch, [request.param])
 
 
 def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(generated_profile):
@@ -115,6 +116,7 @@ def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(g
 @pytest.mark.parametrize("selected", [
     [], ["cli-rust-tui-proof-extra.spec.ts"], ["nested/cli-rust-tui-proof.spec.ts"],
     ["cli-rust-core-essential-extra.spec.ts"], ["nested/cli-rust-core-essential.spec.ts"],
+    ["rust-core-browser-session-extra.spec.ts"], ["nested/rust-core-browser-session.spec.ts"],
 ])
 def test_unknown_or_similar_spec_does_not_select_private_backend(tmp_path, monkeypatch, selected):
     _, _, profile = prepare_profile(tmp_path, monkeypatch, selected)
