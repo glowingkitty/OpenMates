@@ -20,6 +20,7 @@ from backend.apps.ai.testing.mercury_routing_fixture import (
     EXTRA_HIGH_PROMPT, EXTRA_HIGH_RESPONSE, HIGH_RECOVERY_PROMPT, HIGH_RECOVERY_RESPONSE,
     GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
     WEB_RESEARCH_PROMPT, WEB_RESEARCH_RESPONSE,
+    WEB_THROTTLE_PROMPT, WEB_THROTTLE_RESPONSE,
     active, jev_response, llm_fixture,
 )
 from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION, build_answer_recovery_history
@@ -127,13 +128,17 @@ def test_unrelated_or_changed_classifier_request_is_rejected(replay):
 
 
 @pytest.mark.asyncio
-async def test_web_research_replay_requires_capability_and_real_tool_result(replay, tmp_path):
+@pytest.mark.parametrize("prompt,count,answer", [
+    (WEB_RESEARCH_PROMPT, 1, WEB_RESEARCH_RESPONSE),
+    (WEB_THROTTLE_PROMPT, 4, WEB_THROTTLE_RESPONSE),
+])
+async def test_web_research_replay_requires_capability_and_real_tool_result(replay, tmp_path, prompt, count, answer):
     async def forbidden_provider(**_kwargs):
         raise AssertionError("Web research replay must never dispatch a real provider")
 
     wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
     model = LOW_FALLBACK_MODEL.split("/", 1)[1]
-    history = [{"role": "user", "content": WEB_RESEARCH_PROMPT}]
+    history = [{"role": "user", "content": prompt}]
     kwargs = dict(model_id=model, stream=True, task_id="web-research-test", messages=history)
     with pytest.raises(AssertionError, match="without web search"):
         llm_fixture(f"llm/{model}", kwargs)
@@ -144,13 +149,18 @@ async def test_web_research_replay_requires_capability_and_real_tool_result(repl
     stream = await wrapped(**kwargs, tools=tools)
     chunks = [chunk async for chunk in stream]
     assert chunks[0].function_name == "web_search"
-    assert chunks[0].function_arguments_parsed["requests"][0]["query"] == "openmates_e2e_web_fixture_ai"
+    requests = chunks[0].function_arguments_parsed["requests"]
+    assert len(requests) == count
+    assert requests[0]["query"].startswith("openmates_e2e_web_fixture_ai")
+    if count == 4:
+        assert len({request["query"] for request in requests}) == 4
+        assert all(" throttle " in request["query"] for request in requests)
     result = {"role": "tool", "tool_call_id": "web-research-search", "content": "error"}
     with pytest.raises(AssertionError, match="real search skill"):
         llm_fixture(f"llm/{model}", {**kwargs, "tools": tools, "messages": [*history, result]})
     result["content"] = "OpenMates E2E Web Fixture"
     stream = await wrapped(**{**kwargs, "messages": [*history, result]}, tools=tools)
-    assert [chunk async for chunk in stream][0] == WEB_RESEARCH_RESPONSE
+    assert [chunk async for chunk in stream][0] == answer
 
 
 def test_disabled_model_path_forbids_mercury_and_admits_native_gemini(replay):
@@ -251,3 +261,109 @@ def test_default_medium_fixture_rejects_changed_provider_policy(replay, policy):
             "model_id": "mercury-3", "stream": True, "task_id": "wrong-policy",
             "messages": [{"role": "user", "content": SUCCESS_PROMPT}], **policy,
         })
+
+
+@pytest.mark.parametrize("group", ["web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("key,value", [
+    ("SERVER_ENVIRONMENT", "production"), ("SERVER_ENVIRONMENT", "prod"),
+    ("MOCK_EXTERNAL_APIS", "false"), ("CI", "false"),
+    ("OPENMATES_CI_ISOLATED", "0"), ("OPENMATES_CI_AI_FIXTURES", "0"),
+])
+def test_legacy_web_groups_preserve_all_isolation_guards(replay, monkeypatch, group, key, value):
+    token = mock_group_var.set(group)
+    try:
+        assert active()
+        monkeypatch.setenv(key, value)
+        assert not active()
+    finally:
+        mock_group_var.reset(token)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("group", ["web_search_web", "web_search_zero_results"])
+async def test_legacy_web_group_classification_accepts_only_its_visible_prompt(replay, group):
+    from backend.apps.ai.testing.mercury_routing_fixture import LEGACY_WEB_PROMPTS
+    token = mock_group_var.set(group)
+    try:
+        question = {"complexity": {"type": "choice", "criteria": {"low": "Simple", "medium": "Moderate"}}}
+        for other_group, prompt in LEGACY_WEB_PROMPTS.items():
+            response = jev_response({"user_message": prompt}, question, "jev-1.13")
+            if other_group == group:
+                assert response.answers["complexity"].choice == "medium"
+            else:
+                assert response is None
+        assert jev_response({"user_message": SUCCESS_PROMPT}, question, "jev-1.13") is None
+        history = [{"role": "user", "content": LEGACY_WEB_PROMPTS[group]}]
+        routing = await decide_app_and_project_routing_with_jev(
+            model_id="typesafe/jev-1.13", secrets_manager=None, message_history=history,
+            available_apps=["web", "shopping"], available_skills=[], available_focus_modes=[],
+            topic_areas=["general_misc"], is_first_message=True,
+        )
+        assert routing["selected_app_ids"] == []
+    finally:
+        mock_group_var.reset(token)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("group", ["web_search_web", "web_search_zero_results"])
+@pytest.mark.parametrize("model", ["mercury-3", "gemini-3.8-flash", "gemini-4-argon"])
+async def test_legacy_web_automatic_packets_consume_real_search_skill(replay, tmp_path, group, model):
+    from toon_format import encode
+    from backend.apps.ai.testing.mercury_routing_fixture import (
+        LEGACY_WEB_PROMPTS, LEGACY_WEB_RESPONSE, LEGACY_ZERO_RESPONSE,
+    )
+    from backend.apps.web.skills.search_skill import SearchSkill
+    from backend.shared.python_utils.app_skill_output_safety import central_app_skill_dispatch
+
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("Legacy web replay must never dispatch a real LLM provider")
+
+    token = mock_group_var.set(group)
+    try:
+        wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+        history = [{"role": "user", "content": LEGACY_WEB_PROMPTS[group]}]
+        kwargs = dict(model_id=model, stream=True, task_id=f"legacy-{group}-{model}", messages=history)
+        assert llm_fixture(f"llm/{model}", {**kwargs, "task_id": None}) is None
+        with pytest.raises(AssertionError, match="without web search"):
+            llm_fixture(f"llm/{model}", kwargs)
+        tools = [{"type": "function", "function": {"name": "web-search"}}]
+        with pytest.raises(AssertionError, match="without baseline image search"):
+            llm_fixture(f"llm/{model}", {**kwargs, "tools": tools})
+        tools.append({"type": "function", "function": {"name": "images_search"}})
+        stream = await wrapped(**kwargs, tools=tools)
+        chunks = [chunk async for chunk in stream]
+        call = chunks[0]
+        assert type(call).__name__ == "ParsedOpenAIToolCall"
+        assert call.function_name == "web-search"
+        expected = ({"query": "openmates_e2e_web_fixture_ai", "count": 2} if group == "web_search_web"
+                    else {"query": "xyznonexistentproduct123456 lokale API MQTT"})
+        assert call.function_arguments_parsed == {"requests": [expected]}
+        unrelated = {"role": "tool", "tool_call_id": "unrelated", "content": "OpenMates E2E Web Fixture"}
+        with pytest.raises(AssertionError, match="matching real search"):
+            llm_fixture(f"llm/{model}", {**kwargs, "tools": tools, "messages": [*history, unrelated]})
+        skill = SearchSkill(app=None, app_id="web", skill_id="search", skill_name="Search the web",
+                            skill_description="Find web results.")
+        with central_app_skill_dispatch():
+            response = await skill.execute(requests=call.function_arguments_parsed["requests"], secrets_manager=object())
+        assert response.error is None
+        results = [result for request in response.results for result in request["results"]]
+        assert len(results) == (2 if group == "web_search_web" else 0)
+        # Match main_processor's normalization before provider inference, including
+        # source metadata and hints which must not affect empty-result recognition.
+        payload = {"results": results, "count": len(results), "embed_ref_hint": "Use readable display text."}
+        result = {"role": "tool", "tool_call_id": call.tool_call_id, "content": encode(payload)}
+        stream = await wrapped(**{**kwargs, "messages": [*history, result]}, tools=tools)
+        assert [chunk async for chunk in stream][0] == (LEGACY_WEB_RESPONSE if results else LEGACY_ZERO_RESPONSE)
+        for bad in ({"error": "provider failed", "results": [], "count": 0},
+                    {"results": [], "count": 1}, {"results": []}, {"message": "no results"}):
+            with pytest.raises(AssertionError):
+                llm_fixture(f"llm/{model}", {**kwargs, "tools": tools,
+                    "messages": [*history, {**result, "content": encode(bad)}]})
+        metadata = await wrapped(model_id=model, stream=False, task_id=kwargs["task_id"], messages=history,
+                                 tools=[{"type": "function", "function": {"name": "generate_suggestions_and_metadata"}}],
+                                 tool_choice="required")
+        assert type(metadata).__name__ == "UnifiedOpenAIResponse"
+        assert metadata.success
+        assert metadata.tool_calls_made[0].function_arguments_parsed["updated_chat_title"] == "Web search results"
+    finally:
+        mock_group_var.reset(token)

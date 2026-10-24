@@ -6,6 +6,9 @@
 #
 # Architecture: docs/architecture/apps/app-skills.md
 
+import asyncio
+from contextlib import asynccontextmanager
+import time
 from unittest.mock import AsyncMock
 
 import httpx
@@ -14,8 +17,12 @@ import pytest
 from backend.shared.providers.brave.brave_search import (
     _get_brave_api_key_candidates,
     _is_monthly_quota_limited,
+    _parse_retry_after_seconds,
     _request_with_429_retry,
     search_web,
+)
+from backend.shared.providers.brave.rate_limit import (
+    BraveRateGate, LEARN_LIMIT, RESERVE_SLOT, MAX_QUEUE_WAIT_MS,
 )
 from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
 
@@ -25,6 +32,16 @@ pytestmark = pytest.mark.anyio
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def isolated_rate_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit checks never open a connection to a product cache."""
+    @asynccontextmanager
+    async def gate():
+        yield BraveRateGate(None)
+
+    monkeypatch.setattr("backend.shared.providers.brave.brave_search.brave_rate_gate", gate)
 
 
 class _FakeSecretsManager:
@@ -266,3 +283,102 @@ async def test_live_mock_zero_result_group_forces_empty_web_results(monkeypatch:
         "error": None,
         "sanitize_output": True,
     }
+
+
+class _RateCache:
+    """Virtual-time cache boundary; isolated E2E also executes the real Lua in Redis."""
+    def __init__(self) -> None:
+        self.values: dict[str, tuple[int, float]] = {}
+        self.keys: set[str] = set()
+
+    @staticmethod
+    def now_ms() -> float:
+        return time.monotonic() * 100_000
+
+    async def eval(self, script: str, count: int, interval_key: str, queue_key: str, *args) -> int:
+        assert count == 2
+        self.keys.update((interval_key, queue_key))
+        now = self.now_ms()
+        period, expiry = self.values.get(interval_key, (0, 0))
+        remaining = max(0, self.values.get(queue_key, (0, now))[1] - now)
+        if script == RESERVE_SLOT:
+            if expiry <= now:
+                return 0
+            if remaining > args[0]:
+                return -1
+            self.values[queue_key] = (1, now + remaining + period)
+            return int(remaining)
+        assert script == LEARN_LIMIT
+        period, cooldown, ttl = args
+        self.values[interval_key] = (period, now + ttl * 1000)
+        self.values[queue_key] = (1, now + max(remaining, cooldown))
+        return 1
+
+
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible,web-search.secrets.never-exposed
+async def test_concurrent_requests_share_actual_credential_rate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Eight competing callers must not exhaust six synchronized retry waves."""
+    cache = _RateCache()
+    original_sleep = asyncio.sleep
+
+    async def fast_sleep(seconds: float) -> None:
+        await original_sleep(seconds / 100)
+
+    @asynccontextmanager
+    async def gate():
+        # Separate gate objects represent independent provider clients/workers.
+        yield BraveRateGate(cache)
+
+    monkeypatch.setattr("backend.shared.providers.brave.brave_search.brave_rate_gate", gate)
+    monkeypatch.setattr("backend.shared.providers.brave.brave_search.asyncio.sleep", fast_sleep)
+    accepted_at: list[float] = []
+    attempts: list[int] = []
+
+    class Provider:
+        async def get(self, url, params, headers):
+            attempts.append(params["id"])
+            now = cache.now_ms()
+            if accepted_at and now - accepted_at[-1] < 1000:
+                return _response(429, {"error": {"code": "RATE_LIMITED", "meta": {"rate_limit": 1}}})
+            accepted_at.append(now)
+            response = _response(200)
+            response.headers["X-RateLimit-Limit"] = "1, 2000"
+            return response
+
+    responses = await asyncio.gather(*[
+        _request_with_429_retry(
+            Provider(), "https://fixture.invalid/search", {"id": index},
+            {"X-Subscription-Token": "private-unit-key"}, "synthetic query",
+        )
+        for index in range(8)
+    ])
+    assert len(responses) == len(accepted_at) == 8
+    assert all(response.status_code == 200 for response in responses)
+    assert all(attempts.count(index) <= 2 for index in range(8))
+    assert all(right - left >= 1000 for left, right in zip(accepted_at, accepted_at[1:]))
+    assert all("private-unit-key" not in key for key in cache.keys)
+
+
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
+async def test_rate_queue_is_credential_scoped_and_bounded() -> None:
+    cache = _RateCache()
+    gate = BraveRateGate(cache)
+    first = {"X-Subscription-Token": "first-placeholder"}
+    other = {"X-Subscription-Token": "second-placeholder"}
+    response = _response(429, {"error": {"code": "RATE_LIMITED", "meta": {"rate_limit": 1}}})
+    await gate.observe(first, response, 1.1)
+    interval_key, queue_key = gate._keys(first)
+    cache.values[queue_key] = (1, cache.now_ms() + MAX_QUEUE_WAIT_MS + 1000)
+    await gate.wait(other)
+    assert gate._keys(other)[0] not in cache.values
+    with pytest.raises(httpx.TimeoutException, match="queue is temporarily full"):
+        await gate.wait(first)
+    assert cache.values[interval_key][0] == 1100
+
+
+@pytest.mark.parametrize("reset,expected", [("1, 1419704", 1), ("2", 2), ("invalid", 1.1)])
+# contract-test: supporting surface=rest_api assertions=web-search.provider-error.visible
+async def test_brave_reset_headers_are_relative_seconds(reset: str, expected: float) -> None:
+    response = _response(429)
+    response.headers["X-RateLimit-Reset"] = reset
+    assert _parse_retry_after_seconds(response) == expected

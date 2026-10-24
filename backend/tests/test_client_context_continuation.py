@@ -598,3 +598,82 @@ async def test_failure_handler_rechecks_team_and_sends_correlated_ack(setup):
     await handle_client_context_failed(manager=manager, cache_service=cache, directus_service=directus,
         encryption_service=vault, user_id='owner', device_fingerprint_hash='device', payload=frame)
     assert manager.send_personal_message.call_args.args[0]['payload']['status'] == 'accepted'
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+@pytest.mark.parametrize('unavailable_record', ['binding', 'routing', 'details'])
+async def test_unavailable_plaintext_never_commits_or_hydrates_context(setup, unavailable_record):
+    cache, redis, vault, scope = setup
+    common = dict(cache_service=cache, encryption_service=vault,
+                  device_fingerprint_hash='device', **scope)
+    reference = await context.register_client_context(**common)
+    key = context._key(reference)
+    routing = {'project_focus_candidates': [{'project_id': 'project', 'name': 'Project'}]}
+    details = {'custom_memory_documents': [{'id': 'memory', 'source': 'project',
+        'project_id': 'project', 'document': 'Private body', 'item_revision': 'r1'}]}
+    admission = {'scope_complete': False, 'active_project_id': None,
+        'active_project_activation_id': None, 'active_focus_id': None,
+        'accepted_plan_ref': None, 'explicit_related_task_ids': [],
+        'context_revision': 'server-admission-v1'}
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'],
+        client_context_pending=True, client_context_request_id=scope['request_id'],
+        client_context_binding_ref=reference, admission_context=dict(admission))
+    if unavailable_record != 'binding':
+        await context.receive_client_context(**common, phase='routing', context=routing)
+    if unavailable_record == 'details':
+        await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                                request=request, phase='routing')
+        await context.receive_client_context(**common, phase='details', context=details)
+    sealed = redis.values[key if unavailable_record == 'binding' else key + ':' + unavailable_record]
+    stored_key, _ = vault.sealed[sealed]
+    vault.sealed[sealed] = (stored_key, None)
+    values_before, expiry_before = dict(redis.values), dict(redis.expiry)
+
+    with pytest.raises(context.ClientContextUnavailable, match='Context decryption unavailable'):
+        if unavailable_record == 'binding':
+            await context.receive_client_context(**common, phase='routing', context=routing)
+        else:
+            await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                request=request, phase=unavailable_record, timeout=0)
+
+    assert redis.values == values_before and redis.expiry == expiry_before
+    assert request.client_context_pending is True
+    assert request.admission_context == admission
+    assert not hasattr(request, 'custom_rule_documents')
+    assert not getattr(request, '_client_context_details_loaded', False)
+    if unavailable_record == 'details':
+        assert request.project_focus_candidates == routing['project_focus_candidates']
+        assert request._client_context_routing_loaded is True
+    else:
+        assert not hasattr(request, 'project_focus_candidates')
+        assert not getattr(request, '_client_context_routing_loaded', False)
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.early-resolution
+@pytest.mark.asyncio
+@pytest.mark.parametrize('plaintext', ['not-json', '[]'])
+async def test_invalid_plaintext_remains_fail_closed_without_hydration(setup, plaintext):
+    import json
+
+    cache, redis, vault, scope = setup
+    common = dict(cache_service=cache, encryption_service=vault,
+                  device_fingerprint_hash='device', **scope)
+    reference = await context.register_client_context(**common)
+    key = context._key(reference)
+    await context.receive_client_context(**common, phase='routing', context={'project_focus_candidates': []})
+    sealed = redis.values[key + ':routing']
+    stored_key, _ = vault.sealed[sealed]
+    vault.sealed[sealed] = (stored_key, plaintext)
+    request = SimpleNamespace(**scope, recovery_turn_id=scope['turn_id'],
+        client_context_pending=True, client_context_request_id=scope['request_id'],
+        client_context_binding_ref=reference)
+    values_before, expiry_before = dict(redis.values), dict(redis.expiry)
+    expected = json.JSONDecodeError if plaintext == 'not-json' else context.ClientContextUnavailable
+    with pytest.raises(expected):
+        await context.await_client_context_phase(cache_service=cache, encryption_service=vault,
+                                                request=request, phase='routing', timeout=0)
+    assert redis.values == values_before and redis.expiry == expiry_before
+    assert request.client_context_pending is True
+    assert not hasattr(request, 'project_focus_candidates')
+    assert not getattr(request, '_client_context_routing_loaded', False)

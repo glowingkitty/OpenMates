@@ -1143,7 +1143,64 @@ test('warmed interactive TUI send borrows its authenticated socket for one encry
 	}
 });
 
-// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+/** Fault only one admitted routing record in the disposable isolated stack. */
+function unavailablePlaintextFixtureProgram(): string {
+	return `
+import asyncio,json,logging,os,signal,sys,uuid
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED')=='1'
+signal.alarm(15)
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.client_context_continuation import _scope,_reference,_key,_open
+from backend.core.api.app.utils.encryption import EncryptionService
+async def main():
+    data=json.load(sys.stdin)
+    assert data['operation'] in ('inject','inspect','cleanup')
+    assert all(str(uuid.UUID(data[name]))==data[name] for name in ('user_id','chat_id','turn_id','message_id','request_id'))
+    scope=_scope(**{name:data[name] for name in ('user_id','chat_id','turn_id','message_id','request_id')},team_id=None)
+    key=_key(_reference(scope)); sentinel='isolated-unavailable-plaintext:v1'
+    cache=CacheService()
+    try:
+        redis=await cache.client
+        if data['operation']=='inject':
+            binding=await redis.get(key)
+            assert binding
+            vault_key=await cache.get_user_vault_key_id(data['user_id']); assert vault_key
+            record=await _open(EncryptionService(cache_service=cache),vault_key,binding)
+            assert record.get('scope')==scope and isinstance(record.get('device'),str) and record['device']
+            injected=await redis.eval("""
+if redis.call('GET',KEYS[1]) ~= ARGV[1] then return 0 end
+local ttl=redis.call('PTTL',KEYS[1])
+if ttl<=0 then return 0 end
+for index=2,4 do if redis.call('EXISTS',KEYS[index])==1 then return 0 end end
+if not redis.call('SET',KEYS[2],ARGV[2],'NX','PX',ttl) then return 0 end
+local binding_ttl=redis.call('PTTL',KEYS[1])
+local phase_ttl=redis.call('PTTL',KEYS[2])
+if phase_ttl<=0 or phase_ttl>binding_ttl then redis.call('DEL',KEYS[2]); return 0 end
+return 1
+""",4,key,key+':routing',key+':details',key+':failed',binding,sentinel)
+            assert injected==1
+            result={'bindingMatches':True,'routingInserted':True,'ttlBounded':True}
+        elif data['operation']=='inspect':
+            value=await redis.get(key+':routing')
+            if isinstance(value,bytes): value=value.decode()
+            result={'activeReleased':not bool(await cache.get_active_ai_task(data['chat_id'])),
+                    'routingUnchanged':value==sentinel,'detailsAbsent':not bool(await redis.exists(key+':details')),
+                    'failureAbsent':not bool(await redis.exists(key+':failed'))}
+        else:
+            value=await redis.get(key+':routing')
+            if isinstance(value,bytes): value=value.decode()
+            assert value in (None,sentinel)
+            if value==sentinel:
+                assert await redis.eval("if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",1,key+':routing',sentinel)==1
+            result={'ownedPhaseRemoved':not bool(await redis.exists(key+':routing'))}
+        print(json.dumps(result))
+    finally: await cache.close()
+asyncio.run(main())
+`;
+}
+
+// contract-test: direct surface=cli assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent,ai-model-routing.preprocessing.early-resolution,chat-processing-feedback.turn-lifecycle
 test('SDK reports a Project directory failure after durable epoch-one first Personal admission', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -1465,6 +1522,105 @@ test('SDK reports a Project directory failure after durable epoch-one first Pers
 		expect(observed.failureAckMatches).toBe(true);
 		expect(observed.failureAckStatus).toBe('accepted');
 		expect(observed.encryptedUser).toBe(true);
+		await test.step('Unavailable decrypted context reaches the real worker terminal without hydration', async () => {
+			const unavailable = canonicalHistorySdk(apiUrl, home, `
+				const owner=await client.whoAmI();
+				if(!owner.id||client.getActiveTeamId())throw Error('Expected paired Personal account');
+				const {execFileSync}=require('node:child_process');
+				const compose=require('node:path').join(process.cwd(),'test-results/ci-private/compose.json');
+				const memorySnapshot=await client.listMemories({personal:true});
+				const newChatId=client.preparedNewChatId();
+				let admission=null,ack=null,mainSocket=null,injected=null,terminalEvent=null,injectionAttempted=false;
+				let releaseDirectory;
+				const directory=new Promise(resolve=>{releaseDirectory=resolve;});
+				client.listProjects=async()=>directory;
+				client.listPersonalProjectRoutingDirectory=async()=>directory;
+				const outbound=[];
+				const fixture=operation=>{
+					if(!admission)throw Error('Missing owned admitted context');
+					const scope={operation,user_id:owner.id,chat_id:newChatId,turn_id:admission.turn_id,
+						message_id:admission.message_id,request_id:admission.inference_request.client_context_request_id};
+					try{return JSON.parse(execFileSync('docker',['compose','-f',compose,'exec','-T','-e',
+						'OPENMATES_CI_ISOLATED=1','api','python','-c',input.fixtureProgram],{
+						cwd:process.cwd(),input:JSON.stringify(scope),encoding:'utf8',timeout:20000,
+						stdio:['pipe','pipe','pipe']}).trim());}
+					catch{throw Error('Scoped unavailable-plaintext fixture failed: '+operation);}
+				};
+				const rawOpen=client.openWsClient.bind(client);
+				const observer=(await rawOpen({taskUpdateJobs:false})).ws;
+				const terminal=observer.waitForMessage('ai_typing_ended',payload=>
+					payload.chat_id===newChatId&&payload.user_message_id===admission?.message_id,30000);
+				void terminal.catch(()=>{});
+				client.openWsClient=async(...args)=>{
+					const opened=await rawOpen(...args),send=opened.ws.sendAsync.bind(opened.ws);
+					mainSocket=opened.ws;
+					const supports=opened.ws.supportsServerCapability.bind(opened.ws);
+					opened.ws.supportsServerCapability=capability=>capability==='personal_send_context_snapshot_v2'?false:supports(capability);
+					opened.ws.onMessageType('chat_turn_preflight_ack',payload=>{
+						if(payload.turn_id===admission?.turn_id)ack=payload;
+					});
+					opened.ws.sendAsync=async(type,payload)=>{
+						if(['chat_turn_admit','chat_turn_context_ready','chat_turn_context_failed'].includes(type))outbound.push(type);
+						if(type==='chat_turn_admit'){
+							admission=payload;await send(type,payload);releaseDirectory([]);return;
+						}
+						if(type==='chat_turn_context_ready'){
+							if(!admission?.inference_request?.client_context_pending
+								||ack?.state!=='ENQUEUED'||ack?.committed_messages_v!==1
+								||payload.chat_id!==newChatId||payload.turn_id!==admission.turn_id
+								||payload.message_id!==admission.message_id
+								||payload.request_id!==admission.inference_request.client_context_request_id){
+								throw Error('Expected exact durable pending context before scoped fault');
+							}
+							if(payload.phase==='routing'){injectionAttempted=true;injected=fixture('inject');}
+							else if(payload.phase!=='details'||!injected)throw Error('Unordered isolated context phase');
+							return; // Hold genuine client phases; the real worker consumes only the owned sentinel.
+						}
+						if(type==='chat_turn_context_failed')throw Error('Client failure marker must not synthesize this terminal');
+						return send(type,payload);
+					};
+					return opened;
+				};
+				let sending;
+				try{
+					sending=client.sendMessage({message:'Isolated unavailable-context terminal check.',newChatId,
+						personal:true,piiDetection:false,memorySnapshot}).catch(()=>null);
+					terminalEvent=(await terminal).payload;
+					mainSocket?.close();await sending;
+					const canonical=await client.getChatMessagesWindow(newChatId,{personal:true,limit:20,
+						respectCompressionBoundary:false});
+					const state=fixture('inspect');
+					process.stdout.write(JSON.stringify({injected,state,
+						pending:admission?.inference_request?.client_context_pending===true,
+						epochOne:ack?.state==='ENQUEUED'&&ack?.committed_messages_v===1,
+						terminalCode:terminalEvent.terminal_failure_code??null,
+						terminalIdentity:terminalEvent.task_id===ack?.inference_task_id
+							&&terminalEvent.chat_id===admission?.chat_id
+							&&terminalEvent.user_message_id===admission?.message_id
+							&&ack?.turn_id===admission?.turn_id,
+						canonicalSingleUser:canonical.messages.length===1&&canonical.messages[0].role==='user'
+							&&(canonical.messages[0].clientMessageId||canonical.messages[0].id)===admission?.message_id,
+						encryptedAdmission:typeof admission?.encrypted_user_message?.encrypted_content==='string'
+							&&admission.encrypted_user_message.encrypted_content.length>0,
+						clientFailureSent:outbound.includes('chat_turn_context_failed')}));
+				}finally{
+					mainSocket?.close();observer.close();
+					if(sending)await sending;
+					try{if(injectionAttempted)fixture('cleanup');}
+					finally{if(ack?.preflight_id)await client.deleteChat(newChatId,{personal:true});}
+				}
+			`, { fixtureProgram: unavailablePlaintextFixtureProgram() });
+			expect(unavailable.injected).toEqual({ bindingMatches: true, routingInserted: true, ttlBounded: true });
+			expect(unavailable.pending).toBe(true);
+			expect(unavailable.epochOne).toBe(true);
+			expect(unavailable.terminalCode).toBe('client_context_unavailable');
+			expect(unavailable.terminalIdentity).toBe(true);
+			expect(unavailable.canonicalSingleUser).toBe(true);
+			expect(unavailable.encryptedAdmission).toBe(true);
+			expect(unavailable.clientFailureSent).toBe(false);
+			expect(unavailable.state).toEqual({ activeReleased: true, routingUnchanged: true,
+				detailsAbsent: true, failureAbsent: true });
+		});
 	} finally {
 		removeWorkflowCliHome(home);
 	}

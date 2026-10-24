@@ -18,6 +18,12 @@ from backend.shared.providers.typesafe.models import DecisionResponse
 from backend.shared.testing.mock_context import get_mock_group, mock_mode_var, record_cache_hit
 
 GROUP = "mercury_auto_low"
+LEGACY_WEB_PROMPTS = {
+    "web_search_web": "Search the web for openmates_e2e_web_fixture_ai",
+    "web_search_zero_results": 'Search the web for "xyznonexistentproduct123456" lokale API MQTT — just try to find results',
+}
+LEGACY_WEB_RESPONSE = "The web search completed. The matching sources are available in the search results."
+LEGACY_ZERO_RESPONSE = "The web search completed successfully, but no results were found."
 SUCCESS_PROMPT = "What is 2 + 2? MERCURY_ROUTING_E2E:success"
 FALLBACK_PROMPT = "What is 3 + 3? MERCURY_ROUTING_E2E:fallback"
 DISABLED_PROMPT = "What is 4 + 4? MERCURY_ROUTING_E2E:disabled"
@@ -28,6 +34,8 @@ HIGH_RECOVERY_PROMPT = "Review the interacting constraints. MERCURY_ROUTING_E2E:
 CHEAP_FALLBACK_PROMPT = "Summarize the available evidence. MERCURY_ROUTING_E2E:cheap_fallback"
 WEB_RESEARCH_PROMPT = "Kannst du bitte online recherchieren und die Quellen vergleichen? MERCURY_ROUTING_E2E:web_research"
 WEB_RESEARCH_RESPONSE = "Die Websuche wurde ausgeführt. Die gefundenen Quellen sind im Suchergebnis verfügbar."
+WEB_THROTTLE_PROMPT = "Compare four web sources. MERCURY_ROUTING_E2E:web_throttle"
+WEB_THROTTLE_RESPONSE = "All four web searches completed successfully. The sources are available in the search cards."
 SUCCESS_RESPONSE = "The answer is 4. Automatic routing completed successfully."
 FALLBACK_RESPONSE = "The answer is 6. Automatic routing recovered successfully."
 DISABLED_RESPONSE = "The answer is 8. Your disabled model was respected."
@@ -38,7 +46,7 @@ EXTRA_HIGH_RESPONSE = "The answer is 12. Google clamped the EXTRA_HIGH recommend
 HIGH_RECOVERY_RESPONSE = "Mercury preserved the recommendation at HIGH during recovery."
 PROTOCOL_TEXT = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
 PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT, GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT,
-           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT)
+           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT)
 MAX_FAILURE_WITNESSES = 128
 # wait_for() consumes Mercury's first chunk in a child task, so a ContextVar set
 # there would not reach the fallback task. Store only opaque task IDs, bounded.
@@ -47,12 +55,17 @@ _protocol_failures: OrderedDict[str, int] = OrderedDict()
 
 
 def active() -> bool:
-    return (mock_mode_var.get() == "mock" and get_mock_group() == GROUP
+    return (mock_mode_var.get() == "mock" and get_mock_group() in {GROUP, *LEGACY_WEB_PROMPTS}
             and os.getenv("MOCK_EXTERNAL_APIS") == "true"
             and os.getenv("CI") == "true" and os.getenv("OPENMATES_CI_ISOLATED") == "1"
             and os.getenv("OPENMATES_CI_AI_FIXTURES") == "1"
             and os.getenv("SERVER_ENVIRONMENT", "production").strip().lower()
             not in {"production", "prod"})
+
+
+def _allowed_prompts() -> tuple[str, ...]:
+    group = get_mock_group()
+    return PROMPTS if group == GROUP else (LEGACY_WEB_PROMPTS[group],) if group in LEGACY_WEB_PROMPTS else ()
 
 
 def _prompt(messages: Any) -> str | None:
@@ -66,7 +79,7 @@ def _prompt(messages: Any) -> str | None:
             if content == ("Continue the answer immediately after the already-published prefix. "
                            "Do not repeat or paraphrase any published text."):
                 continue
-            return next((prompt for prompt in PROMPTS if prompt in content), None)
+            return next((prompt for prompt in _allowed_prompts() if prompt in content), None)
     return None
 
 
@@ -74,10 +87,10 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
     if not active() or not isinstance(state, Mapping) or not questions:
         return None
     if not (_prompt(state.get("messages")) or any(
-            prompt in str(state.get("user_message") or "") for prompt in PROMPTS)):
+            prompt in str(state.get("user_message") or "") for prompt in _allowed_prompts())):
         return None
-    medium = any(prompt in str(state) for prompt in (
-        GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT,
+    medium = get_mock_group() in LEGACY_WEB_PROMPTS or any(prompt in str(state) for prompt in (
+        GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT,
     ))
     preferred = {"complexity": "medium" if medium else "low", "task_area": "general", "topic_shift": "noticeable_shift",
                  "temperature": "precise", "preview": "none", "language": "en", "icon": "calculator",
@@ -122,6 +135,24 @@ def _packet(model: str, answer: str) -> dict[str, Any]:
     ]}}
 
 
+def _successful_empty_search(content: Any) -> bool:
+    # main_processor emits a TOON results/count wrapper for zero results;
+    # its normal JSON fallback carries the same normalized shape.
+    if not isinstance(content, str):
+        return False
+    try:
+        value = json.loads(content)
+    except (ValueError, TypeError):
+        from toon_format import decode
+        try:
+            value = decode(content)
+        except Exception:
+            return False
+    return (isinstance(value, dict) and value.get("results") == []
+            and type(value.get("count")) is int and value["count"] == 0
+            and not value.get("error") and not value.get("errors"))
+
+
 def _assert_mercury_policy(kwargs: Mapping[str, Any], effort: str) -> None:
     if kwargs.get("reasoning_effort") != effort:
         raise AssertionError(f"Mercury must use {effort} reasoning for this replay")
@@ -149,6 +180,9 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                 "chat_summary": "Answered a simple arithmetic question.", "chat_tags": ["arithmetic"],
                 "share_cta_text": "Arithmetic answer", "updated_chat_title": "Arithmetic answer",
                 "daily_inspiration_topic_suggestions": [], "quick_tip_slug": ""}
+        if get_mock_group() in LEGACY_WEB_PROMPTS:
+            args.update(chat_summary="Completed the requested web search.", chat_tags=["web search"],
+                        share_cta_text="Web search results", updated_chat_title="Web search results")
         return {"response": {"type": "non_stream", "value": {"kind": "pydantic",
             "module": "backend.apps.ai.llm_providers.openai_shared", "class": "UnifiedOpenAIResponse",
             "value": {"task_id": task_id, "model_id": model, "success": True, "tool_calls_made": [{
@@ -157,7 +191,7 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                 "parsing_error": None}]}}}}
     if category != f"llm/{model}" or kwargs.get("stream") is False:
         return None
-    if prompt == WEB_RESEARCH_PROMPT:
+    if prompt in {WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT, *LEGACY_WEB_PROMPTS.values()}:
         # Jev deliberately selected no apps or skills. Require the real
         # main processor to offer both baseline searches before issuing a typed call.
         search_name = next((name for name in names if name in {"web-search", "web_search"}), None)
@@ -167,11 +201,27 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
             raise AssertionError("Main processing reached inference without baseline image search")
         results = [message for message in kwargs.get("messages") or [] if isinstance(message, dict)
                    and message.get("role") == "tool" and message.get("tool_call_id") == "web-research-search"]
+        if not results and get_mock_group() in LEGACY_WEB_PROMPTS and any(
+                isinstance(message, dict) and message.get("role") == "tool"
+                for message in kwargs.get("messages") or []):
+            raise AssertionError("Web search must consume the matching real search skill's result")
         if results:
+            if get_mock_group() == "web_search_zero_results":
+                if not _successful_empty_search(results[-1].get("content")):
+                    raise AssertionError("Web search must consume a successful normalized empty search result")
+                return _packet(model, LEGACY_ZERO_RESPONSE)
             if "OpenMates E2E Web Fixture" not in str(results[-1].get("content")):
                 raise AssertionError("Web research must consume the real search skill's result")
-            return _packet(model, WEB_RESEARCH_RESPONSE)
-        arguments = {"requests": [{"query": "openmates_e2e_web_fixture_ai", "count": 2}]}
+            return _packet(model, LEGACY_WEB_RESPONSE if get_mock_group() == "web_search_web" else
+                           WEB_THROTTLE_RESPONSE if prompt == WEB_THROTTLE_PROMPT else WEB_RESEARCH_RESPONSE)
+        arguments = {"requests": [
+            {"query": f"openmates_e2e_web_fixture_ai throttle {task_id} {index}", "count": 1}
+            for index in range(4)
+        ]} if prompt == WEB_THROTTLE_PROMPT else {
+            "requests": [{"query": "openmates_e2e_web_fixture_ai", "count": 2}],
+        }
+        if get_mock_group() == "web_search_zero_results":
+            arguments = {"requests": [{"query": "xyznonexistentproduct123456 lokale API MQTT"}]}
         packet = _packet(model, "")
         packet["response"]["chunks"][0] = {
             "kind": "pydantic", "module": "backend.apps.ai.llm_providers.openai_shared",

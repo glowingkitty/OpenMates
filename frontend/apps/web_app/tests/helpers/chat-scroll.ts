@@ -77,8 +77,11 @@ export async function clickChatTarget(target: Locator, testInfo: TestInfo): Prom
 }
 
 /** Open an untouched activity group after its asynchronous terminal check settles. */
-export async function openCompletedAssistantActivity(group: Locator, testInfo: TestInfo): Promise<void> {
-  await expect(group).not.toHaveClass(/(?:^|\s)active(?:\s|$)/);
+export async function openCompletedAssistantActivity(
+  group: Locator, testInfo: TestInfo, options: { timeout?: number } = {}
+): Promise<void> {
+  await expect(group).toBeVisible(options);
+  await expect(group).not.toHaveClass(/(?:^|\s)active(?:\s|$)/, options);
   const toggle = group.getByTestId('assistant-activity-toggle');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   // Observe the one real activation through its postcondition. Geometry alone
@@ -118,7 +121,7 @@ export async function openCompletedAssistantActivity(group: Locator, testInfo: T
     } };
   });
   try {
-    await clickChatTarget(toggle, testInfo);
+    await clickSettledScrollTarget(toggle, testInfo);
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(group.getByTestId('assistant-activity-body')).toBeVisible();
   } catch (error) {

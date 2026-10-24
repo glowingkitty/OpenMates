@@ -436,7 +436,8 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
         and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
     )
     native_fixture = (
-        group in {"native_cache_tools_v1", "diagram_html_web", "shopping_images_web", "mercury_auto_low"}
+        group in {"native_cache_tools_v1", "diagram_html_web", "shopping_images_web", "mercury_auto_low",
+                  "web_search_web", "web_search_zero_results"}
         and os.getenv("CI") == "true"
         and os.getenv("OPENMATES_CI_AI_FIXTURES") == "1"
         and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") is None

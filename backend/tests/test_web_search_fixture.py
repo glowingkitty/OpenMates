@@ -14,6 +14,7 @@ from backend.apps.web.skills.search_fixture import (
     E2E_WEB_FIXTURE_QUERY_TOKEN,
     build_e2e_web_fixture_results,
     is_e2e_web_fixture_query,
+    wait_throttled_search_provider_fixture,
 )
 from backend.apps.web.skills.search_skill import SearchSkill
 
@@ -83,3 +84,21 @@ def test_camera_provider_latency_requires_exact_query_and_all_isolated_guards(mo
         delay.assert_not_awaited()
     else:
         delay.assert_awaited_once_with(1)
+
+
+# contract-test: infrastructure
+@pytest.mark.parametrize("guard", ["CI", "OPENMATES_CI_ISOLATED", "OPENMATES_CI_AI_FIXTURES", "MOCK_EXTERNAL_APIS", "SERVER_ENVIRONMENT"])
+def test_provider_throttle_fixture_requires_isolated_replay(monkeypatch, guard):
+    from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+    for key, value in {"CI": "true", "OPENMATES_CI_ISOLATED": "1", "OPENMATES_CI_AI_FIXTURES": "1",
+                       "MOCK_EXTERNAL_APIS": "true", "SERVER_ENVIRONMENT": "development"}.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv(guard, "production" if guard == "SERVER_ENVIRONMENT" else "false")
+    activate_mock_mode("mock", "mercury_auto_low")
+    try:
+        # Accessing this object as a cache would fail: no product cache/HTTP is reached.
+        asyncio.run(wait_throttled_search_provider_fixture(
+            f"{E2E_WEB_FIXTURE_QUERY_TOKEN} throttle 00000000-0000-4000-8000-000000000000 0", object(),
+        ))
+    finally:
+        deactivate_mock_mode()
