@@ -45,10 +45,15 @@ children. Otherwise obtain one before editing with `python3 scripts/sessions.py
 start --mode bug --task "<outcome>"` (or feature/docs/testing). Never borrow another
 task's workspace.
 
-Resolve low disk capacity before stopping. Inspect disposable caches/build files
-and removable old worktrees; use guarded cleanup, preserve unfinished work and
-recovery evidence, respect runtime leases and capacity guards. Ask before deletion
-when its value or safety is uncertain.
+Resolve low disk capacity before stopping. Standing user approval permits deleting
+unused Docker images, unused build artifacts and disposable caches without asking
+again. It also permits managed cleanup of worktrees inactive for more than four
+days. Verify current process/container references and coordination leases first;
+preserve active work, unfinished source, pinned rollback images, existing archives
+and unique recovery/proof evidence. Use the managed worktree cleanup path and
+retain its required recovery snapshots; age alone does not make unfinished work
+disposable. Respect runtime leases and normal capacity guards. Ask only for
+material that cannot be classified safely within this standing approval.
 
 Publish with `python3 scripts/sessions.py deploy --title "type: description"
 --message "Why and verification"`; pass the supplied `--session` for administrative
