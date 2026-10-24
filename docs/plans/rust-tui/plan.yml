@@ -3,6 +3,14 @@ profile: concise
 id: rust-tui
 title: Shared Rust essential native proof, immediate browser integration and separate full CLI parity
 status: implementing
+performance_floor_approval_2026_10_24:
+  authority: Latest explicit user instruction; no repeated approval is required.
+  user_requirement: Regression is absolutely not acceptable. Performance must at least match the TypeScript implementation, and my expectation would be that it should be noticeably faster.
+  acceptance: Hard rollout gate for matched end-to-end CLI/TUI latency and responsiveness, including cold and warm cache workflows. CPU/RAM or renderer gains do not clear slower application flows. Keep benchmark workloads unchanged and preserve security, privacy, owner/Team isolation, protected guards, recovery and durability.
+  task: 59e629da-78d5-480c-91e2-d78250a960f6
+  task_short_id: TASK-8974
+  status: OPEN_CONFIRMED_LIST_REGRESSION_AND_INCOMPLETE_TUI_COMPARISON
+  priority: Investigate and fix measured regressions before further rollout or migration acceptance; independent inactive prototype work does not waive this gate.
 pause_history:
   requested_by: user
   date: '2026-10-21'
@@ -1554,7 +1562,7 @@ working_portability_checkpoint_2026_10_24:
   evidence_boundary: Native SDK conformance and exported rawWASM pass; generated JS package and browser runtime remain required. Raw size is not compressed download size or a web performance comparison.
   retrieval_upload: Bothrequests_normalretrieval_exit0_evidenceupload_exit0
   publication: Blockedby156declaredSDKgaps
-  selfhost: Source2b_run40072462507_ninereceipts_freshsource_image_restartreadinessPASS_epoch0restartpreserved_updatehit105minworkdeadline_cleanupverified_threejobpartitionreviewCLEAR_aggregateacceptanceOPEN
+  selfhost: Matching source83 three-scope aggregate passes; see selfhost_readiness_acceptance_2026_10_24. Earlier source2b deadline failure remains historical.
   browser: Linuxessentialadmissionachieved;noexhaustiveCLI_SDKgap_selfhost_Macblocker.
 
 dependency_security_follow_up_2026_10_24:
@@ -1588,3 +1596,39 @@ selected_decrypted_web_before_checkpoint_2026_10_24:
   retrieval_cleanup_recording_upload: normal_retrieval_exit0_cleanup_verified_video_uploaded_object_identity_retained
   qualification: OneHTTPcoldfill_two_warm_attempts;qualifiedRSSendpoints_notpeak;legacySvelteKitpreview_bound_but_attachment_mode_inventory_claims_unspecified;historical_zero_message_checkpoint_separate;inactiveWorkerfoundation_excluded.
   remaining: MatchedRustWASMAFTER_WASMinitialization_streaming_cancel_sync_recovery_responsiveness_broaderCPURAM_and_required_cachedreplay_regression;no_speedup_or_minimaloverhead_claim.
+
+selfhost_readiness_acceptance_2026_10_24:
+  task: TASK-5702
+  status: DONE_MATCHING_THREE_SCOPE_AGGREGATE_PASSED
+  evidence: docs/plans/rust-tui/selfhost-ci-2026-10-22.json
+  evidence_key: three_scope_acceptance_2026_10_24
+  source: 83e6345e607ae96c4a5895cca93474e1226448b6
+  product_tree: 1044a2848f89741cbcaf359f00ae28e7ac3876b6
+  harness: e7cd917824cb9dc3dd89355b3746913adb01de1d
+  recipe_sha256: 052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef
+  input_set_sha256: 97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03
+  runs: {source: 40088488008, image: 40088490965, legacy: 40088493475}
+  result: Seven source steps, eighteen image steps plus four browser cases, and eight legacy steps pass; strict aggregate acceptance true.
+  cleanup: All three confirm zero owned containers/volumes and private account removal; normal retrieval and evidence upload exit zero.
+  boundary: Each recipe-target receipt retains coverage_complete=false; all three matching receipts establish the aggregate. Only image browser coverage is full-spec. Performance, security, SDK and retirement gates remain separate.
+
+performance_regression_investigation_2026_10_24:
+  task: TASK-8974
+  status: OPEN_FIXES_REQUIRE_MANAGED_EXECUTION_AND_MATCHED_BENCHMARK
+  evidence: docs/plans/rust-tui/application-benchmark.json
+  evidence_key: signed_in_cli_partial_2026_10_24
+  source: c07dfc028411cde9e67386c039a6427602ba61ae
+  run: 40086645265
+  result: Thirty CLI samples retained from a failed overall run; zero TUI samples. Not full-application acceptance.
+  median_wall_ms:
+    whoami: {rust: 669.516, typescript: 936.587}
+    chats_list: {rust: 4764.704, typescript: 525.729}
+    chats_show: {rust: 3301.257, typescript: 2940.231}
+  source_findings:
+  - Native CLI overwrites an existing protected ciphertext cache with its fresh empty client before restoring it.
+  - Native whoami duplicates the runtime admission validation.
+  - Saved-read recovery and final list independently synchronize the same idle inventory.
+  applied_uncompiled_fix: Reviewed five-path native cache/admission V3 restores only matching protected cache and consumes one borrowed fresh admission for whoami; preserves final credential/cache persistence, cancellation and output wiping.
+  duplicate_sync_fix: Private SDK proof proposal requires authoritative complete recovery discovery, unchanged owner/context/credentials/ciphertext, no pending effects and one-use authority; missing or stale proof uses the original fresh path.
+  hard_gate: Applied CI validators require Rust median and p95 wall latency no worse than paired TypeScript for each CLI flow and each TUI responsiveness metric. Forty-six inert checks pass; actual benchmark remains required.
+  verification: Draft runtime/integration and compile-fail guards are unrun until managed CI. Keep original workloads, limits, privacy, recovery and cleanup checks; no rollout or replacement acceptance.

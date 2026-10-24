@@ -1841,6 +1841,39 @@
     "TASK-9393": "done",
     "TASK-1233": "open: preview refresh and actual macOS acceptance remain",
     "TASK-9558": "in_progress",
-    "qualification": "Linux essential browser admission achieved; no full migration or retirement acceptance."
+    "qualification": "Linux essential browser admission achieved; no full migration or retirement acceptance.",
+    "TASK-5702": "done: matching three-scope saved-chat readiness receipts",
+    "TASK-8974": "in_progress: measured chat-list/show regressions block rollout"
+  },
+  "latest_verified_selfhost_acceptance": {
+    "record": "selfhost-ci-2026-10-22.json#three_scope_acceptance_2026_10_24",
+    "task": "TASK-5702",
+    "status": "done",
+    "source": "83e6345e607ae96c4a5895cca93474e1226448b6",
+    "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+    "strict_aggregate_acceptance": true,
+    "qualification": "Acceptance requires all three matching source/image/legacy receipts together. Each recipe-target receipt correctly retains coverage_complete=false; image browser scope alone is full-spec with four passing cases. This closes fresh Rust self-host setup/readiness work only, not performance, security, SDK publication, platform or CLI/TUI retirement gates."
+  },
+  "latest_native_capture_follow_up_2026_10_24": {
+    "source": "c07dfc028411cde9e67386c039a6427602ba61ae",
+    "tree": "1bf6652a9181b185e4051c7b5336c6844ded43b7",
+    "request": "cfe5ece3036c3bfe8841ccde3c74a856700a04ef28bdabfac784b9b0229ca600",
+    "run": 40086647315,
+    "functional_gates_passed": 11,
+    "status": "failed_terminal_capture",
+    "failure_code": "capture_tui_exit",
+    "terminal_capture_failure": {
+      "role": "tui",
+      "exit_code": 125,
+      "checkpoint": "open-chat",
+      "category": "checkpoint_timeout",
+      "elapsed_ms": 17118
+    },
+    "owned_cleanup_acknowledged": false,
+    "cleanup_failed": false,
+    "recovery_retained": true,
+    "normal_retrieval_exit": 0,
+    "evidence_upload_exit": 0,
+    "qualification": "Product remains alive when the existing ten-second open-chat marker wait expires. Input delivery, actual wrap geometry and final terminal screen are unobserved; no proven product or recorder cause. Historical twelve-gate acceptance remains source-qualified, with refreshed installation held."
   }
 }

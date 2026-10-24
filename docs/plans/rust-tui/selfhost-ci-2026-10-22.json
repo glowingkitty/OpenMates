@@ -342,5 +342,477 @@
     "cleanup_verified": true,
     "working_tree_follow_up": "Canonical isolated APP5173/API8000 guards and effective-refresh-credential pairing binding corrected with focused tests/review. New exact-source native CI pending.",
     "dev_binary_installed": false
-  }
+  },
+  "three_scope_acceptance_2026_10_24": {
+    "date": "2026-10-24",
+    "task": "TASK-5702",
+    "task_status": "done",
+    "status": "passed_matching_three_scope_aggregate",
+    "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+    "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+    "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+    "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+    "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+    "strict_aggregate_acceptance": true,
+    "scopes": [
+      {
+        "suite": "selfhost-source",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088488008",
+        "target": "selfhost-source",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "none",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 45667,
+            "exit_code": 0,
+            "completed_elapsed_ms": 57722
+          },
+          {
+            "id": "selfhost-rust-cli",
+            "step": "Build exact-source Rust self-host CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 57800,
+            "exit_code": 0,
+            "completed_elapsed_ms": 277152
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 277154,
+            "exit_code": 0,
+            "completed_elapsed_ms": 281174
+          },
+          {
+            "id": "selfhost-native-source",
+            "step": "Native source-mode install lifecycle",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 281175,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405283
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405284,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405389
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405390,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405655
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088488008",
+            "started_elapsed_ms": 2405656,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2405781
+          }
+        ],
+        "stats": {
+          "expected": 0,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "faebba5e252cab47c84fab689af508b27f575cc18f9dd6f3d5924b7c50d1491d",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      },
+      {
+        "suite": "selfhost-image",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088490965",
+        "target": "selfhost-image",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "full-spec",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 48017,
+            "exit_code": 0,
+            "completed_elapsed_ms": 59966
+          },
+          {
+            "id": "selfhost-typescript-cli",
+            "step": "Build current branch CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 59968,
+            "exit_code": 0,
+            "completed_elapsed_ms": 89227
+          },
+          {
+            "id": "selfhost-rust-cli",
+            "step": "Build exact-source Rust self-host CLI",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 89231,
+            "exit_code": 0,
+            "completed_elapsed_ms": 300505
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 300507,
+            "exit_code": 0,
+            "completed_elapsed_ms": 305890
+          },
+          {
+            "id": "selfhost-images",
+            "step": "Build local image-mode images",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 305891,
+            "exit_code": 0,
+            "completed_elapsed_ms": 712839
+          },
+          {
+            "id": "selfhost-native-image",
+            "step": "Image-mode self-hosted install and timing",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 712840,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2432998
+          },
+          {
+            "id": "selfhost-epoch0-restart",
+            "step": "Preserve epoch 0 across restart",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 2432999,
+            "exit_code": 0,
+            "completed_elapsed_ms": 2870356
+          },
+          {
+            "id": "selfhost-epoch0-update",
+            "step": "Preserve epoch 0 across update",
+            "step_index": 7,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 2870357,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3201105
+          },
+          {
+            "id": "selfhost-epoch1-restart",
+            "step": "Preserve epoch 1 across restart",
+            "step_index": 8,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3201106,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3612143
+          },
+          {
+            "id": "selfhost-epoch1-update",
+            "step": "Preserve epoch 1 across update",
+            "step_index": 9,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3612144,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3938923
+          },
+          {
+            "id": "selfhost-restore-ready",
+            "step": "Restore ready epoch fixture",
+            "step_index": 10,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3938924,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939239
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 11,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939240,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939352
+          },
+          {
+            "id": "selfhost-server-status",
+            "step": "Check server status JSON",
+            "step_index": 12,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939353,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939507
+          },
+          {
+            "id": "selfhost-containers",
+            "step": "Check backend and web Docker containers",
+            "step_index": 13,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939508,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3939662
+          },
+          {
+            "id": "selfhost-chrome",
+            "step": "Verify Chrome browser",
+            "step_index": 14,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3939800,
+            "exit_code": 0,
+            "completed_elapsed_ms": 3941745
+          },
+          {
+            "id": "selfhost-browser",
+            "step": "Run self-hosted smoke spec",
+            "step_index": 15,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 3941746,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4035182
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 16,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 4035184,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4036485
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 17,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088490965",
+            "started_elapsed_ms": 4036486,
+            "exit_code": 0,
+            "completed_elapsed_ms": 4048829
+          }
+        ],
+        "stats": {
+          "expected": 4,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "6b1cf9adc8744b8cf9e0771dedddf011ede22ca18a9e90e5ad261c0c0004c2d5",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      },
+      {
+        "suite": "selfhost-legacy",
+        "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+        "product_tree": "1044a2848f89741cbcaf359f00ae28e7ac3876b6",
+        "recipe_sha256": "052753ef5cab1fb851e594368e4d170b2fa11a170ed0fcb4359701accc1c55ef",
+        "harness_commit": "e7cd917824cb9dc3dd89355b3746913adb01de1d",
+        "input_set_sha256": "97aacdd69377b28f4239ecf09e9917216d3e87033bfa4e06940e6cf130d61d03",
+        "run_id": "40088493475",
+        "target": "selfhost-legacy",
+        "coverage_scope": "recipe-target",
+        "browser_coverage_scope": "none",
+        "coverage_complete": false,
+        "steps": [
+          {
+            "id": "selfhost-dependencies",
+            "step": "Install workspace dependencies",
+            "step_index": 0,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 47775,
+            "exit_code": 0,
+            "completed_elapsed_ms": 59906
+          },
+          {
+            "id": "selfhost-typescript-cli",
+            "step": "Build current branch CLI",
+            "step_index": 1,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 59907,
+            "exit_code": 0,
+            "completed_elapsed_ms": 89646
+          },
+          {
+            "id": "selfhost-published-cli",
+            "step": "Install published CLI from npm",
+            "step_index": 2,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 89654,
+            "exit_code": 0,
+            "completed_elapsed_ms": 94430
+          },
+          {
+            "id": "selfhost-openobserve",
+            "step": "Stage OpenObserve image for self-hosted install",
+            "step_index": 3,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 94434,
+            "exit_code": 0,
+            "completed_elapsed_ms": 99519
+          },
+          {
+            "id": "selfhost-legacy-source",
+            "step": "Source-mode timing baseline",
+            "step_index": 4,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 99520,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1314768
+          },
+          {
+            "id": "selfhost-timing",
+            "step": "Summarize setup timing",
+            "step_index": 5,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1314773,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1314856
+          },
+          {
+            "id": "selfhost-diagnostics",
+            "step": "Show self-hosted status and logs",
+            "step_index": 6,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1314857,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1315122
+          },
+          {
+            "id": "selfhost-uninstall",
+            "step": "Uninstall self-hosted edition",
+            "step_index": 7,
+            "phase": "completed",
+            "source_commit": "83e6345e607ae96c4a5895cca93474e1226448b6",
+            "run_id": "40088493475",
+            "started_elapsed_ms": 1315122,
+            "exit_code": 0,
+            "completed_elapsed_ms": 1315488
+          }
+        ],
+        "stats": {
+          "expected": 0,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "exit_code": 0,
+        "cleanup": {
+          "containers_remaining": 0,
+          "volumes_remaining": 0,
+          "private_account_files_removed": true,
+          "errors": []
+        },
+        "request": "786246dede14afcde6d1d2f42dff9468e19a494bb3f56bdd42976e81d5e593f3",
+        "normal_retrieval_exit": 0,
+        "evidence_upload_exit": 0
+      }
+    ],
+    "qualification": "Acceptance requires all three matching source/image/legacy receipts together. Each recipe-target receipt correctly retains coverage_complete=false; image browser scope alone is full-spec with four passing cases. This closes fresh Rust self-host setup/readiness work only, not performance, security, SDK publication, platform or CLI/TUI retirement gates."
+  },
+  "latest_acceptance": "three_scope_acceptance_2026_10_24"
 }

@@ -3951,5 +3951,1087 @@
     "Input timing ends at the next synchronized ANSI frame and is not a causal end-to-end interaction guarantee.",
     "Five samples give a coarse p95 (nearest-rank maximum); host scheduling, page cache and language runtime initialization are included."
   ],
-  "status": "passed"
+  "status": "passed",
+  "latest_signed_in_comparison": "signed_in_cli_partial_2026_10_24",
+  "signed_in_cli_partial_2026_10_24": {
+    "summary": {
+      "source": "c07dfc028411cde9e67386c039a6427602ba61ae",
+      "run": 40086645265,
+      "request": "c9906622c32ab94a18e61c8abdfe4081b4803d741c6c35938d56a60c3c2bef8a",
+      "cli_subreport_status": "passed",
+      "cli_phase": "complete",
+      "counts": {
+        "chats": 2,
+        "messages": 12
+      },
+      "rows": [
+        {
+          "flow": "whoami",
+          "rust": {
+            "samples": 5,
+            "median_wall_ms": 669.5163650001632,
+            "median_cpu_total_ms": 33.919,
+            "median_largest_process_hwm_mib": 21.66796875
+          },
+          "typescript": {
+            "samples": 5,
+            "median_wall_ms": 936.5866150001239,
+            "median_cpu_total_ms": 575.377,
+            "median_largest_process_hwm_mib": 136.296875
+          }
+        },
+        {
+          "flow": "chats-list",
+          "rust": {
+            "samples": 5,
+            "median_wall_ms": 4764.704322999933,
+            "median_cpu_total_ms": 46.232,
+            "median_largest_process_hwm_mib": 25.296875
+          },
+          "typescript": {
+            "samples": 5,
+            "median_wall_ms": 525.7286619998922,
+            "median_cpu_total_ms": 527.623,
+            "median_largest_process_hwm_mib": 135.71875
+          }
+        },
+        {
+          "flow": "chats-show",
+          "rust": {
+            "samples": 5,
+            "median_wall_ms": 3301.257360999898,
+            "median_cpu_total_ms": 44.634,
+            "median_largest_process_hwm_mib": 25.60546875
+          },
+          "typescript": {
+            "samples": 5,
+            "median_wall_ms": 2940.230534999955,
+            "median_cpu_total_ms": 692.25,
+            "median_largest_process_hwm_mib": 155.8046875
+          }
+        }
+      ],
+      "measurement_method": {
+        "version": 2,
+        "profiles": {
+          "rust": "rust-leaf",
+          "typescript": "pinned-typescript-owned-tree"
+        },
+        "cpuScope": "kernel-waited-forest",
+        "rssScope": "largest-waited-process-hwm-kib",
+        "idleCpuScope": "quantized-stable-owned-forest",
+        "idleRssScope": "largest-live-owned-process-rss-kib",
+        "comparability": "Method2 includes owned descendants; earlier childless attempts are not matched before/after measurements."
+      },
+      "scope": {
+        "process": "cold process: a new actual complete CLI for every sample",
+        "profileCache": "warm independent profiles/caches: prerequisite and untimed preflight reads; OS page cache not flushed",
+        "storageBoundary": "Same owner-only OS filesystem boundary; different formats, not equal crypto or OS-keyring protection.",
+        "timedChatSelection": "first canonical seeded chat; all seeded chats verified outside timing",
+        "buildLoginSeedReadbackPreparation": "excluded",
+        "outputShapes": "actual backend JSON shapes differ; semantic owner/history is validated",
+        "inference": "none",
+        "ownerCheckBeforeListShow": "untimed actual whoami before each list/show sample"
+      },
+      "overall_run_status": "failure",
+      "overall_error": "1200second Playwright process limit; TUI failed before collecting samples",
+      "qualification": "Partial CLI samples retained from failed overall run; not accepted full-application or TUI comparison",
+      "retrieval_upload_exit": 0
+    },
+    "cli_metrics": {
+      "schemaVersion": 1,
+      "measurementMethod": {
+        "version": 2,
+        "profiles": {
+          "rust": "rust-leaf",
+          "typescript": "pinned-typescript-owned-tree"
+        },
+        "cpuScope": "kernel-waited-forest",
+        "rssScope": "largest-waited-process-hwm-kib",
+        "idleCpuScope": "quantized-stable-owned-forest",
+        "idleRssScope": "largest-live-owned-process-rss-kib",
+        "comparability": "Method2 includes owned descendants; earlier childless attempts are not matched before/after measurements."
+      },
+      "kind": "authenticated-full-process-cli-reads",
+      "status": "passed",
+      "repetitions": 5,
+      "order": "even sample indexes Rust then original TS; odd indexes original TS then Rust",
+      "sourceIdentity": {
+        "nativeBinarySha256": "79995083246c6638da6c9541262698cdc54d8ecb1a4197d7098a342d68b174b6",
+        "nodeBinarySha256": "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb",
+        "originalBaseline": {
+          "sourceCommit": "25dfaf520724c693dac4d743abb20064f41c9d49",
+          "entrySha256": "e8957fd5193e03231a98dbf5bf0f0181ce4bd47fbbd5399d668c246143d395a7",
+          "manifestSha256": "c037ed939704cbe6acf5a567e5dc8f19af833147f0d370bc595f12f28eb69f08",
+          "limits": "Candidate-installed dependencies; immutable original application source."
+        },
+        "prerequisiteReceiptSha256": "e0d9c6a985139fa020abcd22b9ee3bbb64bfe408ec8b53e34762644c8871ba18",
+        "fixtureExpectationSha256": "42b68e9cd57cc9098dc6c80fd5b84dae1c92cfac1e9e9d6919b77438f1c29c92",
+        "workingTreeRustSourcesSha256": "8dca18f78487262faefd651f26b4fb5d60409bba49f1c5797f92120b6f05c869",
+        "workingTreeRustSourceCount": 184,
+        "measurementHelperSha256": "848df724e6bd03664ba8d793435ca017141dbc79526e3a1908c99c8ace1599f8",
+        "preparationHelperSha256": "f7e2f7dc4222549f66319234f678569f4cd66dd8d60f18cafb972d8f8a491427",
+        "meterHelperSha256": "5acfa4e7d6c8056831524fac9e56c385d65f3ce670cff3f956b8b350fbac17f0",
+        "meterSourceSha256": "d21233cedd8954ab7e603b27d7d45f6b630b249581e799a7dd113dc13271ebd7",
+        "meterBinarySha256": "e835c250e7b7ecbb6fbccb7a965679ca46a0589217a10efc375af5b20407ecde",
+        "meterCompilerSha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26"
+      },
+      "environment": {
+        "system": "Linux",
+        "machine": "x86_64",
+        "kernel": "6.17.0-1022-azure",
+        "pythonVersion": "3.13.16",
+        "logicalCpuCount": 4,
+        "locale": "C.UTF-8"
+      },
+      "scope": {
+        "process": "cold process: a new actual complete CLI for every sample",
+        "profileCache": "warm independent profiles/caches: prerequisite and untimed preflight reads; OS page cache not flushed",
+        "storageBoundary": "Same owner-only OS filesystem boundary; different formats, not equal crypto or OS-keyring protection.",
+        "timedChatSelection": "first canonical seeded chat; all seeded chats verified outside timing",
+        "buildLoginSeedReadbackPreparation": "excluded",
+        "outputShapes": "actual backend JSON shapes differ; semantic owner/history is validated",
+        "inference": "none",
+        "ownerCheckBeforeListShow": "untimed actual whoami before each list/show sample"
+      },
+      "counts": {
+        "chats": 2,
+        "messages": 12
+      },
+      "updateCheckVersionPin": "0.28.0",
+      "flows": [
+        {
+          "name": "whoami",
+          "semanticArgv": [
+            "openmates",
+            "whoami",
+            "--json"
+          ],
+          "backends": {
+            "rust": {
+              "storagePolicy": "restricted_local_file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 21.371,
+                    "cpuSystemMs": 15.317,
+                    "peakRssKiB": 22188,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 655.7583700000578,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 25.909,
+                    "cpuSystemMs": 6.983,
+                    "peakRssKiB": 22176,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 679.9774480000451,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 25.683,
+                    "cpuSystemMs": 9.11,
+                    "peakRssKiB": 22504,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 669.5163650001632,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 25.166,
+                    "cpuSystemMs": 8.753,
+                    "peakRssKiB": 22364,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 619.5362050002586,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 16.879,
+                    "cpuSystemMs": 10.011,
+                    "peakRssKiB": 22060,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 751.4895399999659,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 669.5163650001632,
+                  "p95": 751.4895399999659
+                },
+                "cpuUserMs": {
+                  "median": 25.166,
+                  "p95": 25.909
+                },
+                "cpuSystemMs": {
+                  "median": 9.11,
+                  "p95": 15.317
+                },
+                "peakRssKiB": {
+                  "median": 22188,
+                  "p95": 22504
+                }
+              }
+            },
+            "typescript": {
+              "storagePolicy": "owner-only-file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 442.216,
+                    "cpuSystemMs": 94.669,
+                    "peakRssKiB": 140164,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 864.6448940003211,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 484.8,
+                    "cpuSystemMs": 95.148,
+                    "peakRssKiB": 139568,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 964.3110840002009,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 468.568,
+                    "cpuSystemMs": 102.195,
+                    "peakRssKiB": 139200,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 936.5866150001239,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 481.973,
+                    "cpuSystemMs": 93.404,
+                    "peakRssKiB": 140164,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 850.902331999805,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 530.317,
+                    "cpuSystemMs": 85.159,
+                    "peakRssKiB": 139296,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 1002.6171520003118,
+                    "stdoutBytes": 1087,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 936.5866150001239,
+                  "p95": 1002.6171520003118
+                },
+                "cpuUserMs": {
+                  "median": 481.973,
+                  "p95": 530.317
+                },
+                "cpuSystemMs": {
+                  "median": 94.669,
+                  "p95": 102.195
+                },
+                "peakRssKiB": {
+                  "median": 139568,
+                  "p95": 140164
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "chats-list",
+          "semanticArgv": [
+            "openmates",
+            "chats",
+            "list",
+            "--personal",
+            "--limit",
+            "100",
+            "--json"
+          ],
+          "backends": {
+            "rust": {
+              "storagePolicy": "restricted_local_file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 31.522,
+                    "cpuSystemMs": 14.71,
+                    "peakRssKiB": 25468,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 4716.342630999861,
+                    "stdoutBytes": 722,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 35.241,
+                    "cpuSystemMs": 13.498,
+                    "peakRssKiB": 25996,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 4862.889688999985,
+                    "stdoutBytes": 722,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 32.591,
+                    "cpuSystemMs": 15.729,
+                    "peakRssKiB": 26204,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 4764.704322999933,
+                    "stdoutBytes": 722,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 28.374,
+                    "cpuSystemMs": 16.119,
+                    "peakRssKiB": 25764,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 4577.6942950001285,
+                    "stdoutBytes": 722,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 27.15,
+                    "cpuSystemMs": 18.796,
+                    "peakRssKiB": 25904,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 4802.848532000098,
+                    "stdoutBytes": 722,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 4764.704322999933,
+                  "p95": 4862.889688999985
+                },
+                "cpuUserMs": {
+                  "median": 31.522,
+                  "p95": 35.241
+                },
+                "cpuSystemMs": {
+                  "median": 15.729,
+                  "p95": 18.796
+                },
+                "peakRssKiB": {
+                  "median": 25904,
+                  "p95": 26204
+                }
+              }
+            },
+            "typescript": {
+              "storagePolicy": "owner-only-file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 454.042,
+                    "cpuSystemMs": 84.265,
+                    "peakRssKiB": 138704,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 550.9047040000041,
+                    "stdoutBytes": 1274,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 455.871,
+                    "cpuSystemMs": 78.977,
+                    "peakRssKiB": 138976,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 525.7286619998922,
+                    "stdoutBytes": 1274,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 435.265,
+                    "cpuSystemMs": 92.358,
+                    "peakRssKiB": 139036,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 528.8462299999992,
+                    "stdoutBytes": 1274,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 435.584,
+                    "cpuSystemMs": 88.747,
+                    "peakRssKiB": 139332,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 498.48858899986226,
+                    "stdoutBytes": 1274,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 437.699,
+                    "cpuSystemMs": 72.453,
+                    "peakRssKiB": 138668,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 478.3740399998351,
+                    "stdoutBytes": 1274,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 525.7286619998922,
+                  "p95": 550.9047040000041
+                },
+                "cpuUserMs": {
+                  "median": 437.699,
+                  "p95": 455.871
+                },
+                "cpuSystemMs": {
+                  "median": 84.265,
+                  "p95": 92.358
+                },
+                "peakRssKiB": {
+                  "median": 138976,
+                  "p95": 139332
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "chats-show",
+          "semanticArgv": [
+            "openmates",
+            "chats",
+            "show",
+            "<canonical-fixture-chat>",
+            "--personal",
+            "--json"
+          ],
+          "backends": {
+            "rust": {
+              "storagePolicy": "restricted_local_file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 31.195,
+                    "cpuSystemMs": 14.69,
+                    "peakRssKiB": 26000,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 3156.156421000105,
+                    "stdoutBytes": 2235,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 21.546,
+                    "cpuSystemMs": 15.383,
+                    "peakRssKiB": 25952,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 3239.7302289996333,
+                    "stdoutBytes": 2235,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 31.309,
+                    "cpuSystemMs": 13.567,
+                    "peakRssKiB": 26352,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 3301.257360999898,
+                    "stdoutBytes": 2235,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 34.145,
+                    "cpuSystemMs": 10.489,
+                    "peakRssKiB": 26220,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 3508.2665999998426,
+                    "stdoutBytes": 2235,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 22.62,
+                    "cpuSystemMs": 14.963,
+                    "peakRssKiB": 26440,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "rust-leaf",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 3314.3150559999413,
+                    "stdoutBytes": 2235,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 3301.257360999898,
+                  "p95": 3508.2665999998426
+                },
+                "cpuUserMs": {
+                  "median": 31.195,
+                  "p95": 34.145
+                },
+                "cpuSystemMs": {
+                  "median": 14.69,
+                  "p95": 15.383
+                },
+                "peakRssKiB": {
+                  "median": 26220,
+                  "p95": 26440
+                }
+              }
+            },
+            "typescript": {
+              "storagePolicy": "owner-only-file",
+              "samples": [
+                {
+                  "index": 0,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 580.576,
+                    "cpuSystemMs": 113.02,
+                    "peakRssKiB": 159016,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 2966.9004899997162,
+                    "stdoutBytes": 4431,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 1,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 610.195,
+                    "cpuSystemMs": 102.722,
+                    "peakRssKiB": 160156,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 2940.230534999955,
+                    "stdoutBytes": 4431,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 2,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 566.71,
+                    "cpuSystemMs": 118.502,
+                    "peakRssKiB": 158976,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 2928.358883999863,
+                    "stdoutBytes": 4431,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 3,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 575.218,
+                    "cpuSystemMs": 112.435,
+                    "peakRssKiB": 160332,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 2858.3225540000967,
+                    "stdoutBytes": 4431,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                },
+                {
+                  "index": 4,
+                  "status": "passed",
+                  "metrics": {
+                    "exitCode": 0,
+                    "cpuUserMs": 570.011,
+                    "cpuSystemMs": 122.239,
+                    "peakRssKiB": 159544,
+                    "accounting": {
+                      "method": "owned-tree-v2",
+                      "processAccounting": "pinned-typescript-owned-tree",
+                      "cpuScope": "kernel-waited-forest",
+                      "rssScope": "largest-waited-process-hwm-kib",
+                      "ownedShutdownConfirmed": true,
+                      "adoptedReapCount": 0,
+                      "accountingStatus": "complete"
+                    },
+                    "wallMs": 2993.323830999998,
+                    "stdoutBytes": 4431,
+                    "stderrBytes": 0,
+                    "actualChildExecutableObserved": true,
+                    "sampledDescendantGuard": true
+                  }
+                }
+              ],
+              "distributions": {
+                "wallMs": {
+                  "median": 2940.230534999955,
+                  "p95": 2993.323830999998
+                },
+                "cpuUserMs": {
+                  "median": 575.218,
+                  "p95": 610.195
+                },
+                "cpuSystemMs": {
+                  "median": 113.02,
+                  "p95": 122.239
+                },
+                "peakRssKiB": {
+                  "median": 159544,
+                  "p95": 160332
+                }
+              }
+            }
+          }
+        }
+      ],
+      "limits": [
+        "CLI reads only. No TUI readiness/opening/draft, Task fixture/operations, idle memory or renderer measurement; full application comparison remains incomplete.",
+        "No speedup, authentication-cost or broad parity claim. Actual commands include their own session validation/refresh, local cache, server reads, decrypt and JSON serialization; caller-side result validation is outside timing.",
+        "Wall includes the shared exec-isolated C meter exec/fork/wait and bounded harness guard/pipe overhead in both arms. CPU sums disjoint owned wait4 roots including their already-waited descendants. RSS is the largest waited-process high-water mark, not aggregate or simultaneous tree RSS; Python-parent RSS is excluded.",
+        "Executable checks are bounded live /proc observations, not a syscall trace. Rust rejects descendants; the exact pinned TypeScript reference requires complete subreaper-owned tree accounting and shutdown. Unknown ownership or an unobserved application executable rejects the sample.",
+        "Five samples give a coarse nearest-rank p95 (maximum). No failed sample is omitted or retried; any failure invalidates the report.",
+        "Preparation receipt binds source identities/counts but has no historical fixture/profile digest. Current private owner/history are independently reverified before timing and bound by the separate expectation digest.",
+        "Working-tree source digests are captured before/after; binary-to-source build provenance remains the isolated CI caller responsibility. No registry/OS keyring equivalence, macOS or installation proof."
+      ],
+      "phase": "complete"
+    },
+    "cli_metrics_sha256": "dde31a9ee0fc6be846a6581480310b02a3acb41b3d1f96306935b40335ae8489",
+    "acceptance": "BLOCKED_USER_PERFORMANCE_FLOOR",
+    "user_requirement": "End-to-end performance must at least match TypeScript; noticeable improvement expected.",
+    "source_findings": [
+      "Rust recovery discovery and ordinary list repeat fresh phased synchronization.",
+      "Pinned TypeScript ordinary warm list serves its retained cache.",
+      "Native CLI omits protected-cache restoration before initial persistence, which can overwrite it with an empty snapshot.",
+      "Native whoami repeats fresh validation after runtime admission."
+    ],
+    "security_constraints": "Preserve owner/Team isolation, protected account guards, observed revocation, paired expiry, recovery, cancellation and durable output.",
+    "comparison_limitations": [
+      "Overall Playwright process hit its1200second limit; no accepted complete-application comparison.",
+      "TUI report failed before collecting samples.",
+      "Cold processes with warm independently prepared profiles/caches; OS page cache not flushed.",
+      "Cache policies differ and remain required parity work; the user performance floor is not waived.",
+      "CPU covers kernel-waited owned forest; RSS is largest individual-process HWM, never aggregate tree peak."
+    ],
+    "cleanup": {
+      "containers_remaining": 0,
+      "volumes_remaining": 0,
+      "private_account_files_removed": true
+    },
+    "remaining": [
+      "Correct verified redundant work and cache parity.",
+      "Collect complete matched CLI/TUI comparisons and enforce the floor in CI."
+    ]
+  }
 }

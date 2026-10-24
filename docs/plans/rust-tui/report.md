@@ -2,6 +2,11 @@
 
 ## Current source-qualified evidence — 2026-10-24
 
+**Performance regression is an acceptance blocker.** The user explicitly requires
+end-to-end CLI/TUI performance at least matching TypeScript, with noticeable
+improvement expected. TASK-8974 owns this gate; rollout acceptance remains open.
+Lower CPU/RAM and renderer improvements cannot clear slower application workflows.
+
 The Linux essential native milestone is **verified**. Source
 `3a962e77b1277e8a64c36af3fefbd72859c1bb8e`, tree
 `db2be0ac83cb484f43aacf22f6bb1fe12a110d07`, passes all **12 essential gates** in
@@ -22,13 +27,15 @@ readiness and macOS do not block browser work. The installed source1b preview an
 npm command remain alongside each other; no automatic replacement or retirement
 acceptance follows from this Linux milestone.
 
-The refreshed package candidate `e20fd7162cc341cedb44fdfac9414ece8c8a938f`, run
-`40083361928`, repeats all eleven functional checks successfully, then fails at
-`capture_tui_exit` while creating the updated terminal recording. Its final owned
-cleanup acknowledgement is not reached; recovery files are retained and
-`cleanup_failed` is false. Normal retrieval/upload exit zero. This recording
-failure is under investigation and does not replace the earlier complete pass
-with a claim of refreshed-package acceptance.
+The later candidate `c07dfc028411cde9e67386c039a6427602ba61ae`, run
+`40086647315`, repeats all eleven functional checks successfully, then fails at
+`capture_tui_exit` while creating the updated terminal recording. Closed
+diagnostics identify the existing ten-second `open-chat` checkpoint wait while
+the terminal remains alive. Actual input delivery, terminal geometry and final
+screen are not retained, so the cause remains unproven. Its final owned cleanup
+acknowledgement is not reached; recovery files are retained and `cleanup_failed`
+is false. Normal retrieval/upload exit zero. The earlier complete pass does not
+establish refreshed-package acceptance.
 
 The latest SDK checkpoint is source
 `2236d0bcf96dd6468121ebc663db6a587033f277`, tree
@@ -70,28 +77,50 @@ do not clear this new finding. Details remain in [security.md](security.md) and
 the [existing audit record](dependency-audit.json); this does not change the 156
 capability-gap count.
 
-Fresh self-host readiness Task5702 remains separately required. Source
-`2b564935cfdd20736397d64deace0d7bd57f7a47`, run `40072462507`, verifies source and
-image fresh setup and restart with schema-six readiness fields, epoch one and
-no legacy work. Nine retained receipts also verify preservation of paused epoch
-zero through image restart. It exhausts the 105-minute work deadline during the
-epoch-zero update; no inner update failure is established. Cleanup succeeds,
-with zero owned containers/volumes and private account data removed; normal
-retrieval and upload exit zero. Epoch-zero update, epoch-one preservation,
-readiness restoration and the four browser flows still require proof. A reviewed
-three-job partition preserves the 105/117/120-minute work/cleanup/job limits and
-requires matching immutable source, recipe and harness receipts for acceptance.
-Historical sixteen-step/four-browser setup proof did not test saved-chat readiness.
+**Fresh Rust self-host readiness passes; TASK-5702 is done.** Source
+`83e6345e607ae96c4a5895cca93474e1226448b6`, tree
+`1044a2848f89741cbcaf359f00ae28e7ac3876b6`, passes the matching source, image and
+legacy scopes in runs `40088488008`, `40088490965` and `40088493475`. The strict
+aggregate verifies identical source/tree, harness, recipe and input-set identity.
+Source has seven passing steps, image eighteen plus four passing browser cases,
+and legacy eight. Each scope confirms zero owned containers/volumes and private
+account removal; normal retrieval and upload exit zero. Individual recipe-target
+receipts retain `coverage_complete=false`; acceptance comes from all three
+together. Only image has full browser-spec coverage. The
+[existing self-host record](selfhost-ci-2026-10-22.json) preserves the earlier
+deadline failure and the new aggregate. This does not clear performance, security,
+SDK publication or retirement gates.
 
-The signed-in CLI/TUI performance comparison remains unverified. Source
-`d76b74b2b351c897e826619064b620bd657d9a94`, run `40072614278`, passes preparation
-for both clients, then the process observer rejects a TypeScript CLI descendant
-before recording a successful sample. The descendant identity was not retained;
-no TypeScript product failure is inferred. A private accounting correction is
-under review: observe and reap the owned reference process tree, keep the native
-leaf-process requirement, and label maximum RSS as the largest individual process
-high-water mark rather than aggregate memory. No signed-in application speedup
-is claimed. Earlier help/version and renderer measurements remain separate.
+The latest [signed-in partial CLI comparison](application-benchmark.json) is
+source `c07dfc028411cde9e67386c039a6427602ba61ae`, run `40086645265`, request
+`c9906622c32ab94a18e61c8abdfe4081b4803d741c6c35938d56a60c3c2bef8a`.
+Its CLI subreport passes all thirty samples: five fresh processes per language
+and command, with warm independent profiles, two chats and twelve messages.
+
+| Command | Rust median wall | TypeScript median wall | Rust median CPU | TypeScript median CPU |
+|---|---:|---:|---:|---:|
+| whoami | 670 ms | 937 ms | 34 ms | 575 ms |
+| chats list | 4,765 ms | 526 ms | 46 ms | 528 ms |
+| chats show | 3,301 ms | 2,940 ms | 45 ms | 692 ms |
+
+Rust largest-process high-water memory is about22–26MiB versus136–156MiB for
+TypeScript; this is not aggregate tree peak memory. CPU includes the waited owned
+process forest; each CLI sample confirms shutdown. The overall comparison fails
+at the 1,200-second Playwright-process limit; TUI verification collects no valid
+samples. Cleanup confirms zero containers/volumes and private account-file removal;
+normal retrieval/upload exit zero. These are provisional CLI observations from a
+failed overall run, not complete-application acceptance or a broad speedup claim.
+
+Source inspection identifies duplicate Rust recovery-discovery/list sync, omitted
+CLI cache restoration before initial empty-cache persistence, and repeated whoami
+admission. The pinned TypeScript warm list uses its retained cache. Cache parity
+and redundant work must be corrected while preserving security and recovery;
+the different cache behavior does not waive the performance floor. The conditional
+three-second metadata-discovery fallback has not been attributed in retained logs.
+Earlier source `d76b74b2b351c897e826619064b620bd657d9a94`, run40072614278, stopped
+before samples at the descendant observer. The reviewed owned-tree meter now
+accounts for the reference helpers and requires complete shutdown. Historical
+help/version and renderer measurements remain separate.
 
 The stronger [legacy web BEFORE checkpoint](web-before-performance-2026-10-23.json)
 now passes the exact controlled-cache case on its first attempt in run
