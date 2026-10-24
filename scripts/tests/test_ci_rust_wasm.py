@@ -110,6 +110,69 @@ class WasmReceiptTests(unittest.TestCase):
             with self.assertRaises(lane.sdk.Refused):
                 attest([name for name in names if name != lock])
 
+    def test_cargo_hardlinked_output_is_copied_to_independent_private_inode(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            release = root / "target/wasm32-unknown-unknown/release"
+            deps = release / "deps"
+            deps.mkdir(parents=True)
+            cached = deps / "openmates_browser_bindings-hash.wasm"
+            cached.write_bytes(WASM)
+            artifact = release / lane.WASM_NAME
+            os.link(cached, artifact)
+            self.assertEqual(artifact.stat().st_nlink, 2)
+            exported = root / "export"
+            exported.mkdir(mode=0o700)
+            destination = exported / lane.WASM_NAME
+            metadata = lane.copy_compiled_wasm(artifact, destination)
+            self.assertEqual(metadata, lane.wasm_metadata(WASM))
+            self.assertEqual(destination.read_bytes(), WASM)
+            self.assertEqual(destination.stat().st_nlink, 1)
+            self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+            self.assertNotEqual(destination.stat().st_ino, artifact.stat().st_ino)
+            self.assertEqual(artifact.stat().st_nlink, 2)
+
+    def test_compiler_output_copy_rejects_symlinks_existing_aliases_and_source_mutation(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "input.wasm"
+            source.write_bytes(WASM)
+            alias = root / "alias.wasm"
+            alias.symlink_to(source)
+            with self.assertRaises(lane.sdk.Refused):
+                lane.copy_compiled_wasm(alias, root / "out.wasm")
+            os.link(source, root / "existing.wasm")
+            with self.assertRaises(FileExistsError):
+                lane.copy_compiled_wasm(source, root / "existing.wasm")
+            original_regular = lane.sdk.regular
+            def read_and_mutate(path, *args):
+                data = original_regular(path, *args)
+                if path == source:
+                    source.write_bytes(WASM + b"changed")
+                return data
+            with patch.object(lane.sdk, "regular", side_effect=read_and_mutate), self.assertRaises(lane.sdk.Refused):
+                lane.copy_compiled_wasm(source, root / "changed-output.wasm")
+
+    def test_compiler_output_copy_rejects_replacement_during_final_destination_read(self):
+        for replacement in ("compiler-hardlink", "independent-inode"):
+            with TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = root / "input.wasm"
+                destination = root / "output.wasm"
+                source.write_bytes(WASM)
+                original_regular = lane.sdk.regular
+                def read_and_replace(path, *args):
+                    data = original_regular(path, *args)
+                    if path == destination:
+                        destination.unlink()
+                        if replacement == "compiler-hardlink":
+                            os.link(source, destination)
+                        else:
+                            destination.write_bytes(WASM)
+                    return data
+                with patch.object(lane.sdk, "regular", side_effect=read_and_replace), self.assertRaises(lane.sdk.Refused):
+                    lane.copy_compiled_wasm(source, destination)
+
     def test_coordinator_refuses_mixed_requests_before_state(self):
         coordinator = load("wasm_coordinator", "ci_coordinator.py")
         queue = object.__new__(coordinator.Queue)
@@ -214,6 +277,13 @@ class WasmRunTests(unittest.TestCase):
                     raise OSError("fixture output refusal")
                 return original_write(path, data)
             stack.enter_context(patch.object(Path, "write_bytes", write_bytes))
+            original_open = lane.os.open
+            def open_file(path, flags, *args, **kwargs):
+                if (scenario in {"output", "artifact-cleanup"} and "rust-wasm" in Path(path).parts
+                        and Path(path).name == lane.WASM_NAME):
+                    raise OSError("fixture output refusal")
+                return original_open(path, flags, *args, **kwargs)
+            stack.enter_context(patch.object(lane.os, "open", side_effect=open_file))
             original_remove = lane.shutil.rmtree
             def remove(path, *args, **kwargs):
                 if ((scenario == "cleanup" and Path(path).parent == runtime)

@@ -92,6 +92,27 @@ def wasm_metadata(data):
     return {"name": WASM_NAME, "format": "wasm-v1", "sha256": sdk.sha(data), "bytes": len(data)}
 
 
+def copy_compiled_wasm(artifact, destination):
+    """Cargo may hard-link its build outputs; export a fresh independent inode."""
+    source = artifact.lstat()
+    data = sdk.regular(artifact, 128 * 1024**2)
+    metadata = wasm_metadata(data)
+    sdk.require(destination.is_absolute() and destination.parent.resolve() == destination.parent, "outputs")
+    fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "wb") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write(data)
+        stream.flush()
+        copied = os.fstat(stream.fileno())
+        sdk.require(stat.S_ISREG(copied.st_mode) and copied.st_uid == os.getuid() and copied.st_nlink == 1
+                    and (copied.st_dev, copied.st_ino) != (source.st_dev, source.st_ino), "outputs")
+    exported = sdk.regular(destination, 128 * 1024**2)
+    sdk.require(wasm_metadata(exported) == metadata
+                and sdk.file_identity(source) == sdk.file_identity(artifact.lstat())
+                and sdk.file_identity(copied) == sdk.file_identity(destination.lstat()), "outputs")
+    return metadata
+
+
 def retain_failure_diagnostic(private, output, receipt, stage):
     """Keep only the failed stage's bounded tail; account/provider env is absent."""
     sdk.require(stage in STAGES, "compile")
@@ -200,12 +221,8 @@ def run(root, results, *, environ=None):
             sdk.require(snapshot(root, before) == before, "source")
         phase = "outputs"
         sdk.require(all(sdk.sha(sdk.regular(work / name)) == digest for name, digest in before.items()), "source")
-        data = sdk.regular(artifact, 128 * 1024**2)
-        sdk.require(artifact.stat().st_nlink == 1, "outputs")
-        metadata = wasm_metadata(data)
         artifact_dir.mkdir(mode=0o700)
-        (artifact_dir / WASM_NAME).write_bytes(data)
-        sdk.require(wasm_metadata(sdk.regular(artifact_dir / WASM_NAME, 128 * 1024**2)) == metadata, "outputs")
+        metadata = copy_compiled_wasm(artifact, artifact_dir / WASM_NAME)
         receipt.update(artifact=metadata, status="passed", code=None)
     except Exception as error:
         receipt.update(status="failed", code=phase if phase in FAILURES else "unclassified")
