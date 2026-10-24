@@ -133,8 +133,12 @@ def timings(job: dict, runner_jobs: list[dict]) -> dict:
     return result
 
 
-def download(command, root, output):
+def download(command, root, output, *, limit=None):
     """Drain both pipes with a wall-clock deadline and bounded retained output."""
+    if limit is None:
+        limit = MAX_ARCHIVE
+    if type(limit) is not int or not 0 < limit <= MAX_ARCHIVE:
+        raise ValueError("Invalid bounded CI artifact download limit")
     child = subprocess.Popen(
         command, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -154,7 +158,7 @@ def download(command, root, output):
                         streams.unregister(key.fileobj)
                     elif key.data:
                         size += len(chunk)
-                        if size > MAX_ARCHIVE:
+                        if size > limit:
                             raise RuntimeError("CI artifact download exceeded limit")
                         output.write(chunk)
                     # Discard stderr: credentials and server response bodies are not evidence.
@@ -222,6 +226,130 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
             and all(isinstance(services[name], dict)
                     and services[name].get("running") is True for name in required))
 
+
+
+def valid_rust_wasm_diagnostic(descriptor, identity_bytes, tail, job, harness, expected_tree):
+    """Validate the optional private tail without exposing its text in receipts."""
+    try:
+        from scripts.ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, STAGES
+    except ModuleNotFoundError:
+        from ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, STAGES
+    if (not isinstance(descriptor, dict)
+            or set(descriptor) != {"artifactName", "identity", "identitySha256", "publicRawUpload"}
+            or descriptor.get("artifactName") != DIAGNOSTIC_ARTIFACT or descriptor.get("publicRawUpload") is not False
+            or not isinstance(identity_bytes, bytes) or len(identity_bytes) > 16384
+            or not isinstance(tail, bytes) or len(tail) > DIAGNOSTIC_LIMIT
+            or descriptor.get("identitySha256") != hashlib.sha256(identity_bytes).hexdigest()):
+        return False
+    try:
+        identity = json.loads(identity_bytes)
+    except (ValueError, UnicodeError):
+        return False
+    keys = {"schemaVersion", "source_commit", "source_tree", "harness_commit", "run_id", "stage", "path",
+            "bytes", "originalBytes", "sha256", "truncated"}
+    return (isinstance(identity, dict) and set(identity) == keys and descriptor.get("identity") == identity
+            and identity.get("schemaVersion") == 1 and identity.get("source_commit") == job["source"]
+            and identity.get("source_tree") == expected_tree and identity.get("harness_commit") == harness
+            and str(identity.get("run_id")) == str(job["run_id"]) and identity.get("stage") in STAGES
+            and identity.get("path") == "cargo-tail.log" and type(identity.get("bytes")) is int
+            and identity["bytes"] == len(tail) and type(identity.get("originalBytes")) is int
+            and len(tail) <= identity["originalBytes"] <= 2**63 - 1
+            and identity["bytes"] == min(identity["originalBytes"], DIAGNOSTIC_LIMIT)
+            and identity.get("truncated") is (identity["originalBytes"] > len(tail))
+            and identity.get("sha256") == hashlib.sha256(tail).hexdigest())
+
+
+def fetch_rust_wasm_diagnostic(github, job, root, artifacts, descriptor, harness, expected_tree, destination):
+    """Use authenticated managed retrieval, strict ZIP inventory and private modes."""
+    try:
+        from scripts.ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT
+    except ModuleNotFoundError:
+        from ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT
+    matches = [item for item in artifacts if item["name"] == DIAGNOSTIC_ARTIFACT]
+    if not isinstance(descriptor, dict) or "identity" not in descriptor:
+        if matches:
+            raise RuntimeError("Unexpected Rust WASM private diagnostic artifact")
+        return {"status": "not-captured", "publicRawUpload": False}
+    if len(matches) != 1 or matches[0].get("expired"):
+        return {"status": "unavailable", "reason": "missing-or-expired-private-artifact", "publicRawUpload": False}
+    artifact = matches[0]
+    if not 0 < artifact.get("size_in_bytes", 0) <= 256 * 1024:
+        raise RuntimeError("Rust WASM private diagnostic archive exceeds bound")
+    with tempfile.TemporaryDirectory(dir=destination.parent, prefix="wasm-diagnostic-") as temporary:
+        archive = Path(temporary) / "diagnostic.zip"
+        with archive.open("wb") as stream:
+            download(["gh", "api", f"repos/{github.repo}/actions/artifacts/{artifact['id']}/zip"], root, stream, limit=256 * 1024)
+        with zipfile.ZipFile(archive) as bundle:
+            entries = bundle.infolist()
+            if (len(entries) != 2 or {row.filename for row in entries} != {"identity.json", "cargo-tail.log"}
+                    or any(stat.S_ISLNK(row.external_attr >> 16) for row in entries)
+                    or any(row.file_size > (16384 if row.filename == "identity.json" else DIAGNOSTIC_LIMIT) for row in entries)):
+                raise RuntimeError("Unsafe Rust WASM private diagnostic inventory")
+            identity, tail = bundle.read("identity.json"), bundle.read("cargo-tail.log")
+        if not valid_rust_wasm_diagnostic(descriptor, identity, tail, job, harness, expected_tree):
+            raise RuntimeError("Rust WASM private diagnostic identity/hash mismatch")
+        destination.mkdir(mode=0o700)
+        for name, data in (("identity.json", identity), ("cargo-tail.log", tail)):
+            with (destination / name).open("xb") as stream:
+                os.fchmod(stream.fileno(), 0o600)
+                stream.write(data)
+    return {"status": "verified", "artifact_id": artifact["id"], "artifact_name": DIAGNOSTIC_ARTIFACT,
+            "path": "rust-wasm-private/cargo-tail.log", "bytes": len(tail), "sha256": hashlib.sha256(tail).hexdigest(),
+            "truncated": descriptor["identity"]["truncated"], "publicRawUpload": False}
+
+
+def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, artifact):
+    """Credit one exact locked compiler invocation, without browser/runtime proof."""
+    try:
+        from scripts.ci_rust_wasm import LOCKS, STAGES, commands, wasm_metadata
+    except ModuleNotFoundError:
+        from ci_rust_wasm import LOCKS, STAGES, commands, wasm_metadata
+    keys = {"schemaVersion", "runtime_profile", "status", "code", "compilationProof", "browserRuntimeProof",
+            "conformanceProof", "releaseProof", "publication", "services", "cleanupVerified", "sourceHeld",
+            "source_commit", "source_tree", "harness_commit", "run_id", "inputs", "inputSetSha256", "locks", "artifact", "steps"}
+    if (not isinstance(receipt, dict) or set(receipt) != keys or job.get("mode") != "rust-wasm"
+            or json.loads(job["specs"]) != ["rust-wasm"]
+            or any(job.get(key) for key in ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title"))
+            or report.get("runtime_profile") != "rust-wasm"
+            or report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}]
+            or receipt.get("schemaVersion") != 1 or receipt.get("status") != "passed" or receipt.get("code") is not None
+            or receipt.get("runtime_profile") != "rust-wasm" or receipt.get("compilationProof") is not True
+            or any(receipt.get(key) is not False for key in ("browserRuntimeProof", "conformanceProof", "releaseProof", "publication"))
+            or receipt.get("source_commit") != job["source"] or receipt.get("source_tree") != expected_tree
+            or receipt.get("harness_commit") != harness or str(receipt.get("run_id")) != str(job["run_id"])
+            or receipt.get("services") != {} or receipt.get("cleanupVerified") is not True or receipt.get("sourceHeld") is not True
+            or not expected_inputs or receipt.get("inputs") != expected_inputs
+            or receipt.get("inputSetSha256") != hashlib.sha256(json.dumps(expected_inputs, sort_keys=True).encode()).hexdigest()
+            or not all(name in expected_inputs for name in LOCKS)
+            or receipt.get("locks") != {name: expected_inputs[name] for name in LOCKS}):
+        return False
+    try:
+        if receipt.get("artifact") != wasm_metadata(artifact):
+            return False
+    except (ValueError, RuntimeError, TypeError):
+        return False
+    steps = receipt.get("steps")
+    if (not isinstance(steps, list) or len(steps) != len(STAGES) or not all(isinstance(row, dict) for row in steps)
+            or [row.get("stage") for row in steps] != list(STAGES)):
+        return False
+    for index, (row, argv) in enumerate(zip(steps, commands())):
+        command = row.get("command")
+        if (set(row) != {"stage", "status", "started", "returncode", "terminatedReturncode", "elapsedSeconds", "command"}
+                or row.get("status") != "passed" or row.get("started") is not True
+                or type(row.get("returncode")) is not int or row["returncode"] != 0
+                or type(row.get("terminatedReturncode")) is not int or row["terminatedReturncode"] != 0
+                or type(row.get("elapsedSeconds")) not in (int, float) or not math.isfinite(row["elapsedSeconds"])
+                or not 0 <= row["elapsedSeconds"] <= (1806 if index == 2 else 306)
+                or not isinstance(command, dict)
+                or set(command) != {"tool", "argvSha256", "executableSha256", "executableBytes", "executableKind", "admission", "entryPackage"}
+                or command.get("tool") != ("cargo" if index == 2 else "rustup")
+                or command.get("admission") != "strict-owner-mode" or command.get("entryPackage") is not None
+                or command.get("argvSha256") != hashlib.sha256(json.dumps(argv, separators=(",", ":")).encode()).hexdigest()
+                or not isinstance(command.get("executableSha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", command["executableSha256"])
+                or type(command.get("executableBytes")) is not int or not 0 < command["executableBytes"] <= 256 * 1024**2
+                or command.get("executableKind") not in {"elf", "script", "regular"}):
+            return False
+    return True
 
 
 def valid_sdk_lockfiles_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, outputs):
@@ -439,7 +567,8 @@ def fetch(github, job: dict, root: Path) -> dict:
     except ModuleNotFoundError:
         from resource_budget import reserve
     # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
-    with reserve(root, MAX_ARCHIVE + MAX_EXPANDED, min_free=RESERVE,
+    diagnostic_reserve = 512 * 1024 if job.get("mode") == "rust-wasm" else 0
+    with reserve(root, MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve, min_free=RESERVE,
                  max_used_percent=100):
         return _fetch_reserved(github, job, root)
 
@@ -560,6 +689,23 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     report, environment_data, job,
                     expected_harness_commit=expected_harness_commit):
                 raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
+        if job["state"] == "success" and job.get("mode") == "rust-wasm":
+            try:
+                from scripts.ci_rust_wasm import WASM_NAME, source_inputs_from_git
+            except ModuleNotFoundError:
+                from ci_rust_wasm import WASM_NAME, source_inputs_from_git
+            receipts = list(extracted.rglob("ci-rust-wasm.json"))
+            wasm_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
+            roots = [path for path in extracted.rglob("rust-wasm") if path.is_dir()]
+            wasm = b""
+            if len(roots) == 1:
+                inventory = {path.relative_to(roots[0]).as_posix(): path for path in roots[0].rglob("*") if path.is_file()}
+                if set(inventory) == {WASM_NAME}:
+                    wasm = inventory[WASM_NAME].read_bytes()
+            expected_tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"], cwd=root, text=True, timeout=15).strip()
+            if not valid_rust_wasm_receipt(report, wasm_receipt, job, expected_harness_commit,
+                    expected_inputs=source_inputs_from_git(root, job["source"]), expected_tree=expected_tree, artifact=wasm):
+                raise RuntimeError("Rust WASM compilation lacks exact locked source/output/command/cleanup evidence")
         if job["state"] == "success" and job.get("mode") == "sdk-lockfiles":
             try:
                 from scripts.ci_sdk_lockfiles import LOCKS, source_inputs_from_git
@@ -594,6 +740,22 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     or sorted(item.get("spec", "") for item in report["results"])
                     != sorted(json.loads(job["specs"]))):
                 raise RuntimeError("Artifact proof lacks exact inventory or isolated runtime evidence")
+        private_diagnostics = None
+        if job.get("mode") == "rust-wasm":
+            receipts = list(extracted.rglob("ci-rust-wasm.json"))
+            wasm_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
+            descriptor = wasm_receipt.get("diagnostics")
+            if descriptor is not None and (wasm_receipt.get("status") != "failed"
+                    or wasm_receipt.get("compilationProof") is not False or job["state"] == "success"):
+                raise RuntimeError("Rust WASM diagnostic must not credit successful compilation")
+            expected_tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"], cwd=root, text=True, timeout=15).strip()
+            if descriptor is not None and (wasm_receipt.get("source_commit") != job["source"]
+                    or wasm_receipt.get("source_tree") != expected_tree
+                    or wasm_receipt.get("harness_commit") != expected_harness_commit
+                    or str(wasm_receipt.get("run_id")) != str(job["run_id"])):
+                raise RuntimeError("Rust WASM private diagnostic receipt identity mismatch")
+            private_diagnostics = fetch_rust_wasm_diagnostic(github, job, root, artifacts, descriptor,
+                expected_harness_commit, expected_tree, extracted / "rust-wasm-private")
         result = {
             "id": job["id"],
             "source_commit": job["source"],
@@ -620,6 +782,8 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "artifact_url": f"{job['url']}/artifacts/{artifact['id']}",
             "directory": str(destination),
         }
+        if private_diagnostics is not None:
+            result["private_diagnostics"] = private_diagnostics
         attach_cleanup(result, job, extracted)
         (extracted / "receipt.json").write_text(json.dumps(result, indent=2))
         extracted.rename(destination)

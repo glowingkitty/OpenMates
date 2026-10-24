@@ -2295,7 +2295,7 @@ def main():
     try:
         if case_title and mode != "e2e":
             raise ValueError("Case filter requires E2E mode")
-        if mode not in ("pytest", "backend-probe", "sdk-lockfiles"):
+        if mode not in ("pytest", "backend-probe", "sdk-lockfiles", "rust-wasm"):
             verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
@@ -2311,6 +2311,10 @@ def main():
                     results=results,
                     **({"case_title": case_title} if case_title else {}),
                 )
+        elif mode == "rust-wasm":
+            reject_inherited_accounts()
+            from ci_rust_wasm import run
+            run(ROOT, results)
         elif mode == "sdk-lockfiles":
             reject_inherited_accounts()
             from ci_sdk_lockfiles import run
