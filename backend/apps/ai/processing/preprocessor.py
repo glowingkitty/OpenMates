@@ -4121,16 +4121,19 @@ async def handle_preprocessing(
                                              if identifier in available_focus_mode_ids]
         ))
 
+    from backend.apps.ai.sub_chat_orchestration import resolve_sub_chat_depth, is_sub_chat_continuation
+
     resolved_enable_subchats = resolve_subchat_enablement(
         enable_subchats_val,
         active_focus_id=request_data.active_focus_id,
+        chat_depth=resolve_sub_chat_depth(request_data),
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
     )
     if resolved_enable_subchats != enable_subchats_val:
         enable_subchats_val = resolved_enable_subchats
-        llm_analysis_args["enable_subchats"] = True
-        logger.info(
-            f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."
-        )
+        llm_analysis_args["enable_subchats"] = resolved_enable_subchats
+        logger.info("%s Applied server sub-chat depth/focus/continuation policy: enabled=%s",
+                    log_prefix, resolved_enable_subchats)
     if request_data.is_incognito:
         # Child orchestration writes canonical chat rows. Incognito has no
         # durable child implementation, so keep its work in the main turn.

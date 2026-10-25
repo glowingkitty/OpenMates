@@ -340,6 +340,12 @@ async function createRoot(database, raw, now) {
   if (body.deep_research != null && typeof body.deep_research !== 'boolean') fail(400, 'invalid_research_mode');
   if (descendantLimit > AUTO_DESCENDANT_LIMIT || creditLimit > AUTO_CREDIT_LIMIT) fail(403, 'root_approval_required');
   return database.transaction(async (trx) => {
+    // A saved descendant must never reset its physical depth by starting a root.
+    const rootChat = await trx(CHATS).where({ id: rootChatId }).first();
+    if (rootChat?.parent_id || rootChat?.is_sub_chat
+      || await trx(CHILDREN).where({ child_chat_id: rootChatId }).first()) {
+      fail(409, 'orchestration_root_is_sub_chat');
+    }
     const existing = await trx(ORCHESTRATIONS).where({ id }).forUpdate().first();
     if (existing) {
       if (existing.hashed_user_id !== ownerHash || existing.root_chat_id !== rootChatId
@@ -400,7 +406,7 @@ async function prepareBatch(database, raw, now) {
   return database.transaction(async (trx) => {
     const root = await lockedRoot(trx, orchestrationId, ownerHash);
     if (root.status !== 'active' || new Date(root.expires_at) <= now) fail(409, 'orchestration_not_active');
-    if (parentDepth >= root.max_depth) fail(409, 'maximum_depth_reached');
+    if (parentDepth >= MAX_DEPTH || parentDepth >= root.max_depth) fail(409, 'maximum_depth_reached');
     if (parentDepth === 0 && parentChatId !== root.root_chat_id) fail(409, 'parent_identity_mismatch');
     if (parentDepth > 0) {
       const parent = await trx(CHILDREN).where({ orchestration_id: orchestrationId, child_chat_id: parentChatId }).first();

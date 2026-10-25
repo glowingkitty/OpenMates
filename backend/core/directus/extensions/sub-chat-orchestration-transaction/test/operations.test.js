@@ -410,3 +410,41 @@ test('legacy research running verifier preserves initial acknowledgement repair 
   assert.equal(db.rows.sub_chat_orchestration_children.length, 4);
   assert.equal(db.rows.chats.length, 1);
 });
+
+
+test('grandchildren cannot spawn even if a legacy root depth cap is larger', async () => {
+  for (const maxDepth of [2, 99]) {
+    const db = researchDatabase();
+    db.rows.sub_chat_orchestrations[0].max_depth = maxDepth;
+    const input = { ...researchClaim, batch_id: OUTBOX_ID, parent_chat_id: CHILD_ID,
+      parent_depth: 2, is_continuation: false,
+      children: [{ child_chat_id: RESEARCH_TURN, user_message_id: RESEARCH_TURN,
+        dispatch_token: 'test-depth-guard-token' }] };
+    await assert.rejects(executeOperation(db, 'prepare_batch', input),
+      (error) => error.code === 'maximum_depth_reached');
+    assert.equal(db.rows.chats.length, 0);
+  }
+});
+
+test('a descendant cannot become a new root through mutable metadata or a false depth', async () => {
+  const db = researchDatabase();
+  db.rows.chats.push({ id: CHILD_ID, parent_id: null, is_sub_chat: false });
+  await assert.rejects(executeOperation(db, 'create_root', {
+    protocol_version: 1, orchestration_id: OUTBOX_ID, hashed_user_id: OWNER,
+    root_chat_id: CHILD_ID, root_turn_id: RESEARCH_TURN,
+  }), (error) => error.code === 'orchestration_root_is_sub_chat');
+  const input = { ...researchClaim, batch_id: OUTBOX_ID, parent_chat_id: CHILD_ID,
+    parent_depth: 0, is_continuation: false,
+    children: [{ child_chat_id: RESEARCH_TURN, user_message_id: RESEARCH_TURN,
+      dispatch_token: 'test-false-depth-token' }] };
+  await assert.rejects(executeOperation(db, 'prepare_batch', input),
+    (error) => error.code === 'parent_identity_mismatch');
+});
+
+test('legacy saved children cannot become fresh roots', async () => {
+  const db = fakeDatabase({ chats: [{ id: CHILD_ID, parent_id: RESEARCH_CHAT, is_sub_chat: true }] });
+  await assert.rejects(executeOperation(db, 'create_root', {
+    protocol_version: 1, orchestration_id: OUTBOX_ID, hashed_user_id: OWNER,
+    root_chat_id: CHILD_ID, root_turn_id: RESEARCH_TURN,
+  }), (error) => error.code === 'orchestration_root_is_sub_chat');
+});

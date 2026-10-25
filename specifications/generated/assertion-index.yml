@@ -10332,7 +10332,7 @@ assertions:
       surface: rest_api
     - &id1341
       path: backend/tests/test_message_received_active_chat.py
-      line: 394
+      line: 406
       name: test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert
       surface: rest_api
     - &id1345
@@ -25060,12 +25060,12 @@ assertions:
       surface: rest_api
     - &id3244
       path: backend/tests/test_message_received_active_chat.py
-      line: 1746
+      line: 1758
       name: test_unselected_task_discovery_cannot_hide_required_admission_context
       surface: rest_api
     - &id3245
       path: backend/tests/test_message_received_active_chat.py
-      line: 1756
+      line: 1768
       name: test_complete_synchronous_discovery_matches_phased_empty_scope_without_changing_binding_guards
       surface: rest_api
     - &id3246
@@ -73722,12 +73722,12 @@ assertions:
       surface: rest_api
     - &id9319
       path: backend/tests/test_message_received_active_chat.py
-      line: 457
+      line: 469
       name: test_existing_legacy_retry_never_replays_another_stream
       surface: rest_api
     - &id9320
       path: backend/tests/test_message_received_active_chat.py
-      line: 479
+      line: 491
       name: test_existing_legacy_canonical_replay_requires_exact_owner_and_message
       surface: rest_api
     - &id9321
@@ -78333,17 +78333,17 @@ assertions:
       surface: rest_api
     - &id9897
       path: backend/tests/test_message_received_active_chat.py
-      line: 1467
+      line: 1479
       name: test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_back
       surface: rest_api
     - &id9898
       path: backend/tests/test_message_received_active_chat.py
-      line: 1531
+      line: 1543
       name: test_atomic_first_personal_plain_history_reuses_saved_row
       surface: rest_api
     - &id9899
       path: backend/tests/test_message_received_active_chat.py
-      line: 1691
+      line: 1703
       name: test_first_personal_enqueue_rejects_wrong_locked_wrapper_before_processing
       surface: rest_api
     - &id9903
@@ -81599,17 +81599,17 @@ assertions:
       surface: rest_api
     - &id10478
       path: backend/tests/test_message_received_active_chat.py
-      line: 394
+      line: 406
       name: test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert
       surface: rest_api
     - &id10479
       path: backend/tests/test_message_received_active_chat.py
-      line: 410
+      line: 422
       name: test_existing_legacy_turn_replays_without_restarting_processing
       surface: rest_api
     - &id10480
       path: backend/tests/test_message_received_active_chat.py
-      line: 457
+      line: 469
       name: test_existing_legacy_retry_never_replays_another_stream
       surface: rest_api
     - &id10486
@@ -82301,27 +82301,27 @@ assertions:
       surface: rest_api
     - &id10481
       path: backend/tests/test_message_received_active_chat.py
-      line: 671
+      line: 683
       name: test_authoritative_epoch_and_chat_read_overlap_before_preflight_rejection
       surface: rest_api
     - &id10482
       path: backend/tests/test_message_received_active_chat.py
-      line: 716
+      line: 728
       name: test_chat_row_never_authorizes_send_when_epoch_read_fails
       surface: rest_api
     - &id10483
       path: backend/tests/test_message_received_active_chat.py
-      line: 1467
+      line: 1479
       name: test_first_personal_enqueue_projection_skips_duplicate_reads_or_falls_back
       surface: rest_api
     - &id10484
       path: backend/tests/test_message_received_active_chat.py
-      line: 1531
+      line: 1543
       name: test_atomic_first_personal_plain_history_reuses_saved_row
       surface: rest_api
     - &id10485
       path: backend/tests/test_message_received_active_chat.py
-      line: 1647
+      line: 1659
       name: test_first_personal_projection_fails_closed_to_fresh_read
       surface: rest_api
     - &id10488
@@ -83327,12 +83327,12 @@ assertions:
     direct_tests:
     - &id10687
       path: backend/tests/test_message_received_active_chat.py
-      line: 410
+      line: 422
       name: test_existing_legacy_turn_replays_without_restarting_processing
       surface: rest_api
     - &id10688
       path: backend/tests/test_message_received_active_chat.py
-      line: 504
+      line: 516
       name: test_existing_legacy_result_replay_requires_successful_matching_completion
       surface: rest_api
     - &id10724

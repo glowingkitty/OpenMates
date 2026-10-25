@@ -68,4 +68,9 @@ live_validation:
   parent_child_billing: Passed; seven independently repriced receipts total 281 credits, wallet 1000 to 719, root orchestration 215 spent and zero reserved.
   grandchild: Blocked; the child did not receive start_sub_chats; persisted depths are 0 and 1 only.
   child_followup: Failed; CLI timed out waiting for AI response; no extra debit.
-  next_decision: Confirm whether to expand this cache verification into fixes for descendant tool availability and direct child continuation.
+  orchestration_fix_authorization: User approved both gaps and explicitly required maximum root-child-grandchild depth on 2026-10-25.
+  orchestration_fix_scope:
+    - Offer delegation to admitted initial depth-one children despite classifier rejection, preserving terminal grandchildren and continuations.
+    - Admit saved descendant user turns as ordinary fresh work, rederive immutable physical ancestry at every worker delivery and checkpoint restoration, retain original root billing attribution.
+    - Reject descendant re-rooting and depth-three preparation in the authoritative transaction layer, including legacy larger max_depth values.
+  orchestration_fix_verification: Focused unit and transaction coverage plus isolated product regression, then live automatic-routing child/grandchild and saved-child turns.

@@ -16,6 +16,7 @@ from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Aw
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
 
+from backend.shared.python_utils.saved_chat_turn_authority import admission_chat_id
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -3309,7 +3310,7 @@ async def _persist_sealed_typed_output(
             raise RequiredRecoveryOutputError("Synthetic sealed output durability unavailable")
     data = build_sealed_recovery_output_data(
         owner_id=request_data.user_id, owner_hash=request_data.user_id_hash,
-        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        root_chat_id=admission_chat_id(request_data),
         target_chat_id=request_data.chat_id,
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,

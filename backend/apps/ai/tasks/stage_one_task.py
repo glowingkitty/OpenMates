@@ -183,7 +183,6 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     )
     request = AskSkillRequest.model_validate(request_data_dict)
     config = AskSkillDefaultConfig.model_validate(skill_config_dict)
-    fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     started_at = time.monotonic()
     cache = await celery_config.get_worker_cache_service()
     secrets_manager = SecretsManager()
@@ -192,6 +191,9 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
         return None
+    from backend.shared.python_utils.saved_chat_turn_authority import prepare_saved_chat_turn
+    await prepare_saved_chat_turn(request, directus)
+    fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     logger.info("Stage-one admission current task=%s elapsed_ms=%.1f",
                 inference_task_id, (time.monotonic() - started_at) * 1000)
 

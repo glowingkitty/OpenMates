@@ -118,6 +118,9 @@ from backend.apps.ai.processing.chat_compressor import (
     COMPRESSION_SUMMARY_CATEGORY,
     model_compression_threshold,
 )
+from backend.shared.python_utils.saved_chat_turn_authority import (
+    admission_chat_id, admission_message_id, prepare_saved_chat_turn,
+)
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
@@ -135,7 +138,7 @@ def _required_recovery_output_context(request_data: AskSkillRequest) -> Recovery
     return RecoveryOutputContext(
         owner_id=request_data.user_id,
         owner_hash=request_data.user_id_hash,
-        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        root_chat_id=admission_chat_id(request_data),
         target_chat_id=request_data.chat_id,
         turn_id=request_data.recovery_turn_id,
         preflight_id=request_data.recovery_preflight_id,
@@ -2002,7 +2005,7 @@ async def _publish_recovery_output_pause(request_data: AskSkillRequest, task_id:
     """Tell capable clients that dependent work stopped at the durable-save gate."""
     cache_service = CacheService()
     try:
-        root_chat_id = request_data.root_chat_id or request_data.chat_id
+        root_chat_id = admission_chat_id(request_data)
         await cache_service.publish_event(f"chat_stream::{root_chat_id}", {
             "type": "recovery_output_paused", "chat_id": root_chat_id,
             "child_chat_id": request_data.chat_id if request_data.is_sub_chat else None,
@@ -2758,6 +2761,7 @@ async def _async_process_ai_skill_ask_task(
             resume_envelope = request_data
             verify_resume_recovery_identity(original_payload, resume_envelope)
             request_data = AskSkillRequest.model_validate(original_payload)
+            await prepare_saved_chat_turn(request_data, directus_service_instance)
             request_data.same_turn_batch_id = resume_envelope.same_turn_batch_id
             request_data.same_turn_slots = resume_envelope.same_turn_slots
             request_data.is_async_skill_continuation = True
@@ -5405,6 +5409,14 @@ def process_ai_skill_ask_task(
             volatile_context_token = active_volatile_ai_context.set(volatile_context)
         elif volatile_header is not None:
             raise RequiredRecoveryOutputError("Saved AI task carries volatile authority")
+        # Re-derive ancestry for every ordinary delivery, including reconstructed
+        # queued messages and async/focus resumes. Durable admission below still
+        # claims the actual user chat/message/task before any inference.
+        ancestry_directus = DirectusService()
+        try:
+            loop.run_until_complete(prepare_saved_chat_turn(request_data, ancestry_directus))
+        finally:
+            loop.run_until_complete(ancestry_directus.close())
         recovery_context = _required_recovery_output_context(request_data)
         if recovery_context:
             recovery_context_token = active_recovery_output_context.set(recovery_context)
@@ -5414,8 +5426,8 @@ def process_ai_skill_ask_task(
                 or request_data.legacy_cutover_task_id
             )
             if legacy_identity:
-                root_chat_id = request_data.root_chat_id or request_data.chat_id
-                root_message_id = request_data.root_user_message_id or request_data.message_id
+                root_chat_id = admission_chat_id(request_data)
+                root_message_id = admission_message_id(request_data)
                 expected_identity = hashlib.sha256(
                     f"{request_data.user_id}:{root_chat_id}:{root_message_id}".encode()
                 ).hexdigest()

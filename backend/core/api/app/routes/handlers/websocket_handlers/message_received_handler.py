@@ -2733,14 +2733,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ) or 1
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
-        db_is_sub_chat = chat_metadata_from_db.get("is_sub_chat", False) if chat_metadata_from_db else False
         db_budget_limit = chat_metadata_from_db.get("budget_limit") if chat_metadata_from_db else None
         db_budget_spent = chat_metadata_from_db.get("budget_spent", 0) if chat_metadata_from_db else 0
 
-        client_parent_id = message_payload_from_client.get("parent_id")
-        if client_parent_id and not db_parent_id:
-            db_parent_id = client_parent_id
-            db_is_sub_chat = True
+        # A user message starts a fresh ordinary admission, not the saved
+        # child's completed delegated job. The worker re-reads canonical
+        # ancestry for every delivery; client parent/depth hints are ignored.
 
         # Routing names belong to the request envelope, like memories metadata.
         # They are candidates only; preprocessing validates Project ownership.
@@ -2814,7 +2812,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
-            is_sub_chat=db_is_sub_chat,
+            is_sub_chat=False,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,
             recovery_task_id=(recovery_enqueue_result or {}).get("inference_task_id"),

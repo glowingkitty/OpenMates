@@ -5545,7 +5545,7 @@ async def handle_main_processing(
     if not request_data.is_incognito and should_expose_subchat_tool(
         enable_subchats=enable_subchats_results,
         chat_depth=chat_depth,
-        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
         active_focus_id=request_data.active_focus_id,
     ):
         available_tools_for_llm.append(start_sub_chats_tool)
@@ -5554,7 +5554,7 @@ async def handle_main_processing(
     force_deep_research_delegation = should_force_deep_research_delegation(
         active_focus_id=request_data.active_focus_id,
         chat_depth=chat_depth,
-        is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+        is_sub_chat_continuation=is_sub_chat_continuation(request_data),
     )
     if enable_subchats_results and force_deep_research_delegation:
         available_tools_for_llm = gate_tools_for_deep_research(

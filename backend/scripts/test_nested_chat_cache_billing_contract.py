@@ -159,6 +159,49 @@ async def main(email: str) -> dict:
                         "is_continuation": False,
                     },
                 )
+            # Exercise authoritative limits against the real transaction service.
+            from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationProtocolError
+            from backend.shared.python_utils.saved_chat_turn_authority import (
+                prepare_saved_chat_turn, admission_chat_id,
+            )
+            from backend.apps.ai.sub_chat_orchestration import ensure_orchestration_envelope
+            for rejected_payload, expected in [
+                ({**authority, "batch_id": str(uuid.uuid4()), "parent_chat_id": grandchild,
+                  "parent_depth": 2, "is_continuation": False,
+                  "children": [{"child_chat_id": str(uuid.uuid4()), "user_message_id": str(uuid.uuid4()),
+                                "dispatch_token": str(uuid.uuid4())}]}, "maximum_depth_reached"),
+                ({**authority, "batch_id": str(uuid.uuid4()), "parent_chat_id": grandchild,
+                  "parent_depth": 0, "is_continuation": False,
+                  "children": [{"child_chat_id": str(uuid.uuid4()), "user_message_id": str(uuid.uuid4()),
+                                "dispatch_token": str(uuid.uuid4())}]}, "parent_identity_mismatch"),
+            ]:
+                try:
+                    await orchestration.execute("prepare_batch", rejected_payload)
+                    raise AssertionError("Descendant escaped maximum physical depth")
+                except SubChatOrchestrationProtocolError as error:
+                    assert error.code == expected
+            try:
+                await orchestration.execute("create_root", {
+                    **authority, "orchestration_id": str(uuid.uuid4()),
+                    "root_chat_id": grandchild, "root_turn_id": str(uuid.uuid4()),
+                })
+                raise AssertionError("Grandchild became a fresh orchestration root")
+            except SubChatOrchestrationProtocolError as error:
+                assert error.code == "orchestration_root_is_sub_chat"
+            for saved_id, physical_depth in [(child, 1), (grandchild, 2)]:
+                # Queue/continuation constructors may omit all ancestry fields.
+                saved_turn = AskSkillRequest(chat_id=saved_id, message_id=str(uuid.uuid4()),
+                    user_id=owner["id"], user_id_hash=owner_hash, message_history=[])
+                await prepare_saved_chat_turn(saved_turn, directus)
+                assert saved_turn.sub_chat_depth == physical_depth
+                assert saved_turn.root_chat_id == root
+                assert admission_chat_id(saved_turn) == saved_id
+                assert not saved_turn.is_sub_chat and not saved_turn.orchestration_id
+                try:
+                    ensure_orchestration_envelope(saved_turn)
+                    raise AssertionError("Fresh saved-descendant turn reopened delegation")
+                except RuntimeError as error:
+                    assert "cannot start descendants" in str(error)
             model_id = "deepseek/deepseek-v4.1-flash"
             raw = OpenAIUsageMetadata(
                 input_tokens=11000,
@@ -301,6 +344,8 @@ async def main(email: str) -> dict:
             assert await balance() == initial
             return {
                 "passed": True,
+                "maximum_depth_enforced": True,
+                "saved_descendant_admission_separated": True,
                 "root_chat_id": root,
                 "depths": [0, 1, 2],
                 "year_month": datetime.now(timezone.utc).strftime("%Y-%m"),

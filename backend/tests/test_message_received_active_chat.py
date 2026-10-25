@@ -213,6 +213,18 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     _exercise_ordinary_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery)
 
 
+def test_saved_child_user_message_gets_fresh_ordinary_admission(monkeypatch):
+    result = _exercise_ordinary_dispatch(monkeypatch, {
+        "id": "chat-123", "hashed_user_id": hash_id("user-123"), "chat_visibility": None,
+        "parent_id": "canonical-parent", "is_sub_chat": True,
+        "budget_limit": 200, "budget_spent": 40, "messages_v": 2,
+    }, related_discovery=False)
+    request = result.manager.request_payload
+    assert request["is_sub_chat"] is False
+    assert request["parent_id"] == "canonical-parent"
+    assert request["legacy_cutover_task_id"] == hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
+
+
 def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=False, related_discovery=None, outcome="processing"):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 

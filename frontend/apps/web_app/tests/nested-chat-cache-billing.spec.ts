@@ -31,6 +31,7 @@ test('parent, child and grandchild cache receipts debit once and remain owner-re
   });
   const result = JSON.parse(output.trim());
   expect(result).toMatchObject({ passed: true, depths: [0, 1, 2], total_credits: 9,
+    maximum_depth_enforced: true, saved_descendant_admission_separated: true,
     charges: 3, replay_debits: 0, balance_restored: true, root_spent_credits: 9, root_reserved_credits: 0 });
   const params = { type: 'chat', identifier: result.root_chat_id, year_month: result.year_month };
   const anonymous = await playwright.request.newContext();
