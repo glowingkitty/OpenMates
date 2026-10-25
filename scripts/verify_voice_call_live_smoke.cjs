@@ -255,7 +255,15 @@ function installObservation({ inputs }) {
             || Object.entries(payload.encrypted_metadata).some(([field, value]) =>
               !['encrypted_title', 'encrypted_chat_summary', 'encrypted_category', 'encrypted_icon'].includes(field)
               || typeof value !== 'string' || !value))) fatalRecovery('metadata_ack_not_authoritative');
-          else { metadata.view.terminal = true; metadata.view.terminalAtMs = now(); }
+          else { metadata.view.terminal = true; metadata.view.terminalState = 'terminal'; metadata.view.terminalAtMs = now(); }
+        } else if (payload.state === 'SUPERSEDED') {
+          // An obsolete job is deliberately not applied. Persist receipts carry
+          // authoritative versions and an empty update; claims carry its tombstone.
+          if (type === 'metadata_job_persisted' && (!version(payload.versions?.metadata_v)
+            || !version(payload.versions?.title_v) || !payload.encrypted_metadata
+            || typeof payload.encrypted_metadata !== 'object' || Array.isArray(payload.encrypted_metadata)
+            || Object.keys(payload.encrypted_metadata).length !== 0)) fatalRecovery('metadata_superseded_not_authoritative');
+          else { metadata.view.terminal = true; metadata.view.terminalState = 'superseded'; metadata.view.terminalAtMs = now(); }
         } else if (type === 'metadata_job_persisted') fatalRecovery('metadata_ack_not_terminal');
       }
       return fields;
@@ -867,7 +875,7 @@ async function main() {
       check(!interrupted, 'intentional_operator_interruption');
       const state = await snapshot();
       check(permitEnded || !state.unexpectedEnd, 'unexpected_call_end');
-      check(!state.revisionConflict, 'revision_conflict_observed');
+      check(!state.revisionConflict, state.recoveryFailureCode ?? 'revision_conflict_observed');
       check(!state.uiErrorNotification, 'ui_error_notification_observed');
       check(!state.events.some(event => event.type === 'error' && !event.recoveryConflictId || event.type === 'socket_error' || event.type === 'media_error'
         || event.type === 'media_correlation_failed' || event.type === 'ai_task_failed'
@@ -926,7 +934,9 @@ async function main() {
       'fresh_isolated_chat_required');
     await stageTo('real_ui_call_start_and_consent');
     await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await page.waitForFunction(() => document.querySelector('[data-testid="voice-call-bar"]') ||
+    // Connecting UI precedes consent lookup; wait for the actual notice or
+    // authorized capture instead of mistaking the call bar for acknowledgement.
+    await page.waitForFunction(() => window.__voiceLiveSmoke.state.inputReady || document.querySelector('[data-testid="voice-call-error"]') ||
       [...document.querySelectorAll('[data-testid="notification"]')].some(node => node.textContent.includes('Before your first voice call')),
     null, { timeout: 45000 });
     const notice = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });

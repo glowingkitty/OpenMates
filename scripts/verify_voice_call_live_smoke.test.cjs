@@ -756,3 +756,45 @@ test('missing partial heard coverage after continuous playback began fails close
   } }));
   assert.equal(validateObservedHeardBoundaries(browser.api.state), false);
 });
+
+
+for (const type of ['metadata_job_claimed', 'metadata_job_persisted']) {
+  test(`a scoped ${type} SUPERSEDED receipt retires obsolete metadata without claiming it applied`, () => {
+    const browser = browserHarness();
+    const job = { job_id: 'old-metadata-job', chat_id: 'old-chat', task_id: 'old-task', stage: 'initial', chat_key_version: 1 };
+    browser.socket.receive('metadata_jobs_available', { jobs: [job] });
+    const requestType = type === 'metadata_job_claimed' ? 'metadata_job_claim' : 'metadata_job_persist';
+    browser.socket.send(JSON.stringify({ type: requestType, payload: { job_id: job.job_id, request_id: 'old-job-request' } }));
+    browser.socket.receive(type, { ...job, request_id: 'old-job-request', state: 'SUPERSEDED',
+      ...(type === 'metadata_job_persisted' ? { versions: { metadata_v: 4, title_v: 2 }, encrypted_metadata: {} } : {}) });
+    const state = browser.api.snapshot();
+    assert.equal(state.revisionConflict, false);
+    assert.equal(state.metadataPending, 0);
+    assert.equal(state.metadataJobs[0].terminalState, 'superseded');
+    assert.equal(JSON.stringify(state).includes('old-chat'), false);
+  });
+}
+
+for (const invalid of ['wrong_chat', 'wrong_task', 'wrong_stage', 'wrong_key', 'wrong_request', 'wrong_socket', 'missing_versions', 'nonempty_metadata']) {
+  test(`SUPERSEDED metadata cannot hide ${invalid}`, () => {
+    const browser = browserHarness();
+    const job = { job_id: 'old-metadata-job', chat_id: 'old-chat', task_id: 'old-task', stage: 'initial', chat_key_version: 1 };
+    browser.socket.receive('metadata_jobs_available', { jobs: [job] });
+    browser.socket.send(JSON.stringify({ type: 'metadata_job_persist', payload: { job_id: job.job_id, request_id: 'old-job-request' } }));
+    const receipt = { ...job, request_id: 'old-job-request', state: 'SUPERSEDED',
+      versions: { metadata_v: 4, title_v: 2 }, encrypted_metadata: {} };
+    if (invalid === 'wrong_chat') receipt.chat_id = 'other-chat';
+    if (invalid === 'wrong_task') receipt.task_id = 'other-task';
+    if (invalid === 'wrong_stage') receipt.stage = 'postprocessing';
+    if (invalid === 'wrong_key') receipt.chat_key_version = 2;
+    if (invalid === 'wrong_request') receipt.request_id = 'other-request';
+    if (invalid === 'missing_versions') delete receipt.versions;
+    if (invalid === 'nonempty_metadata') receipt.encrypted_metadata = { encrypted_title: 'PRIVATE_OLD_METADATA' };
+    const socket = invalid === 'wrong_socket' ? new browser.context.window.WebSocket('wss://api.dev.openmates.org/v1/ws') : browser.socket;
+    socket.receive('metadata_job_persisted', receipt);
+    const state = browser.api.snapshot();
+    assert.equal(state.revisionConflict, true);
+    assert.equal(state.metadataPending, 1);
+    assert.equal(JSON.stringify(state).includes('PRIVATE_OLD_METADATA'), false);
+  });
+}
