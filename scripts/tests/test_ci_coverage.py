@@ -170,8 +170,11 @@ def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
     browser_dependency = manifest["groups"]["rust_core_browser_session"]["enabling_work"]
     assert "runner-private accounts" in browser_dependency
     assert "same job before Playwright" in browser_dependency
-    # Neither target silently joins AI replay or marker-chat fixture groups.
-    for name in ("ai_committed_fixtures", "workflow_core", "workflow_weather"):
+    # Browser foreground send now requires explicit committed replay; component
+    # presentation and unrelated Workflow profiles remain independent.
+    assert browser in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    assert component not in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    for name in ("workflow_core", "workflow_weather"):
         assert not {component, browser}.intersection(manifest["groups"].get(name, {}).get("specs", []))
 
 

@@ -53,7 +53,7 @@ def prepare_profile(
         coverage = json.loads((ROOT / "scripts/ci_coverage_manifest.json").read_text())
         for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
             row = coverage["groups"].get(group, {})
-            row["specs"] = [spec for spec in row.get("specs", []) if spec != ESSENTIAL_SPEC]
+            row["specs"] = [spec for spec in row.get("specs", []) if spec not in (ESSENTIAL_SPEC, BROWSER_SPEC)]
         coverage["groups"]["ai_committed_fixtures"]["specs"].extend(harness_ai_specs)
         (harness_scripts / "ci_coverage_manifest.json").write_text(json.dumps(coverage))
         monkeypatch.setattr(runtime, "__file__", str(script))
@@ -82,7 +82,7 @@ def prepare_profile(
     return candidate, compose, json.loads(compose.read_text())
 
 
-@pytest.fixture(params=[NATIVE_SPEC, BOUNDED_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS])
+@pytest.fixture(params=[NATIVE_SPEC, BOUNDED_SPEC, *PERFORMANCE_SPECS])
 def generated_profile(tmp_path, monkeypatch, request):
     return prepare_profile(tmp_path, monkeypatch, [request.param])
 
@@ -146,28 +146,29 @@ def test_native_profile_activation_requires_the_trusted_harness_script():
 
 
 @pytest.mark.parametrize("declaration_owner", ["candidate", "harness"])
-def test_essential_fixture_union_adds_only_private_replay_worker(tmp_path, monkeypatch, declaration_owner):
+@pytest.mark.parametrize("replay_spec", [ESSENTIAL_SPEC, BROWSER_SPEC])
+def test_essential_fixture_union_adds_only_private_replay_worker(tmp_path, monkeypatch, declaration_owner, replay_spec):
     # Prove both candidate-only admission and a later deployed trusted harness
     # retaining replay even when the candidate omits that requirement.
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-must-not-inherit")
     monkeypatch.setenv("HTTPS_PROXY", "http://synthetic-must-not-inherit.invalid:1")
     candidate, compose, profile = prepare_profile(
-        tmp_path, monkeypatch, [ESSENTIAL_SPEC],
-        candidate_ai_specs=[ESSENTIAL_SPEC] if declaration_owner == "candidate" else [],
-        harness_ai_specs=[ESSENTIAL_SPEC] if declaration_owner == "harness" else [],
-        candidate_omit_ai_specs=[ESSENTIAL_SPEC] if declaration_owner == "harness" else [],
+        tmp_path, monkeypatch, [replay_spec],
+        candidate_ai_specs=[replay_spec] if declaration_owner == "candidate" else [],
+        harness_ai_specs=[replay_spec] if declaration_owner == "harness" else [],
+        candidate_omit_ai_specs=[ESSENTIAL_SPEC, BROWSER_SPEC],
     )
     harness = json.loads(Path(runtime.__file__).with_name("ci_coverage_manifest.json").read_text())
     candidate_manifest = json.loads((candidate / "scripts/ci_coverage_manifest.json").read_text())
-    assert (ESSENTIAL_SPEC in harness["groups"]["ai_committed_fixtures"]["specs"]) == (declaration_owner == "harness")
-    assert (ESSENTIAL_SPEC in candidate_manifest["groups"]["ai_committed_fixtures"]["specs"]) == (declaration_owner == "candidate")
+    assert (replay_spec in harness["groups"]["ai_committed_fixtures"]["specs"]) == (declaration_owner == "harness")
+    assert (replay_spec in candidate_manifest["groups"]["ai_committed_fixtures"]["specs"]) == (declaration_owner == "candidate")
     harness_required = {
         spec
         for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider")
         for spec in harness["groups"].get(group, {}).get("specs", [])
     }
-    assert runtime.ai_fixture_specs(harness, candidate) == harness_required | {ESSENTIAL_SPEC}
-    assert ESSENTIAL_SPEC in runtime.PRIVATE_BACKEND_SPECS
+    assert runtime.ai_fixture_specs(harness, candidate) == harness_required | {replay_spec}
+    assert replay_spec in runtime.PRIVATE_BACKEND_SPECS
     assert profile["networks"] == {"default": {"internal": True}, "ingress": {}}
     services = profile["services"]
     assert set(services) == {

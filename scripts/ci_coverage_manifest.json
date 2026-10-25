@@ -564,7 +564,8 @@
         "chat-queued-followups-protocol.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "voice-call.spec.ts",
-        "cli-recovery-fixtures.spec.ts"
+        "cli-recovery-fixtures.spec.ts",
+        "rust-core-browser-session.spec.ts"
       ]
     },
     "external_integration": {
@@ -942,7 +943,7 @@
     },
     "rust_core_browser_session": {
       "execution": "e2e",
-      "enabling_work": "Exact standalone browser authentication target uses fresh runner-private accounts and the isolated internal-network core API/CMS/cache/Vault. Builds the same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. The four cases cover session authentication, status and forgetting only; no AI inference, marker-chat epoch, send, sync or recovery fixtures.",
+      "enabling_work": "Exact standalone browser target uses fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. Includes existing authenticated lifetime, bounded saved-read and passive reconnect cases plus gated genuine encrypted saved-chat send, incremental stream and cooperative cancellation using committed replay on isolated AI worker. No live inference/provider egress, browser credential persistence receipt, full sync/recovery or production Rust activation.",
       "specs": [
         "rust-core-browser-session.spec.ts"
       ]
