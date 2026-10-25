@@ -266,3 +266,28 @@ payload so sync can publish the parent-child relationship without dropping index
 Ordinary saved-chat composite results share a task-scoped preparation batch: fresh Project classification and recovery pin, bounded existing-receipt lookup, randomized sealing only for absent records, and bounded atomic inline persistence. All required child and parent records seal before finished cache writes and ordered WebSocket delivery. Transactions preserve per-record current authority, deletion, stable identity and content commitments. Requests cap at 32 outputs/512 KiB; a failure rolls back that transaction and preserves previously committed chunks for retry. The existing large-S3 protocol and registered/volatile producer lifecycles remain authoritative for their outputs.
 
 Retries of one prepared ordinary composite retain its child IDs and fallback references under the existing parent identity, and reuse the first sealed envelope. Reexecuting the ordinary builder allocates new UUIDv4 children and cannot replace an already sealed parent with changed references. Registered producers retain their existing deterministic identities. The public embed delivery and canonical client-encryption/acknowledgement contracts are unchanged. See `docs/plans/chat-processing-next-stage/implemented-flow.md` for the full processing flow and measured-evidence boundaries.
+
+### Standalone calendar events
+
+The Calendar app registers `calendar_event` content (frontend `calendar-event`)
+separately from connected-calendar skill results. Relevance-gated instructions
+let the assistant emit an explicit `openmates_calendar_event` JSON fence after
+research or an event request. The common JSON-content fence dispatcher validates
+one primary event and optional context events, then uses the existing encrypted
+placeholder/finalization lifecycle. Partial or invalid primary data is not
+exportable. Date-only ends are exclusive; timed values require explicit offsets,
+and an unknown timed end stays unknown.
+
+The shared preview shell provides Expand, More and a separate Add to calendar
+action. Primary details occupy one third of the card; the extracted
+`ResultCalendarWeek` occupies the other two thirds and is also used by ordinary
+assistant results. Context entries are dimmed and use separate overlap lanes.
+The shared fullscreen displays optional description, location and source.
+
+The browser, CLI chat download and current npm/Python SDK helpers export one
+primary VEVENT with an embed-derived stable UID. Context entries, invitations and
+alarms are excluded. Rendering never reads a private calendar, and export makes
+no provider call. Native Rust export integration is explicitly deferred; shared
+fixtures live in `shared/test-fixtures/calendar-event-export.json`. See
+[verification](../../plans/calendar-event-embeds/verification.md) for the approved
+scope and evidence.

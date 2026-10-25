@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: calendar-event-embeds
 title: Standalone Calendar Event Embeds
-status: implementing
+status: verified
 goal: >
   Add standalone calendar event embeds generated through optimized assistant
   instructions, with shared Expand/More and separate Add to calendar controls,
@@ -33,6 +33,7 @@ waivers:
       ongoing Rust migration lands; it does not block this web implementation.
     source: Explicit reply to this chat's native Rust dependency question.
 verification:
+  report: docs/plans/calendar-event-embeds/verification.md
   required:
     - Focused backend validation/streaming unit tests and relevant lint.
     - Real dev inference through the current CLI and local SDK export checks; native Rust integration is waived for this stage.
