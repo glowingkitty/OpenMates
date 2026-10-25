@@ -1,11 +1,11 @@
 {
   "afterCounts": {
-    "contracts": 63,
-    "gaps": 171,
-    "plan": 84,
-    "programs": 246
+    "contracts": 67,
+    "gaps": 174,
+    "plan": 87,
+    "programs": 263
   },
-  "approvedCurrentSha256": "0918a67a01e2a5f7570f227fedca8c13d657eba9094e4871944035eb7b0fbd90",
+  "approvedCurrentSha256": "ef7438136dc63a43aff61a9b3aba8c87f299b5c0c5e9dcde7e0529c01ceccd26",
   "baseDictionaryDigests": {
     "contracts": "5e9c104e9d4d4d87b04d848219c76ff40f232d7cb16ae45ec2e83bea943a2efe",
     "gaps": "a21143e1f341d642cb99499985932c3458ce0dfe4b83126b50424f7404410612",
@@ -1054,6 +1054,251 @@
       }
     },
     "trustSha256": "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a"
+  },
+  "priorCompileFix246Witness": {
+    "counts": {
+      "contracts": 63,
+      "gaps": 171,
+      "plan": 84,
+      "programs": 246
+    },
+    "gapAdded": [
+      "session.embeds.version-content.v1 [rust] partial: Rust/native/WASM typecheck and11 newRusttests including actual withheldresponse bridge regression; 21x3 actual Cookie adapters/NAPI/PyO3 compilation; genuine authenticated native Cookieprofile full-ID version CLI/E2E/OSstore and cancellation/filesystem output proof; actualbrowseropaqueCryptoKey/HTTP/WS/privacy/expiry detached-return barrier proof; Linux/Mac CPU/end-to-end/RSS/requestbudget >=maintainedTS; opportunistic snapshot publication/coldchat-only sync/fullHistoricalKeyMigration/Team/Project/shortID/fullflags/error/largeinput parity",
+      "session.embeds.version-content.v1 [npm] partial: Rust/native/WASM typecheck and11 newRusttests including actual withheldresponse bridge regression; 21x3 actual Cookie adapters/NAPI/PyO3 compilation; genuine authenticated native Cookieprofile full-ID version CLI/E2E/OSstore and cancellation/filesystem output proof; actualbrowseropaqueCryptoKey/HTTP/WS/privacy/expiry detached-return barrier proof; Linux/Mac CPU/end-to-end/RSS/requestbudget >=maintainedTS; opportunistic snapshot publication/coldchat-only sync/fullHistoricalKeyMigration/Team/Project/shortID/fullflags/error/largeinput parity",
+      "session.embeds.version-content.v1 [python] partial: Rust/native/WASM typecheck and11 newRusttests including actual withheldresponse bridge regression; 21x3 actual Cookie adapters/NAPI/PyO3 compilation; genuine authenticated native Cookieprofile full-ID version CLI/E2E/OSstore and cancellation/filesystem output proof; actualbrowseropaqueCryptoKey/HTTP/WS/privacy/expiry detached-return barrier proof; Linux/Mac CPU/end-to-end/RSS/requestbudget >=maintainedTS; opportunistic snapshot publication/coldchat-only sync/fullHistoricalKeyMigration/Team/Project/shortID/fullflags/error/largeinput parity"
+    ],
+    "pinDeltas": {
+      "contracts": {
+        "config/sdk-capabilities.json": {
+          "after": "daeb4619309d27e90c5c2f83345175884f2b4b3f40160b1dc618c849111c9010",
+          "before": "674ff0871f4cc4e465c93875c68097db54128cdc283bb4fa6ac279a086abd36c"
+        },
+        "packages/openmates-rust/tests/fixtures/session-embed-version-content.json": {
+          "after": "f0b01ff52ae54a94c464911bb2463e4e9d6f8a9c5e4fb3be022f2cea83609b80",
+          "before": null
+        },
+        "packages/openmates-session-bindings/Cargo.toml": {
+          "after": "4cdfa1cfe56a21cc738fc7b085e9d6da2e23b780ef328829a0748105a51e43db",
+          "before": null
+        },
+        "tests/sdk-conformance/fixtures/session-embed-version-content.json": {
+          "after": "f0b01ff52ae54a94c464911bb2463e4e9d6f8a9c5e4fb3be022f2cea83609b80",
+          "before": null
+        },
+        "tests/sdk-conformance/schemas/session-embed-version-content.schema.json": {
+          "after": "ef1b49294ce463d3d7a1a42e27b8eed81bd33017adb84b5f13277b38ea4052f1",
+          "before": null
+        }
+      },
+      "programs": {
+        "frontend/packages/openmates-cli/src/client.ts": {
+          "after": "4479359fef3cad54af9f8f280ccf8ec36a7f7ff9fb91021bb4a7e7fcee17dd67",
+          "before": null
+        },
+        "frontend/packages/openmates-cli/src/sdkSession.ts": {
+          "after": "07713012de741569a8f7998ab6d57681a7284e4eec8403d580026d3db244490d",
+          "before": "9ccbb1fd24c2df83835df9b94fef63054b6247fc1e16d09f7ccba2f85bb11784"
+        },
+        "frontend/packages/ui/src/utils/embedVersionReconstruction.ts": {
+          "after": "7b313c27567078210bd4565d201861802a9f71d4283ed3cba66772be72c7376c",
+          "before": null
+        },
+        "frontend/packages/ui/src/utils/projectFilePatch.ts": {
+          "after": "bf85c4146aef20f2a00d0f66ca5c462a5ae74160b5af5852788c74881b4579dd",
+          "before": null
+        },
+        "packages/openmates-python/openmates/session_client.py": {
+          "after": "3cc455cafba3baa372cde0036e4933cee216114b330491d92718141f6ade3ade",
+          "before": "7a23c1bd730c5f643dec1f21236590a6b67489b9bf973594e8ed83018101e2e2"
+        },
+        "packages/openmates-rust/src/client.rs": {
+          "after": "7a00eec8137384b77f5e0fbabc8311517d4b773f89da08f814a772c4591316a2",
+          "before": "8569ababfa007b39b29352cfa6c9004a9c1a0430facfd7b3c9adbbc0e6d06d95"
+        },
+        "packages/openmates-rust/src/client/consent_scope_tests.rs": {
+          "after": "885521e982e1f3e31240d5909cb3d479be32d19cb4c3fcb05251adf174b0ba3d",
+          "before": "24ddd67bb6afac06850f8d919a69b05bfffa01f4cc5517a3dd1cf556663860f6"
+        },
+        "packages/openmates-rust/src/client/embed.rs": {
+          "after": "e75385e965165ec497036feba7871a99c9002c11ef728572327fd6cc0cc4d512",
+          "before": null
+        },
+        "packages/openmates-rust/src/client/embed_version.rs": {
+          "after": "b1dc9e3b1a7b62fcc5e036e33842f4c24dba7319f4967e1f21ea7331f614b033",
+          "before": null
+        },
+        "packages/openmates-rust/src/client/embed_version_tests.rs": {
+          "after": "11ac643e6e0f4c751bb18090e286b52448b72d384eff3ae81c238462594fe5c2",
+          "before": null
+        },
+        "packages/openmates-rust/src/client/persistence_opaque_tests.rs": {
+          "after": "6de3cfc27eafb061c0d68243c3bdb67f1406352739e1b5315439b08105c4054b",
+          "before": "13ae00d15c8b175d4119cf609315129e5e13d91a2742770cb2a68597767a4add"
+        },
+        "packages/openmates-rust/src/sdk_embeds.rs": {
+          "after": "0937723bb7d0877d2fbfac95115f28bf912bea57f4652f525c08870d1e9dd340",
+          "before": "7d3816eaba1b55f5fff9e485e943fe5b919b1461ff4544ebae8203fb6c1f2e00"
+        },
+        "packages/openmates-session-bindings/examples/session-embed-version-content-conformance.rs": {
+          "after": "518ca32c97313398ee4f84c9c32b4667d05fd22d437410dea746c794449b8204",
+          "before": null
+        },
+        "packages/openmates-session-bindings/src/node.rs": {
+          "after": "06224e96e8d707f3b8d1b5c7802d558cc76a8b3a8c1d91f8de232619e1fd0dfe",
+          "before": "cfb2e3d53080d7d748e16dd16a62857e0fda23a4eabc3d74ad27233cdf06758c"
+        },
+        "packages/openmates-session-bindings/src/python.rs": {
+          "after": "5a789d57ed3bcef94baaf5286308293ee657821278b7a782769c06201258c01c",
+          "before": "112d295099e8faa4181390c44137f5979968f33cf013b49530d48e31973b9f3f"
+        },
+        "packages/openmates-session-bindings/src/session.rs": {
+          "after": "178a996ae30f5a083f9d80d9366c8b366a574396c7b86926bb4aa02380e91096",
+          "before": "2255537a5f6a651ec43537210209971ff67728b0c7c723a3014f3bd29c4e06bc"
+        },
+        "packages/openmates-session-bindings/src/session_embed_version.rs": {
+          "after": "c6d18acf4f60c24d421c82af760f04874bcff6a7441a41c29e3650e16eaee554",
+          "before": null
+        },
+        "packages/openmates-session-bindings/src/session_embed_version_cancel_tests.rs": {
+          "after": "321586caba23f968c8c84e6431bf54688bd888b4dcedf19a4e23912ff6daa19d",
+          "before": null
+        },
+        "packages/openmates-session-bindings/src/session_work.rs": {
+          "after": "fb5bd7e43ad82a18320c0efade994a6b50a37ff835c56be2849ae2207e57faee",
+          "before": null
+        },
+        "scripts/check_sdk_conformance.py": {
+          "after": "522282f549986e1094b11e11d3b2c881865340aec591d95cd2145e312c1229cc",
+          "before": "cc7484913f65504b5a8ce3a9941965a547473f172d7edec2f03b4b178b7768d3"
+        },
+        "scripts/tests/test_sdk_conformance_gate.py": {
+          "after": "9534e3b865f48d66bcb674b940a47404bbbfa1aafa6cf0cf59c0940980e475dc",
+          "before": "036a489d468e3f5ba653262620a8302f14f3fba5eeafb06d71d91e243a1cda6c"
+        },
+        "scripts/tests/test_sdk_session_embed_version_gate.py": {
+          "after": "2c7d07dbd019d6ae92bc595b6add95ea42956587a993ae5f190612e89cf2cd47",
+          "before": null
+        },
+        "scripts/tests/test_sdk_version_content_gate.py": {
+          "after": "6f23a066c56617f67b65cae6c243d165ce3e13ef6f56e1cc053f97aa8a61072d",
+          "before": "ad1260b7db75ccbd1a4ba7012213d8ae2028e0984d2c823f5a0d814f88ca1908"
+        },
+        "tests/sdk-conformance/runners/session-embed-version-content.mjs": {
+          "after": "f0272ad61163613c6532a166a307f028baa736f2aadbdd0408f8cb6c3c41a540",
+          "before": null
+        },
+        "tests/sdk-conformance/runners/session-embed-version-content.py": {
+          "after": "03cbb14e06476a6b2aa42c86ff713e6836173481188553e91a7fb6afdf743b85",
+          "before": null
+        },
+        "tests/sdk-conformance/session_embed_version_peer.py": {
+          "after": "b84102a81e5c348bb528454ce66694f87194a1cbc7a4e3f86c906750f1571daf",
+          "before": null
+        },
+        "tests/sdk-conformance/test_session_embed_version_peer.py": {
+          "after": "1797e439c28c37af111ec10b7988b8544b1a2fc80983dcadd3f98e8baf01b21b",
+          "before": null
+        },
+        "tests/sdk-conformance/test_session_embed_version_wrappers.cjs": {
+          "after": "f3efc9c555662c5b90e9826e31ada643652ae5c07c117897d076bc2e2129be01",
+          "before": null
+        },
+        "tests/sdk-conformance/test_session_embed_version_wrappers.py": {
+          "after": "aa4b209f19fc03ee0999cc8cb65607469cdeccddb19c7cc7fe01d3aab499c6ff",
+          "before": null
+        }
+      }
+    },
+    "planAdded": [
+      {
+        "capability": "session.embeds.version-content.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-embed-version-content.json",
+        "fixtureSha256": "f0b01ff52ae54a94c464911bb2463e4e9d6f8a9c5e4fb3be022f2cea83609b80",
+        "language": "rust",
+        "vectors": [
+          "bounded-409-legacy",
+          "cold-chat-wrapper-explicit-gap",
+          "future-row",
+          "http-401",
+          "http-403",
+          "http-404",
+          "invalid-version-0",
+          "invalid-version-1.5",
+          "invalid-version-True",
+          "marker-before-hunk-line",
+          "no-final-lf",
+          "noauth",
+          "parent-inherited-key",
+          "patch-unicode",
+          "policy-denied",
+          "server-content-empty",
+          "server-content-text",
+          "short-id",
+          "snapshot",
+          "team",
+          "wrong-response-id"
+        ]
+      },
+      {
+        "capability": "session.embeds.version-content.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-embed-version-content.json",
+        "fixtureSha256": "f0b01ff52ae54a94c464911bb2463e4e9d6f8a9c5e4fb3be022f2cea83609b80",
+        "language": "npm",
+        "vectors": [
+          "bounded-409-legacy",
+          "cold-chat-wrapper-explicit-gap",
+          "future-row",
+          "http-401",
+          "http-403",
+          "http-404",
+          "invalid-version-0",
+          "invalid-version-1.5",
+          "invalid-version-True",
+          "marker-before-hunk-line",
+          "no-final-lf",
+          "noauth",
+          "parent-inherited-key",
+          "patch-unicode",
+          "policy-denied",
+          "server-content-empty",
+          "server-content-text",
+          "short-id",
+          "snapshot",
+          "team",
+          "wrong-response-id"
+        ]
+      },
+      {
+        "capability": "session.embeds.version-content.v1",
+        "fixture": "tests/sdk-conformance/fixtures/session-embed-version-content.json",
+        "fixtureSha256": "f0b01ff52ae54a94c464911bb2463e4e9d6f8a9c5e4fb3be022f2cea83609b80",
+        "language": "python",
+        "vectors": [
+          "bounded-409-legacy",
+          "cold-chat-wrapper-explicit-gap",
+          "future-row",
+          "http-401",
+          "http-403",
+          "http-404",
+          "invalid-version-0",
+          "invalid-version-1.5",
+          "invalid-version-True",
+          "marker-before-hunk-line",
+          "no-final-lf",
+          "noauth",
+          "parent-inherited-key",
+          "patch-unicode",
+          "policy-denied",
+          "server-content-empty",
+          "server-content-text",
+          "short-id",
+          "snapshot",
+          "team",
+          "wrong-response-id"
+        ]
+      }
+    ],
+    "trustSha256": "0918a67a01e2a5f7570f227fedca8c13d657eba9094e4871944035eb7b0fbd90"
   },
   "releaseEligible": false,
   "reviewedIncrementalLeaves": [
