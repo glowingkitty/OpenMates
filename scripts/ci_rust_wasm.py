@@ -27,6 +27,7 @@ except ModuleNotFoundError:
 TARGET = "rust-wasm"
 BUDGET = 2700
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
 BROWSER_BUDGET = 1800
 WASM_NAME = "openmates_browser_bindings.wasm"
 WASM_PATH = "wasm32-unknown-unknown/release/" + WASM_NAME
@@ -42,6 +43,11 @@ STAGE_SECONDS = (300, 300, 1800, 900, 30, 180)
 DIAGNOSTIC_LIMIT = 128 * 1024
 DIAGNOSTIC_ARTIFACT = "isolated-rust-wasm-private-diagnostics"
 FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "toolchain", "compile", "packaging", "outputs", "cleanup", "unclassified"})
+
+
+def browser_e2e_targets(targets):
+    """Exactly one reviewed literal spec; no prefixes, mixed batches or paths."""
+    return targets in ([BROWSER_SPEC], [BROWSER_PASSWORD_SPEC])
 
 
 def validate_targets(targets):
@@ -635,7 +641,7 @@ def run(root, results, *, environ=None, browser_e2e=False):
                     and platform.machine() == "x86_64" and os.sys.platform == "linux", "admission")
         receipt["requestedTargets"] = json.loads(ambient.get("CI_SPECS_JSON", "[]"))
         if browser_e2e:
-            sdk.require(ambient.get("CI_TEST_MODE") == "e2e" and receipt["requestedTargets"] == [BROWSER_SPEC]
+            sdk.require(ambient.get("CI_TEST_MODE") == "e2e" and browser_e2e_targets(receipt["requestedTargets"])
                         and not ambient.get("CI_CASE_TITLE") and not ambient.get("CI_CAPACITY_CONFIGURATION"), "admission")
         else:
             validate_targets(receipt["requestedTargets"])
@@ -751,8 +757,10 @@ def run(root, results, *, environ=None, browser_e2e=False):
 
 
 def prepare_browser_e2e_package(root, *, environ=None):
-    """One exact E2E selector consumes the package built from its own checkout."""
+    """Each reviewed singleton E2E selector consumes its exact-source package."""
     ambient = os.environ if environ is None else environ
+    requested = json.loads(ambient.get("CI_SPECS_JSON", "[]"))
+    sdk.require(browser_e2e_targets(requested), "admission")
     preparation_results = []
     receipt = run(root, preparation_results, environ=ambient, browser_e2e=True)
     sdk.require(receipt.get("status") == "passed" and all(receipt.get(key) is True for key in
@@ -769,7 +777,7 @@ def prepare_browser_e2e_package(root, *, environ=None):
         from scripts.ci_results import valid_browser_package
     except ModuleNotFoundError:
         from ci_results import valid_browser_package
-    job = {"source": source, "run_id": ambient["GITHUB_RUN_ID"], "mode": "e2e", "specs": json.dumps([BROWSER_SPEC])}
+    job = {"source": source, "run_id": ambient["GITHUB_RUN_ID"], "mode": "e2e", "specs": json.dumps(requested)}
     sdk.require(valid_browser_package(manifest_bytes, generated, receipt, job, ambient["CI_HARNESS_COMMIT"], expected, tree), "outputs")
     return {"OPENMATES_BROWSER_PACKAGE_MANIFEST": str(folder / "package-manifest.json"),
             "OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256": sdk.sha(manifest_bytes), "OPENMATES_BROWSER_SOURCE_COMMIT": source}

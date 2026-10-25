@@ -111,6 +111,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "stop-new-chat-draft.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "rust-core-browser-session.spec.ts",
+    "rust-core-browser-password-entry.spec.ts",
     "maps-discovery-chat.spec.ts",
     "audio-recording-deferred-send.spec.ts",
     "workflow-metadata-warmup.spec.ts",
@@ -214,7 +215,7 @@ def test_marker_chat_epoch_activates_only_fresh_idle_state(tmp_path, monkeypatch
     ({"public_provider": True}, None),
     ({"storage_capacity": True}, None),
 ])
-@pytest.mark.parametrize("spec_name", ["maps-discovery-chat.spec.ts", "cli-rust-core-essential.spec.ts", "rust-core-browser-session.spec.ts"])
+@pytest.mark.parametrize("spec_name", ["maps-discovery-chat.spec.ts", "cli-rust-core-essential.spec.ts", "rust-core-browser-session.spec.ts", "rust-core-browser-password-entry.spec.ts"])
 def test_maps_epoch_rejects_other_profiles(tmp_path, monkeypatch, profile_options, mutation, spec_name):
     runner, profile, path = _runner_profile(tmp_path, monkeypatch, **profile_options)
     if mutation:

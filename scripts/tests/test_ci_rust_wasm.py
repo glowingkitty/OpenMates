@@ -687,50 +687,52 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs), fault)
 
     def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(self):
-        report, receipt, job, kwargs = WasmReceiptTests().fixture()
-        report["runtime_profile"] = job["mode"] = "e2e"
-        job["specs"] = json.dumps([lane.BROWSER_SPEC])
-        receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
-        manifest = json.loads(kwargs["package_manifest"])
-        manifest.update(requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
-        kwargs["package_manifest"] = json.dumps(manifest).encode()
-        receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
-        self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
-        self.assertFalse(receipt["browserRuntimeProof"])
-        job["specs"] = '["other.spec.ts"]'
-        self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC):
+            report, receipt, job, kwargs = WasmReceiptTests().fixture()
+            report["runtime_profile"] = job["mode"] = "e2e"
+            job["specs"] = json.dumps([target])
+            receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            manifest = json.loads(kwargs["package_manifest"])
+            manifest.update(requestedMode="e2e", requestedTargets=[target])
+            kwargs["package_manifest"] = json.dumps(manifest).encode()
+            receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
+            self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
+            self.assertFalse(receipt["browserRuntimeProof"])
+            job["specs"] = '["other.spec.ts"]'
+            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
 
     def test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes(self):
-        _, receipt, _, kwargs = WasmReceiptTests().fixture()
-        receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
-        manifest = json.loads(kwargs["package_manifest"])
-        manifest.update(requestedMode="e2e", requestedTargets=[lane.BROWSER_SPEC])
-        raw = json.dumps(manifest).encode()
-        receipt["package"]["manifestSha256"] = hashlib.sha256(raw).hexdigest()
-        with TemporaryDirectory() as directory:
-            root = Path(directory)
-            folder = root / "test-results/rust-wasm"
-            (folder / "package").mkdir(parents=True)
-            (folder / "package-manifest.json").write_bytes(raw)
-            (folder / lane.WASM_NAME).write_bytes(WASM)
-            for name, data in kwargs["package_files"].items():
-                (folder / "package" / name).write_bytes(data)
-            env = {"CI_TEST_MODE": "e2e", "CI_SPECS_JSON": json.dumps([lane.BROWSER_SPEC]), "BUILD_COMMIT_SHA": "d" * 40,
-                   "CI_CANDIDATE_TREE": "e" * 40, "GITHUB_RUN_ID": "123", "CI_HARNESS_COMMIT": "f" * 40,
-                   "OPENMATES_BROWSER_PACKAGE_MANIFEST": "/untrusted/caller/path"}
-            def git(_root, *args):
-                return "e" * 40 if args[-1] == "HEAD^{tree}" else "d" * 40
-            with patch.object(lane, "run", return_value=receipt) as producer, patch.object(lane.sdk, "git", side_effect=git), \
-                    patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]), \
-                    patch.object(lane, "snapshot", return_value=kwargs["expected_inputs"]), \
-                    patch.dict(sys.modules, {"scripts.ci_results": retrieval}):
-                values = lane.prepare_browser_e2e_package(root, environ=env)
-                producer.assert_called_once_with(root, [], environ=env, browser_e2e=True)
-                self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST"], str(folder / "package-manifest.json"))
-                self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256"], hashlib.sha256(raw).hexdigest())
-                (folder / "package" / lane.PACKAGE_FILES[0]).write_bytes(b"forged")
-                with self.assertRaises(lane.sdk.Refused):
-                    lane.prepare_browser_e2e_package(root, environ=env)
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC):
+            _, receipt, _, kwargs = WasmReceiptTests().fixture()
+            receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            manifest = json.loads(kwargs["package_manifest"])
+            manifest.update(requestedMode="e2e", requestedTargets=[target])
+            raw = json.dumps(manifest).encode()
+            receipt["package"]["manifestSha256"] = hashlib.sha256(raw).hexdigest()
+            with TemporaryDirectory() as directory:
+                root = Path(directory)
+                folder = root / "test-results/rust-wasm"
+                (folder / "package").mkdir(parents=True)
+                (folder / "package-manifest.json").write_bytes(raw)
+                (folder / lane.WASM_NAME).write_bytes(WASM)
+                for name, data in kwargs["package_files"].items():
+                    (folder / "package" / name).write_bytes(data)
+                env = {"CI_TEST_MODE": "e2e", "CI_SPECS_JSON": json.dumps([target]), "BUILD_COMMIT_SHA": "d" * 40,
+                       "CI_CANDIDATE_TREE": "e" * 40, "GITHUB_RUN_ID": "123", "CI_HARNESS_COMMIT": "f" * 40,
+                       "OPENMATES_BROWSER_PACKAGE_MANIFEST": "/untrusted/caller/path"}
+                def git(_root, *args):
+                    return "e" * 40 if args[-1] == "HEAD^{tree}" else "d" * 40
+                with patch.object(lane, "run", return_value=receipt) as producer, patch.object(lane.sdk, "git", side_effect=git), \
+                        patch.object(lane, "source_inputs_from_git", return_value=kwargs["expected_inputs"]), \
+                        patch.object(lane, "snapshot", return_value=kwargs["expected_inputs"]), \
+                        patch.dict(sys.modules, {"scripts.ci_results": retrieval}):
+                    values = lane.prepare_browser_e2e_package(root, environ=env)
+                    producer.assert_called_once_with(root, [], environ=env, browser_e2e=True)
+                    self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST"], str(folder / "package-manifest.json"))
+                    self.assertEqual(values["OPENMATES_BROWSER_PACKAGE_MANIFEST_SHA256"], hashlib.sha256(raw).hexdigest())
+                    (folder / "package" / lane.PACKAGE_FILES[0]).write_bytes(b"forged")
+                    with self.assertRaises(lane.sdk.Refused):
+                        lane.prepare_browser_e2e_package(root, environ=env)
 
     def test_managed_result_retrieves_only_attested_real_package_inventory(self):
         from io import BytesIO
@@ -778,6 +780,20 @@ class BrowserPackagingTests(SyntheticPinTests):
                     manifest_path = Path(result["directory"]) / result["browser_package"]["manifest"]
                     self.assertEqual(hashlib.sha256(manifest_path.read_bytes()).hexdigest(), result["browser_package"]["manifestSha256"])
 
+    def test_browser_package_selector_is_exact_for_both_reviewed_specs(self):
+        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC])
+        for targets in accepted:
+            self.assertTrue(lane.browser_e2e_targets(targets))
+            self.assertTrue(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
+        for targets in ([], [lane.BROWSER_SPEC,lane.BROWSER_PASSWORD_SPEC],
+                        ["rust-core-browser-password-entry-extra.spec.ts"],
+                        ["nested/"+lane.BROWSER_PASSWORD_SPEC], ["other.spec.ts"],
+                        lane.BROWSER_PASSWORD_SPEC, [{"unexpected":"value"}]):
+            self.assertFalse(lane.browser_e2e_targets(targets))
+            self.assertFalse(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
+        self.assertFalse(retrieval._browser_package_job({"mode":"component","specs":json.dumps([lane.BROWSER_PASSWORD_SPEC])}))
+        self.assertFalse(retrieval._browser_package_job({"mode":"e2e","specs":"not JSON"}))
+
     def test_exact_e2e_hook_clock_private_backend_and_artifact_whitelist(self):
         import yaml
         source = (ROOT / "scripts/ci_run_tests.py").read_text()
@@ -786,7 +802,8 @@ class BrowserPackagingTests(SyntheticPinTests):
         segment = ast.get_source_segment(source, run)
         self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("subprocess.Popen"))
         self.assertLess(segment.index("prepare_browser_e2e_package(ROOT)"), segment.index("provision_account"))
-        self.assertIn("specs != [RUST_BROWSER_SPEC]", segment)
+        self.assertIn("len(specs) != 1", segment)
+        self.assertIn("name in RUST_BROWSER_SPECS", segment)
         self.assertNotIn('os.environ["CI_SPECS_JSON"] =', source)
         environment = (ROOT / "scripts/ci_environment.py").read_text()
         parsed = ast.parse(environment)
@@ -795,7 +812,7 @@ class BrowserPackagingTests(SyntheticPinTests):
         self.assertIn(lane.BROWSER_SPEC, ast.literal_eval(private.value.args[0]))
         steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
         clock = next(step for step in steps if step.get("name") == "Start bounded same-source browser package clock")
-        self.assertEqual(clock["if"], "inputs.mode == 'e2e' && inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]'")
+        self.assertEqual(clock["if"], 'inputs.mode == \'e2e\' && (inputs.specs_json == \'["rust-core-browser-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-browser-password-entry.spec.ts"]\')')
         self.assertIn("started + 1800", clock["run"])
         self.assertEqual(lane.BUDGET, 2700)
         upload = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")

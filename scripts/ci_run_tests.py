@@ -64,6 +64,8 @@ CAPACITY_WORKLOAD_SPECS = frozenset({
 })
 TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
 RUST_BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+RUST_BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
+RUST_BROWSER_SPECS = frozenset({RUST_BROWSER_SPEC, RUST_BROWSER_PASSWORD_SPEC})
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
 APPROVED_RECOVERY_CASES = frozenset({
@@ -77,6 +79,7 @@ ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
     "stop-new-chat-draft.spec.ts",
     "rust-core-browser-session.spec.ts",
+    "rust-core-browser-password-entry.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "cli-recovery-fixtures.spec.ts",
     "cli-recovery-discovery.spec.ts",
@@ -1365,7 +1368,7 @@ def run_e2e(
             or not name.endswith(".spec.ts")
         ):
             raise ValueError("Invalid spec selection")
-    if RUST_BROWSER_SPEC in specs and (specs != [RUST_BROWSER_SPEC] or artifact or component or visual_smoke or case_title):
+    if any(name in RUST_BROWSER_SPECS for name in specs) and (len(specs) != 1 or artifact or component or visual_smoke or case_title):
         raise ValueError("Rust browser package requires its exact unfiltered E2E selector")
     if artifact:
         verify_artifact_profile(specs)
@@ -1384,7 +1387,7 @@ def run_e2e(
         from ci_native_keyring import prepare as prepare_native_keyring
         prepare_native_keyring(specs, ROOT)
     browser_package_env = {}
-    if specs == [RUST_BROWSER_SPEC]:
+    if len(specs) == 1 and specs[0] in RUST_BROWSER_SPECS:
         from ci_rust_wasm import prepare_browser_e2e_package
         browser_package_env = prepare_browser_e2e_package(ROOT)
     billing_fixtures: list[tuple[Path, Path]] = []
@@ -1447,7 +1450,7 @@ def run_e2e(
                 identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
                 env = performance_environment(os.environ, name, performance_metadata)
-                if name == RUST_BROWSER_SPEC:
+                if name in RUST_BROWSER_SPECS:
                     env.update(browser_package_env)
                 env["PLAYWRIGHT_TEST_API_URL"] = API
                 recovery_epoch_receipt = None

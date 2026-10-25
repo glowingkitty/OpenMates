@@ -15,9 +15,10 @@ BOUNDED_SPEC = "cli-native-bounded-saved-read.spec.ts"
 NATIVE_SPEC = "cli-rust-tui-proof.spec.ts"
 ESSENTIAL_SPEC = "cli-rust-core-essential.spec.ts"
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+PASSWORD_BROWSER_SPEC = "rust-core-browser-password-entry.spec.ts"
 KEYRING_SPEC = "cli-rust-native-keyring.spec.ts"
 PERFORMANCE_SPECS = ("cli-rust-cli-performance.spec.ts", "cli-rust-tui-performance.spec.ts")
-PRIVATE_SPECS = (NATIVE_SPEC, BOUNDED_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, KEYRING_SPEC, *PERFORMANCE_SPECS)
+PRIVATE_SPECS = (NATIVE_SPEC, BOUNDED_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, PASSWORD_BROWSER_SPEC, KEYRING_SPEC, *PERFORMANCE_SPECS)
 SOURCE_HASH = "a" * 40
 
 
@@ -54,7 +55,7 @@ def prepare_profile(
         coverage = json.loads((ROOT / "scripts/ci_coverage_manifest.json").read_text())
         for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
             row = coverage["groups"].get(group, {})
-            row["specs"] = [spec for spec in row.get("specs", []) if spec not in (ESSENTIAL_SPEC, BROWSER_SPEC)]
+            row["specs"] = [spec for spec in row.get("specs", []) if spec not in (ESSENTIAL_SPEC, BROWSER_SPEC, PASSWORD_BROWSER_SPEC)]
         coverage["groups"]["ai_committed_fixtures"]["specs"].extend(harness_ai_specs)
         (harness_scripts / "ci_coverage_manifest.json").write_text(json.dumps(coverage))
         monkeypatch.setattr(runtime, "__file__", str(script))
@@ -120,6 +121,7 @@ def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(g
     [], ["cli-rust-tui-proof-extra.spec.ts"], ["nested/cli-rust-tui-proof.spec.ts"],
     ["cli-rust-core-essential-extra.spec.ts"], ["nested/cli-rust-core-essential.spec.ts"],
     ["rust-core-browser-session-extra.spec.ts"], ["nested/rust-core-browser-session.spec.ts"],
+    ["rust-core-browser-password-entry-extra.spec.ts"], ["nested/rust-core-browser-password-entry.spec.ts"],
     ["cli-rust-cli-performance-extra.spec.ts"], ["nested/cli-rust-cli-performance.spec.ts"],
     ["cli-rust-tui-performance-extra.spec.ts"], ["nested/cli-rust-tui-performance.spec.ts"],
 ])
@@ -147,7 +149,7 @@ def test_native_profile_activation_requires_the_trusted_harness_script():
 
 
 @pytest.mark.parametrize("declaration_owner", ["candidate", "harness"])
-@pytest.mark.parametrize("replay_spec", [ESSENTIAL_SPEC, BROWSER_SPEC])
+@pytest.mark.parametrize("replay_spec", [ESSENTIAL_SPEC, BROWSER_SPEC, PASSWORD_BROWSER_SPEC])
 def test_essential_fixture_union_adds_only_private_replay_worker(tmp_path, monkeypatch, declaration_owner, replay_spec):
     # Prove both candidate-only admission and a later deployed trusted harness
     # retaining replay even when the candidate omits that requirement.
@@ -157,7 +159,7 @@ def test_essential_fixture_union_adds_only_private_replay_worker(tmp_path, monke
         tmp_path, monkeypatch, [replay_spec],
         candidate_ai_specs=[replay_spec] if declaration_owner == "candidate" else [],
         harness_ai_specs=[replay_spec] if declaration_owner == "harness" else [],
-        candidate_omit_ai_specs=[ESSENTIAL_SPEC, BROWSER_SPEC],
+        candidate_omit_ai_specs=[ESSENTIAL_SPEC, BROWSER_SPEC, PASSWORD_BROWSER_SPEC],
     )
     harness = json.loads(Path(runtime.__file__).with_name("ci_coverage_manifest.json").read_text())
     candidate_manifest = json.loads((candidate / "scripts/ci_coverage_manifest.json").read_text())

@@ -129,12 +129,14 @@ def test_rust_session_targets_have_exact_dependency_classification():
     manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
     component = "components/rust-core-session-harness.spec.ts"
     browser = "rust-core-browser-session.spec.ts"
-    allowed, held = partition([component, browser], manifest)
-    assert allowed == [component, browser]
+    password = "rust-core-browser-password-entry.spec.ts"
+    allowed, held = partition([component, browser, password], manifest)
+    assert allowed == [component, browser, password]
     assert held == {}
     expected = {
         "rust_core_session_harness": [component],
         "rust_core_browser_session": [browser],
+        "rust_core_browser_password_entry": [password],
     }
     for name, specs in expected.items():
         assert manifest["groups"][name]["execution"] == "e2e"
@@ -147,6 +149,8 @@ def test_rust_session_targets_have_exact_dependency_classification():
         "nested/components/rust-core-session-harness.spec.ts",
         "rust-core-browser-session-extra.spec.ts",
         "nested/rust-core-browser-session.spec.ts",
+        "rust-core-browser-password-entry-extra.spec.ts",
+        "nested/rust-core-browser-password-entry.spec.ts",
     ]
     allowed, held = partition(unknown, manifest)
     assert allowed == []
@@ -161,8 +165,10 @@ def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
     manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
     component = "components/rust-core-session-harness.spec.ts"
     browser = "rust-core-browser-session.spec.ts"
+    password = "rust-core-browser-password-entry.spec.ts"
     assert execution_mode(component, COMPONENT_MARKER) == "component"
     assert execution_mode(browser) == "e2e"
+    assert execution_mode(password) == "e2e"
     component_dependency = manifest["groups"]["rust_core_session_harness"]["enabling_work"]
     assert "Vite-only" in component_dependency
     assert "No Rust or CLI build" in component_dependency
@@ -173,6 +179,7 @@ def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
     # Browser foreground send now requires explicit committed replay; component
     # presentation and unrelated Workflow profiles remain independent.
     assert browser in manifest["groups"]["ai_committed_fixtures"]["specs"]
+    assert password in manifest["groups"]["ai_committed_fixtures"]["specs"]
     assert component not in manifest["groups"]["ai_committed_fixtures"]["specs"]
     for name in ("workflow_core", "workflow_weather"):
         assert not {component, browser}.intersection(manifest["groups"].get(name, {}).get("specs", []))

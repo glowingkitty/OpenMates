@@ -126,7 +126,7 @@ jobs:
               output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
           PYSELFHOST
       - name: Start bounded same-source browser package clock
-        if: inputs.mode == 'e2e' && inputs.specs_json == '["rust-core-browser-session.spec.ts"]'
+        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]')
         working-directory: ${{ github.workspace }}
         run: |
           python3 - <<'PYBROWSER'
@@ -656,7 +656,7 @@ jobs:
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
-        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && inputs.specs_json == '["rust-core-browser-session.spec.ts"]'))
+        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]')))
         uses: actions/upload-artifact@v4
         with:
           name: isolated-rust-wasm-private-diagnostics

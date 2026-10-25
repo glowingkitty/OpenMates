@@ -386,15 +386,26 @@ def valid_browser_package(manifest_bytes, files, receipt, job, harness, expected
             and package.get("inventorySha256") == inventory["inventorySha256"])
 
 
+def _browser_package_job(job):
+    try:
+        from scripts.ci_rust_wasm import browser_e2e_targets
+    except ModuleNotFoundError:
+        from ci_rust_wasm import browser_e2e_targets
+    try:
+        return job.get("mode") == "e2e" and browser_e2e_targets(json.loads(job.get("specs", "[]")))
+    except (ValueError, TypeError):
+        return False
+
+
 def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, artifact, package_manifest=None, package_files=None):
     """Credit one exact locked compiler invocation, without browser/runtime proof."""
     try:
-        from scripts.ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, BROWSER_SPEC, commands, wasm_metadata
+        from scripts.ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, commands, wasm_metadata
     except ModuleNotFoundError:
-        from ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, BROWSER_SPEC, commands, wasm_metadata
-    browser_e2e = job.get("mode") == "e2e" and json.loads(job["specs"]) == [BROWSER_SPEC]
+        from ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, commands, wasm_metadata
+    browser_e2e = _browser_package_job(job)
     expected_mode = "e2e" if browser_e2e else "rust-wasm"
-    expected_targets = [BROWSER_SPEC] if browser_e2e else ["rust-wasm"]
+    expected_targets = json.loads(job["specs"]) if browser_e2e else ["rust-wasm"]
     expected_profile = "rust-browser-package-for-e2e" if browser_e2e else "rust-wasm"
     keys = {"schemaVersion", "runtime_profile", "status", "code", "compilationProof", "browserRuntimeProof",
             "conformanceProof", "releaseProof", "publication", "services", "cleanupVerified", "sourceHeld", "packagingProof", "package",
@@ -663,7 +674,7 @@ def fetch(github, job: dict, root: Path) -> dict:
         from resource_budget import reserve
     # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
     diagnostic_reserve = 512 * 1024 if (job.get("mode") == "rust-wasm" or
-        (job.get("mode") == "e2e" and json.loads(job.get("specs", "[]")) == ["rust-core-browser-session.spec.ts"])) else 0
+        _browser_package_job(job)) else 0
     with reserve(root, MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve, min_free=RESERVE,
                  max_used_percent=100):
         return _fetch_reserved(github, job, root)
@@ -799,7 +810,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
         browser_package_verified = False
         browser_package_prefix = ""
-        browser_package_job = job.get("mode") == "e2e" and json.loads(job.get("specs", "[]")) == ["rust-core-browser-session.spec.ts"]
+        browser_package_job = _browser_package_job(job)
         wasm_receipts = list(extracted.rglob("ci-rust-wasm.json")) if browser_package_job else []
         e2e_wasm_receipt = json.loads(wasm_receipts[0].read_text()) if len(wasm_receipts) == 1 else {}
         if ((job["state"] == "success" and job.get("mode") == "rust-wasm")
