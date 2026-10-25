@@ -384,6 +384,106 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
         )
         self.assertNotIn("private", json.dumps(result))
 
+    def test_portable_embed_version_fixture_is_synchronized_and_packaged(self):
+        target = "tests/fixtures/sdk-embed-version-content.json"
+        canonical = "tests/sdk-conformance/fixtures/sdk-embed-version-content.json"
+        self.assertEqual(lane.assets.FILES[target], canonical)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in set(lane.assets.FILES.values()):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(("synthetic canonical " + name).encode())
+            lane.assets.synchronize(root)
+            crate = root / lane.CLI
+            source = crate / "src/cli/embed_commands_tests.rs"
+            source.parent.mkdir(parents=True)
+            names = {
+                "Cargo.toml",
+                "Cargo.lock",
+                "README.md",
+                "LICENSE",
+                "NOTICE",
+                "src/cli/embed_commands_tests.rs",
+                target,
+            }
+            source.write_text(
+                'include_str!("../../../../../packages/openmates-rust/tests/fixtures/sdk-embed-version-content.json");'
+            )
+            with self.assertRaises(lane.package.PackageInputError) as refused:
+                lane.package.validate_inputs(crate, names)
+            self.assertEqual(refused.exception.predicate, "unpackaged_compile_input")
+            self.assertEqual(refused.exception.path, "src/cli/embed_commands_tests.rs")
+            source.write_text(
+                'include_str!("../../tests/fixtures/sdk-embed-version-content.json");'
+            )
+            lane.package.validate_inputs(crate, names)
+            self.assertEqual(
+                (crate / target).read_bytes(), (root / canonical).read_bytes()
+            )
+            with self.assertRaises(lane.package.PackageInputError):
+                lane.package.validate_inputs(crate, names - {target})
+            (root / canonical).write_bytes(b"changed fixture")
+            with self.assertRaisesRegex(ValueError, "asset drift"):
+                lane.assets.synchronize(root, check=True)
+
+    def test_package_predicate_diagnostic_only_projects_held_source_path(self):
+        path = lane.CLI + "/src/cli/embed_commands_tests.rs"
+        error = lane.package.PackageInputError(
+            "untrusted secret https://private-signed-url",
+            "unpackaged_compile_input",
+            "src/cli/embed_commands_tests.rs",
+        )
+        result = lane.diagnostic(
+            "package",
+            error,
+            recipe_stage="cli-package-list",
+            source_inputs={path: "a" * 64},
+        )
+        self.assertEqual(
+            result,
+            {
+                "stage": "package",
+                "reason": "package_check_refused",
+                "recipeStage": "cli-package-list",
+                "packagePredicate": "unpackaged_compile_input",
+                "sourcePath": path,
+            },
+        )
+        self.assertNotIn("secret", json.dumps(result))
+        self.assertNotIn("https", json.dumps(result))
+        for unsafe in ("../private-ticket", "unheld.rs", "https://private-signed-url"):
+            error.path = unsafe
+            result = lane.diagnostic(
+                "package",
+                error,
+                recipe_stage="cli-package-list",
+                source_inputs={path: "a" * 64},
+            )
+            self.assertNotIn("sourcePath", result)
+        error.predicate = "arbitrary-secret"
+        result = lane.diagnostic("package", error, recipe_stage="cli-package-list")
+        self.assertNotIn("packagePredicate", result)
+
+    def test_package_list_source_closure_still_refuses_unknown_or_empty_names(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for names, predicate in (
+                (set(), "package_list_empty"),
+                ({"unheld-private-value"}, "unheld_package_input"),
+            ):
+                with self.assertRaises(lane.package.PackageInputError) as refused:
+                    lane.validate_package_inputs(Path(temporary), lane.CLI, names, {})
+                self.assertEqual(refused.exception.predicate, predicate)
+                self.assertEqual(refused.exception.path, "")
+                result = lane.diagnostic(
+                    "package",
+                    refused.exception,
+                    recipe_stage="cli-package-list",
+                    source_inputs={},
+                )
+                self.assertEqual(result["packagePredicate"], predicate)
+                self.assertNotIn("private-value", json.dumps(result))
+
     def test_exact_target_and_no_side_capabilities(self):
         lane.validate_request([lane.TARGET])
         for selection in (
@@ -895,6 +995,14 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 self.assertEqual(path.stat().st_nlink, 1)
                 uploads.append((url, path.read_bytes()))
 
+            def package_check(*args):
+                if failure == "package-check":
+                    raise lane.package.PackageInputError(
+                        "synthetic private error",
+                        "unpackaged_compile_input",
+                        "Cargo.lock",
+                    )
+
             with ExitStack() as stack:
                 for target, value in (
                     ("platform.machine", lambda: "aarch64"),
@@ -907,7 +1015,7 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                     ("sdk.git", git),
                     ("shutil.which", lambda *args: "/usr/bin/rustup"),
                     ("time.monotonic", lambda: 20),
-                    ("package.validate_inputs", lambda *args: None),
+                    ("package.validate_inputs", package_check),
                     ("transport.put_file", upload),
                 ):
                     stack.enter_context(
@@ -969,6 +1077,21 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                 "recipeStage": "cli-package-list",
             },
         )
+
+    def test_package_check_failure_is_bounded_and_prevents_upload(self):
+        receipt, uploads = self.producer_fixture("package-check")
+        self.assertEqual(uploads, [])
+        self.assertEqual(
+            receipt["diagnostic"],
+            {
+                "stage": "package",
+                "reason": "package_check_refused",
+                "recipeStage": "cli-package-list",
+                "packagePredicate": "unpackaged_compile_input",
+                "sourcePath": lane.CLI + "/Cargo.lock",
+            },
+        )
+        self.assertNotIn("private error", json.dumps(receipt))
 
     def test_detached_setsid_descendant_prevents_proof_and_upload(self):
         self.producer_fixture("detached-setsid")

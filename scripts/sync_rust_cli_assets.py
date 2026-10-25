@@ -16,6 +16,7 @@ FILES = {
     "LICENSE": "LICENSE",
     "tests/crypto_fixtures/chat_completion_recovery_vectors.json": "backend/tests/fixtures/chat_completion_recovery_vectors.json",
     "tests/crypto_fixtures/session-saved-chat-read.json": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
+    "tests/fixtures/sdk-embed-version-content.json": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
 }
 for name in (
     "core/docker-compose.selfhost.yml",

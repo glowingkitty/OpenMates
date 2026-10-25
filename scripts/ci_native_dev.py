@@ -134,7 +134,7 @@ def context_require(value, reason):
         raise ContextRefused(reason)
 
 
-def diagnostic(phase, error, *, recipe_stage=None):
+def diagnostic(phase, error, *, recipe_stage=None, source_inputs=None):
     if isinstance(error, ContextRefused) and str(error) in DIAGNOSTIC_REASONS:
         reason = str(error)
     elif phase == "identity":
@@ -156,7 +156,40 @@ def diagnostic(phase, error, *, recipe_stage=None):
     result = {"stage": phase if phase in FAILURES else "unclassified", "reason": reason}
     if recipe_stage in STAGES:
         result["recipeStage"] = recipe_stage
+    if phase == "package" and isinstance(error, package.PackageInputError):
+        if error.predicate in {
+            "package_list_empty",
+            "unheld_package_input",
+            "required_input_missing",
+            "forbidden_package_input",
+            "package_path_escape",
+            "nonliteral_compile_input",
+            "unpackaged_compile_input",
+        }:
+            result["packagePredicate"] = error.predicate
+            crate = {"cli-package-list": CLI, "sdk-package-list": SDK}.get(recipe_stage)
+            path = crate + "/" + error.path if crate and error.path else ""
+            if (
+                isinstance(source_inputs, dict)
+                and path in source_inputs
+                and re.fullmatch(r"[A-Za-z0-9_./-]{1,512}", path)
+                and owned(path)
+            ):
+                result["sourcePath"] = path
     return result
+
+
+def validate_package_inputs(work, crate, names, inputs):
+    if not names:
+        raise package.PackageInputError("Empty package list", "package_list_empty", "")
+    allowed = {
+        name[len(crate) + 1 :] for name in inputs if name.startswith(crate + "/")
+    } | {"Cargo.toml.orig", ".cargo_vcs_info.json"}
+    if not names <= allowed:
+        raise package.PackageInputError(
+            "Unheld package input", "unheld_package_input", ""
+        )
+    package.validate_inputs(work / crate, names)
 
 
 def validate_targets(targets):
@@ -843,18 +876,7 @@ def run(root, results, *, environ=None):
             elif "package-list" in stage:
                 crate = CLI if stage == "cli-package-list" else SDK
                 names = set(text.splitlines())
-                sdk.require(
-                    names
-                    and names
-                    <= {
-                        name[len(crate) + 1 :]
-                        for name in before
-                        if name.startswith(crate + "/")
-                    }
-                    | {"Cargo.toml.orig", ".cargo_vcs_info.json"},
-                    "package",
-                )
-                package.validate_inputs(work / crate, names)
+                validate_package_inputs(work, crate, names, before)
                 receipt.setdefault("packages", {})[crate] = sorted(names)
         phase = "cleanup"
         runner.run(
@@ -926,6 +948,7 @@ def run(root, results, *, environ=None):
                 recipe_stage=runner.steps[-1].get("stage")
                 if runner and runner.steps
                 else None,
+                source_inputs=before,
             ),
         )
     finally:

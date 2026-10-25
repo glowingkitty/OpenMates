@@ -20,6 +20,15 @@ INCLUDE = re.compile(r'include_(?:str|bytes)!\(\s*"([^"\\]+)"\s*\)')
 INCLUDE_START = re.compile(r"include_(?:str|bytes)!\s*\(")
 
 
+class PackageInputError(ValueError):
+    """A closed package predicate; paths are projected only against held source."""
+
+    def __init__(self, message: str, predicate: str, path: str):
+        super().__init__(message)
+        self.predicate = predicate
+        self.path = path
+
+
 def audit_catalog_sources(root: Path = ROOT) -> None:
     catalog = json.loads((root / "config/cli-command-catalog.json").read_text())
     for entry in catalog["source_snapshots"]:
@@ -60,23 +69,35 @@ def validate_metadata(cli: dict, sdk: dict) -> None:
 def validate_inputs(crate: Path, names: set[str]) -> None:
     for required in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md"):
         if required not in names:
-            raise ValueError("Missing package input: " + required)
+            raise PackageInputError(
+                "Missing package input: " + required, "required_input_missing", required
+            )
     if any(
         name.startswith(("scripts/", "target/", "node_modules/"))
         or name.endswith((".py", ".mjs", ".node", ".so"))
         for name in names
     ):
-        raise ValueError("Package contains build/proof tools or native artifacts")
-    for name in names:
+        raise PackageInputError(
+            "Package contains build/proof tools or native artifacts",
+            "forbidden_package_input",
+            "",
+        )
+    for name in sorted(names):
         path = (crate / name).resolve()
         if not path.is_relative_to(crate.resolve()):
-            raise ValueError("Package input escapes crate: " + name)
+            raise PackageInputError(
+                "Package input escapes crate: " + name, "package_path_escape", name
+            )
         if not name.endswith(".rs"):
             continue
         source = path.read_text()
         matches = list(INCLUDE.finditer(source))
         if len(matches) != len(INCLUDE_START.findall(source)):
-            raise ValueError("Review nonliteral compile-time input: " + name)
+            raise PackageInputError(
+                "Review nonliteral compile-time input: " + name,
+                "nonliteral_compile_input",
+                name,
+            )
         for match in matches:
             target = (path.parent / match[1]).resolve()
             if (
@@ -84,7 +105,11 @@ def validate_inputs(crate: Path, names: set[str]) -> None:
                 or str(target.relative_to(crate.resolve())) not in names
                 or not target.is_file()
             ):
-                raise ValueError(f"Unpackaged compile-time input: {name}: {match[1]}")
+                raise PackageInputError(
+                    f"Unpackaged compile-time input: {name}: {match[1]}",
+                    "unpackaged_compile_input",
+                    name,
+                )
 
 
 def check(root: Path = ROOT) -> dict:
