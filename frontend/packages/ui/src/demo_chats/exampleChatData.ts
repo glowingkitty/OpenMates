@@ -10,89 +10,65 @@ import { privacyFirstLocalAiWorkspaceChat as compressionHistoryFixtureChat } fro
 
 import { giganticAirplanesChat } from "./data/example_chats/gigantic-airplanes";
 import { buildingMaintenanceEmailChat } from "./data/example_chats/building-maintenance-email";
-import { aiWorkshopsMeetupsBerlinChat } from "./data/example_chats/ai-workshops-meetups-berlin";
 import { rightToRepairLawsEuUsChat } from "./data/example_chats/right-to-repair-laws-eu-us";
 import { berlinWeatherBikeCommuteChat } from "./data/example_chats/berlin-weather-bike-commute";
 import { ragExplainedVideosChat } from "./data/example_chats/rag-explained-videos";
 import { rustVectorDatabaseReposChat } from "./data/example_chats/rust-vector-database-repos";
 import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
-import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
 import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
-import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
-import { airFryersRetailGermanyChat } from "./data/example_chats/air-fryers-retail-germany";
-import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
 import { vegetarianRecipesFromFridgeVegetablesChat } from "./data/example_chats/vegetarian-recipes-from-fridge-vegetables";
 import { searchParentPreviewStressTestChat } from "./data/example_chats/search-parent-preview-stress-test";
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
 import { habitGardenWebApplicationChat } from "./data/example_chats/habit-garden-web-application";
-import { printableBenchyPhoneStandModelsChat } from "./data/example_chats/printable-benchy-phone-stand-models";
 import { dashboardSidebarSvgIconsChat } from "./data/example_chats/dashboard-sidebar-svg-icons";
 import { vitalFarmsSecFinancialsChat } from "./data/example_chats/vital-farms-sec-financials";
 import { financeCashFlowOverviewChat } from "./data/example_chats/finance-cash-flow-overview";
 import { screenshotToHtmlPricingCardChat } from "./data/example_chats/screenshot-to-html-pricing-card";
-import { deutschlandticketTrainFareBreakdownChat } from "./data/example_chats/deutschlandticket-train-fare-breakdown";
 import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/berlin-mitte-work-friendly-restaurants";
 import { privatePlumberEmailChat } from "./data/example_chats/private-plumber-email";
-import { socialAppNameDomainSearchChat } from "./data/example_chats/social-app-name-domain-search";
 import { dampedSineDecayPlotChat } from "./data/example_chats/damped-sine-decay-plot";
 import { communityGardenPlanningMindmapChat } from "./data/example_chats/community-garden-planning-mindmap";
-import { beginnerYogaClassesBerlinChat } from "./data/example_chats/beginner-yoga-classes-berlin";
 import { communityGardenVolunteerOnboardingChat } from "./data/example_chats/community-garden-volunteer-onboarding";
 import { booksAfterLeftHandOfDarknessChat } from "./data/example_chats/books-after-left-hand-of-darkness";
 import { mastodonPublicPostThemesChat } from "./data/example_chats/mastodon-public-post-themes";
 import { adjacentCareerPortfolioExperimentsChat } from "./data/example_chats/adjacent-career-portfolio-experiments";
 import { netCashFromSuppliedBalancesChat } from "./data/example_chats/net-cash-from-supplied-balances";
 import { communityGardenWelcomeMelodyChat } from "./data/example_chats/community-garden-welcome-melody";
-import { berlinEnglishSpeakingGpAppointmentsChat } from "./data/example_chats/berlin-english-speaking-gp-appointments";
 import { communityGardenSunflowerIllustrationChat } from "./data/example_chats/community-garden-sunflower-illustration";
 import { communityGardenBudgetReviewChat } from "./data/example_chats/community-garden-budget-review";
 import { communityGardenVolunteerChimeChat } from "./data/example_chats/community-garden-volunteer-chime";
 import { onlineShopCheckoutFlowDiagramChat } from "./data/example_chats/online-shop-checkout-flow-diagram";
-import { findBrandNameAndDomainChat } from "./data/example_chats/find-brand-name-and-domain";
-import { jobsInGermanyChat } from "./data/example_chats/jobs-in-germany";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
   buildingMaintenanceEmailChat,
-  aiWorkshopsMeetupsBerlinChat,
   rightToRepairLawsEuUsChat,
   berlinWeatherBikeCommuteChat,
   ragExplainedVideosChat,
   rustVectorDatabaseReposChat,
   svelteRunesDocsChat,
-  tedTalkTranscriptSummaryChat,
   balconyPlantReminderChat,
-  buckConverters24v5vChat,
-  airFryersRetailGermanyChat,
-  furnishedApartmentsBerlinChat,
   vegetarianRecipesFromFridgeVegetablesChat,
   housingPolicyDinnerDiscussionChat,
   habitGardenWebApplicationChat,
-  printableBenchyPhoneStandModelsChat,
   dashboardSidebarSvgIconsChat,
   vitalFarmsSecFinancialsChat,
   financeCashFlowOverviewChat,
   screenshotToHtmlPricingCardChat,
-  deutschlandticketTrainFareBreakdownChat,
   berlinMitteWorkFriendlyRestaurantsChat,
   privatePlumberEmailChat,
-  socialAppNameDomainSearchChat,
   dampedSineDecayPlotChat,
   communityGardenPlanningMindmapChat,
-  beginnerYogaClassesBerlinChat,
   communityGardenVolunteerOnboardingChat,
   booksAfterLeftHandOfDarknessChat,
   mastodonPublicPostThemesChat,
   adjacentCareerPortfolioExperimentsChat,
   netCashFromSuppliedBalancesChat,
   communityGardenWelcomeMelodyChat,
-  berlinEnglishSpeakingGpAppointmentsChat,
   communityGardenSunflowerIllustrationChat,
   communityGardenBudgetReviewChat,
   communityGardenVolunteerChimeChat,
   onlineShopCheckoutFlowDiagramChat,
-  findBrandNameAndDomainChat,
-  jobsInGermanyChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

@@ -188,6 +188,12 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       }
       expect((await section.boundingBox())!.height).toBeGreaterThanOrEqual(geometry.scroller.height - 1);
       const media = section.getByTestId(`landing-feature-media-${id}`);
+      if (id === 'actionable' || id === 'devices') {
+        await expect(media).toHaveCount(0);
+        await expect(section.locator('.feature-copy p')).toBeVisible();
+        icons.push(await section.getByTestId('landing-feature-icon').evaluate(element => getComputedStyle(element).maskImage));
+        continue;
+      }
       await expect(media).toHaveCSS('transform', 'none');
       const copyRect = await section.locator('.feature-copy').boundingBox();
       const mediaRect = await media.boundingBox();
@@ -238,7 +244,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const after = await compose.boundingBox();
     expect(Math.abs(after!.y + after!.height - geometry.compose.bottom)).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 6 : 12);
+    await expect(root.locator('img.device-screen:visible')).toHaveCount(width < 760 ? 3 : 6);
   });
 }
 
@@ -269,8 +275,8 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await expect(page.getByTestId('public-site-header').locator('.wordmark')).toBeVisible();
   await expect(page.getByTestId('landing-open-web-app')).toHaveText('Open Web App');
   await expect(page.getByTestId('landing-prompt')).toHaveCSS('opacity', '1');
-  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', 'events');
-  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/?lang=en#chat-id=${landingAppExamples.events}`);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', landingAppOrder[0]);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/?lang=en#chat-id=${landingAppExamples[landingAppOrder[0]]}`);
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('target', '_blank');
   const rail = root.locator('.rail-track');
   await expect(rail).toHaveCSS('animation-name', 'none');
@@ -412,13 +418,13 @@ test('landing app rail selects, pauses, resumes and accepts manual input', async
   const icons = rail.getByTestId('landing-rail-group').nth(1).locator('.rail-icon');
   const prompt = page.getByTestId('landing-prompt');
   const selected = landingAppOrder[1];
-  const travel = icons.nth(1);
-  await expect(travel).toBeVisible();
-  await expect(travel).toBeEnabled();
-  const travelBounds = (await travel.boundingBox())!;
+  const secondApp = icons.nth(1);
+  await expect(secondApp).toBeVisible();
+  await expect(secondApp).toBeEnabled();
+  const secondAppBounds = (await secondApp.boundingBox())!;
   const railBounds = (await rail.boundingBox())!;
-  const clickX = travelBounds.x + travelBounds.width / 2;
-  const clickY = travelBounds.y + travelBounds.height / 2;
+  const clickX = secondAppBounds.x + secondAppBounds.width / 2;
+  const clickY = secondAppBounds.y + secondAppBounds.height / 2;
   expect(clickX).toBeGreaterThan(railBounds.x + 10);
   expect(clickX).toBeLessThan(railBounds.x + railBounds.width - 10);
   await page.mouse.click(clickX, clickY);

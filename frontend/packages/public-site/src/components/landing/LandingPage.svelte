@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import LandingFeatureAnimation from './LandingFeatureAnimation.svelte';
   import LandingNativeIcon from './LandingNativeIcon.svelte';
-  import { landingAppExamples, landingSectionExamples, landingDeviceMedia, type LandingPublication } from './landingPageContent';
+  import { landingAppExamples, landingSectionExamples, type LandingPublication } from './landingPageContent';
   import DeviceScreenshots from '../DeviceScreenshots.svelte';
   import NewsletterSignup from '../NewsletterSignup.svelte';
   import PublicSiteHeader from './PublicSiteHeader.svelte';
@@ -58,7 +58,7 @@
   const storySections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
   type StorySection = typeof storySections[number];
   type StoryState = 'pending' | 'playing' | 'finishing' | 'complete';
-  const isCustomStory = (section: StorySection): section is 'actionable' | 'privacy' => section === 'actionable' || section === 'privacy';
+  const isCustomStory = (section: StorySection): section is 'privacy' => section === 'privacy';
   let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, 'pending'])) as Record<StorySection, StoryState>);
   let activeStory = $state<StorySection | null>(null);
   let pageVisible = $state(true);
@@ -107,11 +107,11 @@
 
   type Feature = { id: StorySection; title1: string; title2: string; body: string; icon: string; baseKey?: string; desktopAlt?: string; mobileAlt?: string; exampleChatId?: string; mediaPath?: string };
   let features = $derived<Feature[]>([
-    { id: 'actionable', title1: copy.actionableTitle1, title2: copy.actionableTitle2, body: copy.actionableBody, icon: 'search', baseKey: 'events', desktopAlt: 'OpenMates web chat searching for AI events in Berlin', mobileAlt: 'OpenMates mobile view of an events chat', exampleChatId: landingSectionExamples.actionable },
+    { id: 'actionable', title1: copy.actionableTitle1, title2: copy.actionableTitle2, body: copy.actionableBody, icon: 'search' },
     { id: 'privacy', title1: copy.privacyTitle1, title2: copy.privacyTitle2, body: copy.privacyBody, icon: 'security', baseKey: 'privacy', desktopAlt: 'OpenMates highlighting sensitive data before sending a message', mobileAlt: 'OpenMates mobile chat highlighting personal data', exampleChatId: landingSectionExamples.privacy },
     { id: 'model-choice', title1: copy.modelChoiceTitle1, title2: copy.modelChoiceTitle2, body: copy.modelChoiceBody, icon: 'coding', baseKey: 'model-selector', desktopAlt: 'OpenMates AI model selector on desktop', mobileAlt: 'OpenMates AI model selector on mobile', exampleChatId: landingSectionExamples['model-choice'] },
     { id: 'workflows', title1: copy.workflowTitle1, title2: copy.workflowTitle2, body: copy.workflowBody, icon: 'workflow', baseKey: 'workflows', desktopAlt: 'OpenMates workflow editor on desktop', mobileAlt: 'OpenMates workflow editor on mobile', exampleChatId: landingSectionExamples.workflows, mediaPath: '/#workflows' },
-    { id: 'devices', title1: copy.devicesTitle1, title2: copy.devicesTitle2, body: copy.devicesBody, icon: 'devices', baseKey: 'devices', desktopAlt: 'OpenMates train connections example on desktop', mobileAlt: 'OpenMates train connections example on mobile', exampleChatId: landingSectionExamples.devices },
+    { id: 'devices', title1: copy.devicesTitle1, title2: copy.devicesTitle2, body: copy.devicesBody, icon: 'devices' },
     { id: 'open-source', title1: copy.sourceTitle1, title2: copy.sourceTitle2, body: copy.sourceBody, icon: 'coding' },
   ]);
 
@@ -531,7 +531,7 @@
       </section>
 
       {#each features as feature (feature.id)}
-        <section class="feature feature-media" class:feature-later={feature.id === 'devices' || feature.id === 'open-source'} class:story-demonstration={isCustomStory(feature.id)} class:story-playing={storyStates[feature.id] !== 'complete'} class:story-finishing={storyStates[feature.id] === 'finishing'} data-story-state={storyStates[feature.id]} id={feature.id} aria-labelledby={`${feature.id}-title`} data-testid={`landing-feature-${feature.id}`} data-reveal>
+        <section class="feature feature-media" class:feature-text-only={!feature.baseKey && feature.id !== 'open-source'} class:feature-later={feature.id === 'devices' || feature.id === 'open-source'} class:story-demonstration={isCustomStory(feature.id)} class:story-playing={storyStates[feature.id] !== 'complete'} class:story-finishing={storyStates[feature.id] === 'finishing'} data-story-state={storyStates[feature.id]} id={feature.id} aria-labelledby={`${feature.id}-title`} data-testid={`landing-feature-${feature.id}`} data-reveal>
           <div class="feature-copy">
             <span class={`feature-icon ${feature.icon}-icon`} aria-hidden="true" data-testid="landing-feature-icon"></span>
             <h2 id={`${feature.id}-title`}>{feature.title1}<br />{feature.title2}</h2>
@@ -551,19 +551,20 @@
                 {:else}
                   <div class="feature-links"><a class="text-link" href={siteUrl('/blog')}>{copy.ethics}</a><a class="text-link" href={siteUrl('/blog')}>{copy.selfHosting}</a></div>
                 {/if}
+                {#if !feature.baseKey && feature.id !== 'open-source' && !reducedMotion}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
               </div>
             {:else}
               <button class="skip-animation" type="button" onclick={() => finishStory(feature.id)} data-testid={`landing-skip-${feature.id}`}>{copy.skipAnimation}</button>
             {/if}
           </div>
-          {#if storyStates[feature.id] === 'complete' || isCustomStory(feature.id)}
+          {#if (storyStates[feature.id] === 'complete' && (feature.baseKey || feature.id === 'open-source')) || isCustomStory(feature.id)}
             <div class="story-surface">
               {#if storyStates[feature.id] === 'complete'}
                 <div class="feature-example" in:fade={{ duration: reducedMotion ? 0 : 400, delay: reducedMotion ? 0 : 180 }} data-testid={`landing-feature-media-${feature.id}`}>
                   {#if feature.id === 'open-source'}
                     <a class="source-github" href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" aria-label="OpenMates on GitHub" data-testid="landing-source-github"><svg aria-hidden="true" viewBox="0 0 48 48"><path d="M24 0c-3.152 0-6.273.623-9.184 1.833a23.995 23.995 0 00-7.787 5.22A24.126 24.126 0 000 24.084c0 10.645 6.888 19.677 16.416 22.88 1.2.192 1.584-.554 1.584-1.205v-4.07c-6.648 1.445-8.064-3.227-8.064-3.227-1.104-2.793-2.664-3.54-2.664-3.54-2.184-1.493.168-1.445.168-1.445 2.4.169 3.672 2.48 3.672 2.48 2.088 3.661 5.616 2.577 6.984 2 .216-1.566.84-2.626 1.512-3.228-5.328-.602-10.92-2.673-10.92-11.849 0-2.673.912-4.816 2.472-6.526-.24-.602-1.08-3.107.24-6.358 0 0 2.016-.65 6.6 2.456 1.896-.53 3.96-.795 6-.795s4.104.265 6 .795c4.584-3.107 6.6-2.456 6.6-2.456 1.32 3.25.48 5.756.24 6.358 1.56 1.71 2.472 3.853 2.472 6.526 0 9.2-5.616 11.223-10.968 11.825.864.747 1.656 2.216 1.656 4.456v6.599c0 .65.384 1.42 1.608 1.204C41.136 43.736 48 34.728 48 24.083c0-3.162-.62-6.294-1.827-9.216a24.09 24.09 0 00-5.202-7.813 23.995 23.995 0 00-7.787-5.22A23.928 23.928 0 0024 0z" fill="currentColor" /></svg></a>
                   {:else if feature.baseKey}
-                    <DeviceScreenshots baseKey={feature.baseKey} desktopAlt={feature.desktopAlt ?? ''} mobileAlt={feature.mobileAlt ?? ''} href={feature.mediaPath ? appUrl(feature.mediaPath) : feature.exampleChatId ? appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId)}`) : undefined} linkLabel={`${feature.exampleChatId ? copy.openExample : copy.exploreWorkflows}: ${feature.title1} ${feature.title2}`} watchSrc={feature.id === 'devices' ? landingDeviceMedia.devicesWatch : undefined} watchAlt="The OpenMates train connections example on Apple Watch" />
+                    <DeviceScreenshots baseKey={feature.baseKey} desktopAlt={feature.desktopAlt ?? ''} mobileAlt={feature.mobileAlt ?? ''} href={feature.mediaPath ? appUrl(feature.mediaPath) : feature.exampleChatId ? appUrl(`/#chat-id=${encodeURIComponent(feature.exampleChatId)}`) : undefined} linkLabel={`${feature.exampleChatId ? copy.openExample : copy.exploreWorkflows}: ${feature.title1} ${feature.title2}`} />
                   {/if}
                   <div class="feature-actions">
                     {#if !reducedMotion}<button class="replay-animation" type="button" onclick={() => replayStory(feature.id)} data-testid={`landing-replay-${feature.id}`}>{copy.replayAnimation}</button>{/if}
@@ -676,6 +677,9 @@
 
   .feature { min-height: 100%; width: 100%; margin: 0 auto; padding: clamp(48px, 5vw, 96px) clamp(32px, 6vw, 112px) max(156px, env(safe-area-inset-bottom)); box-sizing: border-box; overflow: hidden; }
   .feature-media { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr); align-items: center; gap: clamp(28px, 4vw, 76px); }
+  .feature.feature-text-only { grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; text-align: center; }
+  .feature-text-only .feature-copy { max-width: 42rem; }
+  .feature-text-only .feature-icon, .feature-text-only .text-link { margin-inline: auto; }
   .feature-copy { max-width: 480px; }.feature-later .feature-copy { max-width: 580px; }
   .feature-icon { display: block; width: 48px; height: 48px; margin-bottom: var(--spacing-8); background: var(--color-primary-start); -webkit-mask: var(--feature-icon-url) center / 80% no-repeat; mask: var(--feature-icon-url) center / 80% no-repeat; }
   .search-icon { --feature-icon-url: url('/icons/search.svg'); }.security-icon { --feature-icon-url: url('/icons/security.svg'); }.workflow-icon { --feature-icon-url: url('/icons/workflow.svg'); }.devices-icon { --feature-icon-url: url('/icons/devices.svg'); }.coding-icon { --feature-icon-url: url('/icons/coding.svg'); }

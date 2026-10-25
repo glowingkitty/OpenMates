@@ -30,14 +30,14 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
-test('opens a public event from the new-chat composer while keeping the draft', async ({ page }) => {
+test('opens a public web result from the new-chat composer while keeping the draft', async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
   const skipInterests = page.getByTestId('guest-interest-skip');
   if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) await skipInterests.click();
 
-  const query = 'Spec-Driven Development in Practice';
+  const query = 'Rocket-powered aircraft - Wikipedia';
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
   await focusComposer(page);
@@ -65,7 +65,7 @@ test('recovers the original encrypted saved event without a source chat while co
     'Requires disposable isolated paired browser and CLI backend');
   skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
   const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('composer-saved-original-event');
-  const composerChatId = 'example-ai-workshops-meetups-berlin';
+  const composerChatId = 'example-gigantic-airplanes';
   const summaryTitle = 'Freelance Barcamp Berlin saved summary';
   const summaryNotes = 'Saved summary notes must never replace original event details';
   let source: Seed | undefined;
@@ -244,7 +244,7 @@ test('opens an event from another example chat while keeping the message draft',
   await destination.click();
   await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', CHAT_ID);
 
-  const query = 'Spec-Driven Development in Practice';
+  const query = 'Rocket-powered aircraft - Wikipedia';
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
   await focusComposer(page);

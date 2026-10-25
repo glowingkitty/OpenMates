@@ -11,16 +11,16 @@ test('existing-chat search cards receive a real click without losing the draft',
   await waitForComponentPreview(page);
   await focusComposer(page);
   const editor = page.getByTestId('message-editor').getByRole('textbox', { includeHidden: true });
-  await editor.fill('OpenClaw Anonymous Berlin #9');
-  const card = page.getByTestId('recent-embed-search-result').filter({ hasText: 'OpenClaw Anonymous Berlin #9' }).first();
+  await editor.fill('Rocket-powered aircraft - Wikipedia');
+  const card = page.getByTestId('recent-embed-search-result').filter({ hasText: 'Rocket-powered aircraft - Wikipedia' }).first();
   await expect(card).toBeVisible();
   const selectedId = await card.getAttribute('data-embed-id');
   expect(selectedId).toMatch(/^[0-9a-f-]{36}$/);
   await card.click();
   const fixture = page.getByTestId('composer-search-fixture');
   await expect(fixture).toHaveAttribute('data-selected-embed', selectedId!);
-  await expect(fixture).toHaveAttribute('data-selected-owner', 'example-ai-workshops-meetups-berlin');
-  await expect(editor).toHaveText('OpenClaw Anonymous Berlin #9');
+  await expect(fixture).toHaveAttribute('data-selected-owner', 'example-gigantic-airplanes');
+  await expect(editor).toHaveText('Rocket-powered aircraft - Wikipedia');
 });
 
 for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
@@ -42,11 +42,11 @@ for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
     await expect(suggestions).toBeVisible({ timeout: 30000 });
     const embedCard = page.getByTestId('recent-embed-search-result').first();
     await expect(embedCard).toBeVisible({ timeout: 30000 });
-    await expect(embedCard).toContainText(/Berlin/i);
+    await expect(embedCard).toContainText(/Rocket-powered aircraft/i);
     await expect(suggestions.locator('.chat-result-wrapper:has(.embed-result-card) .card-date')).toHaveCount(0);
     await expect(embedCard.locator('.card-icon .icon-container')).toBeVisible();
     expect(await embedCard.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-    await expect(page.locator('[data-testid="recent-embed-search-result"][data-app-id="events"]').first()).toBeVisible();
+    await expect(page.locator('[data-testid="recent-embed-search-result"][data-app-id="web"]').first()).toBeVisible();
     const gradients = await page.evaluate(() => {
       const reference = document.createElement('div');
       document.body.appendChild(reference);
@@ -55,16 +55,16 @@ for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
         return getComputedStyle(reference).backgroundImage;
       };
       const result = {
-        events: getComputedStyle(document.querySelector('[data-testid="recent-embed-search-result"][data-app-id="events"]')!).backgroundImage,
+        web: getComputedStyle(document.querySelector('[data-testid="recent-embed-search-result"][data-app-id="web"]')!).backgroundImage,
         expectedCode: expected('code'),
-        expectedEvents: expected('events'),
+        expectedWeb: expected('web'),
       };
       reference.remove();
       return result;
     });
     expect(gradients.expectedCode).not.toBe('none');
-    expect(gradients.expectedEvents).not.toBe('none');
-    expect(gradients.events).toBe(gradients.expectedEvents);
+    expect(gradients.expectedWeb).not.toBe('none');
+    expect(gradients.web).toBe(gradients.expectedWeb);
     await testInfo.attach('composer-embed-suggestions', {
       body: await page.screenshot(), contentType: 'image/png',
     });
@@ -77,7 +77,7 @@ for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
     await expect(codeCard).toContainText('src/main.js');
     const codeGradient = await codeCard.evaluate(element => getComputedStyle(element).backgroundImage);
     expect(codeGradient).toBe(gradients.expectedCode);
-    expect(codeGradient).not.toBe(gradients.events);
+    expect(codeGradient).not.toBe(gradients.web);
 
     // A narrow split panel must use compact cards even on a desktop viewport.
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -102,6 +102,6 @@ for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
     )).toMatch(/[0-9a-f-]{36}/);
     await expect.poll(() => page.evaluate(() =>
       (window as Window & { previewSelectedEmbedChatId?: string }).previewSelectedEmbedChatId,
-    )).toBe('example-ai-workshops-meetups-berlin');
+    )).toBe('example-gigantic-airplanes');
   });
 }

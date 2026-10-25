@@ -1,7 +1,7 @@
 /** Composer suggestions over public example chats, with no account or server state. */
 const defaultProps = {
-  messageInputContent: 'OpenClaw Anonymous Berlin #9',
-  currentChatId: 'example-ai-workshops-meetups-berlin',
+  messageInputContent: 'Rocket-powered aircraft - Wikipedia',
+  currentChatId: 'example-gigantic-airplanes',
   onChatNavigate: (chatId: string) => {
     window.dispatchEvent(new CustomEvent('preview-chat-selected', { detail: chatId }));
   },

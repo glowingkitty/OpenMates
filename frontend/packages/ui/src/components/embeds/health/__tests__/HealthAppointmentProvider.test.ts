@@ -1,9 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { decode } from '@toon-format/toon';
 import { parse } from 'yaml';
-import { mount, tick, unmount } from 'svelte';
+import { mount, tick, unmount, type Component } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
-import { berlinEnglishSpeakingGpAppointmentsChat } from '../../../../demo_chats/data/example_chats/berlin-english-speaking-gp-appointments';
 
 vi.mock('../../../../services/chatSyncService', () => ({ chatSyncService: {} }));
 
@@ -20,12 +18,13 @@ import { embedPreviewRegistry } from '../../../../services/embedPreviewRegistry'
 
 describe('saved appointment provider rendering', () => {
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
-  it('renders unknown insurance with the real Berlin doctor provider rather than a fixed ExampleClinicB label', async () => {
-    const child = berlinEnglishSpeakingGpAppointmentsChat.embeds!.find(
-      (embed) => embed.embed_id === '3be646e8-8f97-48f2-afae-df58f6f8ca61',
-    )!;
-    const decodedContent = decode(child.content) as Record<string, unknown>;
-    expect(decodedContent).toMatchObject({ name: 'Hermann Fondis', insurance: 'unknown', provider_platform: 'ExampleClinicA' });
+  it('renders unknown insurance with the stored provider rather than a fixed provider label', async () => {
+    const child = { embed_id: 'local-saved-appointment', type: 'health-appointment' };
+    const decodedContent = {
+      app_id: 'health', skill_id: 'appointment', name: 'Dr. Fixture',
+      insurance: 'unknown', provider_platform: 'Stored clinic',
+      slot_datetime: '2026-11-04T10:00:00Z', booking_url: 'https://example.com/appointment',
+    };
     const resolved = await embedPreviewRegistry.resolve({
       embedId: child.embed_id,
       embedData: { type: child.type, status: 'finished' },
@@ -33,15 +32,15 @@ describe('saved appointment provider rendering', () => {
       onFullscreen: () => {},
     });
     expect(resolved).not.toBeNull();
-    expect(resolved!.props.providerPlatform).toBe('ExampleClinicA');
+    expect(resolved!.props.providerPlatform).toBe('Stored clinic');
     const target = document.createElement('div');
     document.body.append(target);
-    const component = mount(resolved!.component, { target, props: resolved!.props });
+    const component = mount(resolved!.component as Component, { target, props: resolved!.props });
     try {
       await tick();
       const badge = target.querySelector('.insurance-unknown-badge');
-      expect(badge?.textContent?.trim()).toBe('Insurance: verify on ExampleClinicA');
-      expect(badge?.getAttribute('title')).toContain('verify on ExampleClinicA');
+      expect(badge?.textContent?.trim()).toBe('Insurance: verify on Stored clinic');
+      expect(badge?.getAttribute('title')).toContain('verify on Stored clinic');
       expect(target.textContent).not.toContain('ExampleClinicB');
     } finally {
       await unmount(component);

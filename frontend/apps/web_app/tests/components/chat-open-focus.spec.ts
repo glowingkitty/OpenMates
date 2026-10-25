@@ -3,8 +3,8 @@ import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import { expectFocusedChatWheelScroll } from '../helpers/chat-scroll';
 
-const first = 'example-ai-workshops-meetups-berlin';
-const second = 'example-deutschlandticket-train-fare-breakdown';
+const first = 'example-gigantic-airplanes';
+const second = 'example-building-maintenance-email';
 
 for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.surface.semantic-parity

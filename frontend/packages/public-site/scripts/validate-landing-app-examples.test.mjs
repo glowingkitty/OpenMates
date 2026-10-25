@@ -4,7 +4,39 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hasCapabilityEvidence, hasNaturalOpening, validateLandingAppExamples } from './validate-landing-app-examples.mjs';
+import { hasCapabilityEvidence, hasNaturalOpening, validateLandingAppExamples, validatePublishedExampleSkills } from './validate-landing-app-examples.mjs';
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,marketing-landing.example-catalog-alignment
+test('rejects an unavailable secondary skill anywhere in a public conversation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'public-example-skills-'));
+  const write = (name, content) => {
+    const file = join(root, name);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  };
+  const source = 'embeds: [\n {\n embed_id: "search", content: "app_id: web\\nskill_id: search\\nresult_count: 2" },\n {\n embed_id: "secondary", content: "app_id: shop\\nskill_id: search\\nresult_count: 1" }\n]';
+  try {
+    write('backend/apps/shop/app.yml', 'skills:\n  - id: search\n    provider_required: true\n    providers: []\n');
+    write('frontend/packages/ui/src/demo_chats/exampleChatData.ts', 'import { mixedChat } from "./data/example_chats/mixed";\nexport const ALL_EXAMPLE_CHATS: ExampleChat[] = [mixedChat];');
+    write('frontend/packages/ui/src/demo_chats/data/example_chats/mixed.ts', source);
+    assert.throws(() => validatePublishedExampleSkills(root), /mixed uses unavailable skill shop.search/);
+    for (const secondary of [
+      'app_id: \\"shop\\"\\nskill_id: \\"search\\"',
+      '{\\"skill_id\\": \\"search\\", \\"app_id\\": \\"shop\\"}'
+    ]) {
+      write('frontend/packages/ui/src/demo_chats/data/example_chats/mixed.ts', source.replace('app_id: shop\\nskill_id: search', secondary));
+      assert.throws(() => validatePublishedExampleSkills(root), /mixed uses unavailable skill shop.search/);
+    }
+    write('frontend/packages/ui/src/demo_chats/data/example_chats/mixed.ts', source);
+    write('backend/apps/shop/app.yml', 'skills:\n  - id: search\n    provider_required: true\n    providers: [Official]\n');
+    assert.doesNotThrow(() => validatePublishedExampleSkills(root));
+    write('backend/apps/shop/app.yml', 'skills:\n  - id: search\n    provider_required: true\n    providers: []\n');
+    write('frontend/packages/ui/src/demo_chats/exampleChatData.ts', 'import { mixedChat } from "./data/example_chats/mixed";\nexport const ALL_EXAMPLE_CHATS: ExampleChat[] = [cleanChat];\nexport const INTERNAL_EXAMPLE_CHATS = [mixedChat];');
+    assert.doesNotThrow(() => validatePublishedExampleSkills(root));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 // contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
 test('accepts natural requests with real audio or document attachments', () => {
@@ -101,6 +133,14 @@ test('accepts the real activated Politics focus with its substantive saved assis
   assert.doesNotThrow(() => validateLandingAppExamples(root, [{
     id: 'politics', capability: { type: 'focus', id: 'prepare_discussion' },
     example_chat_id: 'example-housing-policy-dinner-discussion'
+  }]));
+});
+
+// contract-test: supporting surface=gui.web assertions=marketing-landing.app-metadata-defaults
+test('resolves the actual first user message in a retained web-search example', () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+  assert.doesNotThrow(() => validateLandingAppExamples(root, [{
+    id: 'web', capability: { type: 'skill', id: 'search' }, example_chat_id: 'example-gigantic-airplanes'
   }]));
 });
 

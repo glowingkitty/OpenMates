@@ -20,17 +20,37 @@ def load_audit():
 
 
 # contract-test: tooling
-def test_hosting_example_single_quoted_embeds_resolve() -> None:
+def test_converter_single_quoted_embeds_resolve() -> None:
     audit = load_audit()
-    source = (ROOT / "frontend/packages/ui/src/demo_chats/data/example_chats/social-app-name-domain-search.ts").read_text(encoding="utf-8")
+    # Minimal converter-shaped fixture keeps parser coverage independent of the public catalog.
+    source = r"""
+export const fixture = {
+  messages: [
+    {
+      id: "fixture-message",
+      role: "assistant",
+      content: "[!](embed:11111111-1111-4111-8111-111111111111)",
+      created_at: 1,
+    }
+  ],
+  embeds: [
+    {
+      embed_id: "11111111-1111-4111-8111-111111111111",
+      type: "app_skill_use",
+      content: 'app_id: web\nskill_id: search',
+    }
+  ],
+  metadata: {},
+};
+"""
     parent_contents = [
         audit.parse_embed_content(block)
         for block in audit.iter_embed_blocks(source)
         if audit.parse_ts_string_field(block, "type") == "app_skill_use"
     ]
-    assert len(parent_contents) == 4
-    assert all(audit.toon_value(content, "app_id") == "hosting" for content in parent_contents)
-    assert all(audit.toon_value(content, "skill_id") == "search_domains" for content in parent_contents)
+    assert len(parent_contents) == 1
+    assert all(audit.toon_value(content, "app_id") == "web" for content in parent_contents)
+    assert all(audit.toon_value(content, "skill_id") == "search" for content in parent_contents)
 
     known_refs = audit.known_embed_refs(source)
     assistant = next(message for message in audit.parse_messages(source) if message.role == "assistant")

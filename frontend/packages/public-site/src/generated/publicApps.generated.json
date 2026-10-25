@@ -43,7 +43,7 @@
       "type": "skill",
       "id": "search"
     },
-    "exampleChatId": "example-find-brand-name-and",
+    "exampleChatId": "example-gigantic-airplanes",
     "promptEn": "Search the web",
     "promptDe": "Im Web suchen"
   },

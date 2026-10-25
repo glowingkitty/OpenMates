@@ -110,7 +110,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "content_creation", type: "skill", audience: "work", fallbackLabel: "content creation", icon: "sparkles", appId: "ai", gradientCategory: "creative_writing",
     related: ["marketing", "writing_editing", "branding_images", "video_social_media"],
-    exampleChats: ["example-ted-talk-transcript-summary", "example-rag-explained-videos", ],
+    exampleChats: ["example-rag-explained-videos", ],
     suggestions: ["chat.new_chat_suggestions.writing_prompts", "chat.new_chat_suggestions.discover_image_generate", "chat.new_chat_suggestions.discover_video_search"],
   },
   {
@@ -128,19 +128,19 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "find_local_events", type: "skill", audience: "personal", fallbackLabel: "find local events", icon: "calendar-search", appId: "events", gradientCategory: "general_knowledge",
     related: ["events_networking", "find_restaurants_cafes", "plan_trips", "health_wellbeing"],
-    exampleChats: ["example-ai-workshops-meetups-berlin", ],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
     id: "plan_trips", type: "skill", audience: "personal", fallbackLabel: "plan trips", icon: "plane", appId: "travel", gradientCategory: "general_knowledge",
     related: ["find_trains_flights", "find_apartments", "find_restaurants_cafes", "find_local_events"],
-    exampleChats: ["example-furnished-apartments-berlin"],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
     id: "writing_editing", type: "mate", audience: "work", fallbackLabel: "writing & editing", icon: "pen-line", appId: "mail", gradientCategory: "creative_writing",
     related: ["content_creation", "marketing", "client_work_proposals", "customer_support"],
-    exampleChats: ["example-building-maintenance-email", "example-ted-talk-transcript-summary", ],
+    exampleChats: ["example-building-maintenance-email", ],
     suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts", "chat.new_chat_suggestions.cover_letter"],
   },
   {
@@ -158,13 +158,13 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "research_analysis", type: "mate", audience: "work", fallbackLabel: "research & analysis", icon: "search-check", appId: "web", gradientCategory: "general_knowledge",
     related: ["data_spreadsheets", "legal_compliance", "learning_new_skills", "news_current_events"],
-    exampleChats: ["example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-gigantic-airplanes", "example-rust-vector-database-repos", "example-buck-converters-24v-5v", ],
+    exampleChats: ["example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-housing-policy-dinner-discussion", "example-gigantic-airplanes", "example-rust-vector-database-repos", ],
     suggestions: ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.ml_vs_ai"],
   },
   {
     id: "data_spreadsheets", type: "skill", audience: "work", fallbackLabel: "data & spreadsheets", icon: "table-2", appId: "math", gradientCategory: "science",
     related: ["research_analysis", "finance_bookkeeping", "software_development", "business_planning"],
-    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", "example-buck-converters-24v-5v", "example-right-to-repair-laws", ],
+    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", "example-right-to-repair-laws", ],
     suggestions: ["chat.new_chat_suggestions.discover_math_calculate", "chat.new_chat_suggestions.stock_market"],
   },
   {
@@ -176,7 +176,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "events_networking", type: "skill", audience: "work", fallbackLabel: "events & networking", icon: "users-round", appId: "events", gradientCategory: "marketing_sales",
     related: ["marketing", "sales", "find_local_events", "business_planning"],
-    exampleChats: ["example-ai-workshops-meetups-berlin", ],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.improve_productivity"],
   },
   {
@@ -206,7 +206,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "video_social_media", type: "skill", audience: "work", fallbackLabel: "video & social media", icon: "video", appId: "videos", gradientCategory: "movies_tv",
     related: ["content_creation", "marketing", "branding_images", "writing_editing"],
-    exampleChats: ["example-rag-explained-videos", "example-ted-talk-transcript-summary", ],
+    exampleChats: ["example-rag-explained-videos", ],
     suggestions: ["chat.new_chat_suggestions.discover_video_search", "chat.new_chat_suggestions.writing_prompts"],
   },
   {
@@ -218,49 +218,49 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "learning_new_skills", type: "context", audience: "personal", fallbackLabel: "learning new skills", icon: "graduation-cap", appId: "web", gradientCategory: "general_knowledge",
     related: ["research_analysis", "software_development", "productivity_organization", "diy_electronics"],
-    exampleChats: ["example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-ted-talk-transcript-summary", "example-rust-vector-database-repos", "example-gigantic-airplanes", ],
+    exampleChats: ["example-svelte-runes-docs", "example-rag-explained-videos", "example-rust-vector-database-repos", "example-gigantic-airplanes", ],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.learn_spanish", "chat.new_chat_suggestions.quantum_computing"],
   },
   {
     id: "health_wellbeing", type: "mate", audience: "personal", fallbackLabel: "health & wellbeing", icon: "heart-pulse", appId: "health", gradientCategory: "medical_health",
     related: ["find_doctor_appointments", "cooking_meal_planning", "productivity_organization", "privacy_personal_data"],
-    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-retail-germany", "example-berlin-weather-bike-commute", "example-habit-garden-web-application", ],
+    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-berlin-weather-bike-commute", "example-habit-garden-web-application", ],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
   },
   {
     id: "find_doctor_appointments", type: "skill", audience: "personal", fallbackLabel: "find doctor appointments", icon: "calendar-heart", appId: "health", gradientCategory: "medical_health",
     related: ["health_wellbeing", "privacy_personal_data", "productivity_organization"],
-    exampleChats: ["example-berlin-english-speaking-gp"],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
   },
   {
     id: "find_apartments", type: "skill", audience: "personal", fallbackLabel: "find apartments", icon: "home", appId: "home", gradientCategory: "business_development",
     related: ["personal_finances", "plan_trips", "find_restaurants_cafes", "find_local_events"],
-    exampleChats: ["example-furnished-apartments-berlin", ],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
     id: "find_trains_flights", type: "skill", audience: "personal", fallbackLabel: "find trains & flights", icon: "train-front", appId: "travel", gradientCategory: "general_knowledge",
     related: ["plan_trips", "find_apartments", "find_local_events"],
-    exampleChats: ["example-deutschlandticket-train-fare-breakdown", ],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
     id: "find_restaurants_cafes", type: "skill", audience: "personal", fallbackLabel: "find restaurants & cafes", icon: "utensils", appId: "maps", gradientCategory: "cooking_food",
     related: ["find_local_events", "cooking_meal_planning", "plan_trips", "find_apartments"],
-    exampleChats: ["example-berlin-mitte-work-friendly", "example-air-fryers-retail-germany"],
+    exampleChats: ["example-berlin-mitte-work-friendly", ],
     suggestions: ["chat.new_chat_suggestions.meal_prep", "chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
     id: "personal_finances", type: "mate", audience: "personal", fallbackLabel: "personal finances", icon: "wallet-cards", appId: "ai", gradientCategory: "finance",
     related: ["finance_bookkeeping", "find_apartments", "data_spreadsheets", "privacy_personal_data"],
-    exampleChats: ["example-deutschlandticket-train-fare-breakdown", ],
+    exampleChats: [],
     suggestions: ["chat.new_chat_suggestions.stock_market"],
   },
   {
     id: "cooking_meal_planning", type: "mate", audience: "personal", fallbackLabel: "cooking & meal planning", icon: "cooking-pot", appId: "maps", gradientCategory: "cooking_food",
     related: ["health_wellbeing", "find_restaurants_cafes", "productivity_organization"],
-    exampleChats: ["example-vegetarian-recipes-from-fridge", "example-air-fryers-retail-germany"],
+    exampleChats: ["example-vegetarian-recipes-from-fridge", ],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.meal_prep"],
   },
   {
@@ -272,7 +272,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "diy_electronics", type: "mate", audience: "personal", fallbackLabel: "DIY & electronics", icon: "wrench", appId: "electronics", gradientCategory: "maker_prototyping",
     related: ["software_development", "learning_new_skills", "research_analysis"],
-    exampleChats: ["example-buck-converters-24v-5v", "example-printable-benchy-phone-stand", "example-right-to-repair-laws", ],
+    exampleChats: ["example-right-to-repair-laws", ],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.discover_math_calculate"],
   },
   {

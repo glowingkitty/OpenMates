@@ -1,110 +1,55 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
+// playwright-account: not_required reason=public_removed_example_routes
+import { waitForComponentPreview } from './helpers/component-preview';
+import { expect, test } from './helpers/cookie-audit';
+import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
+import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 
-const slug = 'social-app-name-domain-search';
+// Removed public examples must not become hidden direct-hash fixtures.
+const unpublished = [
+  { slug: 'social-app-name-domain-search', chatId: 'example-social-app-name-domain' },
+];
 
-for (const [viewport, size] of [
-	['phone', { width: 390, height: 844 }],
-	['laptop', { width: 1440, height: 1000 }]
-] as const) {
-	// contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-	test(`real Hosting naming example renders its complete domain graph on ${viewport}`, async ({
-		page,
-		request
-	}: any, testInfo: any) => {
-		test.setTimeout(120_000);
-		const response = await request.get(`/example/${slug}`);
-		expect(response.status()).toBe(200);
-		const html = await response.text();
-		expect(html).toContain('Orbitfolk');
-		expect(html).toContain('Kinloop');
-		for (const marker of [
-			'vault:v1:',
-			'aes_key',
-			'aes_nonce',
-			'example_chats.social_app_name_domain_search'
-		]) {
-			expect(html).not.toContain(marker);
-		}
-		expect(html).toContain('Open this conversation in OpenMates');
-		expect(html).toContain('example-social-app-name-domain');
+for (const { slug, chatId } of unpublished) {
+  // contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.seo.crawlable,marketing-landing.example-catalog-alignment
+  test(`${slug} has no public route, catalog entry, landing link or hash transcript`, async ({ page, request }) => {
+    for (const registry of [ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS]) {
+      expect(registry.some(chat => chat.slug === slug || chat.chat_id === chatId)).toBe(false);
+    }
+    expect(Object.values(landingAppExamples)).not.toContain(chatId);
+    const response = await request.get(`/example/${slug}`);
+    expect(response.status()).toBe(404);
 
-		await page.setViewportSize(size);
-		// The SEO page redirects hydrated browsers immediately; the stable public
-		// conversation link is the SPA chat hash used by the example share dialog.
-		await page.goto(getE2EDebugUrl('/#chat-id=example-social-app-name-domain'), {
-			waitUntil: 'domcontentloaded'
-		});
-		const parents = page
-			.getByTestId('embed-preview')
-			.filter({ has: page.getByTestId('hosting-search-preview') });
-		await expect(async () => expect(await parents.count()).toBeGreaterThan(0)).toPass({
-			timeout: 30_000
-		});
-		const parent = parents.first();
-		await parent.scrollIntoViewIfNeeded();
-		await expect(parent.locator('[data-app-icon="hosting"]').first()).toBeVisible();
-		await expect(parent).toContainText('ExampleRegistrar');
-		await expect(parent.getByTestId('embed-status-value')).toHaveCount(0);
-		await testInfo.attach(`hosting-example-${viewport}-preview`, {
-			body: await parent.screenshot(),
-			contentType: 'image/png'
-		});
-		const search = await openFullscreen(page, parent);
-		await expect(search.locator('.search-results > :first-child')).toHaveAttribute('data-testid', 'hosting-domain-grid');
-		await expect(search.locator('.search-results > *')).toHaveCount(1);
-		await expect(search.locator('.search-results .summary, .search-results .filters, .search-results .notice')).toHaveCount(0);
-		await expect(search.getByTestId('hosting-view-all')).not.toBeVisible();
-		const more = search.locator('.more-trigger');
-		await more.click();
-		await search.getByTestId('hosting-view-all').click();
-		await expect(more).toHaveAttribute('aria-expanded', 'false');
-		await more.click();
-		await expect(search.getByTestId('hosting-view-all')).toHaveAttribute('aria-pressed', 'true');
-		await more.click();
-		await expect(search.getByTestId('hosting-view-all')).toHaveCount(0);
-		const domains = search.getByTestId('hosting-domain-grid').getByTestId('embed-preview');
-		// The complete checked pool is retained; each filter respects max_results.
-		await expect(domains).toHaveCount(10, { timeout: 30_000 });
-		await expect.poll(async () => domains.evaluateAll((elements: HTMLElement[]) => elements.map((element) => {
-			const bounds = element.getBoundingClientRect();
-			return [Math.round(bounds.width), Math.round(bounds.height)];
-		}))).toEqual(Array.from({ length: 10 }, () => [300, 200]));
-		await expect(domains.first().getByTestId('embed-status-value')).toHaveCount(0);
-		await testInfo.attach(`hosting-example-${viewport}-checked`, {
-			body: await page.screenshot({ animations: 'disabled' }),
-			contentType: 'image/png'
-		});
-		await domains.first().click();
-		const detail = page.getByTestId('hosting-domain-fullscreen');
-		await expect(detail).toBeVisible();
-		await expect(detail.getByTestId('hosting-domain-back')).toHaveCount(0);
-		await expect(detail.getByRole('button', { name: /back to results/i })).toHaveCount(0);
-		await expect(detail.getByTestId('hosting-domain-ascii')).toHaveText(/\.[a-z]+$/);
-		await expect(detail.getByRole('link', { name: /ExampleRegistrar/ })).toHaveAttribute(
-			'href',
-			/^https:\/\/shop\.ExampleRegistrar\.net\//
-		);
-		const bounds = await detail.getByTestId('hosting-domain-details').boundingBox();
-		expect(bounds).toBeTruthy();
-		expect(bounds.x).toBeGreaterThanOrEqual(-1);
-		expect(bounds.x + bounds.width).toBeLessThanOrEqual(size.width + 1);
-		await testInfo.attach(`hosting-example-${viewport}-domain`, {
-			body: await page.screenshot({ animations: 'disabled' }),
-			contentType: 'image/png'
-		});
-		await closeFullscreen(page, detail);
-		await expect(detail).not.toBeVisible();
-		await expect(search).toBeVisible();
-		await more.click();
-		await expect(search.getByTestId('hosting-view-all')).toHaveAttribute('aria-pressed', 'true');
-		await more.click();
-		await closeFullscreen(page, search);
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(async () => expect(await parents.count()).toBeGreaterThan(0)).toPass({
-			timeout: 30_000
-		});
-	});
+    const catalog = await request.get('/example');
+    expect(catalog.status()).toBe(200);
+    const html = await catalog.text();
+    expect(html).not.toContain(`/example/${slug}`);
+    expect(html).not.toContain(chatId);
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.locator(`a[href*="/example/${slug}"], a[href*="chat-id=${chatId}"]`)).toHaveCount(0);
+
+    await page.goto(`/#chat-id=${chatId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.getByTestId('user-message-content')).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    await expect(page.getByTestId('embed-preview')).toHaveCount(0);
+  });
+}
+
+
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=app-skills.history.renderable
+  test(`saved hosting result remains readable at ${width}px without public admission`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const mode of ['Preview', 'Fullscreen']) {
+      await page.goto(`/dev/preview/embeds/hosting/HostingDomainEmbed${mode}?chrome=0&width=${width}`);
+      const canvas = await waitForComponentPreview(page);
+      await expect(canvas).toBeVisible();
+      expect((await canvas.innerText()).trim().length).toBeGreaterThan(20);
+      await expect(canvas.locator('a[href^="javascript:"]')).toHaveCount(0);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+    }
+  });
 }

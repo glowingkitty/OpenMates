@@ -1,6 +1,6 @@
 /** New-chat composer suggestions over public examples, without account state. */
 const defaultProps = {
-  messageInputContent: 'OpenClaw Anonymous Berlin #9',
+  messageInputContent: 'Rocket-powered aircraft - Wikipedia',
   onSuggestionClick: () => {},
   onChatNavigate: () => {},
   onFileSelect: () => {},

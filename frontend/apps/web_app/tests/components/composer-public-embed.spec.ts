@@ -6,7 +6,7 @@ import { focusComposer } from '../helpers/composer-focus';
 test.setTimeout(120_000);
 
 for (const fixture of [
-  { embedId: '7512b6cf-f568-4197-a008-1f0aea7431b6', chatId: 'example-ai-workshops-meetups-berlin', title: 'OpenClaw Anonymous Berlin #9', type: 'event' },
+  { embedId: '710a4efd-2208-41fb-a14c-e4ba7e530b5e', chatId: 'example-gigantic-airplanes', title: 'Rocket-powered aircraft - Wikipedia', type: 'web-website' },
   { embedId: '0dd5bef4-2dd6-4374-96ed-e8130bc7270d', chatId: 'example-habit-garden-web-application', title: 'main.js', type: 'code' },
   { embedId: 'e2e-legacy-saved-event', chatId: null, title: 'Freelance Barcamp Berlin', type: 'events-event',
     decodedContent: { title: 'Freelance Barcamp Berlin', app_id: 'events', skill_id: 'event',

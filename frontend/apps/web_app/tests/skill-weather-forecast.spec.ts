@@ -45,30 +45,9 @@ function expectForecastPayload(parsed: any, expectedProvider: string, expectedPr
 }
 
 const linkedExampleChatCases = [
-	{
-		appId: 'images',
-		skillId: 'generate',
-		chatId: 'example-privacy-website-hero-background',
-		titlePattern: /privacy|website|hero|background/i
-	},
-	{
-		appId: 'electronics',
-		skillId: 'search_components',
-		chatId: 'example-buck-converters-24v-5v',
-		titlePattern: /buck|converter|24v|5v/i
-	},
-	{
-		appId: 'nutrition',
-		skillId: 'search_recipes',
-		chatId: 'example-vegetarian-recipes-from-fridge',
-		titlePattern: /vegetarian|recipe|fridge|staples/i
-	},
-	{
-		appId: 'home',
-		skillId: 'search',
-		chatId: 'example-furnished-apartments-berlin',
-		titlePattern: /furnished|apartments|Berlin/i
-	}
+  { appId: 'images', skillId: 'search', chatId: 'example-gigantic-airplanes', titlePattern: /gigantic|airplanes|rocket/i },
+  { appId: 'nutrition', skillId: 'search_recipes', chatId: 'example-vegetarian-recipes-from-fridge', titlePattern: /vegetarian|recipe|fridge|staples/i },
+  { appId: 'web', skillId: 'search', chatId: 'example-gigantic-airplanes', titlePattern: /gigantic|airplanes|rocket/i },
 ];
 
 async function expectImageLoaded(locator: any, label = 'image'): Promise<void> {

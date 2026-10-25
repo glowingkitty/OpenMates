@@ -13,9 +13,9 @@ test('three iPad-size example tabs survive concurrent open and reload', async ({
 	test.setTimeout(90_000);
 	expect(browserName, 'This regression must run in the WebKit engine').toBe('webkit');
 	const cases = [
-		{ id: 'example-berlin-english-speaking-gp', focus: false },
+		{ id: 'example-gigantic-airplanes', focus: false },
 		{ id: 'example-books-after-left-hand', focus: true },
-		{ id: 'example-buck-converters-24v-5v', focus: false }
+		{ id: 'example-habit-garden-web-application', focus: false }
 	];
 	const pages = [page, await context.newPage(), await context.newPage()];
 	const crashed = new Set<number>();

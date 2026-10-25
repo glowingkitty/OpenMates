@@ -8,7 +8,8 @@ vi.mock('../../stores/appSkillsStore', () => ({ appSkillsStore: { apps: {}, subs
 import { parse_message } from '../parse_message';
 import { splitAssistantActivityRuns } from '../assistantActivityRuns';
 import { registerEmbedRefIndex, clearEmbedRefIndexEntries, resolveEmbedRefIndexEntry } from '../../services/embedRefIndex';
-import { deutschlandticketTrainFareBreakdownChat as train } from '../../demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown';
+import { giganticAirplanesChat as search } from '../../demo_chats/data/example_chats/gigantic-airplanes';
+const invocation = search.embeds.find(embed => embed.type === 'app_skill_use' && embed.content.startsWith('app_id: web'))!;
 import { communityGardenWelcomeMelodyChat as music } from '../../demo_chats/data/example_chats/community-garden-welcome-melody';
 import { communityGardenVolunteerChimeChat as audio } from '../../demo_chats/data/example_chats/community-garden-volunteer-chime';
 import { communityGardenSunflowerIllustrationChat as image } from '../../demo_chats/data/example_chats/community-garden-sunflower-illustration';
@@ -20,14 +21,14 @@ afterEach(clearEmbedRefIndexEntries);
 
 describe('public example invocation activity', () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,public-example-chats.transcript.safe-rendering
-  it('classifies the actual train invocation as activity and retains its inline route results', () => {
-    const runs = splitAssistantActivityRuns(compile(transcript('deutschlandticket_train_fare_breakdown'), train.chat_id))!;
+  it('classifies a retained search invocation as activity and preserves following content', () => {
+    const runs = splitAssistantActivityRuns(compile(`[!](embed:${invocation.embed_id})\n\nSaved result notes`, search.chat_id))!;
     expect(runs[0].kind).toBe('skills');
-    expect(runs[0].appIds).toEqual(['travel']);
-    expect(runs[0].skillIds).toEqual(['search_connections']);
-    expect(runs[0].document.content[0]).toMatchObject({ content: [{ type: 'embed', attrs: { id: train.embeds[0].embed_id, type: 'app-skill-use' } }] });
+    expect(runs[0].appIds).toEqual(['web']);
+    expect(runs[0].skillIds).toEqual(['search']);
+    expect(runs[0].document.content[0]).toMatchObject({ content: [{ type: 'embed', attrs: { id: invocation.embed_id, type: 'app-skill-use' } }] });
     expect(runs.some(run => run.kind === 'content')).toBe(true);
-    expect(resolveEmbedRefIndexEntry(train.embeds[0].embed_id)).toBeNull();
+    expect(resolveEmbedRefIndexEntry(invocation.embed_id)).toBeNull();
   });
 
   // contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.media.parent-children-and-attribution
@@ -65,11 +66,11 @@ describe('public example invocation activity', () => {
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   it('uses public metadata despite a private UUID collision and never falls back for missing public refs', () => {
-    const id = train.embeds[0].embed_id;
+    const id = invocation.embed_id;
     registerEmbedRefIndex(id, { embedId: id, type: 'generated_image', appId: 'images', skillId: 'generate' });
-    expect(splitAssistantActivityRuns(compile(`[!](embed:${id})`, train.chat_id))![0].appIds).toEqual(['travel']);
+    expect(splitAssistantActivityRuns(compile(`[!](embed:${id})`, search.chat_id))![0].appIds).toEqual(['web']);
     expect(compile(`[!](embed:${id})`, 'private-chat').content[0].type).toBe('embedPreviewLarge');
     registerEmbedRefIndex('missing-public', { embedId: 'private-secret', type: 'app_skill_use', appId: 'web', skillId: 'search' });
-    expect(compile('[!](embed:missing-public)', train.chat_id).content[0]).toMatchObject({ type: 'embedPreviewLarge', attrs: { embedId: null, appId: null } });
+    expect(compile('[!](embed:missing-public)', search.chat_id).content[0]).toMatchObject({ type: 'embedPreviewLarge', attrs: { embedId: null, appId: null } });
   });
 });

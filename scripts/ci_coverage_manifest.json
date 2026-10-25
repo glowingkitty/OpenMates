@@ -961,6 +961,13 @@
       "specs": [
         "cli-rust-native-keyring.spec.ts"
       ]
+    },
+    "public_landing_admitted_examples": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare landing previews over committed public examples and assets. Browser-local controls and isolated destination navigation only; no backend, account, provider credentials, or AI inference.",
+      "specs": [
+        "components/landing-admitted-content.spec.ts"
+      ]
     }
   },
   "holds": {

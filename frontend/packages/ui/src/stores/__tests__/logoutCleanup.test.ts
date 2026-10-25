@@ -393,12 +393,12 @@ describe("logout cleanup completeness", () => {
 
   // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle
   it("preserves an active static example chat during local logout cleanup", async () => {
-    currentActiveChatId = "example-printable-benchy-phone-stand";
+    currentActiveChatId = "example-gigantic-airplanes";
 
     await logout();
 
     expect(cleanupCalls).not.toContain("activeChatStore.clearActiveChat");
-    expect(currentActiveChatId).toBe("example-printable-benchy-phone-stand");
+    expect(currentActiveChatId).toBe("example-gigantic-airplanes");
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.secrets.lifecycle

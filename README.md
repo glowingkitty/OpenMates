@@ -21,11 +21,9 @@ Public example chats open without an account. Each is a complete, interactive co
 
 - [Build an interactive habit garden](https://app.openmates.org/example/habit-garden-web-application): generate a Svelte web application for tracking habits.
 - [Research Rust vector databases](https://app.openmates.org/example/rust-vector-database-repos): search GitHub and compare repositories in a structured table.
-- [Compare 24 V to 5 V buck converters](https://app.openmates.org/example/buck-converters-24v-5v): research electronics components for a power supply.
 
 ### Other real workflows
 
-- [Compare train fares with the Deutschlandticket](https://app.openmates.org/example/deutschlandticket-train-fare-breakdown): explore train connections and fare options inside chat.
 - [Research right-to-repair laws in the EU and US](https://app.openmates.org/example/right-to-repair-laws-eu-us): compare legislation with source-linked research.
 
 New to the project? Read [who develops OpenMates](https://app.openmates.org/intro/who-develops-openmates) or explore the real workflows above.

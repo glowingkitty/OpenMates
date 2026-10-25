@@ -5,9 +5,9 @@ import { loginToTestAccount } from './helpers/chat-test-helpers';
 import { waitForComponentMotion } from './helpers/component-preview';
 import { dismissComposerFocus, focusComposer } from './helpers/composer-focus';
 
-const CHAT_ID = 'example-ai-workshops-meetups-berlin';
-const EMBED_ID = '7512b6cf-f568-4197-a008-1f0aea7431b6';
-const EVENT_TITLE = 'OpenClaw Anonymous Berlin #9';
+const CHAT_ID = 'example-gigantic-airplanes';
+const EMBED_ID = '710a4efd-2208-41fb-a14c-e4ba7e530b5e';
+const RESULT_TITLE = 'Rocket-powered aircraft - Wikipedia';
 
 // contract-test: direct surface=gui.web assertions=message-input.suggestions.contextual,message-input.layout.responsive-parity,message-input.actions.visibility,apps.results.shared-fullscreen
 test('keeps the composer and search cards contained beside an open embed', async ({ page }) => {
@@ -24,7 +24,7 @@ test('keeps the composer and search cards contained beside an open embed', async
   await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID, { timeout: 30000 });
   const fullscreen = page.getByTestId('embed-fullscreen-container');
   await expect(fullscreen).toBeVisible({ timeout: 30000 });
-  await expect(fullscreen).toContainText(EVENT_TITLE);
+  await expect(fullscreen).toContainText(RESULT_TITLE);
   await waitForComponentMotion(fullscreen);
 
   const field = page.getByTestId('message-field');
@@ -53,10 +53,10 @@ test('keeps the composer and search cards contained beside an open embed', async
     return send.right <= field.right && send.left >= mic.right && selector.right <= speech.left;
   })).toBe(true);
 
-  await editor.fill(EVENT_TITLE);
+  await editor.fill(RESULT_TITLE);
   const suggestions = page.getByTestId('chat-search-suggestions');
   await expect(suggestions).toBeVisible({ timeout: 30000 });
-  const card = suggestions.getByTestId('recent-embed-search-result').filter({ hasText: EVENT_TITLE }).first();
+  const card = suggestions.getByTestId('recent-embed-search-result').filter({ hasText: RESULT_TITLE }).first();
   await expect(card).toBeVisible();
   await expect(suggestions.locator('.chat-result-wrapper:has(.embed-result-card) .card-date')).toHaveCount(0);
   await expect.poll(() => card.evaluate(element => {
@@ -67,7 +67,7 @@ test('keeps the composer and search cards contained beside an open embed', async
   await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID);
 
   // A result must replace the visible viewer even while composing beside it.
-  const nextTitle = 'Spec-Driven Development in Practice';
+  const nextTitle = 'NASA’s Super Guppy Is Transporting Rocket Parts for the 2025 Moon Landings';
   await editor.fill(nextTitle);
   const nextCard = suggestions.getByTestId('recent-embed-search-result').filter({ hasText: nextTitle }).first();
   await expect(nextCard).toBeVisible({ timeout: 30000 });

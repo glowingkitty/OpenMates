@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { compilePublicLocales } from './compile-public-locales.mjs';
 import { compilePublicApps } from './compile-public-apps.mjs';
-import { validateLandingAppExamples } from './validate-landing-app-examples.mjs';
+import { validateLandingAppExamples, validatePublishedExampleSkills } from './validate-landing-app-examples.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const output = resolve(root, 'frontend/packages/public-site/src/generated');
@@ -18,6 +18,7 @@ const landingSource = parse(readFileSync(resolve(root, 'frontend/packages/public
 writeFileSync(resolve(output, 'landingLocale.generated.json'), `${JSON.stringify(landingSource.copy, null, 2)}\n`);
 const eligible = compilePublicApps(root);
 if (eligible.length === 0 || new Set(eligible.map((app) => app.id)).size !== eligible.length) throw new Error('Public app metadata must contain unique available apps');
+validatePublishedExampleSkills(root);
 validateLandingAppExamples(root, eligible);
 // The app carousel uses the same canonical landing order without importing
 // website components or the full public-site metadata graph into @repo/ui.

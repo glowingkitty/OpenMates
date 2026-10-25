@@ -1,69 +1,55 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-/** Real CLI naming transcript, app-store links and saved trademark evidence. */
-export {};
-const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
+// playwright-account: not_required reason=public_removed_example_routes
+import { waitForComponentPreview } from './helpers/component-preview';
+import { expect, test } from './helpers/cookie-audit';
+import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
+import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 
-const slug = 'find-brand-name-and-domain';
-const chatId = 'example-find-brand-name-and';
+// Removed public examples must not become hidden direct-hash fixtures.
+const unpublished = [
+  { slug: 'find-brand-name-and-domain', chatId: 'example-find-brand-name-and' },
+];
 
-async function expandActivityDetails(page: any) {
-  const toggles = page.getByTestId('assistant-activity-toggle');
-  for (const toggle of await toggles.all()) {
-    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
-  }
+for (const { slug, chatId } of unpublished) {
+  // contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.seo.crawlable,marketing-landing.example-catalog-alignment
+  test(`${slug} has no public route, catalog entry, landing link or hash transcript`, async ({ page, request }) => {
+    for (const registry of [ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS]) {
+      expect(registry.some(chat => chat.slug === slug || chat.chat_id === chatId)).toBe(false);
+    }
+    expect(Object.values(landingAppExamples)).not.toContain(chatId);
+    const response = await request.get(`/example/${slug}`);
+    expect(response.status()).toBe(404);
+
+    const catalog = await request.get('/example');
+    expect(catalog.status()).toBe(200);
+    const html = await catalog.text();
+    expect(html).not.toContain(`/example/${slug}`);
+    expect(html).not.toContain(chatId);
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.locator(`a[href*="/example/${slug}"], a[href*="chat-id=${chatId}"]`)).toHaveCount(0);
+
+    await page.goto(`/#chat-id=${chatId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.getByTestId('user-message-content')).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    await expect(page.getByTestId('embed-preview')).toHaveCount(0);
+  });
 }
 
-for (const [viewport, size] of [
-  ['phone', { width: 390, height: 844 }],
-  ['laptop', { width: 1440, height: 1000 }],
-] as const) {
-  // contract-test: direct surface=gui.web assertions=brand-naming.flow,trademarks.parity,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-  test(`real brand naming example and trademark fullscreen render on ${viewport}`, async ({ page, request }: any, testInfo: any) => {
-    test.setTimeout(120_000);
-    const response = await request.get(`/example/${slug}`);
-    expect(response.status()).toBe(200);
-    const html = await response.text();
-    for (const name of ['Equafy', 'Cadenceo']) expect(html).toContain(name);
-    for (const marker of ['vault:v1:', 'vault_key_id', 'aes_key', 'aes_nonce', 'example_chats.find_brand_name_and_domain']) {
-      expect(html).not.toContain(marker);
-    }
-    await page.setViewportSize(size);
-    await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('user-message-content').filter({ hasText: 'Help me find a name for my new product.' }).first())
-      .toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('focus-pill-label')).toContainText(/brand name/i);
-    const activation = page.getByTestId('assistant-activity-toggle').filter({ hasText: "Activated 'Find a brand name'" }).first();
-    await expect(activation).toBeVisible();
-    await expandActivityDetails(page);
-    await expect(page.locator('[data-testid="focus-mode-bar"][data-focus-id="business-find_brand_name"]').first()).toBeVisible();
-    const parent = page.getByTestId('embed-preview').filter({ has: page.getByTestId('trademark-search-preview') }).first();
-    await parent.scrollIntoViewIfNeeded();
-    await expect(parent).toContainText('ExampleTrademarks');
-    await expect(parent).toContainText('US · Checked');
-    await testInfo.attach(`brand-naming-${viewport}-preview`, { body: await parent.screenshot(), contentType: 'image/png' });
-    const fullscreen = await openFullscreen(page, parent);
-    const coverage = fullscreen.getByTestId('trademark-search-coverage');
-    await expect(coverage).toContainText('Equafy');
-    await expect(coverage).toContainText('Cadenceo');
-    await expect(fullscreen.getByTestId('trademark-fullscreen-limitation')).toContainText('legal availability');
-    await expect(fullscreen.getByTestId('trademark-record-source').first()).toHaveAttribute('href', /^https:\/\/tsdr\.ExampleTrademarks\.gov\/#caseNumber=/);
-    await testInfo.attach(`brand-naming-${viewport}-fullscreen`, { body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
-    await closeFullscreen(page, fullscreen);
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(activation).toBeVisible({ timeout: 30_000 });
-    await expandActivityDetails(page);
-    await expect(parent).toBeVisible({ timeout: 30_000 });
 
-    for (const [path, section] of [
-      ['skill/search_trademarks', 'app-store-example-chats'],
-      ['focus/find_brand_name', 'app-store-focus-mode-example-chats'],
-    ]) {
-      await page.goto(getE2EDebugUrl(`/#settings/apps/business/${path}`), { waitUntil: 'domcontentloaded' });
-      if (path.startsWith('skill/')) await page.getByTestId('apps-skill-context-toggle').click();
-      const card = page.getByTestId(section).getByTestId('app-store-example-chat-card').filter({ hasText: 'Find a brand name and domain' });
-      await expect(card).toBeVisible({ timeout: 30_000 });
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=app-skills.history.renderable
+  test(`saved business result remains readable at ${width}px without public admission`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const mode of ['Preview', 'Fullscreen']) {
+      await page.goto(`/dev/preview/embeds/business/BusinessTrademarkSearchEmbed${mode}?chrome=0&width=${width}`);
+      const canvas = await waitForComponentPreview(page);
+      await expect(canvas).toBeVisible();
+      expect((await canvas.innerText()).trim().length).toBeGreaterThan(20);
+      await expect(canvas.locator('a[href^="javascript:"]')).toHaveCount(0);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
     }
   });
 }

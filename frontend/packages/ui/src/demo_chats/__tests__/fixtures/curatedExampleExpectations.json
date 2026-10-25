@@ -1,6 +1,6 @@
 {
   "landingFeatureIds": [
-    "example-ai-workshops-meetups-berlin"
+    "example-gigantic-airplanes"
   ],
   "retiredExamples": [
     {
@@ -310,6 +310,54 @@
     {
       "chatId": "example-us-egg-prices-deep",
       "slug": "us-egg-prices-deep-research"
+    },
+    {
+      "chatId": "example-ai-workshops-meetups-berlin",
+      "slug": "ai-workshops-meetups-berlin"
+    },
+    {
+      "chatId": "example-ted-talk-transcript-summary",
+      "slug": "ted-talk-transcript-summary"
+    },
+    {
+      "chatId": "example-buck-converters-24v-5v",
+      "slug": "buck-converters-24v-5v"
+    },
+    {
+      "chatId": "example-air-fryers-retail-germany",
+      "slug": "air-fryers-retail-germany"
+    },
+    {
+      "chatId": "example-furnished-apartments-berlin",
+      "slug": "furnished-apartments-berlin"
+    },
+    {
+      "chatId": "example-printable-benchy-phone-stand",
+      "slug": "printable-benchy-phone-stand-models"
+    },
+    {
+      "chatId": "example-deutschlandticket-train-fare-breakdown",
+      "slug": "deutschlandticket-train-fare-breakdown"
+    },
+    {
+      "chatId": "example-social-app-name-domain",
+      "slug": "social-app-name-domain-search"
+    },
+    {
+      "chatId": "example-beginner-yoga-classes-berlin",
+      "slug": "beginner-yoga-classes-berlin"
+    },
+    {
+      "chatId": "example-berlin-english-speaking-gp",
+      "slug": "berlin-english-speaking-gp-appointments"
+    },
+    {
+      "chatId": "example-find-brand-name-and",
+      "slug": "find-brand-name-and-domain"
+    },
+    {
+      "chatId": "example-jobs-in-germany",
+      "slug": "jobs-in-germany"
     }
   ],
   "qualityRetiredExamples": [
@@ -400,24 +448,8 @@
   ],
   "landingDefaults": [
     {
-      "appId": "events",
-      "chatId": "example-ai-workshops-meetups-berlin"
-    },
-    {
-      "appId": "travel",
-      "chatId": "example-deutschlandticket-train-fare-breakdown"
-    },
-    {
       "appId": "code",
       "chatId": "example-habit-garden-web-application"
-    },
-    {
-      "appId": "home",
-      "chatId": "example-furnished-apartments-berlin"
-    },
-    {
-      "appId": "health",
-      "chatId": "example-berlin-english-speaking-gp"
     },
     {
       "appId": "social_media",
@@ -428,20 +460,12 @@
       "chatId": "example-private-plumber-email"
     },
     {
-      "appId": "jobs",
-      "chatId": "example-jobs-in-germany"
-    },
-    {
       "appId": "web",
-      "chatId": "example-find-brand-name-and"
+      "chatId": "example-gigantic-airplanes"
     },
     {
       "appId": "weather",
       "chatId": "example-berlin-weather-bike-commute"
-    },
-    {
-      "appId": "shopping",
-      "chatId": "example-air-fryers-retail-germany"
     },
     {
       "appId": "nutrition",
@@ -472,10 +496,6 @@
       "chatId": "example-community-garden-volunteer-chime"
     },
     {
-      "appId": "videos",
-      "chatId": "example-ted-talk-transcript-summary"
-    },
-    {
       "appId": "books",
       "chatId": "example-books-after-left-hand"
     },
@@ -486,18 +506,6 @@
     {
       "appId": "design",
       "chatId": "example-dashboard-sidebar-svg-icons"
-    },
-    {
-      "appId": "electronics",
-      "chatId": "example-buck-converters-24v-5v"
-    },
-    {
-      "appId": "hosting",
-      "chatId": "example-social-app-name-domain"
-    },
-    {
-      "appId": "models3d",
-      "chatId": "example-printable-benchy-phone-stand"
     },
     {
       "appId": "music",
@@ -520,5 +528,55 @@
     "example-us-egg-prices-deep-sub-chat-1",
     "example-us-egg-prices-deep-sub-chat-2",
     "example-us-egg-prices-deep-sub-chat-3"
+  ],
+  "unsupportedProviderExamples": [
+    {
+      "chatId": "example-ai-workshops-meetups-berlin",
+      "slug": "ai-workshops-meetups-berlin"
+    },
+    {
+      "chatId": "example-ted-talk-transcript-summary",
+      "slug": "ted-talk-transcript-summary"
+    },
+    {
+      "chatId": "example-buck-converters-24v-5v",
+      "slug": "buck-converters-24v-5v"
+    },
+    {
+      "chatId": "example-air-fryers-retail-germany",
+      "slug": "air-fryers-retail-germany"
+    },
+    {
+      "chatId": "example-furnished-apartments-berlin",
+      "slug": "furnished-apartments-berlin"
+    },
+    {
+      "chatId": "example-printable-benchy-phone-stand",
+      "slug": "printable-benchy-phone-stand-models"
+    },
+    {
+      "chatId": "example-deutschlandticket-train-fare-breakdown",
+      "slug": "deutschlandticket-train-fare-breakdown"
+    },
+    {
+      "chatId": "example-social-app-name-domain",
+      "slug": "social-app-name-domain-search"
+    },
+    {
+      "chatId": "example-beginner-yoga-classes-berlin",
+      "slug": "beginner-yoga-classes-berlin"
+    },
+    {
+      "chatId": "example-berlin-english-speaking-gp",
+      "slug": "berlin-english-speaking-gp-appointments"
+    },
+    {
+      "chatId": "example-find-brand-name-and",
+      "slug": "find-brand-name-and-domain"
+    },
+    {
+      "chatId": "example-jobs-in-germany",
+      "slug": "jobs-in-germany"
+    }
   ]
 }

@@ -1,26 +1,13 @@
 {
   "captured_at_utc": "2026-10-15T11:45:34.450134+00:00",
   "source_deployment_sha": "a5a219896865cd51af0e4442b6164c0368f53d6b",
-  "capture_type": "Live read-only deployed web UI. Events and model menu from personal dev test account; privacy draft, travel example and workflow template from public app UI. No inference or model selection changes.",
+  "capture_type": "Live read-only deployed web UI. Model menu from personal dev test account; privacy draft and workflow template from public app UI. No inference or model selection changes.",
   "transformations": [
     "Profile identity hidden with existing CSS selector before capture",
     "70px code-native browser chrome added above untouched content; visible address label openmates.org is branding only; actual source app.dev.openmates.org",
     "Browser address label left-aligned at x371 of1512 to avoid laptop camera notch; original70px browser bar and all captured app pixels preserved."
   ],
   "assets": [
-    {
-      "name": "events-desktop.webp",
-      "actual_url": "https://example.com/fixture",
-      "display_url": "openmates.org",
-      "raw_capture": "events-desktop-raw.png",
-      "raw_sha256": "9d03337df54e4357f278a2216ae205d399b7311e1aff88c852313711d8eb70f4",
-      "output_sha256": "e3b6346e973f6f52a6650b60416040e78a272c6c150b54152de9dcf24b4d9783",
-      "dimensions": [
-        1512,
-        982
-      ],
-      "scroll_position": "All scroll containers reset to top, including header and history."
-    },
     {
       "name": "model-selector-desktop.webp",
       "actual_url": "https://app.dev.openmates.org/",
@@ -61,19 +48,6 @@
       "template_id": "berlin-ai-events",
       "template_title": "Weekly Berlin AI events",
       "navigation": "Workflows > Show templates > Weekly Berlin AI events"
-    },
-    {
-      "name": "devices-desktop.webp",
-      "actual_url": "https://app.dev.openmates.org/#chat-id=example-deutschlandticket-train-fare-breakdown",
-      "display_url": "openmates.org",
-      "raw_capture": "devices-desktop-raw.png",
-      "raw_sha256": "fef3de72dac8224f3d0246cd5251ec4ae6709090480aeaac4cd3e4b62fdb6a1d",
-      "output_sha256": "0562794a89e043a2977d3ebfdf8e3234b210058547f9e87b1c09dc807032fb65",
-      "dimensions": [
-        1512,
-        982
-      ],
-      "scroll_position": "All scroll containers reset to top, including header and history."
     }
   ]
 }

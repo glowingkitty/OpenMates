@@ -1,6 +1,5 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
-import { landingSectionExamples } from '../../../../packages/public-site/src/components/landing/landingPageContent';
 import type { Page } from '@playwright/test';
 
 // playwright-account: not_required reason=isolated_component_preview
@@ -40,7 +39,7 @@ for (const width of [390, 1440]) {
       await expect(section.locator('.story-copy')).toHaveCount(0);
       await expect(media).toHaveCount(0);
       await expect(section.getByTestId(`landing-skip-${id}`)).toBeVisible();
-      if (id === 'actionable' || id === 'privacy') {
+      if (id === 'privacy') {
         await expect(section.getByTestId('landing-feature-animation')).toHaveCount(1);
         await section.getByTestId(`landing-skip-${id}`).click();
       } else {
@@ -49,6 +48,12 @@ for (const width of [390, 1440]) {
       }
       await expect(section).toHaveAttribute('data-story-state', 'complete', { timeout: 8_000 });
       await expect(section.locator('.story-copy')).toHaveCSS('opacity', '1');
+      if (id === 'actionable' || id === 'devices') {
+        await expect(media).toHaveCount(0);
+        await expect(section.getByTestId('landing-feature-animation')).toHaveCount(0);
+        await expect(section.getByTestId(`landing-replay-${id}`)).toBeVisible();
+        continue;
+      }
       await expect(media).toHaveCSS('opacity', '1');
       const replay = section.getByTestId(`landing-replay-${id}`);
       await expect(replay).toBeVisible();
@@ -67,26 +72,15 @@ for (const width of [390, 1440]) {
           await expect(composite.locator('.device-frame.phone')).toBeVisible();
           await expect(composite.locator('.device-frame.laptop')).toHaveCount(1);
           if (width >= 760) await expect(composite.locator('.device-frame.laptop')).toBeVisible();
-        } else {
-          const destination = id === 'workflows' ? `${APP}/#workflows` : `${APP}/?lang=en#chat-id=${landingSectionExamples[id]}`;
+        } else if (id === 'workflows') {
           const link = media.locator('a.device-screenshots');
-          await expect(link).toHaveAttribute('href', destination);
+          await expect(link).toHaveAttribute('href', `${APP}/#workflows`);
           await expect(link).toHaveAttribute('target', '_blank');
           await expect(link).toHaveAttribute('rel', /noopener/);
           await expect(link).toHaveAccessibleName(/.+/);
-          const example = section.getByTestId(`landing-open-example-${id}`);
-          if (id === 'workflows') await expect(example).toHaveCount(0);
-          else {
-            await expect(example).toHaveAttribute('href', destination);
-            await expect(example).not.toContainText('↗');
-            const positions = await section.locator('.feature-actions').evaluate(element => {
-              const replay = element.querySelector('button')!.getBoundingClientRect();
-              const example = element.querySelector('a')!.getBoundingClientRect();
-              return { replay: { x: replay.x, right: replay.right, y: replay.y }, example: { x: example.x, y: example.y } };
-            });
-            expect(positions.replay.y).toBeLessThanOrEqual(positions.example.y + 1);
-            if (Math.abs(positions.replay.y - positions.example.y) < 4) expect(positions.replay.right).toBeLessThanOrEqual(positions.example.x + 1);
-          }
+        } else {
+          await expect(media.getByTestId('device-screenshots')).toHaveJSProperty('tagName', 'DIV');
+          await expect(media.locator('a, [href]')).toHaveCount(0);
         }
         await expect(media.locator('.device-frame.laptop')).toHaveCount(1);
         if (width < 760) await expect(media.locator('.device-frame.laptop')).toBeHidden();
@@ -126,44 +120,12 @@ for (const width of [390, 1440]) {
     await expect(actionable).toHaveAttribute('data-story-state', 'playing');
     await expect(actionable.getByTestId('landing-skip-actionable')).toBeVisible();
     await expect(actionable.getByTestId('landing-feature-media-actionable')).toHaveCount(0);
-    // Shared EventResultCard content must stay current with real app previews.
-    const event = actionable.getByTestId('landing-actionable-event-preview');
-    await expect(event).toBeVisible({ timeout: 7_000 });
-    await expect(event.getByTestId('result-card-title')).toHaveText('Amsterdam Music Gathering');
-    const image = event.getByTestId('result-card-media').locator('img');
-    await expect(image).toHaveAttribute('src', /Gathering.*\.webp/);
-    await expect(image).toHaveCSS('object-fit', 'contain');
-    await expect.poll(() => image.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-    await expect(event.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-08-29T16:30:00.000Z');
-    await expect(event.getByTestId('embed-calendar-date').locator('strong')).toHaveText('29');
-    await expect(event.getByTestId('event-preview-rsvps')).toBeHidden();
-    await expect(event.getByTestId('event-preview-attribution')).toHaveCSS('font-size', '16px');
-    await expect(event.locator('.result-corner')).toBeVisible();
-    await expect(event.locator('.result-corner span')).toHaveCSS('mask-image', /^url\(/);
-    await expect(event.getByTestId('result-card-title')).toHaveCSS('text-align', 'start');
-    const card = await event.evaluate(element => {
-      const frame = element.getBoundingClientRect();
-      const title = element.querySelector('[data-testid="result-card-title"]')!.getBoundingClientRect();
-      const date = element.querySelector('[data-testid="embed-calendar-date"]')!.getBoundingClientRect();
-      const media = element.querySelector('[data-testid="result-card-media"]')!.getBoundingClientRect();
-      return { width: element.clientWidth, height: element.clientHeight,
-        titleBelowMedia: title.top >= media.bottom - 1,
-        dateInside: date.left >= frame.left && date.right <= frame.right && date.top >= frame.top && date.bottom <= frame.bottom };
-    });
-    expect(card.width).toBe(300); expect(card.height).toBe(200);
-    expect(card.titleBelowMedia).toBe(true); expect(card.dateInside).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath(`landing-current-embed-${width}.png`) });
+    await expect(actionable.getByTestId('landing-feature-animation')).toHaveCount(0);
     await actionable.getByTestId('landing-skip-actionable').click();
     await expect(actionable).toHaveAttribute('data-story-state', 'complete');
-    await page.screenshot({ path: testInfo.outputPath(`landing-linked-devices-${width}.png`) });
-    // Follow the actual image anchor with the destination isolated from the owner app.
-    // Context routing also intercepts the popup's first request; page routing cannot.
-    await page.context().route(`${APP}/?lang=en`, route => route.fulfill({ contentType: 'text/html', body: '<h1>Example destination</h1>' }));
-    const popup = page.waitForEvent('popup');
-    await actionable.locator('a.device-screenshots').click({ position: { x: 40, y: 50 } });
-    const exampleTab = await popup;
-    await expect(exampleTab).toHaveURL(`${APP}/?lang=en#chat-id=${landingSectionExamples.actionable}`);
-    await exampleTab.close();
+    await expect(actionable.locator('.story-copy p')).toBeVisible();
+    await expect(actionable.locator('img, a[href*="#chat-id="]')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`landing-current-sections-${width}.png`) });
     await reach(page, 'open-source');
     await expect(page.getByTestId('landing-feature-open-source')).toHaveAttribute('data-story-state', 'complete');
     await expect(page.getByTestId('landing-source-github')).toBeVisible();
@@ -181,7 +143,8 @@ test('reduced motion shows every final section immediately', async ({ page }) =>
     await reach(page, id);
     await expect(section).toHaveAttribute('data-story-state', 'complete');
     await expect(section.locator('.story-copy')).toHaveCSS('opacity', '1');
-    await expect(section.getByTestId(`landing-feature-media-${id}`)).toBeVisible();
+    if (id === 'actionable' || id === 'devices') await expect(section.getByTestId(`landing-feature-media-${id}`)).toHaveCount(0);
+    else await expect(section.getByTestId(`landing-feature-media-${id}`)).toBeVisible();
     await expect(section.getByTestId(`landing-skip-${id}`)).toHaveCount(0);
     await expect(section.getByTestId(`landing-replay-${id}`)).toHaveCount(0);
     await expect(section.getByTestId('landing-feature-animation')).toHaveCount(0);

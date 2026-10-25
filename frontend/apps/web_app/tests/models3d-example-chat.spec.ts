@@ -1,108 +1,63 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-/**
- * Public-page coverage for the ExampleModels Models3D example chat.
- *
- * This spec intentionally avoids authenticated flows so the public example can
- * be verified independently of test-account OTP availability.
- */
-export {};
+// playwright-account: not_required reason=public_removed_example_routes
+import { waitForComponentPreview } from './helpers/component-preview';
+import { expect, test } from './helpers/cookie-audit';
+import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
+import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 
-const { test, expect } = require('./helpers/cookie-audit');
-const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
+// Removed public examples must not become hidden direct-hash fixtures.
+const unpublished = [
+  { slug: 'printable-benchy-phone-stand-models', chatId: 'example-printable-benchy-phone-stand' },
+];
 
-test.describe('Example chat: Models3D ExampleModels', () => {
-	async function expectModels3dExampleVisible(page: any) {
-		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
+for (const { slug, chatId } of unpublished) {
+  // contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.seo.crawlable,marketing-landing.example-catalog-alignment
+  test(`${slug} has no public route, catalog entry, landing link or hash transcript`, async ({ page, request }) => {
+    for (const registry of [ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS]) {
+      expect(registry.some(chat => chat.slug === slug || chat.chat_id === chatId)).toBe(false);
+    }
+    expect(Object.values(landingAppExamples)).not.toContain(chatId);
+    const response = await request.get(`/example/${slug}`);
+    expect(response.status()).toBe(404);
 
-		await expect(page.getByTestId('user-message-content').filter({
-			hasText: 'Find 3D-printable Benchy and phone stand models on ExampleModels'
-		})).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'The 3DBenchy Collection' })).toBeVisible({ timeout: 15000 });
-	}
+    const catalog = await request.get('/example');
+    expect(catalog.status()).toBe(200);
+    const html = await catalog.text();
+    expect(html).not.toContain(`/example/${slug}`);
+    expect(html).not.toContain(chatId);
 
-	async function expectModels3dVisualContract(card: any) {
-		const iconCircle = card.getByTestId('app-icon-circle');
-		await expect(iconCircle).toBeVisible({ timeout: 15000 });
-		expect(await iconCircle.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundImage)).toContain('linear-gradient');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.locator(`a[href*="/example/${slug}"], a[href*="chat-id=${chatId}"]`)).toHaveCount(0);
 
-		const bodyBox = await card.getByTestId('models3d-result-card-body').boundingBox();
-		const imageBox = await card.getByTestId('models3d-result-card-image').boundingBox();
-		expect(bodyBox, 'Models3D result card body should be measurable').not.toBeNull();
-		expect(imageBox, 'Models3D result card image should be measurable').not.toBeNull();
-		expect(imageBox!.x, 'Models3D result preview image must render to the right of text').toBeGreaterThan(bodyBox!.x);
-	}
+    await page.goto(`/#chat-id=${chatId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+    await expect(page.getByTestId('user-message-content')).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    await expect(page.getByTestId('embed-preview')).toHaveCount(0);
+  });
+}
 
-	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 
-	test('renders messages, result embeds, fullscreen, and reloads', async ({ page }: { page: any }) => {
-		test.setTimeout(90000);
-
-		await page.goto('/example/printable-benchy-phone-stand-models', {
-			waitUntil: 'domcontentloaded'
-		});
-		await expectModels3dExampleVisible(page);
-
-		const parentSearchEmbeds = page.locator(
-			'[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]'
-		);
-		await expect(parentSearchEmbeds.first()).toBeVisible({ timeout: 15000 });
-		expect(
-			await parentSearchEmbeds.count(),
-			'Models3D example should render both Benchy and phone stand parent search embeds'
-		).toBeGreaterThanOrEqual(2);
-
-		const childResultEmbeds = page.locator(
-			'[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="model_result"][data-status="finished"]'
-		);
-		const childResultCards = childResultEmbeds.getByTestId('models3d-result-card');
-		await expect(childResultCards.first()).toBeVisible({ timeout: 15000 });
-		expect(
-			await childResultEmbeds.count(),
-			'Models3D example should render static child model result cards in chat'
-		).toBeGreaterThanOrEqual(5);
-		await expect(childResultCards.first().getByTestId('models3d-open-provider-cta')).toHaveCount(0);
-		const firstChildEmbed = childResultEmbeds.first();
-		await expectModels3dVisualContract(firstChildEmbed);
-
-		await firstChildEmbed.click();
-		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
-		await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
-		const cta = page.getByTestId('models3d-open-provider-cta');
-		await expect(cta).toBeVisible({ timeout: 15000 });
-		await expect(cta).toContainText('Open on ExampleModels');
-		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?ExampleModels\.com\//);
-		const resultOverlay = resultFullscreen.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]');
-		await closeFullscreen(page, resultOverlay);
-
-		const fullscreenOverlay = await openFullscreen(page, parentSearchEmbeds.first());
-		const fullscreenResults = await verifySearchGrid(fullscreenOverlay, 5, 30000);
-		const firstFullscreenCard = fullscreenResults.first();
-		await expect(firstFullscreenCard.getByTestId('models3d-result-card')).toBeVisible({ timeout: 15000 });
-		await expect(firstFullscreenCard.getByTestId('models3d-open-provider-cta')).toHaveCount(0);
-		await expectModels3dVisualContract(firstFullscreenCard);
-		await closeFullscreen(page, fullscreenOverlay);
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
-		await expect(parentSearchEmbeds.first()).toBeVisible({ timeout: 15000 });
-	});
-
-	// contract-test: supporting surface=gui.web assertions=app-skills.history.renderable,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-
-	test('keeps the static example chat open when logout cleanup runs', async ({ page }: { page: any }) => {
-		test.setTimeout(60000);
-
-		await page.goto('/example/printable-benchy-phone-stand-models', {
-			waitUntil: 'domcontentloaded'
-		});
-		await expectModels3dExampleVisible(page);
-
-		await page.evaluate(() => {
-			window.dispatchEvent(new CustomEvent('userLoggingOut'));
-		});
-
-		await expectModels3dExampleVisible(page);
-		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
-		await expect(page.locator('[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]').first()).toBeVisible({ timeout: 15000 });
-		await expect(page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()).not.toBeVisible({ timeout: 5000 });
-	});
-});
+for (const width of [390, 1440]) {
+  // contract-test: direct surface=gui.web assertions=app-skills.history.renderable
+  test(`saved models3d result remains readable at ${width}px without public admission`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const mode of ['Preview', 'Fullscreen']) {
+      await page.goto(`/dev/preview/embeds/models3d/Model3DResultEmbed${mode}?chrome=0&width=${width}`);
+      const canvas = await waitForComponentPreview(page);
+      await expect(canvas).toBeVisible();
+      await expect(canvas).toContainText('Low-poly research observatory');
+      await expect(canvas.locator('a[href^="javascript:"]')).toHaveCount(0);
+      if (mode === 'Fullscreen') {
+        await expect(canvas).toContainText('Example Artist');
+        await expect(canvas).toContainText('CC BY 4.0');
+        await expect(canvas.getByTestId('models3d-open-provider-cta')).toHaveAttribute('href', 'https://example.com/models/observatory');
+      }
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('userLoggingOut')));
+      await expect(canvas).toContainText('Low-poly research observatory');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      await expect(canvas).toContainText('Low-poly research observatory');
+    }
+  });
+}

@@ -8,7 +8,7 @@ for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,public-example-chats.surface.semantic-parity
   test(`can scroll the conversation while composing at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(getE2EDebugUrl('/#chat-id=example-deutschlandticket-train-fare-breakdown'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
     const field = page.getByTestId('message-field');
     const editor = page.getByTestId('message-editor').locator('.ProseMirror');
     const ready = async () => {

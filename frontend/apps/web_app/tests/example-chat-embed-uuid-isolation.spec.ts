@@ -111,7 +111,7 @@ test.describe('example embed UUID isolation', () => {
     test.setTimeout(120_000);
     await loginToTestAccount(page);
     const input = {
-      exampleChatId: 'example-berlin-english-speaking-gp',
+      exampleChatId: 'example-gigantic-airplanes',
     };
     const check = async (seedPrivate: boolean) => page.evaluate(async (data: typeof input & { seedPrivate: boolean }) => {
       const hook = (window as typeof window & {
@@ -159,7 +159,7 @@ test.describe('example embed UUID isolation', () => {
     const reads: Array<{ owningSource: boolean; kind: string }> = [];
     try {
       await loginWorkflowCliViaPair(page, apiUrl, home, 'RESOLVER_SOURCE_CONTEXT');
-      await page.evaluate(() => { window.location.hash = '#chat-id=example-berlin-english-speaking-gp'; });
+      await page.evaluate(() => { window.location.hash = '#chat-id=example-gigantic-airplanes'; });
       await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 25_000 });
       fixture = makeSourceFixture(apiUrl, home);
       persistSourceFixture(fixture, 'seed');
@@ -180,7 +180,7 @@ test.describe('example embed UUID isolation', () => {
         const hook = (window as typeof window & { __openmatesE2EExampleEmbedCollision?: (input: typeof data) => Promise<unknown> }).__openmatesE2EExampleEmbedCollision;
         if (!hook) throw new Error('Existing scoped collision hook unavailable');
         return hook(data);
-      }, { exampleChatId: 'example-berlin-english-speaking-gp', sourceProbe: { chatId: fixture!.chatId, embedId, cleanup } });
+      }, { exampleChatId: 'example-gigantic-airplanes', sourceProbe: { chatId: fixture!.chatId, embedId, cleanup } });
       expect(await probe(fixture.embedId)).toEqual({ sourceProbeMounted: true, sourceDiffersFromActive: true });
       const preview = page.getByTestId('e2e-source-context-preview');
       await expect(preview.getByText('SOURCE_CONTEXT_RENDER_MARKER')).toBeVisible({ timeout: 25_000 });

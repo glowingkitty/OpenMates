@@ -43,12 +43,12 @@ test.describe('focus-mode example chat state', () => {
   test('does not leak an active focus pill into the Finance example chat', async ({ page }: { page: any }) => {
     test.setTimeout(60_000);
 
-    await page.goto(getE2EDebugUrl('/#chat-id=example-find-brand-name-and'), {
+    await page.goto(getE2EDebugUrl('/#chat-id=example-books-after-left-hand'), {
       waitUntil: 'domcontentloaded',
     });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'Equafy' }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('focus-pill')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('focus-pill-label')).toContainText(/brand/i);
+    await expect(page.getByTestId('focus-pill-label')).toContainText(/book/i);
 
     await navigateToFinanceExample(page);
     await expect(page).toHaveURL(/chat-id=example-finance-cash-flow-overview/, { timeout: 10_000 });

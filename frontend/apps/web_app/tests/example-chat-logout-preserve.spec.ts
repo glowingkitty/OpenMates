@@ -10,14 +10,14 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 
 async function expectExampleChatVisible(page: any) {
-	await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
+	await expect(page).toHaveURL(/#chat-id=example-gigantic-airplanes/, { timeout: 15000 });
 	await expect(page.getByTestId('user-message-content').filter({
-		hasText: 'Find 3D-printable Benchy and phone stand models on ExampleModels'
+		hasText: 'rocket'
 	})).toBeVisible({ timeout: 15000 });
 	await expect(page.getByTestId('message-assistant').filter({
-		hasText: 'The 3DBenchy Collection'
+		hasText: 'Beluga'
 	})).toBeVisible({ timeout: 15000 });
-	await expect(page.locator('[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]').first()).toBeVisible({ timeout: 15000 });
+	await expect(page.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"][data-status="finished"]').first()).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('Example chat logout preservation', () => {
@@ -25,7 +25,7 @@ test.describe('Example chat logout preservation', () => {
 	test('keeps a static example chat open when logout cleanup runs', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 
-		await page.goto('/example/printable-benchy-phone-stand-models', {
+		await page.goto('/example/gigantic-airplanes-transporting-rocket-parts', {
 			waitUntil: 'domcontentloaded'
 		});
 		await expectExampleChatVisible(page);

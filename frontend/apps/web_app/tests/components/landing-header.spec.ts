@@ -81,9 +81,9 @@ test('all example links carry the displayed language in Automatic and manual mod
   const prompt = page.getByTestId('landing-prompt');
   const assertExampleLanguages = async (language: string) => {
     await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', language);
-    await expect(page.getByTestId('landing-open-example-actionable')).toBeAttached();
+    await expect(page.getByTestId('landing-open-example-actionable')).toHaveCount(0);
     const links = await page.locator('a[href*="#chat-id="]').evaluateAll(elements => elements.map(element => (element as HTMLAnchorElement).href));
-    expect(links.length, 'cover the hero, section links, and linked device screenshots').toBeGreaterThan(3);
+    expect(links.length, 'the retained hero example carries the displayed language').toBeGreaterThan(0);
     for (const link of links) expect(new URL(link).searchParams.get('lang'), link).toBe(language);
     await expect(prompt).toHaveAttribute('target', '_blank');
   };
