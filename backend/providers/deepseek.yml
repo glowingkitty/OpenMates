@@ -12,7 +12,7 @@ optional_keys:
   - env_key: "SECRET__BASETEN__API_KEY"
     vault_path: "kv/data/providers/baseten"
     vault_key: "api_key"
-    description: "Optional direct Baseten Model API key; preferred for DeepSeek V4.1 Flash."
+    description: "Optional direct Baseten Model API key; retained as an additional DeepSeek V4.1 route."
   - env_key: "SECRET__TOGETHER__API_KEY"
     vault_path: "kv/data/providers/together"
     vault_key: "api_key"
@@ -27,8 +27,8 @@ models:
     name: "DeepSeek V4.1 Flash"
     description: >-
       DeepSeek V4.1 Flash, pinned to the October 17, 2026 snapshot, with native
-      vision, reasoning and tool calling. Direct Baseten when configured;
-      OpenRouter routes to the same Baseten snapshot as fallback.
+      vision, reasoning and tool calling. Together AI is primary, with OpenRouter
+      routing to the same Baseten snapshot as fallback. Direct Baseten remains available.
     country_origin: "CN"
     for_app_skill: "ai.ask"
     release_date: "2026-09-10"
@@ -36,20 +36,21 @@ models:
     allow_auto_select: true
     reasoning: true
     external_ids:
+      together: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
       baseten: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
       openrouter: "deepseek/deepseek-v4.1-flash-20261017"
     input_types: [text, image]
     output_types: [text]
-    default_server: "baseten"
+    default_server: "together"
     servers:
-      - id: "baseten"
-        name: "Baseten"
+      - id: "together"
+        name: "Together AI"
         model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
-        region: "global"
+        region: "US"
         reasoning_control:
           parameter: reasoning_effort
-          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
-          source_url: https://docs.baseten.co/inference/model-apis/reasoning
+          levels: {LOW: "1", MEDIUM: "25", HIGH: "50", EXTRA_HIGH: "100"}
+          source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
       - id: "openrouter"
         name: "OpenRouter (Baseten)"
         model_id: "deepseek/deepseek-v4.1-flash-20261017"
@@ -58,6 +59,14 @@ models:
           parameter: reasoning_effort
           levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
           source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+      - id: "baseten"
+        name: "Baseten"
+        model_id: "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+        region: "global"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://docs.baseten.co/inference/model-apis/reasoning
     # Pin the fallback's host: another upstream may have a different cache tariff.
     provider_overrides:
       only: ["baseten"]
@@ -71,16 +80,25 @@ models:
     cache_pricing:
       enabled: true
       write_billing: included_in_input
-      eligible_hosts: [baseten, openrouter]
-      source_url: https://docs.baseten.co/inference/model-apis/pricing-and-limits
+      eligible_hosts: [together, openrouter, baseten]
+      source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
       reviewed_on: "2026-10-25"
       status: verified_for_activation
       expires_on: "2026-11-25"
-    # Baseten pricing and OpenRouter's Baseten-only endpoints reviewed 2026-10-25.
+    # Shared customer cache tariff remains conservative for both documented hosts.
+    # Supplier costs retain actual host-specific cache prices.
     costs:
       input_per_million_token: {price: 0.30, currency: USD, max_context: 1048576}
-      cached_input_per_million_token: {price: 0.007, currency: USD}
+      cached_input_per_million_token: {price: 0.006, currency: USD}
       output_per_million_token: {price: 1.20, currency: USD, max_context: 1048576}
+    supplier_cost_profiles:
+      baseten:
+        costs:
+          cached_input_per_million_token: {price: 0.007, currency: USD}
+      openrouter:
+        # The fallback is restricted to the reviewed Baseten endpoint above.
+        costs:
+          cached_input_per_million_token: {price: 0.007, currency: USD}
     features:
       max_output_tokens: 262144
       tool_use: true

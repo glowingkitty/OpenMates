@@ -212,6 +212,7 @@ async def main(email: str) -> dict:
             )
             prepaid_total = 0
             for depth, chat_id in enumerate([root, child, grandchild]):
+                inference_host = ["together", "openrouter", "baseten"][depth]
                 task_id = task_ids[depth]
                 operation_id = f"ai-ask:{task_id}:main"
                 charge_ids.append(operation_id)
@@ -233,11 +234,12 @@ async def main(email: str) -> dict:
                     config_manager.get_model_pricing("deepseek", "deepseek-v4.1-flash"),
                     cache_pricing_enabled=_customer_cache_pricing_scope(request),
                 )
+                raw.inference_host = inference_host
                 usage = normalize_provider_usage(
                     raw,
                     model_id=model_id,
                     provider_kind="openai",
-                    inference_host="baseten",
+                    inference_host=inference_host,
                     tariff_snapshot=tariff,
                     attempt_id=task_id,
                 )

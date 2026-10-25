@@ -42,17 +42,17 @@ def test_key_prefers_vault_and_rejects_import_sentinel(monkeypatch):
         asyncio.run(resolve_api_key())
 
 
-def test_direct_route_is_primary_and_fallback_preserves_exact_cache_tariff(monkeypatch):
+def test_together_is_primary_with_openrouter_fallback_and_baseten_retained(monkeypatch):
     provider = yaml.safe_load(
         (Path(__file__).parents[1] / "providers/deepseek.yml").read_text()
     )
     model = next(m for m in provider["models"] if m["id"] == "deepseek-v4.1-flash")
-    assert model["default_server"] == "baseten"
-    assert [s["id"] for s in model["servers"]] == ["baseten", "openrouter"]
+    assert model["default_server"] == "together"
+    assert [s["id"] for s in model["servers"]] == ["together", "openrouter", "baseten"]
     assert model["servers"][0]["model_id"] == "deepseek-ai/DeepSeek-V4.1-Flash-1017"
     assert model["provider_overrides"]["only"] == ["baseten"]
     assert model["provider_overrides"]["allow_fallbacks"] is False
-    assert set(model["cache_pricing"]["eligible_hosts"]) == {"baseten", "openrouter"}
+    assert set(model["cache_pricing"]["eligible_hosts"]) == {"together", "openrouter", "baseten"}
     monkeypatch.setattr(
         llm_utils.config_manager, "get_provider_configs", lambda: {"deepseek": provider}
     )
@@ -279,17 +279,28 @@ def test_incurred_usage_survives_truncated_transport():
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("direct_host", ["baseten", "together"])
 @pytest.mark.parametrize("unavailable", ["missing_key", 403, 429, "transport"])
 def test_direct_unavailability_falls_back_with_pinned_host_and_reported_cache_usage(
     monkeypatch,
     unavailable,
+    direct_host,
 ):
-    from backend.apps.ai.llm_providers import openai_openrouter, openrouter_client
+    from backend.apps.ai.llm_providers import openai_openrouter, openrouter_client, together_wrapper
 
     provider = yaml.safe_load(
         (Path(__file__).parents[1] / "providers/deepseek.yml").read_text()
     )
     model = next(m for m in provider["models"] if m["id"] == "deepseek-v4.1-flash")
+    # Baseten remains independently usable; production prefers Together.
+    model["default_server"] = direct_host
+    if direct_host == "baseten":
+        model["servers"] = [server for server in model["servers"] if server["id"] != "together"]
+
+    async def together_key(_):
+        return None if unavailable == "missing_key" else "test-only"
+
+    monkeypatch.setattr(together_wrapper, "_get_together_api_key", together_key)
     monkeypatch.delenv("SECRET__BASETEN__API_KEY", raising=False)
     if unavailable != "missing_key":
         monkeypatch.setenv("SECRET__BASETEN__API_KEY", "test-only")
@@ -318,13 +329,14 @@ def test_direct_unavailability_falls_back_with_pinned_host_and_reported_cache_us
     monkeypatch.setattr(openai_openrouter, "_get_openrouter_api_key", key)
     clients = {
         "baseten": adapter.invoke_baseten_chat_completions,
+        "together": together_wrapper.invoke_together_chat_completions,
         "openrouter": openai_openrouter.invoke_openrouter_chat_completions,
     }
     monkeypatch.setattr(llm_utils, "_get_provider_client", clients.get)
     captured = []
 
     def handle(request):
-        if request.url.host == "inference.baseten.co":
+        if request.url.host in {"inference.baseten.co", "api.together.xyz"}:
             if unavailable == "transport":
                 raise httpx.ConnectError("private network detail", request=request)
             assert unavailable in {403, 429}

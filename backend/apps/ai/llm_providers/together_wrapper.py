@@ -70,7 +70,7 @@ async def invoke_together_chat_completions(
     stream: bool = False,
     top_p: Optional[float] = None,
     prompt_cache_key: Optional[str] = None,
-    reasoning_effort: Optional[str] = None,
+    reasoning_effort: Optional[Union[str, int]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Public wrapper for invoking the Together AI API.

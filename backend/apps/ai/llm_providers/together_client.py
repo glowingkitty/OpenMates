@@ -16,6 +16,7 @@ import httpx
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
+from .types import UnifiedStreamChunk, StreamChunkType
 from .openai_shared import (
     openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
@@ -53,7 +54,7 @@ async def invoke_together_api(
     stream: bool = False,
     top_p: Optional[float] = None,
     prompt_cache_key: Optional[str] = None,
-    reasoning_effort: Optional[str] = None,
+    reasoning_effort: Optional[Union[str, int]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the Together AI API with the given parameters.
@@ -90,7 +91,13 @@ async def invoke_together_api(
         "stream": stream
     }
     if reasoning_effort is not None:
-        if reasoning_effort not in {"low", "high", "max"}:
+        if model_id in {"deepseek-ai/DeepSeek-V4.1-Flash", "deepseek-ai/DeepSeek-V4.1-Flash-1017"}:
+            # V4.1 uses a documented integer 1..100, unlike Together's enum models.
+            if isinstance(reasoning_effort, str) and reasoning_effort.isascii() and reasoning_effort.isdigit():
+                reasoning_effort = int(reasoning_effort)
+            if type(reasoning_effort) is not int or not 1 <= reasoning_effort <= 100:
+                raise ValueError("DeepSeek V4.1 reasoning effort must be an integer from 1 to 100")
+        elif reasoning_effort not in {"low", "high", "max"}:
             raise ValueError("Invalid Together reasoning effort")
         payload["reasoning_effort"] = reasoning_effort
     
@@ -291,7 +298,7 @@ async def _send_together_request(
             error_message=error_msg
         )
     except httpx.RequestError as e:
-        error_msg = f"Request error: {str(e)}"
+        error_msg = f"Together connection error ({type(e).__name__})"
         logger.error(f"{log_prefix} {error_msg}")
         return UnifiedOpenAIResponse(
             task_id=task_id,
@@ -456,6 +463,9 @@ async def _stream_together_response(
                         delta = choice.get("delta", {})
                         
                         # Handle content chunks
+                        reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+                        if reasoning:
+                            yield UnifiedStreamChunk(type=StreamChunkType.THINKING, content=reasoning)
                         if "content" in delta and delta["content"]:
                             yield delta["content"]
                         
@@ -559,7 +569,7 @@ async def _stream_together_response(
         # Raise ValueError so the fallback logic can catch it and try the next server
         raise ValueError(f"HTTP error {e.response.status_code}: {error_msg}")
     except httpx.RequestError as e:
-        error_msg = f"Request error: {str(e)}"
+        error_msg = f"Together connection error ({type(e).__name__})"
         logger.error(f"{log_prefix} {error_msg}")
         # Raise ValueError so the fallback logic can catch it
         raise ValueError(error_msg)

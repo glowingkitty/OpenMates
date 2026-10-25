@@ -14,7 +14,7 @@ contract_refs:
   - specifications/features/billing/specification.yml#billing.usage.receipt-token-breakdown
   - specifications/features/chats/specification.yml
 scope:
-  - Add the documented direct Baseten provider and DeepSeek V4.1 Flash catalog route with OpenRouter fallback.
+  - Retain direct Baseten and use live-verified Together as the DeepSeek V4.1 Flash primary, with OpenRouter fallback.
   - Preserve reported usage and usage-only terminal events across all compatible providers; never invent cache hits.
   - Admit authenticated orchestrated parent/child/grandchild cache tariffs while retaining native replay and summary-charge boundaries.
   - Preserve root reservation limits, attribution, idempotency and encrypted receipts.
@@ -65,12 +65,35 @@ live_validation:
   replay_or_mock_usage: false
   direct_provider_attempts: 25
   app_routing: Existing automatic routing; no model/provider overrides or account model-default changes.
-  parent_child_billing: Passed; seven independently repriced receipts total 281 credits, wallet 1000 to 719, root orchestration 215 spent and zero reserved.
-  grandchild: Blocked; the child did not receive start_sub_chats; persisted depths are 0 and 1 only.
-  child_followup: Failed; CLI timed out waiting for AI response; no extra debit.
+  parent_child_billing: Passed through real grandchildren; thirteen independently repriced receipts total 762 credits, wallet 1000 to 238, new nested orchestration 417 spent and zero reserved.
+  grandchild: Passed after the approved fix; real depth-two child completed, then child and root synthesis completed. Current CLI recovered all 15 encrypted outputs with zero pending acknowledgements.
+  child_followup: Passed live after the fix; fresh saved-child turn completed and billed 64 credits at physical depth one under the original root.
   orchestration_fix_authorization: User approved both gaps and explicitly required maximum root-child-grandchild depth on 2026-10-25.
   orchestration_fix_scope:
     - Offer delegation to admitted initial depth-one children despite classifier rejection, preserving terminal grandchildren and continuations.
     - Admit saved descendant user turns as ordinary fresh work, rederive immutable physical ancestry at every worker delivery and checkpoint restoration, retain original root billing attribution.
     - Reject descendant re-rooting and depth-three preparation in the authoritative transaction layer, including legacy larger max_depth values.
   orchestration_fix_verification: Focused unit and transaction coverage plus isolated product regression, then live automatic-routing child/grandchild and saved-child turns.
+
+together_primary_validation:
+  authorized: User requested brief live Together validation before making it primary on 2026-10-25.
+  snapshot: deepseek-ai/DeepSeek-V4.1-Flash-1017
+  source_url: https://www.together.ai/models/deepseek-v4-1-flash-1017
+  documentation: https://docs.together.ai/docs/inference/chat/prompt-caching
+  initial_text_calls: 2
+  initial_cold_cached_tokens: 0
+  initial_warm_cached_tokens: 11008
+  initial_warm_input_tokens: 11098
+  initial_warm_elapsed_seconds: 0.386
+  updated_adapter_text_calls: 2
+  updated_adapter_effort: 1
+  updated_adapter_warm_cached_tokens: 11008
+  updated_adapter_warm_elapsed_seconds: 0.320
+  tool_roundtrip_requests: 2
+  tool_calls_completed: 1
+  tool_followup_cached_tokens: 6272
+  tool_followup_input_tokens: 6364
+  mock_or_replay: false
+  throughput_limit: Brief responses validate function and cache counters; they do not establish advertised sustained tokens per second.
+  routing: Together primary; reviewed Baseten snapshot through OpenRouter first fallback; optional direct Baseten remains available afterward.
+  pricing: Shared customer tariff unchanged; actual Together cached supplier cost is USD 0.006 per million, Baseten and pinned gateway cost USD 0.007.

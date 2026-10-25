@@ -71,3 +71,8 @@ through real reservations, settlement, encrypted persistence and the authenticat
 usage API for parent, child and grandchild; it makes no paid inference calls.
 A successful synthetic test does not establish a live provider cache hit. Report
 live readiness and hit evidence separately when credentials are available.
+
+As of the 2026-10-25 live Together validation, DeepSeek V4.1 Flash prefers
+Together directly, with OpenRouter as its first fallback. Direct Baseten remains
+an optional supported route; a Baseten key is not required for the primary route.
+See the cache Plan for the actual live counters and host-specific supplier rates.
