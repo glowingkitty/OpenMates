@@ -481,7 +481,7 @@ def valid_sdk_lockfiles_receipt(report, receipt, job, harness, *, expected_input
             or receipt.get("cleanupVerified") is not True or receipt.get("sourceHeld") is not True
             or not expected_inputs or receipt.get("inputs") != expected_inputs
             or receipt.get("inputSetSha256") != hashlib.sha256(json.dumps(expected_inputs, sort_keys=True).encode()).hexdigest()
-            or not all(name in expected_inputs for name in ORIGINAL_LOCKS) or LOCKS[-1] in expected_inputs
+            or not all(name in expected_inputs for name in ORIGINAL_LOCKS)
             or receipt.get("originalLocks") != {name: expected_inputs.get(name) for name in LOCKS}
             or set(outputs) != set(LOCKS)):
         return False

@@ -95,7 +95,7 @@ def source_inputs_from_git(root, source):
     sdk.require(all(root + "/Cargo.toml" in rows and root + "/src/lib.rs" in rows
                     for root in (ROOTS[0], ROOTS[1], ROOTS[3]))
                 and ROOTS[2] + "/src/main.rs" in rows
-                and all(name in rows for name in ORIGINAL_LOCKS) and LOCKS[-1] not in rows, "source")
+                and all(name in rows for name in ORIGINAL_LOCKS), "source")
     return rows
 
 

@@ -24,9 +24,11 @@ spec.loader.exec_module(retrieval)
 
 
 class LockPreparationTests(unittest.TestCase):
-    def fixture(self):
+    def fixture(self, browser_lock=False):
         inputs = {root + "/Cargo.toml": "a" * 64 for root in lane.ROOTS}
         inputs.update({name: "b" * 64 for name in lane.ORIGINAL_LOCKS})
+        if browser_lock:
+            inputs[lane.LOCKS[-1]] = "a" * 64
         outputs = {name: b'version = 4\n[[package]]\nname = "openmates-sdk"\nversion = "0.1.0"\n' for name in lane.LOCKS}
         steps = []
         argv = [["rustup", "toolchain", "install", "1.98.1", "--profile", "minimal"], *lane.commands()]
@@ -89,10 +91,33 @@ class LockPreparationTests(unittest.TestCase):
                 outputs[lane.LOCKS[0]] += b"# different\n"
             self.assertFalse(self.valid(values), action)
 
-    def test_original_browser_lock_refused(self):
+    def test_unbound_browser_lock_input_tampering_is_refused(self):
         values = self.fixture()
         values[3]["expected_inputs"][lane.LOCKS[-1]] = "a" * 64
         self.assertFalse(self.valid(values))
+
+    def test_existing_browser_lock_receipt_is_bound_and_preserved(self):
+        values = self.fixture(browser_lock=True)
+        self.assertTrue(self.valid(values))
+        self.assertEqual(values[1]["originalLocks"][lane.LOCKS[-1]], values[3]["expected_inputs"][lane.LOCKS[-1]])
+        for value in (None, "0" * 64):
+            changed = self.fixture(browser_lock=True)
+            changed[1]["originalLocks"][lane.LOCKS[-1]] = value
+            self.assertFalse(self.valid(changed))
+        changed = self.fixture(browser_lock=True)
+        changed[1]["sourceHeld"] = False
+        self.assertFalse(self.valid(changed))
+
+    def test_three_original_locks_remain_mandatory_with_or_without_browser(self):
+        for browser_lock in (False, True):
+            for missing in lane.ORIGINAL_LOCKS:
+                values = self.fixture(browser_lock=browser_lock)
+                inputs = values[3]["expected_inputs"]
+                del inputs[missing]
+                values[1]["inputs"] = inputs
+                values[1]["inputSetSha256"] = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+                values[1]["originalLocks"][missing] = None
+                self.assertFalse(self.valid(values), (browser_lock, missing))
 
     def test_command_identity_and_cleanup_tampering(self):
         for key, value in (("argvSha256", "0" * 64), ("tool", "node"), ("admission", "unchecked"), ("executableSha256", "bad")):
@@ -168,7 +193,7 @@ class LockRunTests(unittest.TestCase):
                 (crate / "src").mkdir(parents=True)
                 (crate / "Cargo.toml").write_text('[package]\nname="fixture"\nversion="0.1.0"\n')
                 (crate / "src" / ("main.rs" if root == lane.ROOTS[2] else "lib.rs")).write_text("// fixture\n")
-            for name in lane.ORIGINAL_LOCKS:
+            for name in (lane.LOCKS if scenario == "refresh" else lane.ORIGINAL_LOCKS):
                 (subject / name).write_bytes(lock)
             before = {str(path.relative_to(subject)): lane.sdk.sha(path.read_bytes())
                       for path in subject.rglob("*") if path.is_file()}
@@ -234,7 +259,7 @@ class LockRunTests(unittest.TestCase):
             saved = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
             outputs = {name: (subject / "test-results/sdk-lockfiles" / name).read_bytes()
                        for name in lane.LOCKS if (subject / "test-results/sdk-lockfiles" / name).is_file()}
-            original_held = all(lane.sdk.sha((subject / name).read_bytes()) == before[name] for name in lane.ORIGINAL_LOCKS)
+            original_held = all(lane.sdk.sha((subject / name).read_bytes()) == before[name] for name in lane.LOCKS if name in before)
             private_dirs = [path for path in runtime.iterdir() if path.name.startswith("sdk-lockfiles-") and not path.name.startswith("sdk-lockfiles-failure-")]
             # Remove mocks before TemporaryDirectory performs its own cleanup.
             stack.close()
@@ -254,6 +279,19 @@ class LockRunTests(unittest.TestCase):
         self.assertNotIn("SENTINEL_SECRET", env)
         self.assertNotEqual(env["HOME"], str(Path.home()))
         self.assertTrue(str(work.parent) in env["CARGO_HOME"])
+
+    def test_run_refresh_preserves_existing_browser_lock_and_isolated_outputs(self):
+        receipt, saved, results, outputs, observed, original_held, private_dirs = self.execute("refresh")
+        self.assertEqual(receipt["status"], "passed")
+        self.assertEqual(saved, receipt)
+        self.assertEqual(results[0]["exit_code"], 0)
+        self.assertEqual(set(outputs), set(lane.LOCKS))
+        self.assertTrue(original_held and receipt["sourceHeld"] and receipt["cleanupVerified"])
+        self.assertIsNotNone(receipt["originalLocks"][lane.LOCKS[-1]])
+        self.assertNotEqual(receipt["originalLocks"][lane.LOCKS[-1]], receipt["generatedLocks"][lane.LOCKS[-1]]["sha256"])
+        self.assertEqual(private_dirs, [])
+        self.assertNotIn("SENTINEL_SECRET", observed[0][1])
+        self.assertFalse(receipt["conformanceProof"] or receipt["releaseProof"] or receipt["publication"])
 
     def test_run_expired_clock_refuses_before_launch(self):
         receipt, saved, results, outputs, observed, _, _ = self.execute("expired")
@@ -333,6 +371,50 @@ class LockRunTests(unittest.TestCase):
             if child_stat.exists():
                 self.assertEqual(child_stat.read_text().split(") ", 1)[1].split()[0], "Z", "owned descendant must not remain live")
 
+
+
+
+
+
+class LockGitSourceTests(unittest.TestCase):
+    def inputs(self, browser_lock, missing=None, browser_mode="100644", browser_kind="blob"):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        names = [root + "/Cargo.toml" for root in lane.ROOTS]
+        names += [root + ("/src/main.rs" if root == lane.ROOTS[2] else "/src/lib.rs") for root in lane.ROOTS]
+        names += list(lane.LOCKS if browser_lock else lane.ORIGINAL_LOCKS)
+        if missing in names:
+            names.remove(missing)
+        rows = [(name, hashlib.sha1(name.encode()).hexdigest(), name.encode()) for name in sorted(names)]
+        listing = b"".join(((browser_mode if name == lane.LOCKS[-1] else "100644") + " "
+                           + (browser_kind if name == lane.LOCKS[-1] else "blob") + " " + oid
+                           + "\t" + name).encode() + b"\0" for name, oid, _ in rows)
+        def run(command, **kwargs):
+            self.assertEqual(kwargs["input"], "".join(oid + "\n" for _, oid, _ in rows).encode())
+            body = b"".join((oid + " blob " + str(len(raw)) + "\n").encode()
+                            + (raw + b"\n" if command[-1] == "--batch" else b"") for _, oid, raw in rows)
+            return SimpleNamespace(stdout=body)
+        with patch.object(lane.subprocess, "check_output", return_value=listing), patch.object(lane.subprocess, "run", side_effect=run):
+            return lane.source_inputs_from_git(Path("/inert-subject"), "a" * 40)
+
+    def test_initial_missing_browser_and_refresh_present_browser_sources_are_accepted(self):
+        for browser_lock in (False, True):
+            inputs = self.inputs(browser_lock)
+            self.assertTrue(all(name in inputs for name in lane.ORIGINAL_LOCKS))
+            self.assertEqual(lane.LOCKS[-1] in inputs, browser_lock)
+            if browser_lock:
+                self.assertEqual(inputs[lane.LOCKS[-1]], lane.sdk.sha(lane.LOCKS[-1].encode()))
+
+    def test_missing_mandatory_lock_refused_for_both_source_shapes(self):
+        for browser_lock in (False, True):
+            for missing in lane.ORIGINAL_LOCKS:
+                with self.subTest(browser_lock=browser_lock, missing=missing), self.assertRaises(lane.sdk.Refused):
+                    self.inputs(browser_lock, missing=missing)
+
+    def test_optional_browser_lock_still_requires_regular_blob(self):
+        for mode, kind in (("120000", "blob"), ("160000", "commit"), ("100644", "tree")):
+            with self.subTest(mode=mode, kind=kind), self.assertRaises(lane.sdk.Refused):
+                self.inputs(True, browser_mode=mode, browser_kind=kind)
 
 
 if __name__ == "__main__":
