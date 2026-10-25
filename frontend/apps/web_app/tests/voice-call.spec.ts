@@ -1415,29 +1415,32 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('project-workspace-header')).toBeVisible();
       await page.getByTestId('project-tab-folders').click();
       await page.getByTestId('project-folder-create-menu-button').click();
-      await page.getByTestId('project-create-chat').click();
-      await expect(page.getByTestId('message-editor')).toBeVisible();
-      // Only focus the existing Project draft; do not type or inject a turn.
-      await page.getByTestId('message-field').click();
-      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
-        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
-      await page.waitForFunction(()=>{
-        const composers=[...document.querySelectorAll('[data-action="message-input"]')].filter(node=>node.getClientRects().length);
-        return composers.length===1&&/^[0-9a-f-]{36}$/i.test(composers[0].getAttribute('data-current-chat-id')??'');
-      });
-      const chatId=await page.locator('[data-action="message-input"]:visible').getAttribute('data-current-chat-id');
-      expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
-      await testInfo.attach('voice-project-draft-identity',{body:JSON.stringify({draftChatId:chatId}),contentType:'application/json'});
-      // Start explicitly commits a pending welcome draft. Observe its local row
-      // at the native bootstrap send, before forwarding that real request; never
-      // create a row or require the Project mention to autosave before Start.
-      await page.evaluate(async expectedChatId=>{
+      await page.evaluate(async projectId=>{
         const open=(name:string)=>new Promise<IDBDatabase>((resolve,reject)=>{
           const request=indexedDB.open(name);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
         });
         const [chats,user]=await Promise.all([open('chats_db'),open('user_db')]);
         const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        let expectedChatId:string|null=null;
         state.draftDeletionEvents=[];
+        let focusedBeforeStartPointerDown=false;
+        window.addEventListener('pointerdown',event=>{
+          if(!(event.target instanceof Element)||!event.target.closest('[data-testid="voice-call-start"]'))return;
+          const editable=document.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+          focusedBeforeStartPointerDown=!!editable&&editable===document.activeElement;
+        },{capture:true});
+        window.addEventListener('click',event=>{
+          if(!(event.target instanceof Element)||!event.target.closest('[data-testid="voice-call-start"]'))return;
+          const composer=[...document.querySelectorAll('[data-action="message-input"]')].find(node=>node.getClientRects().length);
+          expectedChatId=composer?.getAttribute('data-current-chat-id')??null;
+          Object.assign(window,{__voiceProjectDraftBeforeStart:{chatId:expectedChatId,
+            focused:focusedBeforeStartPointerDown,
+            projectMentionMatches:document.querySelector('[data-testid="message-editor"] [data-type="generic-mention"].mention-project')?.getAttribute('data-mention-syntax')===`@project:${projectId}:read`,
+            userRows:document.querySelectorAll('[data-testid="message-user"]').length,
+            assistantRows:document.querySelectorAll('[data-testid="message-assistant"]').length,
+            starts:state.sent.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='start').length,
+            canonicalSends:state.sent.filter(frame=>frame.type==='chat_message_added').length}});
+        },{capture:true});
         for(const type of ['chatDeleted','localChatListChanged'])window.addEventListener(type,event=>{
           const detail=(event as CustomEvent).detail;
           if(detail?.chat_id!==expectedChatId||(type==='localChatListChanged'&&detail.draftDeleted!==true))return;
@@ -1481,17 +1484,21 @@ test.describe('Voice mode through ordinary chat', () => {
             proof.completedAt=performance.now();chats.close();user.close();
           });
         };
-      },chatId);
-      await expect(page.getByTestId('message-user')).toHaveCount(0);
-      await expect(page.getByTestId('message-assistant')).toHaveCount(0);
-      await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeFocused();
-      const before=await evidence(page);
-      expect(voiceFrames(before,'start')).toHaveLength(0);
-      expect(before.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
-      // Start the exact live draft without dismissing/parking its composer.
-      await expect(page.getByTestId('voice-call-start')).toBeVisible();
+      },projectId);
+      await page.getByTestId('project-create-chat').click();
+      await expect(page.getByTestId('message-editor')).toBeVisible();
+      // Only focus the existing Project draft; do not type or inject a turn.
+      await page.getByTestId('message-field').click();
+      // Click immediately after actual editor focus, before slow storage reads
+      // or readiness polling can conceal the prop-to-draft-store handoff.
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
+      const before=await page.evaluate(()=>(window as unknown as {__voiceProjectDraftBeforeStart:{chatId:string;focused:boolean;projectMentionMatches:boolean;
+        userRows:number;assistantRows:number;starts:number;canonicalSends:number}}).__voiceProjectDraftBeforeStart);
+      const chatId=before.chatId;
+      expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(before).toMatchObject({focused:true,projectMentionMatches:true,userRows:0,assistantRows:0,starts:0,canonicalSends:0});
+      await testInfo.attach('voice-project-draft-identity',{body:JSON.stringify({draftChatId:chatId}),contentType:'application/json'});
       // Same-draft startup must retain its real destination instead of clearing
       // it as an outgoing navigation draft. No turn has been submitted yet.
       await expect(page.locator('[data-action="message-input"]:visible')).toHaveAttribute('data-current-chat-id',chatId!);

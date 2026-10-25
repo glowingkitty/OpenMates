@@ -20,12 +20,13 @@
         type ChatModelSelection
     } from '../../services/chatModelSelection';
     import { isTeamAIInvocation } from '../../services/teamService';
-    import { activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext } from '../../stores/teamStore';
+    import { activeTeamContext, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext } from '../../stores/teamStore';
 
     // Services & Stores
     import {
         initializeDraftService,
         cleanupDraftService,
+        getEditorInstance,
         setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
         reconcilePreservedDraftVersion,
@@ -1160,6 +1161,7 @@
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     let editorFocusGeneration = 0;
     let composerDestroyed = false;
+    const pendingVoiceCallDraftWaits = new Set<() => void>();
     let preserveComposerFocusOnNextBlur = false;
     let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
@@ -2813,6 +2815,7 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        for (const cancel of pendingVoiceCallDraftWaits) cancel();
         deferredContextDraftEdit?.cancel();
         invalidateRecordingContext('component-destroy');
         if (preserveComposerFocusResetTimer) {
@@ -4487,15 +4490,60 @@
 
     export async function prepareVoiceCallDraft(capturedChatId: string): Promise<boolean> {
         const capturedEditor = editor;
-        const currentDraftId = () => currentChatId ?? get(draftEditorUIState).currentChatId;
-        if (!capturedEditor || capturedEditor.isDestroyed || queuedEdit ||
-            !capturedChatId || currentDraftId() !== capturedChatId) return false;
+        const authAtStart = get(authStore).isAuthenticated;
+        const userAtStart = get(userProfile).user_id;
+        const teamAtStart = getActiveTeamContextSnapshot();
+        const initialDraftId = get(draftEditorUIState).currentChatId;
+        const stillOwned = () => !!capturedEditor && !composerDestroyed &&
+            editor === capturedEditor && !capturedEditor.isDestroyed &&
+            getEditorInstance() === capturedEditor && !queuedEdit &&
+            !!capturedChatId && currentChatId === capturedChatId &&
+            get(authStore).isAuthenticated === authAtStart &&
+            get(userProfile).user_id === userAtStart &&
+            isActiveTeamContext(teamAtStart.teamId, teamAtStart.epoch);
+        if (!stillOwned()) return false;
+        // A remounted Project composer can expose its reserved prop before the
+        // existing draft service finishes adopting it. Wait for that handoff;
+        // never assign a context or follow a different navigation destination.
+        const ready = await new Promise<boolean>(resolve => {
+            let settled = false;
+            let matchedCapturedId = false;
+            const unsubscribers: Array<() => void> = [];
+            const finish = (result: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                unsubscribers.forEach(unsubscribe => unsubscribe());
+                pendingVoiceCallDraftWaits.delete(cancel);
+                resolve(result);
+            };
+            const cancel = () => finish(false);
+            const timer = setTimeout(cancel, 2000);
+            pendingVoiceCallDraftWaits.add(cancel);
+            const check = () => {
+                const state = get(draftEditorUIState);
+                if (!stillOwned()) { finish(false); return; }
+                if (state.currentChatId === capturedChatId) matchedCapturedId = true;
+                else if (matchedCapturedId || state.currentChatId !== initialDraftId) { finish(false); return; }
+                if (matchedCapturedId && !state.isSwitchingContext) finish(true);
+            };
+            const watch = (subscribe: (run: () => void) => () => void) => {
+                const unsubscribe = subscribe(check);
+                if (settled) unsubscribe();
+                else unsubscribers.push(unsubscribe);
+            };
+            watch(run => draftEditorUIState.subscribe(run));
+            if (!settled) watch(run => authStore.subscribe(run));
+            if (!settled) watch(run => userProfile.subscribe(run));
+            if (!settled) watch(run => activeTeamContext.subscribe(run));
+        });
+        if (!ready || !stillOwned() || !capturedEditor) return false;
         syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
         const saved = await flushSaveDraftAndWaitForIdle(capturedEditor, capturedChatId, {
             suppressQueuedEditResaves: false,
         });
-        return saved && editor === capturedEditor && !capturedEditor.isDestroyed &&
-            !queuedEdit && currentDraftId() === capturedChatId;
+        return saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
+            !get(draftEditorUIState).isSwitchingContext;
     }
 
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
