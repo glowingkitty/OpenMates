@@ -1364,10 +1364,10 @@ def immutable_trust_test_fixture(name, expected_sha256):
 
 
 def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "3d4f5cca620bbb893b9b8b6d8c774ae51375d0755333d06e5e91b20394309814")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "8cf400e12a00b1f2f7e6bf9f52432760e5ab58f0b225bf8089ecdc783a6a2805")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a"
+    assert sdk.sha(live_bytes) == "0918a67a01e2a5f7570f227fedca8c13d657eba9094e4871944035eb7b0fbd90"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     assert {k: len(trust[k]) for k in approval["afterCounts"]} == {"programs": 246, "contracts": 63, "plan": 84, "gaps": 171}
@@ -1377,7 +1377,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
 
 
 def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "3d4f5cca620bbb893b9b8b6d8c774ae51375d0755333d06e5e91b20394309814")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "8cf400e12a00b1f2f7e6bf9f52432760e5ab58f0b225bf8089ecdc783a6a2805")
     trust = sdk.load_trust()
     for bucket in ("programs", "contracts"):
         restored = copy.deepcopy(trust[bucket])
@@ -1439,5 +1439,26 @@ def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
         prior["gaps"][index] = change["before"]
     assert {k: len(prior[k]) for k in witness["counts"]} == {"programs": 229, "contracts": 60, "plan": 84, "gaps": 171}
     assert witness["trustSha256"] == "078292cbdf749ac0d7f5b23e898dcd01931fb45947eaaaa2b1273cf76bafa43a"
+    for bucket in ("programs", "contracts", "plan", "gaps"):
+        assert sdk.sha(json.dumps(prior[bucket], sort_keys=True).encode()) == witness["dictionaryDigests"][bucket]
+
+
+def test_current_mechanical_compile_fix_preserves_exact_prior246_authority():
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "8cf400e12a00b1f2f7e6bf9f52432760e5ab58f0b225bf8089ecdc783a6a2805")
+    witness = approval["priorApproved246Witness"]
+    trust = sdk.load_trust()
+    prior = copy.deepcopy(trust)
+    assert set(witness["programPinDeltas"]) == {
+        "packages/openmates-rust/src/client/saved_chat_read.rs",
+        "packages/openmates-rust/src/client/recovery/opaque_tests.rs",
+        "packages/openmates-rust/src/client/transport_plaintext_tests.rs",
+    }
+    for path, change in witness["programPinDeltas"].items():
+        assert prior["programs"][path] == change["after"]
+        prior["programs"][path] = change["before"]
+    assert witness["contractsPlansGapsMetadataUnchanged"] is True
+    assert {k: len(prior[k]) for k in witness["counts"]} == {"programs": 246, "contracts": 63, "plan": 84, "gaps": 171}
+    assert witness["trustSha256"] == "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a"
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == witness["trustSha256"]
     for bucket in ("programs", "contracts", "plan", "gaps"):
         assert sdk.sha(json.dumps(prior[bucket], sort_keys=True).encode()) == witness["dictionaryDigests"][bucket]

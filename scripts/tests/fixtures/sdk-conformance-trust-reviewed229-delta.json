@@ -5,7 +5,7 @@
     "plan": 84,
     "programs": 246
   },
-  "approvedCurrentSha256": "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a",
+  "approvedCurrentSha256": "0918a67a01e2a5f7570f227fedca8c13d657eba9094e4871944035eb7b0fbd90",
   "baseDictionaryDigests": {
     "contracts": "5e9c104e9d4d4d87b04d848219c76ff40f232d7cb16ae45ec2e83bea943a2efe",
     "gaps": "a21143e1f341d642cb99499985932c3458ce0dfe4b83126b50424f7404410612",
@@ -712,11 +712,11 @@
         "before": null
       },
       "packages/openmates-rust/src/client/recovery/opaque_tests.rs": {
-        "after": "c12ac350b19cef42a0f97bfd9023ac5f2fc1365c2a269c34faf1dd9e31d4c571",
+        "after": "b51fbc4c3cf366f03c126eccabf68ddec189cd16740c2cb90c4acae1a73c82ea",
         "before": null
       },
       "packages/openmates-rust/src/client/saved_chat_read.rs": {
-        "after": "5b0e16ab229ac93eddc47952e84227a0867f4fccb6ab99b4a662832e1c784939",
+        "after": "baf05548411f42cb2d011723a33a907b5f177e9f3d73d6a0244708f5a279d90d",
         "before": "1a551eff65844f68e70024fbf6ef644611b3bbf439514099c864b05d58488ce2"
       },
       "packages/openmates-rust/src/client/saved_chat_read_metadata.rs": {
@@ -752,7 +752,7 @@
         "before": "2b2b6f426bbe33f8032587b70bf08699a7bd379e4074db46d6d164d974f42bc0"
       },
       "packages/openmates-rust/src/client/transport_plaintext_tests.rs": {
-        "after": "965f9a105b23e1b82bad669e7c695282f9b58d66aaf8a8f0cdcfa5f9b4e40712",
+        "after": "ed4b8ed744dd347183e822df3ed16bd9e5085a6b801364a2c5417639546db20e",
         "before": null
       },
       "packages/openmates-rust/src/client/workspaces.rs": {
@@ -971,8 +971,12 @@
           "before": null
         },
         "packages/openmates-rust/src/client/recovery/opaque_tests.rs": {
-          "after": "c12ac350b19cef42a0f97bfd9023ac5f2fc1365c2a269c34faf1dd9e31d4c571",
+          "after": "b51fbc4c3cf366f03c126eccabf68ddec189cd16740c2cb90c4acae1a73c82ea",
           "before": null
+        },
+        "packages/openmates-rust/src/client/saved_chat_read.rs": {
+          "after": "baf05548411f42cb2d011723a33a907b5f177e9f3d73d6a0244708f5a279d90d",
+          "before": "5b0e16ab229ac93eddc47952e84227a0867f4fccb6ab99b4a662832e1c784939"
         },
         "packages/openmates-rust/src/client/send.rs": {
           "after": "9237fc705c2e1e0ff3e4988b07e2d812b6c4ab7eb2533153f6eb3b0dd95d3bd6",
@@ -987,7 +991,7 @@
           "before": "2b2b6f426bbe33f8032587b70bf08699a7bd379e4074db46d6d164d974f42bc0"
         },
         "packages/openmates-rust/src/client/transport_plaintext_tests.rs": {
-          "after": "965f9a105b23e1b82bad669e7c695282f9b58d66aaf8a8f0cdcfa5f9b4e40712",
+          "after": "ed4b8ed744dd347183e822df3ed16bd9e5085a6b801364a2c5417639546db20e",
           "before": null
         },
         "packages/openmates-rust/src/crypto/master.rs": {
@@ -1020,6 +1024,36 @@
         }
       }
     }
+  },
+  "priorApproved246Witness": {
+    "contractsPlansGapsMetadataUnchanged": true,
+    "counts": {
+      "contracts": 63,
+      "gaps": 171,
+      "plan": 84,
+      "programs": 246
+    },
+    "dictionaryDigests": {
+      "contracts": "baca093ebdc60a4eba644e7e1a2eac5ab265e02acb20db97c60bd512349afe44",
+      "gaps": "e8951d4c473ab0a8d2813039a8b5eaad4fc226752cb31e3dc6e14cccd53d553c",
+      "plan": "87a0f75cf44385ad86cfaa11fe01892cd619be8dbcfdf2f6ce90ca37eced58dc",
+      "programs": "3e192e080af817cd869090cc475bf0075a26ad05687e22d39c165cc8dd5d2502"
+    },
+    "programPinDeltas": {
+      "packages/openmates-rust/src/client/recovery/opaque_tests.rs": {
+        "after": "b51fbc4c3cf366f03c126eccabf68ddec189cd16740c2cb90c4acae1a73c82ea",
+        "before": "c12ac350b19cef42a0f97bfd9023ac5f2fc1365c2a269c34faf1dd9e31d4c571"
+      },
+      "packages/openmates-rust/src/client/saved_chat_read.rs": {
+        "after": "baf05548411f42cb2d011723a33a907b5f177e9f3d73d6a0244708f5a279d90d",
+        "before": "5b0e16ab229ac93eddc47952e84227a0867f4fccb6ab99b4a662832e1c784939"
+      },
+      "packages/openmates-rust/src/client/transport_plaintext_tests.rs": {
+        "after": "ed4b8ed744dd347183e822df3ed16bd9e5085a6b801364a2c5417639546db20e",
+        "before": "965f9a105b23e1b82bad669e7c695282f9b58d66aaf8a8f0cdcfa5f9b4e40712"
+      }
+    },
+    "trustSha256": "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a"
   },
   "releaseEligible": false,
   "reviewedIncrementalLeaves": [
