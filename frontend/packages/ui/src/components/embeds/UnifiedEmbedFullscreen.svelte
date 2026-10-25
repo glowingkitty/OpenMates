@@ -35,7 +35,7 @@
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, tick, getContext } from 'svelte';
-  import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
+  import { EMBED_CHAT_CONTEXT, EMBED_FULLSCREEN_LIFETIME_CONTEXT, type EmbedChatContext, type EmbedFullscreenLifetimeContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { settingsMenuVisible } from '../Settings.svelte';
@@ -61,6 +61,7 @@
   const CHILD_EMBED_RETRY_DELAY_MS = 400;
   const CLOSE_FALLBACK_MS = 1000;
   const workspace = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
+  const fullscreenLifetime = getContext<EmbedFullscreenLifetimeContext | undefined>(EMBED_FULLSCREEN_LIFETIME_CONTEXT);
   let closeFallback: ReturnType<typeof setTimeout> | undefined;
   let closeCompleted = false;
   
@@ -382,7 +383,7 @@
     onEdit,
     editActive = false,
     contentBackgroundColor,
-    closeOnChatSelection = true,
+    closeOnChatSelection = fullscreenLifetime?.closeOnChatSelection ?? true,
     owningChatId,
     onCopy,
     onDownload,

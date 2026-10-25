@@ -303,6 +303,7 @@
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
 		'embeds/wiki/WikipediaFullscreen',
 		'apps/AppsResultFullscreen',
+		'embeds/StandaloneEmbedFullscreen',
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',
 		'embeds/pdf/PdfSearchEmbedFullscreen'

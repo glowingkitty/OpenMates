@@ -9,6 +9,7 @@ import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { draftEditorUIState } from './drafts/draftState';
 import { chatMetadataCache } from './chatMetadataCache';
+import type { EmbedType } from '../message_parsing/types';
 
 export type E2EDraftSelectionDecision = {
   chatId: string;
@@ -65,7 +66,7 @@ export async function installE2ETestHooks() {
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
     __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
-    __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[] }) => Promise<{ decryptedCount: number; encryptedCount: number }>;
+    __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[]; indexByApp?: boolean }) => Promise<{ decryptedCount: number; encryptedCount: number; indexedCount?: number }>;
     __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
     __openmatesE2ESeedSavedEmbedMemory?: (input: {
       embedId: string;
@@ -206,7 +207,7 @@ export async function installE2ETestHooks() {
   };
 
   // Prepare actual owned ciphertext before a test creates its cache-only search index.
-  testWindow.__openmatesE2EPrepareEmbedCache = async ({ chatId, embedIds }) => {
+  testWindow.__openmatesE2EPrepareEmbedCache = async ({ chatId, embedIds, indexByApp = false }) => {
     if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
       throw new Error('Cache preparation requires the isolated localhost fixture');
     }
@@ -226,6 +227,13 @@ export async function installE2ETestHooks() {
     }
     const { resolveEmbedForOpen } = await import('./embedResolver');
     const { embedStore } = await import('./embedStore');
+    const auth = get(authStore), ownerId = get(userProfile).user_id;
+    const assertIndexScope = () => {
+      if (get(authStore) !== auth || get(userProfile).user_id !== ownerId || activeChatStore.get() !== chatId) {
+        throw new Error('Owned fixture app index scope changed');
+      }
+    };
+    let indexedCount = 0;
     for (const id of embedIds) {
       const resolved = await resolveEmbedForOpen(id, { chatId });
       const local = await embedStore.get(`embed:${id}`);
@@ -234,8 +242,25 @@ export async function installE2ETestHooks() {
         || !persisted?.encrypted_content) {
         throw new Error('Owned fixture embed must be decrypted and durably encrypted before indexing');
       }
+      if (indexByApp) {
+        // Archive recovery intentionally skips the catalog index. Rebuild it
+        // from the actual decrypted fixture using the normal encrypted writer.
+        const ref = `embed:${id}`;
+        const raw = await embedStore.getRawEntry(ref);
+        const catalog = await embedStore.getCatalogContext(ref);
+        if (!raw || !catalog?.app_id) throw new Error('Owned fixture catalog metadata unavailable');
+        await embedStore.putEncrypted(ref, {
+          ...persisted, parent_embed_id: raw.parent_embed_id, embed_ids: raw.embed_ids,
+        }, resolved.type as EmbedType, resolved.content, catalog, { writeGuard: assertIndexScope });
+        assertIndexScope();
+        const indexed = await embedStore.getEmbedsByAppId(catalog.app_id);
+        const stored = await embedStore.getPersistencePayload(id);
+        if (!indexed.some(entry => entry.contentRef === ref) || stored?.encrypted_content !== persisted.encrypted_content
+          || stored?.encrypted_type !== persisted.encrypted_type) throw new Error('Owned fixture app index must preserve its ciphertext');
+        indexedCount++;
+      }
     }
-    return { decryptedCount: embedIds.length, encryptedCount: embedIds.length };
+    return { decryptedCount: embedIds.length, encryptedCount: embedIds.length, ...(indexByApp ? { indexedCount } : {}) };
   };
 
   // Remove only local fixture rows and keys; preserve search entries and all server data.
