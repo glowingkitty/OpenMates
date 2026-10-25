@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 
+import errno
 import json
 import math
 import os
@@ -202,15 +203,44 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
                     sdk.require(len(candidates) <= 2, "packaging")
         aliases = []
         candidate_records = []
+        missing_candidates = []
+
+        def missing_current(candidate, parent_fd, captured_parent):
+            # Unlike source/link metadata, this directory is never mutated by
+            # detachment. Its timestamps also fence create-then-remove races.
+            sdk.require(candidate.parent.resolve() == candidate.parent
+                        and sdk.file_identity(os.fstat(parent_fd)) == sdk.file_identity(captured_parent)
+                        and sdk.file_identity(candidate.parent.lstat()) == sdk.file_identity(captured_parent), "packaging")
+            try:
+                os.stat(candidate.name, dir_fd=parent_fd, follow_symlinks=False)
+            except FileNotFoundError as error:
+                sdk.require(error.errno == errno.ENOENT, "packaging")
+            else:
+                sdk.require(False, "packaging")
+            sdk.require(sdk.file_identity(os.fstat(parent_fd)) == sdk.file_identity(captured_parent)
+                        and sdk.file_identity(candidate.parent.lstat()) == sdk.file_identity(captured_parent), "packaging")
         for index, candidate in enumerate(candidates):
             note("detach-alias-identity", detachAliasIndex=index)
             sdk.require(observed("detachAliasPathMatches", candidate.resolve() == candidate), "packaging")
+            captured_parent = candidate.parent.lstat()
+            try:
+                candidate_before = candidate.lstat()
+            except FileNotFoundError as error:
+                # Only an initially absent entry is optional. Disappearance
+                # after this observation or any other open failure still fails.
+                sdk.require(error.errno == errno.ENOENT, "packaging")
+                parent_fd = os.open(candidate.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                candidate_handles.callback(os.close, parent_fd)
+                missing_current(candidate, parent_fd, captured_parent)
+                missing_candidates.append((candidate, parent_fd, captured_parent))
+                continue
             candidate_fd = os.open(candidate, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
             candidate_handles.callback(os.close, candidate_fd)
             candidate_stat = os.fstat(candidate_fd)
             sdk.require(stat.S_ISREG(candidate_stat.st_mode) and candidate_stat.st_uid == os.getuid()
                         and not candidate_stat.st_mode & 0o022 and candidate_stat.st_mode & 0o111
                         and 0 < candidate_stat.st_size <= 64 * 1024**2
+                        and sdk.file_identity(candidate_stat) == sdk.file_identity(candidate_before)
                         and sdk.file_identity(candidate_stat) == sdk.file_identity(candidate.lstat()), "packaging")
             same_inode = (candidate_stat.st_dev, candidate_stat.st_ino) == (original.st_dev, original.st_ino)
             observed("detachAliasIdentityMatches", sdk.file_identity(candidate_stat) == sdk.file_identity(original))
@@ -223,6 +253,8 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
             candidate_records.append((candidate, candidate_fd, candidate_stat, same_inode))
 
         def candidates_current(remaining=None):
+            for candidate, parent_fd, captured_parent in missing_candidates:
+                missing_current(candidate, parent_fd, captured_parent)
             for candidate, candidate_fd, captured, same_inode in candidate_records:
                 expected = remaining if same_inode and remaining is not None else captured
                 sdk.require(candidate.resolve() == candidate

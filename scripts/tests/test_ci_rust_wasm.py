@@ -1575,3 +1575,126 @@ class BindgenCandidateClassificationTests(BindgenDetachmentTests):
                 self.assertEqual(lane.sdk.file_identity(binary.lstat()), original)
                 self.assertEqual(binary.stat().st_nlink, 2)
                 self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
+
+
+class BindgenCandidatePresenceTests(BindgenDetachmentTests):
+    """Absent candidate is inert; actual aliases must still account every link."""
+
+    def missing_release_fixture(self, root):
+        private, work, binary, release = self.fixture(root)
+        deps = release.parent / "deps/wasm_bindgen-0123456789abcdef"
+        os.link(binary, deps)
+        release.unlink()
+        return private, work, binary, release, deps
+
+    def test_missing_unused_release_with_all_actual_links_known_detaches_and_passes_provenance(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            original = binary.lstat()
+            raw = binary.read_bytes()
+            lane.detach_installed_bindgen(work, time.monotonic() + 10)
+            self.assertFalse(release.exists())
+            self.assertFalse(release.is_symlink())
+            self.assertEqual(binary.stat().st_nlink, 1)
+            self.assertEqual(deps.stat().st_nlink, 1)
+            self.assertNotEqual((binary.stat().st_dev, binary.stat().st_ino), (original.st_dev, original.st_ino))
+            self.assertEqual(raw, binary.read_bytes())
+            self.assertEqual(raw, deps.read_bytes())
+            self.assertEqual(lane.installed_bindgen_provenance(private, work)["binaryIdentity"]["links"], 1)
+
+    def test_absence_never_adopts_unaccounted_actual_links(self):
+        for known_alias in (True, False):
+            with self.subTest(known=known_alias), TemporaryDirectory() as directory:
+                _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                os.link(binary, Path(directory) / "unknown-actual-link")
+                if not known_alias:
+                    deps.unlink()
+                original = lane.sdk.file_identity(binary.lstat())
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+                self.assertFalse(release.exists())
+
+    def test_missing_candidate_created_or_recreated_during_copy_is_refused_before_publish(self):
+        for when in ("source", "copy"):
+            for recreated in (False, True):
+                with self.subTest(when=when, recreated=recreated), TemporaryDirectory() as directory:
+                    _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                    original = lane.sdk.file_identity(binary.lstat())
+                    regular = lane.sdk.regular
+                    changed = False
+                    def race(path, *args, **kwargs):
+                        nonlocal changed
+                        raw = regular(path, *args, **kwargs)
+                        trigger = path == binary if when == "source" else path.name == ".wasm-bindgen-detached"
+                        if trigger and not changed:
+                            changed = True
+                            release.write_bytes(b"unexpected independent output")
+                            release.chmod(0o700)
+                            if recreated:
+                                release.unlink()
+                        return raw
+                    with patch.object(lane.sdk, "regular", side_effect=race), self.assertRaises(lane.sdk.Refused):
+                        lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                    self.assertTrue(changed)
+                    self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+                    self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
+
+    def test_creation_during_publication_fails_final_missing_guard(self):
+        with TemporaryDirectory() as directory:
+            _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            replace = lane.os.replace
+            changed = False
+            def publish(*args, **kwargs):
+                nonlocal changed
+                result = replace(*args, **kwargs)
+                if args[:2] == (".wasm-bindgen-detached", "wasm-bindgen"):
+                    changed = True
+                    release.write_bytes(b"unexpected after publication")
+                    release.chmod(0o700)
+                return result
+            with patch.object(lane.os, "replace", side_effect=publish), self.assertRaises(lane.sdk.Refused):
+                lane.detach_installed_bindgen(work, time.monotonic() + 10)
+            self.assertTrue(changed)
+            self.assertEqual(binary.stat().st_nlink, 1)
+            self.assertTrue(release.exists())
+
+    def test_present_candidate_removed_during_open_is_not_reclassified_absent(self):
+        with TemporaryDirectory() as directory:
+            _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+            release.write_bytes(b"initial separate output")
+            release.chmod(0o700)
+            original = lane.sdk.file_identity(binary.lstat())
+            open_file = lane.os.open
+            changed = False
+            def remove_then_open(path, *args, **kwargs):
+                nonlocal changed
+                if path == release and not changed:
+                    changed = True
+                    release.unlink()
+                return open_file(path, *args, **kwargs)
+            with patch.object(lane.os, "open", side_effect=remove_then_open), self.assertRaises(FileNotFoundError):
+                lane.detach_installed_bindgen(work, time.monotonic() + 10)
+            self.assertTrue(changed)
+            self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+
+    def test_dangling_symlink_permission_and_non_enoent_refuse_without_publication(self):
+        import errno
+        for fault in ("dangling-symlink", "permission", "wrong-errno"):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                _, work, binary, release, deps = self.missing_release_fixture(Path(directory))
+                original = lane.sdk.file_identity(binary.lstat())
+                lstat = Path.lstat
+                if fault == "dangling-symlink":
+                    release.symlink_to(Path(directory) / "absent-other")
+                def fail(path, *args, **kwargs):
+                    if path == release:
+                        if fault == "permission":
+                            raise PermissionError(errno.EACCES, "synthetic permission")
+                        if fault == "wrong-errno":
+                            raise FileNotFoundError(errno.EIO, "synthetic non-ENOENT")
+                    return lstat(path, *args, **kwargs)
+                with patch.object(Path, "lstat", fail), self.assertRaises((lane.sdk.Refused, PermissionError)):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+                self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
