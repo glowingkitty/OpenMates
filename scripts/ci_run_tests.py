@@ -2323,7 +2323,7 @@ def main():
     try:
         if case_title and mode != "e2e":
             raise ValueError("Case filter requires E2E mode")
-        if mode not in ("pytest", "backend-probe", "sdk-lockfiles", "rust-wasm"):
+        if mode not in ("pytest", "backend-probe", "sdk-lockfiles", "rust-wasm", "rust-native-dev"):
             verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
@@ -2339,6 +2339,10 @@ def main():
                     results=results,
                     **({"case_title": case_title} if case_title else {}),
                 )
+        elif mode == "rust-native-dev":
+            reject_inherited_accounts()
+            from ci_native_dev import run
+            run(ROOT, results)
         elif mode == "rust-wasm":
             reject_inherited_accounts()
             from ci_rust_wasm import run
@@ -2527,7 +2531,7 @@ def main():
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
         "case_title": case_title,
-        "coverage_scope": ("recipe-target" if mode == "selfhost"
+        "coverage_scope": ("compilation-only" if mode == "rust-native-dev" else "recipe-target" if mode == "selfhost"
             and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) != ["selfhost-smoke.spec.ts"]
             else "single-case" if case_title else "full-spec"),
         "artifact_shared_dev_rejected": mode == "artifact" and not error,

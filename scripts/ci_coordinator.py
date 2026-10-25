@@ -222,6 +222,12 @@ class GitHub:
     def prepare_dispatch(self, job: dict) -> dict:
         """Resolve private capabilities before recording any remote send intent."""
         prepared = dict(job)
+        if job.get("mode") == "rust-native-dev":
+            try:
+                from scripts.ci_native_dev import dispatch_ticket
+            except ModuleNotFoundError:
+                from ci_native_dev import dispatch_ticket
+            prepared["_native_dev_transport"] = dispatch_ticket(self.root, job)
         if job.get("preparation_key"):
             try:
                 from scripts.ci_preparation_transport import dispatch_ticket
@@ -246,7 +252,8 @@ class GitHub:
     def dispatch(self, job: dict):
         if job.get("candidate_expires") and float(job["candidate_expires"]) <= time.time():
             raise ValueError("CI candidate artifact expired before dispatch; publish again")
-        if ((job.get("preparation_key") and "_preparation_transport" not in job)
+        if ((job.get("mode") == "rust-native-dev" and "_native_dev_transport" not in job)
+                or (job.get("preparation_key") and "_preparation_transport" not in job)
                 or (job.get("runtime_seed") and "_runtime_seed_transport" not in job)):
             job = self.prepare_dispatch(job)
         self.request(
@@ -267,6 +274,8 @@ class GitHub:
                         **({"prepare_cli": "true"} if job["mode"] == "e2e" else {})}
                        if job.get("runtime_seed") else {}),
                     "dispatch_token": job["token"],
+                    **({"native_dev_transport": job["_native_dev_transport"]}
+                       if job.get("mode") == "rust-native-dev" else {}),
                     "proof_video_profile": job.get("proof_profile", ""),
                     **({"capacity_configuration": job["capacity_configuration"]}
                        if job.get("capacity_configuration") else {}),
@@ -375,7 +384,7 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles", "rust-wasm"):
+        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "rust-native-dev"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("component", "e2e", "artifact")
@@ -421,6 +430,13 @@ class Queue:
         if case_title and (mode != "e2e" or len(specs) != 1
                            or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
             raise ValueError("Case filter requires the exact recovery spec and approved test title")
+        if mode == "rust-native-dev":
+            try:
+                from scripts.ci_native_dev import validate_request
+            except ModuleNotFoundError:
+                from ci_native_dev import validate_request
+            validate_request(specs, preparation=preparation, runtime_seed=runtime_seed_job,
+                             capacity=capacity_configuration, case_title=case_title, proof_profile=proof_profile)
         if mode == "rust-wasm" and specs != ["rust-wasm"]:
             raise ValueError("Rust WASM compilation requires its exact unprepared target")
         if mode == "sdk-lockfiles" and specs != ["sdk-lockfiles"]:
@@ -451,7 +467,7 @@ class Queue:
         if mode == "sdk-conformance":
             if specs != ["sdk-conformance"] or preparation or runtime_seed_job or capacity_configuration:
                 raise ValueError("SDK conformance requires its exact unprepared target")
-        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "selfhost") else specs):
+        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "rust-native-dev", "selfhost") else specs):
             if mode == "vitest":
                 allowed = bool(
                     re.fullmatch(r"frontend/(?:packages/ui|apps/web_app)/src/[A-Za-z0-9_./-]+\.test\.tsx?", spec)
@@ -925,6 +941,13 @@ def enqueue_submission(
         raise ValueError("Prepared builds require an E2E/visual source root")
     if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
         raise ValueError("Runtime seed requires --no-prepared-builds for E2E and backend-probe only")
+    if mode == "rust-native-dev":
+        try:
+            from scripts.ci_native_dev import validate_request
+        except ModuleNotFoundError:
+            from ci_native_dev import validate_request
+        validate_request(specs, preparation=prepared_builds, runtime_seed=runtime_seed_job,
+                         capacity=capacity_configuration, case_title=case_title, proof_profile=proof_profile)
     if mode == "rust-wasm" and (specs != ["rust-wasm"] or prepared_builds or runtime_seed_job or capacity_configuration or case_title):
         raise ValueError("Rust WASM compilation requires its exact unprepared target")
     if mode == "sdk-lockfiles" and (specs != ["sdk-lockfiles"] or prepared_builds or runtime_seed_job or capacity_configuration or case_title):
@@ -1041,7 +1064,7 @@ def main():
     submit.add_argument("--spec", "--test-target", action="append", default=[])
     submit.add_argument("--keep-queued-generations", action="store_true", help="Retain older matching queued checks instead of superseding them")
     submit.add_argument("--preview-url", action="append", default=[])
-    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles", "rust-wasm"], default="e2e")
+    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "rust-native-dev"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session runtime seed; backend-probe or E2E with --no-prepared-builds")
     submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
@@ -1143,7 +1166,7 @@ def main():
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,
-            prepared_builds=args.prepared_builds and args.mode not in {"backend-probe", "sdk-conformance", "sdk-lockfiles", "rust-wasm"},
+            prepared_builds=args.prepared_builds and args.mode not in {"backend-probe", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "rust-native-dev"},
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
             runtime_seed_job=args.runtime_seed_job,

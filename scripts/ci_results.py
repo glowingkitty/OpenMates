@@ -696,7 +696,7 @@ def fetch(github, job: dict, root: Path) -> dict:
     except ModuleNotFoundError:
         from resource_budget import reserve
     # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
-    diagnostic_reserve = 512 * 1024 if (job.get("mode") == "rust-wasm" or
+    diagnostic_reserve = 132 * 1024**2 if job.get("mode") == "rust-native-dev" else 512 * 1024 if (job.get("mode") == "rust-wasm" or
         _browser_package_job(job)) else 0
     with reserve(root, MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve, min_free=RESERVE,
                  max_used_percent=100):
@@ -715,6 +715,17 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             if (cached.get("coverage_scope") != "recipe-target"
                     or not valid_selfhost_result(cached.get("report", {}), job, root, expected_harness)):
                 raise RuntimeError("Cached self-host scope lacks exact complete recipe evidence")
+        if job.get("mode") == "rust-native-dev":
+            try:
+                from scripts import ci_native_dev as native
+            except ModuleNotFoundError:
+                import ci_native_dev as native
+            expected_harness = github.request(f"repos/{github.repo}/actions/runs/{job['run_id']}")["head_sha"]
+            native.validate_result(cached["native_build"], job, expected_harness,
+                native.sdk.git(root, "rev-parse", job["source"] + "^{tree}"),
+                native.source_inputs_from_git(root, job["source"]), native.sdk.regular(destination / "openmates", native.MAX_BINARY),
+                expected_supervisor=native.sdk.sha(subprocess.check_output(["git", "show", expected_harness + ":scripts/ci_native_supervisor.py"], cwd=root, timeout=15)))
+            return cached
         return attach_visual_evidence(attach_cleanup(cached, job, destination), destination)
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
@@ -734,11 +745,19 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
         labels = set(entry.get("labels", []))
         if dedicated_capacity:
             return {"self-hosted", "Linux", "X64", "openmates-capacity"}.issubset(labels)
+        if job.get("mode") == "rust-native-dev":
+            return "ubuntu-24.04-arm" in labels and "self-hosted" not in labels and entry.get("runner_name", "").startswith("GitHub Actions")
         return "ubuntu-latest" in labels and entry.get("runner_name", "").startswith("GitHub Actions")
     if not runner_jobs or any(not admitted_runner(entry) for entry in runner_jobs):
         raise RuntimeError(
             "Test evidence did not execute exclusively on admitted isolated runners"
         )
+    if job.get("mode") == "rust-native-dev" and job.get("state") == "success":
+        try:
+            from scripts.ci_native_dev import retrieve
+        except ModuleNotFoundError:
+            from ci_native_dev import retrieve
+        return retrieve(root, job, run["head_sha"], destination)
     artifacts = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/artifacts?per_page=100"
     )["artifacts"]
