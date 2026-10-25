@@ -31,11 +31,13 @@ SDK = "packages/openmates-rust"
 STAGES = (
     "rustc-version",
     "cargo-version",
+    "native-fetch",
+    "sdk-fetch",
     "cli-package-list",
     "sdk-package-list",
     "native-build",
 )
-LIMITS = (30, 30, 120, 120, 2100)
+LIMITS = (30, 30, 300, 300, 120, 120, 2100)
 RESERVE = 2 * 1024**3
 MAX_LOG = 32 * 1024**2
 MAX_BINARY = 128 * 1024**2
@@ -227,6 +229,10 @@ def commands(sandbox):
     return [
         [rustc, "--version", "--verbose"],
         [cargo, "--version"],
+        *[
+            [cargo, "fetch", "--locked", "--manifest-path", root + "/Cargo.toml"]
+            for root in (CLI, SDK)
+        ],
         *[
             [
                 cargo,

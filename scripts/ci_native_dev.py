@@ -66,6 +66,7 @@ FAILURES = frozenset(
         "disk",
         "toolchain",
         "package",
+        "fetch",
         "compile",
         "outputs",
         "transport",
@@ -98,6 +99,64 @@ EXTRA = frozenset(
         *("frontend/packages/openmates-cli/src/" + name for name in CATALOG),
     }
 )
+
+
+DIAGNOSTIC_REASONS = frozenset(
+    {
+        "source_commit_mismatch",
+        "source_tree_mismatch",
+        "harness_commit_invalid",
+        "run_id_invalid",
+        "harness_commit_mismatch",
+        "source_not_detached",
+        "native_transport_missing",
+        "native_transport_invalid_json",
+        "event_identity_mismatch",
+        "identity_probe_failed",
+        "transport_rejected",
+        "guard_refused",
+        "operation_failed",
+        "package_command_failed",
+        "package_check_refused",
+        "fetch_command_failed",
+        "fetch_guard_refused",
+    }
+)
+
+
+class ContextRefused(sdk.Refused):
+    pass
+
+
+def context_require(value, reason):
+    sdk.require(reason in DIAGNOSTIC_REASONS, "admission")
+    if not value:
+        raise ContextRefused(reason)
+
+
+def diagnostic(phase, error, *, recipe_stage=None):
+    if isinstance(error, ContextRefused) and str(error) in DIAGNOSTIC_REASONS:
+        reason = str(error)
+    elif phase == "identity":
+        reason = "identity_probe_failed"
+    elif phase == "transport":
+        reason = "transport_rejected"
+    elif phase in {"package", "fetch"}:
+        child_failed = isinstance(error, sdk.Refused) and str(error) == "child_failed"
+        if phase == "package":
+            reason = (
+                "package_command_failed" if child_failed else "package_check_refused"
+            )
+        else:
+            reason = "fetch_command_failed" if child_failed else "fetch_guard_refused"
+    elif isinstance(error, sdk.Refused):
+        reason = "guard_refused"
+    else:
+        reason = "operation_failed"
+    result = {"stage": phase if phase in FAILURES else "unclassified", "reason": reason}
+    if recipe_stage in STAGES:
+        result["recipeStage"] = recipe_stage
+    return result
 
 
 def validate_targets(targets):
@@ -451,7 +510,12 @@ def event_ticket(ambient):
     # build UID exists. Different UID/no-new-privileges also excludes /proc access.
     event = json.loads(sdk.regular(path, 1024**2))
     inputs = event.get("inputs", {})
-    ticket = json.loads(inputs.get("native_dev_transport", "{}"))
+    raw_ticket = inputs.get("native_dev_transport")
+    context_require(raw_ticket not in (None, ""), "native_transport_missing")
+    try:
+        ticket = json.loads(raw_ticket)
+    except (TypeError, ValueError):
+        raise ContextRefused("native_transport_invalid_json") from None
     job = {
         "id": inputs.get("dispatch_token", ""),
         "source": inputs.get("source_commit", ""),
@@ -461,10 +525,10 @@ def event_ticket(ambient):
     }
     # Bind both full queue identity and the independently generated dispatch token.
     job["id"] = ticket.get("job", "")
-    sdk.require(
+    context_require(
         inputs.get("mode") == TARGET
         and inputs.get("source_commit") == ambient.get("BUILD_COMMIT_SHA"),
-        "transport",
+        "event_identity_mismatch",
     )
     validate_ticket(ticket, job, producer=True)
     for item in ticket["objects"].values():
@@ -478,6 +542,10 @@ def _commands(cargo, rustc):
     return [
         [rustc, "--version", "--verbose"],
         [cargo, "--version"],
+        *[
+            [cargo, "fetch", "--locked", "--manifest-path", root + "/Cargo.toml"]
+            for root in ROOTS
+        ],
         *[
             [
                 cargo,
@@ -567,6 +635,7 @@ def run(root, results, *, environ=None):
         "services": {},
         "cleanupVerified": False,
         "sourceHeld": False,
+        "diagnostic": None,
     }
     before = runner = private = sandbox = None
     isolated = False
@@ -598,22 +667,34 @@ def run(root, results, *, environ=None):
             sdk.git(root, "rev-parse", "HEAD^{tree}"),
         )
         harness = ambient.get("CI_HARNESS_COMMIT", "")
-        sdk.require(
-            source == ambient.get("BUILD_COMMIT_SHA")
-            and tree == ambient.get("CI_CANDIDATE_TREE")
-            and re.fullmatch(r"[0-9a-f]{40}", harness)
-            and re.fullmatch(r"[0-9]+", ambient.get("GITHUB_RUN_ID", ""))
-            and sdk.git(Path(__file__).resolve().parent.parent, "rev-parse", "HEAD")
-            == harness
-            and subprocess.run(
+        context_require(
+            source == ambient.get("BUILD_COMMIT_SHA"), "source_commit_mismatch"
+        )
+        context_require(
+            tree == ambient.get("CI_CANDIDATE_TREE"), "source_tree_mismatch"
+        )
+        context_require(
+            re.fullmatch(r"[0-9a-f]{40}", harness), "harness_commit_invalid"
+        )
+        context_require(
+            re.fullmatch(r"[0-9]+", ambient.get("GITHUB_RUN_ID", "")), "run_id_invalid"
+        )
+        context_require(
+            sdk.git(Path(__file__).resolve().parent.parent, "rev-parse", "HEAD")
+            == harness,
+            "harness_commit_mismatch",
+        )
+        context_require(
+            subprocess.run(
                 ["git", "symbolic-ref", "-q", "HEAD"],
                 cwd=root,
                 capture_output=True,
                 timeout=15,
             ).returncode
             == 1,
-            "identity",
+            "source_not_detached",
         )
+        phase = "transport"
         ticket, job = event_ticket(ambient)
         phase = "deadline"
         started, deadline = (
@@ -726,6 +807,8 @@ def run(root, results, *, environ=None):
             phase = (
                 "compile"
                 if stage == "native-build"
+                else "fetch"
+                if stage in {"native-fetch", "sdk-fetch"}
                 else "package"
                 if "package-list" in stage
                 else "toolchain"
@@ -833,9 +916,17 @@ def run(root, results, *, environ=None):
             os.fsync(stream.fileno())
             sdk.require(os.fstat(stream.fileno()).st_nlink == 1, "outputs")
         receipt.update(status="passed", code=None, compileProof=True)
-    except Exception:
+    except Exception as error:
         receipt.update(
-            status="failed", code=phase if phase in FAILURES else "unclassified"
+            status="failed",
+            code=phase if phase in FAILURES else "unclassified",
+            diagnostic=diagnostic(
+                phase,
+                error,
+                recipe_stage=runner.steps[-1].get("stage")
+                if runner and runner.steps
+                else None,
+            ),
         )
     finally:
         if sandbox is not None:
@@ -909,6 +1000,7 @@ def run(root, results, *, environ=None):
                     "publication",
                     "cleanupVerified",
                     "sourceHeld",
+                    "diagnostic",
                 )
             },
         )

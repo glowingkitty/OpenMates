@@ -278,6 +278,112 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
             self.assertIn("scripts/sync_rust_cli_assets.py", imported)
             self.assertEqual(len(imported), 7)
 
+    def test_clean_cargo_cache_is_warmed_by_locked_fetch_before_offline_lists(self):
+        sandbox = Path("/tmp/openmates-native-dev-" + "a" * 32)
+        commands = lane.supervisor.commands(sandbox)
+        toolbin = (
+            sandbox / "rustup/toolchains" / (lane.VERSION + "-" + lane.TRIPLE) / "bin"
+        )
+        self.assertEqual(
+            commands, lane._commands(str(toolbin / "cargo"), str(toolbin / "rustc"))
+        )
+        graphs = {
+            lane.CLI + "/Cargo.toml": {"shared-locked", "cli-locked"},
+            lane.SDK + "/Cargo.toml": {"shared-locked"},
+        }
+
+        def run_clean_recipe(recipe):
+            cached = set()
+            checked = []
+            for stage, command in recipe:
+                if command[1] not in {"fetch", "package"}:
+                    continue
+                manifest = command[command.index("--manifest-path") + 1]
+                self.assertIn("--locked", command)
+                if command[1] == "fetch":
+                    self.assertNotIn("--offline", command)
+                    cached.update(graphs[manifest])
+                else:
+                    self.assertIn("--offline", command)
+                    self.assertIn("--list", command)
+                    if not graphs[manifest].issubset(cached):
+                        raise RuntimeError(stage)
+                    checked.append(stage)
+            return checked
+
+        recipe = list(zip(lane.supervisor.STAGES, commands))
+        legacy = [
+            (stage, command)
+            for stage, command in recipe
+            if not stage.endswith("-fetch")
+        ]
+        with self.assertRaisesRegex(RuntimeError, "cli-package-list"):
+            run_clean_recipe(legacy)
+        self.assertEqual(
+            run_clean_recipe(recipe), ["cli-package-list", "sdk-package-list"]
+        )
+        self.assertEqual(
+            [command[1:] for stage, command in recipe if stage.endswith("-fetch")],
+            [
+                ["fetch", "--locked", "--manifest-path", lane.CLI + "/Cargo.toml"],
+                ["fetch", "--locked", "--manifest-path", lane.SDK + "/Cargo.toml"],
+            ],
+        )
+
+    def test_receipt_requires_both_fixed_locked_fetch_stages(self):
+        receipt, j, inputs, data = fixture()
+        missing = copy.deepcopy(receipt)
+        missing["isolation"]["stages"] = [
+            row for row in missing["isolation"]["stages"] if row["stage"] != "sdk-fetch"
+        ]
+        with self.assertRaises(lane.sdk.Refused):
+            validate(missing, j, inputs, data)
+        unlocked = copy.deepcopy(receipt)
+        row = next(
+            row
+            for row in unlocked["isolation"]["stages"]
+            if row["stage"] == "native-fetch"
+        )
+        row["argv"].remove("--locked")
+        row["argvSha256"] = lane.sdk.sha(
+            json.dumps(row["argv"], separators=(",", ":")).encode()
+        )
+        with self.assertRaises(lane.sdk.Refused):
+            validate(unlocked, j, inputs, data)
+
+    def test_recipe_failure_diagnostics_are_closed_and_do_not_copy_error_text(self):
+        self.assertEqual(
+            lane.diagnostic(
+                "package",
+                lane.sdk.Refused("child_failed"),
+                recipe_stage="cli-package-list",
+            ),
+            {
+                "stage": "package",
+                "reason": "package_command_failed",
+                "recipeStage": "cli-package-list",
+            },
+        )
+        self.assertEqual(
+            lane.diagnostic(
+                "fetch", lane.sdk.Refused("child_failed"), recipe_stage="native-fetch"
+            ),
+            {
+                "stage": "fetch",
+                "reason": "fetch_command_failed",
+                "recipeStage": "native-fetch",
+            },
+        )
+        result = lane.diagnostic(
+            "package",
+            ValueError("https://private-signed-url"),
+            recipe_stage="../../private-path",
+        )
+        self.assertEqual(
+            result, {"stage": "package", "reason": "package_check_refused"}
+        )
+        self.assertNotIn("private", json.dumps(result))
+
     def test_exact_target_and_no_side_capabilities(self):
         lane.validate_request([lane.TARGET])
         for selection in (
@@ -343,6 +449,112 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
         self.assertNotIn("runner", inputs)
         self.assertNotIn("target", inputs)
         self.assertEqual(inputs["source_commit"], j["source"])
+
+    def workflow_context_failure(self, raw_ticket="", *, markers=None, detached=1):
+        # Actual run 40232803248 markers; event capabilities are replaced by inert
+        # empty/invalid fixtures. No source, supplier or privileged work may start.
+        source = "b924ed5c7515b8100808208f74aaebe1590d357f"
+        tree = "3938ed5a85b0a789bc59c02234f918684e93a82a"
+        harness = "1a68dd59ffd4d6cf2a7fa658e4d9fdbc72eaebb8"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "test-results").mkdir()
+            event = root / "event.json"
+            event.write_text(
+                json.dumps(
+                    {
+                        "inputs": {
+                            "mode": lane.TARGET,
+                            "source_commit": source,
+                            "specs_json": '["rust-native-dev"]',
+                            "dispatch_token": "ci-1df043b91abf4dc88f923d08de55e1a4",
+                            "native_dev_transport": raw_ticket,
+                        }
+                    }
+                )
+            )
+            ambient = {
+                "GITHUB_ACTIONS": "true",
+                "RUNNER_ENVIRONMENT": "github-hosted",
+                "RUNNER_ARCH": "ARM64",
+                "OPENMATES_CI_ISOLATED": "1",
+                "CI_SPECS_JSON": '["rust-native-dev"]',
+                "BUILD_COMMIT_SHA": source,
+                "CI_CANDIDATE_TREE": tree,
+                "CI_HARNESS_COMMIT": harness,
+                "GITHUB_RUN_ID": "40232803248",
+                "GITHUB_EVENT_PATH": str(event),
+                **(markers or {}),
+            }
+
+            def git(path, *args):
+                if args == ("rev-parse", "HEAD^{tree}"):
+                    return tree
+                return source if path == root else harness
+
+            with (
+                patch.object(lane.platform, "machine", return_value="aarch64"),
+                patch.object(lane.sdk, "git", side_effect=git),
+                patch.object(
+                    lane.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=detached),
+                ),
+                patch.object(lane, "source_inputs_from_git") as inputs,
+                patch.object(lane, "NativeCommands") as commands,
+                patch.object(lane.transport, "put_file") as upload,
+            ):
+                results = []
+                receipt = lane.run(root, results, environ=ambient)
+            inputs.assert_not_called()
+            commands.assert_not_called()
+            upload.assert_not_called()
+            self.assertFalse(receipt["compileProof"])
+            self.assertEqual(receipt["status"], "failed")
+            self.assertEqual(results[0]["exit_code"], 1)
+            public = json.loads((root / "test-results/ci-native-dev.json").read_text())
+            self.assertEqual(public["diagnostic"], receipt["diagnostic"])
+            self.assertNotIn("native_dev_transport", json.dumps(public))
+            return receipt, event.stat().st_mode & 0o777, public
+
+    def test_actual_workflow_empty_transport_is_attributed_and_stays_closed(self):
+        receipt, mode, _ = self.workflow_context_failure()
+        self.assertEqual(receipt["code"], "transport")
+        self.assertEqual(
+            receipt["diagnostic"],
+            {"stage": "transport", "reason": "native_transport_missing"},
+        )
+        self.assertEqual(mode, 0o600)
+
+    def test_invalid_transport_diagnostics_exclude_raw_input(self):
+        receipt, _, public = self.workflow_context_failure(
+            "private-signed-url-not-json"
+        )
+        self.assertEqual(
+            receipt["diagnostic"],
+            {"stage": "transport", "reason": "native_transport_invalid_json"},
+        )
+        self.assertNotIn("private-signed-url", json.dumps(public))
+        self.assertEqual(
+            lane.diagnostic("transport", ValueError("private-url")),
+            {"stage": "transport", "reason": "transport_rejected"},
+        )
+
+    def test_workflow_identity_predicates_remain_strict_and_attributed(self):
+        for markers, detached, reason in (
+            ({"BUILD_COMMIT_SHA": "0" * 40}, 1, "source_commit_mismatch"),
+            ({"CI_CANDIDATE_TREE": "0" * 40}, 1, "source_tree_mismatch"),
+            ({"CI_HARNESS_COMMIT": "0" * 40}, 1, "harness_commit_mismatch"),
+            ({}, 0, "source_not_detached"),
+        ):
+            with self.subTest(reason=reason):
+                receipt, _, _ = self.workflow_context_failure(
+                    markers=markers, detached=detached
+                )
+                self.assertEqual(receipt["code"], "identity")
+                self.assertEqual(
+                    receipt["diagnostic"], {"stage": "identity", "reason": reason}
+                )
 
     def test_non_arm_runner_fails_before_supplier_or_source_work(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -620,6 +832,11 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
                     )
                     if stage != "rust-toolchain":
                         state["sandbox"] = Path(command[8])
+                    if failure == "package-command" and stage == "cli-package-list":
+                        self.steps[-1].update(
+                            status="failed", returncode=1, terminatedReturncode=1
+                        )
+                        raise lane.sdk.Refused("child_failed")
                     text = ""
                     if stage == "rustc-version":
                         text = (
@@ -740,6 +957,18 @@ print(json.dumps(sorted({str(pathlib.Path(module.__file__).resolve().relative_to
 
     def test_mocked_producer_exports_only_after_uid_and_sandbox_removal(self):
         self.producer_fixture()
+
+    def test_package_command_failure_retains_only_closed_stage_without_upload(self):
+        receipt, uploads = self.producer_fixture("package-command")
+        self.assertEqual(uploads, [])
+        self.assertEqual(
+            receipt["diagnostic"],
+            {
+                "stage": "package",
+                "reason": "package_command_failed",
+                "recipeStage": "cli-package-list",
+            },
+        )
 
     def test_detached_setsid_descendant_prevents_proof_and_upload(self):
         self.producer_fixture("detached-setsid")
