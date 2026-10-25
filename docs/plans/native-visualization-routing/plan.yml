@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: native-visualization-routing
 title: Reliable native visualization instructions and explicit-only Mermaid source
-status: implementing
+status: verified
 goal: >-
   we do not want to see any Mermaid code whatsoever unless explicitly mentioned
   by the user asking for Mermaid code. But otherwise the default must be to use
@@ -89,10 +89,10 @@ investigation:
   unresolved:
     - >-
       Whether a particular relevant private preference existed and was eligible
-      at the incident revision remains unverified. Current CLI memory listing
-      stops with Personal memory owner changed during preparation, including
-      explicit Personal scope. Preserve that owner check; its present failure
-      is not evidence of the historical browser request's failure.
+      at the incident revision remains unverified. The original global CLI profile
+      rejected Memory listing with Personal memory owner changed during preparation.
+      A fresh isolated Personal login later passed owner validation. Preserve
+      that owner check; neither result establishes the historical preference set.
     - >-
       The records prove omitted guidance and unchecked output. They do not prove
       whether any single catalogue description, classifier score, or model
@@ -249,7 +249,71 @@ completion_conditions:
   - When a visual is generated in the required regression cases it follows the existing native format, unless Mermaid source was explicitly requested.
   - Private Memory access and encrypted history remain source-scoped, consented and intact; receipts describe what was actually applied.
   - Required focused checks pass, with isolated CI evidence and the bounded default-routing dev evaluation recorded separately.
+verification_results:
+  focused_backend:
+    status: passed
+    evidence: >-
+      113 focused preprocessing, guide, Memory-consent, instruction and Jev-budget
+      cases passed together. Two additional native-map fixture cases were then
+      added; all 15 cases in the final affected fixture suite passed. Python and
+      browser-test lint, candidate syntax and Specification metadata checks passed.
+  isolated_browser:
+    status: passed
+    source: 718a33fd833f7df46cf80600adfd0b7f461920c2
+    run_id: '40196827211'
+    request_id: 0cc28d68ee5e149df7f15c86e75053b5d707907fc87f6e156bfa1b39cfebe044
+    evidence: >-
+      Both diagram-html-editing.spec.ts cases passed, with no skips or flakes.
+      Verified complete public-guide prompt inclusion, optional prose, generated
+      native diagram editing/history, native mind-map preview/fullscreen/reload,
+      and explicitly requested Mermaid as ordinary source. Cleanup left zero
+      containers and volumes and removed both temporary account identities.
+    test_repairs: >-
+      Updated preview actions to the existing result-preview-expand UI contract.
+      Reused and extended closeFullscreen with an optional chat-route readiness
+      condition before reload, preserving all rendering and persistence assertions.
+  dev_runtime:
+    status: passed
+    commit: 373e0d7547d3cf1d6b18d420447c03d970e75430
+    restart_operation: docker-5f96d086
+    evidence: >-
+      Managed dev deployment preserved concurrent source changes. The coordinator
+      refreshed shared source/translation mount consumers and confirmed healthy
+      services. API and both AI workers matched the deployed production-file hashes.
+  real_inference:
+    status: passed
+    cases: 6
+    routing: Existing automatic defaults; no model/provider, account or per-chat override.
+    evidence: >-
+      Replayed both original user prompts unchanged in a fresh isolated Personal
+      dev chat; the first assistant answer was generated anew. Both turns loaded
+      Mind Maps and Diagram Design instructions, and applied public Architecture
+      and Process guides appeared in encrypted Memory receipts. Neither response
+      contained Mermaid; the model chose text sketches. A separate control chat
+      passed process prose-only, short follow-up, explicit native mind-map and
+      explicit Mermaid-source cases. Only the explicit source request produced
+      Mermaid. Saved generated artifacts and nested source were inspected.
+    native_map_control_validation: >-
+      The real model generated a native mindmap with 17 rendered nodes. Its
+      validation status was partial: four cross-links lacked source fields and
+      were rejected with visible validation warnings. This is a generation-quality
+      limitation, not a clean-schema pass; existing partial-map recovery preserved
+      the valid tree. Improving cross-link generation is separate from this
+      discussion-based guidance-loading repair.
+    privacy: >-
+      The reported chat was preserved. Test CLI state, response exports, structural
+      logs and real terminal recordings remain private; no account/chat IDs or
+      original message bodies were added to the repository. Test chats were linked
+      to the isolated Project after inference, avoiding forced Project Focus.
+  inherited_checks:
+    status: unchanged_failure
+    evidence: >-
+      Two legacy test_preprocessing_prompt_budget.py assertions still fail on
+      unchanged base source: the fallback schema is 8944 serialized characters
+      against a 7000 limit, and handle_preprocessing has zero direct legacy
+      call_preprocessing_llm sites against an expectation of one. Current Jev
+      budget checks passed; unrelated fallback-prompt repair was not undertaken.
 delivery:
   authorization: User approved implementation and repeating the original request on 2026-10-25.
-  current_scope: Implementing the clarified guidance-loading repair and focused verification.
-  next_step: Complete isolated CI, scoped dev deployment and default-routing replay of the original request.
+  current_scope: Clarified guidance-loading repair deployed and verified; investigation and implementation Tasks own lifecycle status.
+  evidence: Latest successful browser and real CLI recordings are retained through the existing private evidence transport.
