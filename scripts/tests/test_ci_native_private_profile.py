@@ -94,6 +94,10 @@ def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(g
     assert runtime.PRIVATE_BACKEND_SPECS == set(PRIVATE_SPECS)
     assert profile["networks"] == {"default": {"internal": True}, "ingress": {}}
     services = profile["services"]
+    # Match the unchanged native keyring private-core admission guard while
+    # preserving absence of every inference/mail/storage fixture below.
+    assert services["api"]["environment"]["CI"] == "true"
+    assert services["api"]["environment"]["OPENMATES_CI_ISOLATED"] == "1"
     assert not {"ai-worker", "mailpit", "object-storage", "uploads"}.intersection(services)
     assert "ports" not in services["api"] and "ports" not in services["cms"]
     gateway = services["runner-gateway"]
@@ -137,6 +141,8 @@ def test_private_backend_option_does_not_change_unselected_or_weather_profiles()
     assert "runner-gateway" not in ordinary["services"]
     assert ordinary["services"]["api"]["ports"] == ["8000:8000"]
     assert ordinary["services"]["cms"]["ports"] == ["8055:8055"]
+    assert "OPENMATES_CI_ISOLATED" not in ordinary["services"]["api"]["environment"]
+    assert "CI" not in ordinary["services"]["api"]["environment"]
     with pytest.raises(ValueError, match="separate batch"):
         runtime.compose_profile(SOURCE_HASH, private_backend=True, workflows=True)
 

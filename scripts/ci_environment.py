@@ -734,6 +734,11 @@ def compose_profile(
         "E2E_TEST_PROD_ENABLED": "false",
         "CELERY_AUTOSCALE_MAX": "1",
     }
+    if private_backend:
+        # The exact trusted private-backend selector admits this isolated
+        # no-inference profile. Native runtime guards require these markers;
+        # no AI/mail/storage/provider replay fixture is enabled by them.
+        common.update(CI="true", OPENMATES_CI_ISOLATED="1")
     if mail_capture:
         common.update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1",
