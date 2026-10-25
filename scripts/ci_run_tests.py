@@ -28,6 +28,7 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from ci_voice_recovery_epoch import VOICE_RECOVERY_SPEC, activate_isolated_voice_recovery_epoch
 from ci_web_performance import PERFORMANCE_SPECS, collect as collect_web_performance, performance_environment
 from ci_web_search_diagnostics import capture_scope as web_search_capture_scope
 
@@ -1443,6 +1444,7 @@ def run_e2e(
                 return results
             capacity_epoch_receipt = None
             marker_chat_epoch_receipt = None
+            voice_chat_epoch_receipt = None
             identity_index = 0
             for index, name in enumerate(specs):
                 account_slots = browser_account_slots(name)
@@ -1500,6 +1502,12 @@ def run_e2e(
                         if marker_chat_epoch_receipt is None:
                             marker_chat_epoch_receipt = activate_isolated_marker_chat_epoch(name)
                         recovery_epoch_receipt = marker_chat_epoch_receipt
+                    if name == VOICE_RECOVERY_SPEC:
+                        if voice_chat_epoch_receipt is None:
+                            voice_chat_epoch_receipt = activate_isolated_voice_recovery_epoch(
+                                name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                            )
+                        recovery_epoch_receipt = voice_chat_epoch_receipt
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(

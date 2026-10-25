@@ -520,7 +520,7 @@
     },
     "ai_committed_fixtures": {
       "execution": "e2e",
-      "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
+      "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed. Voice-call fixtures activate canonical recovery epoch 1 only in the exact isolated full-storage voice profile before browser execution.",
       "specs": [
         "ai-response-language.spec.ts",
         "apps-workspace.spec.ts",
