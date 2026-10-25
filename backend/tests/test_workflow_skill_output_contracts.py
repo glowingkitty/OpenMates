@@ -9,10 +9,12 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+import yaml
 from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_app_skill_adapter import _normalize_skill_output
 from backend.core.api.app.services.workflow_capability_registry import (
+    WORKFLOW_CLASSIFICATION_FILE,
     WorkflowCapabilityRegistry,
     _FilesystemWorkflowMetadataRegistry,
 )
@@ -188,6 +190,19 @@ _SKILL_FIXTURES: tuple[
 
 def _declared_schema(capability_id: str) -> dict[str, Any]:
     capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(capability_id)
+    if capability_id in {"events.search", "travel.get_flight", "openmates.get-docs"}:
+        # Paused execution must not retire the schema of already-saved results.
+        assert not capability.enabled
+        assert capability.reason == "WORKFLOW_SKILL_NOT_REGISTERED"
+        if capability_id == "events.search":
+            source = _FilesystemWorkflowMetadataRegistry().get_metadata("events")
+            skill = next(item for item in source["skills"] if item["id"] == "search")
+            schema = skill["workflow"]["output_schema"]
+        else:
+            classifications = yaml.safe_load(WORKFLOW_CLASSIFICATION_FILE.read_text())["capabilities"]
+            schema = classifications[capability_id]["output_schema"]
+        assert isinstance(schema, dict)
+        return schema
     if capability_id == "openmates.share-usecase":
         # The approval:always skill has no per-run approval path in the runtime.
         # Its response contract remains useful to check while it is excluded.
@@ -250,15 +265,15 @@ def test_skill_output_values_match_declared_schema_and_preserve_useful_data(
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
-def test_historical_read_results_remain_readable_without_an_executable_workflow_reader() -> None:
+def test_historical_read_results_remain_readable_with_restored_workflow_reader() -> None:
     from backend.apps.web.skills.read_skill import ReadResponse
 
     capability_id, skill_request, raw, expected = next(
         fixture for fixture in _SKILL_FIXTURES if fixture[0] == "web.read"
     )
     capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(capability_id)
-    assert not capability.enabled
-    assert capability.reason == "WORKFLOW_SKILL_NOT_REGISTERED"
+    assert capability.enabled is True
+    assert capability.reason is None
     stored = ReadResponse.model_validate(raw)
     assert stored.results == raw["results"]
     output = _normalize_skill_output("web", "read", skill_request, raw)
@@ -269,6 +284,9 @@ def test_historical_read_results_remain_readable_without_an_executable_workflow_
     assert "First page text." in output["text"]
     assert "Second page text." in output["text"]
     assert [page["markdown"] for page in output["results"]] == ["First page text.", "Second page text."]
+    schema = capability.metadata["output_schema"]
+    errors = list(Draft202012Validator(schema).iter_errors(output))
+    assert not errors, "Historical read output must retain the restored reader's result schema"
 
 
 @pytest.mark.parametrize(

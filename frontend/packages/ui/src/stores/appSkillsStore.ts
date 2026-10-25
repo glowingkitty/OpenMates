@@ -23,10 +23,11 @@
 // to hide restricted skills AND their provider icons from unauthorized users.
 
 import { appsMetadata } from '../data/appsMetadata';
+import { CONTENT_EMBED_CATALOG } from '../data/embedRegistry.generated';
 import type { AppMetadata } from '../types/apps';
 import { appHealthStore, getAppHealthStatus } from './appHealthStore';
 import type { AppHealthStatusValue } from './appHealthStore';
-import { get, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 
 interface FeatureAvailabilityState {
     disabledById: Record<string, true> | null;
@@ -386,3 +387,34 @@ class AppSkillsStore {
 
 // Export singleton instance
 export const appSkillsStore = new AppSkillsStore();
+
+
+// Only explicitly enabled, directly authored content qualifies; result renderers do not.
+const CONTENT_CREATION_APPS = new Set(CONTENT_EMBED_CATALOG.filter(item => item.source === 'self').map(item => item.appId));
+const INTERNAL_DISCOVERY_APPS = new Set(['openmates', 'plans', 'projects', 'tasks', 'workflows']);
+
+/** Discovery is a projection: memory schemas and historical metadata stay in the raw store. */
+export function selectDiscoverableApps(
+    apps: Record<string, AppMetadata>,
+    runtimeApps: Record<string, AppMetadata> | null = null,
+): Record<string, AppMetadata> {
+    return Object.fromEntries(Object.entries(apps).flatMap(([id, app]) => {
+        if (INTERNAL_DISCOVERY_APPS.has(id) || app.internal || (runtimeApps && !runtimeApps[id])) return [];
+        const runtime = runtimeApps?.[id];
+        const focuses = runtime
+            ? (app.focus_modes ?? []).filter(focus => (runtime.focus_modes ?? []).some(active => active.id === focus.id))
+            : app.focus_modes ?? [];
+        const skills = runtime
+            ? (app.skills ?? []).filter(skill => (runtime.skills ?? []).some(active => active.id === skill.id))
+            : app.skills ?? [];
+        if (!skills.length && !focuses.length && !CONTENT_CREATION_APPS.has(id)) return [];
+        return [[id, { ...app, skills, focus_modes: focuses }]];
+    }));
+}
+
+/** Recompute discovery after feature, user/runtime availability, or health changes. */
+export const discoverableApps = derived(
+    [featureAvailabilityStore, userAvailableSkillsStore, appHealthStore],
+    ([, user]) => selectDiscoverableApps(appSkillsStore.getState().apps,
+        user.initialized && user.skillsByApp !== null ? user.appsById : null),
+);

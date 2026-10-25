@@ -200,8 +200,9 @@ def build_skill_registry(
             failed_apps.append(app_id)
             continue
 
-        # Phased SKILL.md definitions are authoritative for their focus only.
-        # Legacy modes keep their existing translation-backed runtime behavior.
+        # Phased definitions stay authoritative. For legacy modes, merge only
+        # real authored instruction fields, preserving unrelated permissions,
+        # lifecycle/default flags, names and user-facing metadata.
         from backend.shared.python_utils.focus_mode_skill_loader import load_focus_mode_from_skill_md
         from pathlib import Path
         for source in sorted(Path(app_dir).glob("focus_modes/*/SKILL.md")):
@@ -210,6 +211,22 @@ def build_skill_registry(
                 focuses = raw_config.setdefault("focuses", [])
                 focuses[:] = [item for item in focuses if item.get("id") != focus["id"]]
                 focuses.append(focus)
+            else:
+                instruction_fields = {
+                    key: focus[key] for key in ("system_prompt", "process", "how_to_use",
+                                                "systemprompt_translation_key", "process_translation_key")
+                    if focus.get(key)
+                }
+                if instruction_fields:
+                    focuses = raw_config.setdefault("focuses", [])
+                    existing = next((item for item in focuses if item.get("id") == focus["id"]), None)
+                    if existing is None:
+                        focuses.append(focus)
+                    else:
+                        # Pydantic's legacy alias must not shadow canonical text.
+                        if "system_prompt" in instruction_fields:
+                            existing.pop("systemprompt", None)
+                        existing.update(instruction_fields)
         raw_configs[app_id] = raw_config
         feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
 

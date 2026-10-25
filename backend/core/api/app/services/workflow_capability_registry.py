@@ -425,6 +425,7 @@ class _FilesystemWorkflowMetadataRegistry:
         return any(
             isinstance(skill, dict)
             and skill.get("id") == skill_id
+            and skill.get("default_enabled") is not False
             and isinstance(skill.get("class_path"), str)
             and bool(skill.get("class_path", "").strip())
             and skill_has_provider_support(skill)

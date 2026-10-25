@@ -9,6 +9,7 @@ export const unavailableSkills = [
   ['electronics', 'search_components'], ['home', 'search'],
   ['hosting', 'search_domains'], ['business', 'search_trademarks'],
   ['travel', 'search_connections'], ['travel', 'search_stays'], ['models3d', 'search'],
+  ['events', 'search'], ['travel', 'get_flight'],
 ] as const;
 
 export function apiTarget() {
@@ -41,7 +42,7 @@ export async function expectHistoricalCard(page: import('@playwright/test').Page
 
 export function registerUnavailableSkillCoverage(app: string, skill: string, preview?: string) {
   // contract-test: supporting surface=rest_api assertions=app-skills.providers.unavailable-no-network
-  test(`${app}.${skill} rejects direct execution while no permitted source exists`, async ({ request }) => {
+  test(`${app}.${skill} rejects direct execution while unavailable`, async ({ request }) => {
     await expectUnavailableSkill(request, app, skill);
   });
   if (preview) {

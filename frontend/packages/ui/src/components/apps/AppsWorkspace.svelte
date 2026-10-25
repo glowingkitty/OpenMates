@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
   import { text } from '../../i18n/translations';
-  import { appSkillsStore, featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
+  import { discoverableApps, initializeFeatureAvailability, initializeUserAvailableSkills } from '../../stores/appSkillsStore';
   import { authStore } from '../../stores/authStore';
   import { userProfile } from '../../stores/userProfile';
   import { activeTeamContext } from '../../stores/teamStore';
@@ -40,7 +40,7 @@
   } = $props();
   const tr = (key: string) => $text('apps_workspace.' + key);
   const route = $derived(readAppsWorkspaceRoute(hash));
-  const apps = $derived.by(() => { void $featureAvailabilityStore; return appSkillsStore.getState().apps; });
+  const apps = $derived($discoverableApps);
   const appId = $derived(route?.appId ? resolveAppsAppId(route.appId, Object.keys(apps)) : null);
   const app = $derived(appId ? apps[appId] : undefined);
   const appName = $derived(app?.name_translation_key ? $text(app.name_translation_key) : app?.name ?? '');
@@ -175,6 +175,7 @@
   });
   onMount(() => {
     void initializeFeatureAvailability();
+    void initializeUserAvailableSkills();
     const refresh = () => { now = Date.now(); if (appId) void loadLibrary(appId, accountKey); };
     const timer = setInterval(() => { now = Date.now(); }, 30000);
     const visible = () => { if (document.visibilityState === 'visible') refresh(); };
@@ -323,7 +324,7 @@
   <div class="workspace-main">
     <WorkspaceHomeShell surface="apps" heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems}
       actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" allItemTestId="apps-all-item"
-      showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')}
+      fixedAppCatalogCards showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')}
       showReportIssue showComposer={false} showAllLabel={tr('show_all')} backLabel={tr('back_to_recent')} searchLabel={$text('common.search')}
       onShowAll={showAllApps} onSearchAll={() => { catalogSearchOpen = true; if (!route?.showAll) onNavigate('#apps/all'); }}
       onBackToRecent={() => onNavigate('#apps')} onAllItem={item => onNavigate(buildAppsWorkspaceHash('apps/' + item.id))}

@@ -27,6 +27,7 @@
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
     import FocusModePhases from "./FocusModePhases.svelte";
+    import { resolveFocusInstructions } from "./focusModeInstructions";
     import ChatPreviewCard from './ChatPreviewCard.svelte';
     import { getExampleChatsForFocusMode } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
@@ -97,42 +98,11 @@
         return escaped.replace(/\*\*(.+?)\*\*/g, '<span class="highlight-word">$1</span>');
     }
     
-    /**
-     * System prompt text shown when this focus mode is activated.
-     * Either the literal system_prompt or the resolved system_prompt_translation_key.
-     */
-    let focusModeSystemPrompt = $derived(
-        focusMode?.system_prompt
-            ? focusMode.system_prompt
-            : focusMode?.system_prompt_translation_key
-                ? $text(focusMode.system_prompt_translation_key)
-                : ''
-    );
-
-    /**
-     * Bullet-point process summary.
-     * Resolved from process_translation_key — each line starting with "- " is a bullet.
-     * Falls back to empty string if not defined.
-     */
-    let focusModeProcess = $derived(
-        focusMode?.process_translation_key
-            ? $text(focusMode.process_translation_key)
-            : ''
-    );
-
-    /**
-     * Parse the process text into individual bullet point strings.
-     * Filters lines that start with "- " and strips the leading dash.
-     */
-    let processBullets = $derived(
-        focusModeProcess
-            ? focusModeProcess
-                .split('\n')
-                .map((line: string) => line.trim())
-                .filter((line: string) => line.startsWith('- '))
-                .map((line: string) => line.slice(2).trim())
-            : []
-    );
+    // Resolve localized instructions first and reject missing-key placeholders.
+    // Modes without authored instructions retain the existing localized empty state.
+    let instructionContent = $derived(resolveFocusInstructions(focusMode, $text));
+    let focusModeSystemPrompt = $derived(instructionContent.systemPrompt);
+    let processBullets = $derived(instructionContent.processBullets);
 
     let chatExamples = $derived(getExampleChatsForFocusMode(appId, focusModeId));
 
@@ -140,7 +110,7 @@
      * Whether the instructions section has any content to show:
      * either process bullets or a system prompt.
      */
-    let hasInstructions = $derived(processBullets.length > 0 || focusModeSystemPrompt.length > 0);
+    let hasInstructions = $derived(instructionContent.hasInstructions);
 
     /**
      * Whether the full system prompt is currently expanded.
@@ -334,7 +304,7 @@
                             : $text('settings.app_store.focus_modes.show_full_instruction')}</button>
                 {/if}
             {:else}
-                <div class="no-instructions">
+                <div class="no-instructions" data-testid="focus-no-instructions">
                     <p>{$text('settings.app_store.focus_modes.no_system_prompt')}</p>
                 </div>
             {/if}

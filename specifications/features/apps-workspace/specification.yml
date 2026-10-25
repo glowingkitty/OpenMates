@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.apps-workspace
-version: 4
+version: 5
 status: draft
 title: Apps Workspace
 summary: First-party web and interactive TUI Apps workspaces interpret natural-language requests, execute supported
@@ -91,22 +91,29 @@ models:
 assertions:
 - id: apps.discovery.public-catalog
   type: behavior
-  must: Apps is accessible beside the existing workspaces on desktop and mobile, including before login. The workspace
+  must: 'Apps is accessible beside the existing workspaces on desktop and mobile, including before login. The workspace
     replaces the user-facing Apps section in Settings and exposes app, skill, focus-mode, and settings-and-memory
-    details from the catalog. Internal skills remain hidden, and discovery never presents an unavailable skill
-    as executable.
+    details from the catalog. The workspace and any compatible Settings Apps catalog share one discovery policy:
+    an app requires at least one currently available skill, enabled focus mode, or enabled self-owned direct content-creation
+    entry declared in the content catalog, after feature, provider and user checks. Working direct creators such
+    as Docs, Mindmaps, Diagrams and electronic schematic creation remain discoverable. Memories, saved data, instruction
+    stubs and render-only or disabled skill-result types do not qualify an otherwise empty app for these catalogs.
+    OpenMates, Plans, Projects, Tasks and Workflows never appear as app entries in either catalog, even if their
+    platform features are enabled. Changes to effective availability update lists, recent cards and discovery details
+    without reload. Raw definitions, authorized memories, saved results and historical renderers remain available
+    through their existing non-discovery paths. Internal and disabled skills remain hidden, and discovery never
+    presents an unavailable skill as executable.'
   depends_on:
   - examples.discovery
 - id: apps.navigation.hash-and-forwarding
   type: behavior
   must: Apps navigation uses shareable hash URLs such as /#apps/health/search-appointments. Equivalent /apps paths
     and existing Settings app-detail links forward to the corresponding Apps view, including skills, focus modes,
-    and memories. Reload, direct entry, Back and Forward preserve the intended view; URL slugs resolve to the
-    correct backend skill identifier. When an app, skill, focus-mode or memory detail is opened from another page
-    or chat, its top-right close control returns to that originating view. Browsing inside the opened Apps view
-    retains that return destination. With no recorded origin, direct entry closes to the containing app or Apps
-    home. Selecting a chat's active focus label opens its Apps focus-mode detail directly, and closing it restores
-    that chat.
+    and memories. Reload, direct entry, Back and Forward preserve the intended view; URL slugs resolve to the correct
+    backend skill identifier. When an app, skill, focus-mode or memory detail is opened from another page or chat,
+    its top-right close control returns to that originating view. Browsing inside the opened Apps view retains that
+    return destination. With no recorded origin, direct entry closes to the containing app or Apps home. Selecting
+    a chat's active focus label opens its Apps focus-mode detail directly, and closing it restores that chat.
   depends_on:
   - examples.origin_navigation
 - id: apps.forms.metadata-driven
@@ -120,21 +127,20 @@ assertions:
   - examples.forms
 - id: apps.execution.direct-shared-contract
   type: invariant
-  must: Direct use executes the selected skill through the existing supported skill execution contract without
-    creating an AI conversation or running chat orchestration. Authentication, active-account authorization, pricing,
-    billing, provider validation, result safety, asynchronous ownership, and safe errors remain equivalent to
-    the existing supported direct endpoints. Invalid or unavailable actions do not dispatch provider work, and
-    an accidental repeat submission does not duplicate the same operation.
+  must: Direct use executes the selected skill through the existing supported skill execution contract without creating
+    an AI conversation or running chat orchestration. Authentication, active-account authorization, pricing, billing,
+    provider validation, result safety, asynchronous ownership, and safe errors remain equivalent to the existing
+    supported direct endpoints. Invalid or unavailable actions do not dispatch provider work, and an accidental
+    repeat submission does not duplicate the same operation.
   depends_on:
   - examples.execution
 - id: apps.results.web-retained-graph
   type: privacy
-  must: Each request actually dispatched from authenticated web or interactive TUI Apps retains one encrypted
-    parent embed and its returned child embeds in the account context that submitted it. Existing generation embeds
-    are reused rather than duplicated. Results reopen after leaving the composer or reloading, and processing,
-    completion and failure states remain truthful. Retention requires no chat and exposes no plaintext result
-    content or keys in permanent server storage. Noninteractive CLI commands retain their existing temporary-history
-    behavior.
+  must: Each request actually dispatched from authenticated web or interactive TUI Apps retains one encrypted parent
+    embed and its returned child embeds in the account context that submitted it. Existing generation embeds are
+    reused rather than duplicated. Results reopen after leaving the composer or reloading, and processing, completion
+    and failure states remain truthful. Retention requires no chat and exposes no plaintext result content or keys
+    in permanent server storage. Noninteractive CLI commands retain their existing temporary-history behavior.
   depends_on:
   - models.AppsRequestResult
   - examples.web_retention
@@ -148,26 +154,26 @@ assertions:
   - examples.cli_retention
 - id: apps.library.embeds-account-paginated
   type: security
-  must: The fullscreen Embeds tab, identified by the Files icon, lists saved embeds related to the app across
-    its skills and origins, with bounded pagination instead of loading the complete library. App and skill views
-    use the active Personal or Team account, preserve existing roles and key access, and never mix another account's
+  must: The fullscreen Embeds tab, identified by the Files icon, lists saved embeds related to the app across its
+    skills and origins, with bounded pagination instead of loading the complete library. App and skill views use
+    the active Personal or Team account, preserve existing roles and key access, and never mix another account's
     items. Switching account clears stale rows and cursors before showing the new account's results.
   depends_on:
   - examples.embed_library
 - id: apps.library.workflows-account-related
   type: security
-  must: The fullscreen Workflows tab lists saved workflows that use the app, including workflows that have not
-    yet run. Results follow the active Personal or Team account and existing workflow permissions. A workflow
-    using several skills from the app appears once, and unrelated or other-account workflows do not appear.
+  must: The fullscreen Workflows tab lists saved workflows that use the app, including workflows that have not yet
+    run. Results follow the active Personal or Team account and existing workflow permissions. A workflow using
+    several skills from the app appears once, and unrelated or other-account workflows do not appear.
   depends_on:
   - examples.workflow_library
 - id: apps.anonymous.cli-equivalent-gate
   type: security
-  must: Guests can execute only the same quick, account-free, final-in-request skills allowed by anonymous CLI
-    execution, and only when the existing identity and shared free-use limits can cover the request. Background
-    jobs, file generation, and account-dependent skills remain authentication-only. When free use or skill eligibility
-    is unavailable, the UI shows Signup before submission and sends no skill-execution request; the server still
-    enforces eligibility and atomic budget admission when availability changes concurrently.
+  must: Guests can execute only the same quick, account-free, final-in-request skills allowed by anonymous CLI execution,
+    and only when the existing identity and shared free-use limits can cover the request. Background jobs, file
+    generation, and account-dependent skills remain authentication-only. When free use or skill eligibility is unavailable,
+    the UI shows Signup before submission and sends no skill-execution request; the server still enforces eligibility
+    and atomic budget admission when availability changes concurrently.
   depends_on:
   - examples.anonymous_gate
 - id: apps.anonymous.local-results-and-promotion
@@ -175,8 +181,8 @@ assertions:
   must: Each eligible guest first-party Apps request creates a device-local encrypted parent and child embed graph
     without permanent anonymous content records on the server. On signup, those results are adopted into the new
     Personal account using the existing anonymous-content key-wrapping and promotion guarantees, without rerunning
-    provider work or losing child relationships. Interrupted or repeated promotion cannot duplicate the result
-    graph or clear the only copy before account persistence succeeds.
+    provider work or losing child relationships. Interrupted or repeated promotion cannot duplicate the result graph
+    or clear the only copy before account persistence succeeds.
   depends_on:
   - models.AppsRequestResult
   - examples.anonymous_retention
@@ -187,39 +193,41 @@ assertions:
     when none are saved, and real example chats when no saved or recent items exist. A user can still reach every
     available skill directly. Metadata, providers, pricing and recent-use order are truthful and follow the active
     account. Public example links open the real chat ID without prefill or sending. Synthetic fallback examples
-    are absent. Apple retains its existing shared detail shell, valid capability tabs and Use skill behavior.
-    Focus-mode, memory and account-scoped library permissions remain unchanged.
+    are absent. Apple retains its existing shared detail shell, valid capability tabs and Use skill behavior. Focus-mode,
+    memory and account-scoped library permissions remain unchanged. Web Apps Show All cards use the same width constraint
+    as Settings app cards; a wider catalog never stretches a card, while narrow viewports contain cards and controls
+    without horizontal clipping. Other workspace card layouts retain their own presentation.
   depends_on:
   - examples.presentation
+  - examples.catalog_card_width
 - id: apps.requests.natural-language
   type: behavior
   must: Web and interactive TUI replace parameter forms with an app-scoped natural-language composer and a follow-up
     composer below results. A dedicated interpretation flow selects one catalog skill or hands unclear, research-oriented
     or multiple independent requests to ordinary chat; explicit recurring automation goes to workflow creation.
-    Bounded Jev decisions choose the skill and enum values while Mercury 3 extracts free values independently
-    of chat processors. Required values must be grounded in the request or applicable previous input and validated
+    Bounded Jev decisions choose the skill and enum values while Mercury 3 extracts free values independently of
+    chat processors. Required values must be grounded in the request or applicable previous input and validated
     against the authoritative skill schema; missing or invalid values hand off without direct execution. Follow-ups
     can modify the prior operation, start a new search, open chat with readable result context or create a workflow.
     Existing direct endpoints retain authorization, pricing and safety, and interpretation adds no customer surcharge
     or ordinary chat model override. Existing client PII settings apply before exposing request text, previous-input
     and result text, or relevance-candidate text to models. Replacement maps stay on the client; accepted native
     arguments are restored locally and validated before dispatch. Opaque identifiers and upload capabilities keep
-    their ownership meaning, while credentials and replacement maps are excluded from model-visible state.
-    Referenced, bounded image assets can inform Jev skill and enum decisions
-    across apps without sending image bytes to text-only extraction or inventing image-only free values. Supported
-    uploaded audio can use the existing authenticated encrypted-upload transcription endpoint with exact file
-    references and normal transcription pricing; unsupported files or file-bearing workflow requests hand off
-    with their original attachments intact. Guest uploads remain unavailable. Image-guided result relevance uses
-    bounded Jev judgments to reorder only existing result IDs, preserving original ordering for ties or unavailable
-    evidence without inventing result cards or adding a customer fee.
+    their ownership meaning, while credentials and replacement maps are excluded from model-visible state. Referenced,
+    bounded image assets can inform Jev skill and enum decisions across apps without sending image bytes to text-only
+    extraction or inventing image-only free values. Supported uploaded audio can use the existing authenticated
+    encrypted-upload transcription endpoint with exact file references and normal transcription pricing; unsupported
+    files or file-bearing workflow requests hand off with their original attachments intact. Guest uploads remain
+    unavailable. Image-guided result relevance uses bounded Jev judgments to reorder only existing result IDs, preserving
+    original ordering for ties or unavailable evidence without inventing result cards or adding a customer fee.
   depends_on:
   - examples.natural_language
 - id: apps.results.shared-fullscreen
   type: behavior
-  must: Web Apps result previews open the same shared fullscreen components as chat embeds, with the original
-    parent-and-child result graph and readable child details. Common search, map and media fullscreens accept
-    an optional follow-up composer below results without a separate Apps-specific result layout. Closing a child
-    restores its parent and closing the result restores the originating app.
+  must: Web Apps result previews open the same shared fullscreen components as chat embeds, with the original parent-and-child
+    result graph and readable child details. Common search, map and media fullscreens accept an optional follow-up
+    composer below results without a separate Apps-specific result layout. Closing a child restores its parent and
+    closing the result restores the originating app.
   depends_on:
   - examples.shared_fullscreen
 - id: apps.recommendations.private-daily
@@ -240,11 +248,11 @@ assertions:
     Code, News, Videos and 3D Models skill contracts, funded by OpenMates without charging a person or Team. Queries
     and results contain no account personalization or private saved-search content. The public GET endpoint only
     reads the current shared batch, available for at most 24 hours; viewing it never triggers provider work. Public
-    Videos may reuse factual external media metadata from already-published Daily Inspiration defaults. Public
-    searches remain separate from private daily searches, their account-scoped results and ordinary user or Team
-    billing. Health, Jobs, Home, Fitness and Weather receive no public daily recommendations. Existing real
-    public example-chat fallbacks remain available and open their real chat IDs without inventing conversations
-    or dispatching a search when opened. Logged-out browsing and localized introductory actions remain available.
+    Videos may reuse factual external media metadata from already-published Daily Inspiration defaults. Public searches
+    remain separate from private daily searches, their account-scoped results and ordinary user or Team billing.
+    Health, Jobs, Home, Fitness and Weather receive no public daily recommendations. Existing real public example-chat
+    fallbacks remain available and open their real chat IDs without inventing conversations or dispatching a search
+    when opened. Logged-out browsing and localized introductory actions remain available.
   depends_on:
   - examples.public_daily
 - id: apps.tui.child-previews
@@ -304,7 +312,7 @@ examples:
   - public_daily
   - tui_children
 approval_source:
-  instruction: The user explicitly authorized implementation after five clarifying questions in this Codex chat
-    on 2026-10-20, including TUI scope, shared chat fullscreens, natural-language requests, sidebar/library fallback
-    and default paid daily latest-saved-search reruns. Existing explicit authorization governs this update; no
-    new exact-fingerprint approval is claimed.
+  instruction: User directly instructed the Events/Travel deactivation, three Health focus removals, capability-based
+    app discovery, five internal app exclusions, card-width parity, multilingual description cleanup and Social
+    Media focus placeholder repair on 2026-10-25. The user then explicitly confirmed keeping working direct content-creation
+    apps visible. This records those directives; no separately presented exact-fingerprint review is claimed.

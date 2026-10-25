@@ -1,21 +1,25 @@
 schema_version: 1
-specification: feature.apps-workspace@4
+specification: feature.apps-workspace@5
 discovery:
-- id: guest-browses-app-details
-  given: A person opens OpenMates on a phone without signing in.
-  when: They choose Apps, open Health, and inspect its appointment skill, focus modes, and memories.
-  then: The catalog and descriptions are visible in the Apps workspace without requiring signup; private memory
-    entries remain protected.
-- id: settings-link-finds-moved-app
-  given: A signed-in person has bookmarked the old Audio skill page in Settings.
-  when: They open the bookmark after the Apps workspace is released.
-  then: Audio details open in Apps, and the old Apps section no longer owns a duplicate detail page.
+- id: available-tools-focuses-and-direct-creators
+  given: Web has an available search skill, Jobs has an enabled Career insights focus, and Docs, Mindmaps, Diagrams
+    and Electronics have enabled direct creation entries. Events and Travel skills are paused; Health, Home and
+    Models3D have no available operation.
+  when: A person opens Apps or a compatible Settings Apps catalog on a phone or desktop.
+  then: Web, Jobs and the four working direct creators appear. Events, Travel, Health, Home and Models3D do not.
+    OpenMates, Plans, Projects, Tasks and Workflows never appear as app cards.
+- id: empty-apps-update-without-losing-data
+  given: An app has only memory fields, instruction stubs or renderers for a disabled skill, or loses its last available
+    operation for the active account.
+  when: The person browses app discovery, changes the active account or follows an app discovery link.
+  then: The app is absent from discovery and cannot reopen as an available app detail. Authorized memory and saved-result
+    views keep their existing access and data.
 navigation:
-- id: health-path-forwards-to-hash
-  given: A person follows /apps/health/search-appointments.
+- id: web-path-forwards-to-hash
+  given: A person follows /apps/web/search.
   when: The link loads and they reload the resulting page.
-  then: The address becomes /#apps/health/search-appointments and the natural-language composer opens for the
-    backend search_appointments skill.
+  then: The address becomes /#apps/web/search and the natural-language composer opens for the available backend
+    search skill.
 - id: detail-back-restores-parent
   given: A person opens Audio from Apps and then opens Generate sound from Audio.
   when: They use Back, Forward, and the fullscreen close control.
@@ -66,14 +70,14 @@ web_retention:
 - id: generation-finishes-in-submitted-team
   given: A member submits sound generation in Team Studio and then switches to Personal while it processes.
   when: The job finishes and they return to Team Studio.
-  then: The retained generation embed shows the completed sound in Team Studio, no duplicate embed is created,
-    and nothing is added to Personal.
+  then: The retained generation embed shows the completed sound in Team Studio, no duplicate embed is created, and
+    nothing is added to Personal.
 cli_retention:
 - id: cli-search-stays-temporary
   given: A signed-in person runs a noninteractive Web search command with the CLI.
   when: They later open the Web app's saved-embeds tab.
-  then: The CLI request has not been automatically added to that library; a separately submitted web search is
-    retained there.
+  then: The CLI request has not been automatically added to that library; a separately submitted web search is retained
+    there.
 - id: explicit-cli-download-still-works
   given: A signed-in person requests a sound through the CLI with an explicit output filename.
   when: Generation completes and the CLI downloads it.
@@ -92,8 +96,7 @@ embed_library:
     Audio embeds appear.
 workflow_library:
 - id: saved-unrun-workflow-appears-once
-  given: Team Studio has saved a workflow with both Audio sound and speech steps, and that workflow has never
-    run.
+  given: Team Studio has saved a workflow with both Audio sound and speech steps, and that workflow has never run.
   when: A member opens Audio's Workflows tab.
   then: That workflow appears once; workflows using only other apps and Personal workflows do not appear.
 anonymous_gate:
@@ -123,8 +126,8 @@ presentation:
   given: Mira opens Web in Apps with no saved searches but two recent Web result embeds.
   when: She browses the app, saves her Berlin cafe search, reloads and later opens an app without saved or recent
     results.
-  then: Recent Web embeds appear first initially; her saved search appears after saving and reload. The unused
-    app offers its real example chats, and the sidebar keeps all available skills reachable.
+  then: Recent Web embeds appear first initially; her saved search appears after saving and reload. The unused app
+    offers its real example chats, and the sidebar keeps all available skills reachable.
   assertion_ids:
   - apps.presentation.shared-detail-and-recency
 - id: apple-existing-detail-shell
@@ -138,26 +141,26 @@ natural_language:
 - id: one-search-and-refinement
   given: Lea opens Shopping in the browser, attaches a photo and types Find a blue wool coat like this photo.
   when: After results appear she submits Only coats below 150 euros below the result.
-  then: The bounded image informs Jev skill and option decisions while typed coat details provide free values.
-    Existing result cards are ranked for image relevance by their original IDs, retaining original order for ties
-    or unavailable evidence. Each request uses one validated existing direct search at its normal price; the follow-up
-    modifies the prior search without creating chat or adding an interpretation surcharge.
+  then: The bounded image informs Jev skill and option decisions while typed coat details provide free values. Existing
+    result cards are ranked for image relevance by their original IDs, retaining original order for ties or unavailable
+    evidence. Each request uses one validated existing direct search at its normal price; the follow-up modifies
+    the prior search without creating chat or adding an interpretation surcharge.
   assertion_ids:
   - apps.requests.natural-language
 - id: research-workflow-and-missing-value-handoffs
   given: Lea has uploaded an interview recording and asks Audio to transcribe it, then considers further analysis
     and recurring work.
-  when: She submits Transcribe this interview with word timestamps, later asks Compare its claims with recent
-    research, and asks Search this topic every morning; she also tries an unsupported document attachment.
-  then: The supported audio uses its exact encrypted upload references and normal transcription price, without
-    asking a model to invent keys. Research opens ordinary chat with readable context, the text-only recurring
-    request opens workflow creation, and unsupported or workflow-bound files remain attached to chat handoff.
-    Missing required values are not invented, and ordinary chat keeps automatic model routing.
+  when: She submits Transcribe this interview with word timestamps, later asks Compare its claims with recent research,
+    and asks Search this topic every morning; she also tries an unsupported document attachment.
+  then: The supported audio uses its exact encrypted upload references and normal transcription price, without asking
+    a model to invent keys. Research opens ordinary chat with readable context, the text-only recurring request
+    opens workflow creation, and unsupported or workflow-bound files remain attached to chat handoff. Missing required
+    values are not invented, and ordinary chat keeps automatic model routing.
   assertion_ids:
   - apps.requests.natural-language
 - id: private-interpretation-and-native-restoration
-  given: Lea has PII protection enabled and her Web search contains two email addresses, with personal text in
-    the previous result context.
+  given: Lea has PII protection enabled and her Web search contains two email addresses, with personal text in the
+    previous result context.
   when: She submits the request from web or interactive TUI Apps.
   then: Interpretation and relevance decisions receive locally protected text without either address or a replacement
     map. Accepted native arguments are restored locally and validated before the normal skill executes. Original
@@ -177,18 +180,16 @@ private_daily:
   given: Lea was active today and saves her first Berlin cafe search in Personal.
   when: She reads the paid daily-search notice, chooses OK and later saves a newer Hamburg cafe search.
   then: The notice states default daily reruns and ordinary search charges and offers OK and Turn off. The next
-    daily run uses only the latest Hamburg parameters, and its private result is available for no more than 24
-    hours.
+    daily run uses only the latest Hamburg parameters, and its private result is available for no more than 24 hours.
   assertion_ids:
   - apps.recommendations.private-daily
 - id: disabled-inactive-and-team-scope
-  given: Lea has saved Personal searches and belongs to Team Studio, while another account has not been active
-    for eight days.
-  when: Lea chooses Turn off or disables daily searches in app settings, switches to Team Studio and the daily
-    job runs.
-  then: No subsequent paid Personal rerun occurs, the inactive account is skipped and Lea cannot see Personal
-    recommendation content in Team Studio. Saved searches survive reload while expired recommendation results
-    are removed.
+  given: Lea has saved Personal searches and belongs to Team Studio, while another account has not been active for
+    eight days.
+  when: Lea chooses Turn off or disables daily searches in app settings, switches to Team Studio and the daily job
+    runs.
+  then: No subsequent paid Personal rerun occurs, the inactive account is skipped and Lea cannot see Personal recommendation
+    content in Team Studio. Saved searches survive reload while expired recommendation results are removed.
   assertion_ids:
   - apps.recommendations.private-daily
 public_daily:
@@ -197,10 +198,10 @@ public_daily:
     without a user, Team, location, saved search or other account context.
   when: A guest and a signed-in person read the public app discovery endpoint and view its localized introductory
     action; another reader arrives after the batch expires.
-  then: Both people receive the same current public results with EN or DE introductory text. OpenMates funds
-    the scheduled search and neither person nor Team is charged for browsing. GET performs no provider work.
-    The expired batch is unavailable after 24 hours. Private daily results and saved queries never appear, and
-    no public recommendations are created for Health, Jobs, Home, Fitness or Weather.
+  then: Both people receive the same current public results with EN or DE introductory text. OpenMates funds the
+    scheduled search and neither person nor Team is charged for browsing. GET performs no provider work. The expired
+    batch is unavailable after 24 hours. Private daily results and saved queries never appear, and no public recommendations
+    are created for Health, Jobs, Home, Fitness or Weather.
   assertion_ids:
   - apps.recommendations.public-daily
 - id: public-teaser-from-real-example
@@ -215,7 +216,18 @@ tui_children:
   given: Sam uses interactive TUI Apps to search for museums in Berlin and receives a parent with three website
     children.
   when: Sam opens a child with the keyboard, returns to the parent and focuses the follow-up input.
-  then: The preview shows the child title, URL and useful snippet, its readable detail opens and Back restores
-    the parent. The follow-up remains keyboard reachable and raw JSON is not the primary view.
+  then: The preview shows the child title, URL and useful snippet, its readable detail opens and Back restores the
+    parent. The follow-up remains keyboard reachable and raw JSON is not the primary view.
   assertion_ids:
   - apps.tui.child-previews
+catalog_card_width:
+- id: wide-catalog-keeps-settings-width
+  given: A person compares Settings app cards with Apps Show All on a wide laptop viewport.
+  when: They search, change filters and open an available app.
+  then: Both catalogs use the same card width; Apps Show All does not stretch cards to fill its wider columns, and
+    navigation remains usable.
+- id: narrow-catalog-stays-contained
+  given: A person opens Apps Show All on a narrow phone viewport.
+  when: They browse and filter available apps.
+  then: Cards keep the shared width constraint and fit the available space without horizontal clipping or hidden
+    controls.

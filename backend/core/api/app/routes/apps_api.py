@@ -20,6 +20,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
 from backend.shared.python_utils.memory_loader import load_app_memories
+from backend.core.api.app.services.app_discovery_visibility import (
+    EXCLUDED_DISCOVERY_APPS, app_is_discoverable, creation_content_types, enabled_discovery_components,
+)
 
 from pydantic import BaseModel, Field
 
@@ -259,6 +262,7 @@ class AppMetadata(BaseModel):
     skills: List[SkillMetadata]
     focus_modes: List[FocusModeMetadata] = []
     settings_and_memories: List[SettingsAndMemoryMetadata] = []
+    content_types: List[Dict[str, Any]] = Field(default_factory=list)
     memories: List[Dict[str, Any]] = Field(default_factory=list)
 
 class AppsListResponse(BaseModel):
@@ -711,6 +715,8 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
     Returns:
         True if the skill is available (at least one provider is accessible), False otherwise
     """
+    if getattr(skill, "default_enabled", None) is False or getattr(skill, "internal", False):
+        return False
     if not skill_has_provider_support(skill):
         return False
     # Local-only skills do not need a provider.
@@ -1870,6 +1876,8 @@ async def list_apps(
         
         apps = []
         for app_id, app_metadata in discovered_apps.items():
+            if app_id in EXCLUDED_DISCOVERY_APPS:
+                continue
             # Skip apps that are explicitly hidden from the public REST API.
             # These apps (e.g., images) rely on zero-knowledge encryption or other
             # client-side crypto flows that cannot be executed via stateless REST calls.
@@ -1904,19 +1912,16 @@ async def list_apps(
                     logger.debug(f"Skipping internal skill '{skill.id}' from app '{app_id}' list response")
                     continue
 
-                # Check if skill is available based on API key configuration.
-                # When include_unavailable=True (used by CLI to match the web app's
-                # build-time static metadata), skip provider availability checks.
-                if not include_unavailable:
-                    skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
-                    if not skill_available:
-                        logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                        continue
+                # include_unavailable is compatibility syntax, not an execution bypass.
+                skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
+                if not skill_available:
+                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                    continue
 
-                    if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
-                        logger.debug("Skipping mail/search for external user without ProtonMail permission")
-                        continue
-                
+                if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
+                    logger.debug("Skipping mail/search for external user without ProtonMail permission")
+                    continue
+
                 skill_name = resolve_translation(
                     translation_service,
                     skill.name_translation_key,
@@ -1942,7 +1947,7 @@ async def list_apps(
             
             # Convert focus modes
             focus_modes = []
-            for focus in app_metadata.focuses or []:
+            for focus in enabled_discovery_components(app_metadata.focuses):
                 focus_name = resolve_translation(
                     translation_service,
                     focus.name_translation_key,
@@ -1983,8 +1988,8 @@ async def list_apps(
                         description=field_description
                     ))
             
-            # Include app if it has at least one skill, focus mode, or settings_and_memories
-            if skills or focus_modes or settings_and_memories or load_app_memories([app_id]):
+            # Durable memory definitions do not qualify an app for discovery.
+            if app_is_discoverable(app_id, skills, focus_modes, app_metadata.embed_types):
                 apps.append(AppMetadata(
                     id=app_id,
                     name=app_name,
@@ -1992,6 +1997,7 @@ async def list_apps(
                     skills=skills,
                     focus_modes=focus_modes,
                     settings_and_memories=settings_and_memories,
+                    content_types=creation_content_types(app_id, app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                 ))
         
@@ -2640,6 +2646,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             ) -> AppMetadata:
                 """Get metadata for a specific app. Accepts session cookie or API key authentication."""
                 try:
+                    if captured_app_id in EXCLUDED_DISCOVERY_APPS:
+                        raise HTTPException(status_code=404, detail="App not found")
+                    secrets_manager = request.app.state.secrets_manager
+                    mail_allowed = await _is_protonmail_allowed_for_external_user(
+                        user_info=user_info, secrets_manager=secrets_manager,
+                    )
                     trans_service = get_translation_service(request)
                     config_mgr = get_config_manager(request)
                     
@@ -2660,6 +2672,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     # Convert skills
                     skills = []
                     for skill in captured_app_metadata.skills or []:
+                        if not await is_skill_available(skill, captured_app_id, secrets_manager, config_mgr):
+                            continue
+                        if captured_app_id == "mail" and skill.id == "search" and not mail_allowed:
+                            continue
                         if getattr(skill, "internal", False):
                             logger.debug(f"Skipping internal skill '{skill.id}' from app '{captured_app_id}' metadata response")
                             continue
@@ -2689,7 +2705,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     
                     # Convert focus modes
                     focus_modes = []
-                    for focus in captured_app_metadata.focuses or []:
+                    for focus in enabled_discovery_components(captured_app_metadata.focuses):
                         focus_name = resolve_translation(
                             trans_service,
                             focus.name_translation_key,
@@ -2730,6 +2746,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 description=field_description
                             ))
                     
+                    if not app_is_discoverable(captured_app_id, skills, focus_modes, captured_app_metadata.embed_types):
+                        raise HTTPException(status_code=404, detail="App not found")
                     return AppMetadata(
                         id=captured_app_id,
                         name=resolved_name,
@@ -2737,9 +2755,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         skills=skills,
                         focus_modes=focus_modes,
                         settings_and_memories=settings_and_memories,
+                        content_types=creation_content_types(captured_app_id, captured_app_metadata.embed_types),
                     memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                     )
                     
+                except HTTPException:
+                    raise
                 except Exception as e:
                     logger.error(f"Error getting app {captured_app_id} for user {user_info['user_id']}: {e}", exc_info=True)
                     raise HTTPException(status_code=500, detail="Failed to get app metadata")

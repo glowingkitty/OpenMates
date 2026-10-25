@@ -977,6 +977,14 @@
       "specs": [
         "components/landing-admitted-content.spec.ts"
       ]
+    },
+    "app_catalog_and_focus_instructions": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare Apps, Settings and focus-detail previews over committed metadata and localized source text, with isolated browser stores and mocked metadata transport. No backend, account, external provider or AI inference.",
+      "specs": [
+        "components/apps-catalog-availability.spec.ts",
+        "components/focus-mode-instructions.spec.ts"
+      ]
     }
   },
   "holds": {

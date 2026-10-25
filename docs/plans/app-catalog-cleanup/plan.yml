@@ -1,0 +1,61 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: app-catalog-cleanup
+title: Deactivate empty apps and align app discovery, cards and localized instructions
+goal: Deactivate Events search and Get Flight Track, remove the three Health focus modes, hide apps with neither
+  skills nor focus modes, keep Show All Apps cards the same width as Settings, remove internal sections from both
+  catalogs, update app descriptions in their languages, and fix the Social Media focus instructions placeholder.
+  Keep working direct content-creation apps visible too.
+task: TASK-6173
+approved_by_user: true
+scope:
+  in:
+  - Pause events.search and travel.get_flight and remove the three requested Health focus definitions.
+  - Use available skill, enabled focus or declared enabled self-owned direct content creation for app discovery
+    in Settings and Apps workspace; always exclude openmates/plans/projects/tasks/workflows.
+  - Keep Apps Show All card width aligned with Settings while preserving other workspaces.
+  - Resolve authored focus instructions and process descriptions without missing translation markers, including
+    Social Media content calendar.
+  - Audit all app descriptions in all supported source languages and correct unavailable or misleading capability
+    claims.
+  - Verify focused local checks and isolated component/API/catalog coverage; publish and refresh development services.
+  out:
+  - Delete user memories, chats, encrypted saved output, historical rendering schemas or SDK compatibility methods.
+  - Invent missing focus instructions, restore unsupported providers or change inference routing and private focus
+    lifecycle permissions.
+  - Change valid landing content examples or perform production/shared-satellite rollout.
+specifications:
+- feature.apps-workspace@5
+- feature.settings-ui@1
+- feature.focus-modes@2
+- architecture.app-skill-execution@1
+acceptance_criteria:
+- Paused skills and removed Health focuses cannot be discovered or executed; permitted CCC transcripts remain keyless
+  and accurately scoped.
+- Settings and Apps workspace expose available skills, focuses and working direct creators, with the five internal
+  app IDs and operation-free apps excluded and reactive updates.
+- Apps Show All cards retain Settings width without overflow on phone and laptop.
+- Social Media instructions resolve from authored localized content; unresolved translation markers are absent from
+  instruction views.
+- App descriptions across all supported languages match remaining capabilities; historical data and generic result
+  UI remain intact.
+- Required isolated checks, normal publication, exact frontend readiness and coordinated development runtime verification
+  pass.
+verification:
+- Focused backend discovery, deactivation, workflow schema/history, focus loader and provider availability checks.
+- Focused frontend store/resolver/generator/locale data checks and lint/type checks.
+- Bare Apps/Settings card and focus-detail component proof before broader API/navigation checks in isolated GitHub
+  CI.
+- Scoped deployment and coordinated development service refresh; read-only catalog/health and reviewed deployed
+  phone/laptop smoke.
+approvals:
+  specification:
+    status: approved
+    basis: Direct implementation instructions and follow-up placeholder report, followed by explicit confirmation
+      to keep working direct content-creation apps visible on 2026-10-25.
+    exact_fingerprint_presentation: false
+  plan:
+    status: approved
+    basis: This concise Plan transcribes the requested implementation, without a new approval round or claimed exact-fingerprint
+      presentation.

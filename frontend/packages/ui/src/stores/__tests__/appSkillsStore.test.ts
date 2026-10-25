@@ -4,10 +4,15 @@
 // App discovery retains active apps with memories even when the authenticated
 // skill response does not list them.
 
+import { get } from "svelte/store";
+import type { AppMetadata } from "../../types/apps";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
   appSkillsStore,
+  selectDiscoverableApps,
+  discoverableApps,
   featureAvailabilityStore,
   resetFeatureAvailability,
   resetUserAvailableSkills,
@@ -123,5 +128,57 @@ describe("appSkillsStore", () => {
 
     expect(ai.providers).toEqual(["OpenAI"]);
     expect(ask.models).toEqual([{ id: "gpt-4o-mini", provider_id: "openai" }]);
+  });
+});
+
+const fixtureApp = (id: string, skills: string[] = [], focuses: string[] = []): AppMetadata => ({
+  id, skills: skills.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
+  focus_modes: focuses.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
+  settings_and_memories: [{ id: 'saved', name_translation_key: 'saved' }] as AppMetadata['settings_and_memories'],
+});
+
+describe('discoverable Apps projection', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability
+  it('requires usable capabilities while preserving raw memory metadata', () => {
+    const apps = { memory: fixtureApp('memory'), skill: fixtureApp('skill', ['run']), focus: fixtureApp('focus', [], ['research']) };
+    expect(Object.keys(selectDiscoverableApps(apps))).toEqual(['skill', 'focus']);
+    expect(apps.memory.settings_and_memories).toHaveLength(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability
+  it('retains explicitly enabled direct creation apps but excludes result renderers', () => {
+    const ids = ['docs', 'mindmaps', 'diagrams', 'electronics', 'models3d', 'home'];
+    const apps = Object.fromEntries(ids.map(id => [id, fixtureApp(id)]));
+    expect(Object.keys(selectDiscoverableApps(apps))).toEqual(['docs', 'mindmaps', 'diagrams', 'electronics']);
+    expect(selectDiscoverableApps(apps, {})).toEqual({});
+    expect(Object.keys(selectDiscoverableApps(apps, { docs: fixtureApp('docs') }))).toEqual(['docs']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability
+  it('always omits internal workspace apps even when enabled with skills', () => {
+    const ids = ['openmates', 'plans', 'projects', 'tasks', 'workflows'];
+    const apps = Object.fromEntries(ids.map(id => [id, fixtureApp(id, ['run'])]));
+    expect(selectDiscoverableApps(apps)).toEqual({});
+    expect(selectDiscoverableApps({ hidden: { ...fixtureApp('hidden', ['run']), internal: true } })).toEqual({});
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability
+  it('honors authoritative runtime removal of apps, skills and focuses', () => {
+    const apps = { skill: fixtureApp('skill', ['run']), focus: fixtureApp('focus', [], ['research']), missing: fixtureApp('missing', ['run']) };
+    expect(selectDiscoverableApps(apps, { skill: fixtureApp('skill'), focus: fixtureApp('focus') })).toEqual({});
+    expect(Object.keys(selectDiscoverableApps(apps, { focus: fixtureApp('focus', [], ['research']) }))).toEqual(['focus']);
+    expect(Object.keys(selectDiscoverableApps(apps))).toEqual(['skill', 'focus', 'missing']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability
+  it('reacts to feature and successful runtime availability updates', () => {
+    resetFeatureAvailability(); resetUserAvailableSkills();
+    expect(get(discoverableApps).web).toBeDefined();
+    userAvailableSkillsStore.set({ initialized: true, loading: false, skillsByApp: {}, appsById: {} });
+    expect(get(discoverableApps)).toEqual({});
+    resetUserAvailableSkills();
+    featureAvailabilityStore.set({ initialized: true, loading: false, disabledById: { 'app:web': true } });
+    expect(get(discoverableApps).web).toBeUndefined();
+    resetFeatureAvailability(); resetUserAvailableSkills();
   });
 });

@@ -64,6 +64,7 @@
     showReportIssue?: boolean;
     showComposer?: boolean;
     showAllMode?: boolean;
+    fixedAppCatalogCards?: boolean;
     showAllLabel?: string;
     browseLabel?: string;
     browseTestId?: string;
@@ -110,6 +111,7 @@
     showReportIssue = false,
     showComposer = true,
     showAllMode = false,
+    fixedAppCatalogCards = false,
     showAllLabel = '',
     browseLabel = '',
     browseTestId = `${surface}-browse`,
@@ -283,10 +285,10 @@
       <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
         {#if allItemsHeading}<h2 class="workspace-all-items-heading">{allItemsHeading}</h2>{/if}
         <slot name="all-items-controls" />
-        <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
+        <div class="workspace-all-items-grid" class:fixed-app-catalog={surface === 'apps' && fixedAppCatalogCards} data-testid={allItemsGridTestId}>
           {#each allItems as item (item.id)}
             {#if surface === 'apps' && item.appMetadata}
-              <AppStoreCard app={item.appMetadata} testId={allItemTestId} compact={false} fluid onSelect={() => handleAllItem(item)} />
+              <AppStoreCard app={item.appMetadata} testId={allItemTestId} compact={false} fluid={!(surface === 'apps' && fixedAppCatalogCards)} onSelect={() => handleAllItem(item)} />
             {:else}
               <WorkspaceContinueCard
                 title={item.title}
@@ -746,6 +748,15 @@
     display: flex;
     flex-direction: column;
     pointer-events: auto;
+  }
+
+  .workspace-all-items-grid.fixed-app-catalog {
+    grid-template-columns: repeat(auto-fill, minmax(0, 223px));
+  }
+  .fixed-app-catalog :global(.app-store-card) {
+    width: 100%;
+    min-width: 0;
+    max-width: 223px;
   }
 
   .workspace-all-items-heading {

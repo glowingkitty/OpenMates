@@ -11,7 +11,7 @@
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { discoverableApps } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import AppStoreCard from './AppStoreCard.svelte';
@@ -48,7 +48,7 @@
     let { appId, presentation = 'settings', section = 'all' }: Props = $props();
     
     // Get store state reactively (Svelte 5)
-    let storeState = $state(appSkillsStore.getState());
+    let storeState = $derived({ apps: $discoverableApps });
     
     // Check if user is authenticated (for read-only mode)
     let isAuthenticated = $derived($authStore.isAuthenticated);

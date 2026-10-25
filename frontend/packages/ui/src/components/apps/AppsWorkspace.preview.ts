@@ -1,3 +1,4 @@
+import { installAppCatalogPreview } from './appCatalogPreview';
 import { authStore } from '../../stores/authStore';
 import { userProfile } from '../../stores/userProfile';
 import { activeTeamContext } from '../../stores/teamStore';
@@ -13,12 +14,16 @@ const onSettings = (path: string) => window.dispatchEvent(new CustomEvent('apps-
 export default { hash: '#apps', onNavigate, onSignup, onSettings, onSidebarClose };
 export const layout = 'fill';
 export const variants = {
+  catalogWeb: { hash: '#apps/web', onNavigate, onSignup, onSettings, onSidebarClose },
+  catalogBlockedApp: { hash: '#apps/openmates', onNavigate, onSignup, onSettings, onSidebarClose },
+  catalogAvailability: { hash: '#apps/all', onNavigate, onSignup, onSettings, onSidebarClose },
   allApps: { hash: '#apps/all', onNavigate, onSignup, onSettings, onSidebarClose },
   allFocusApps: { hash: '#apps/all&filter=focus_modes', onNavigate, onSignup, onSettings, onSidebarClose },
-  app: { hash: '#apps/health', onNavigate, onSignup, onSettings, onSidebarClose },
+  app: { hash: '#apps/web', onNavigate, onSignup, onSettings, onSidebarClose },
+  appCalendar: { hash: '#apps/calendar', onNavigate, onSignup, onSettings, onSidebarClose },
   appTravel: { hash: '#apps/travel', onNavigate, onSignup, onSettings, onSidebarClose },
   appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings, onSidebarClose },
-  appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings, onSidebarClose },
+  appFocus: { hash: '#apps/politics&tab=focus_modes', onNavigate, onSignup, onSettings, onSidebarClose },
   appPolitics: { hash: '#apps/politics', onNavigate, onSignup, onSettings, onSidebarClose },
   politicsFocus: { hash: '#apps/politics/focus/prepare_discussion', onNavigate, onSignup, onSettings, onSidebarClose },
   appMemory: { hash: '#apps/books&tab=settings_memories', onNavigate, onSignup, onSettings, onSidebarClose },
@@ -30,6 +35,7 @@ export const variants = {
 // The bare preview has no account session. Only this explicit variant supplies
 // local store context so the real workspace account-switch effect can be tested.
 export const ready = (async () => {
+  if (typeof window !== 'undefined' && ['catalogAvailability', 'catalogWeb', 'catalogBlockedApp'].includes(new URLSearchParams(window.location.search).get('variant') ?? '')) installAppCatalogPreview();
   if (typeof window === 'undefined' || !['teamLibrary', 'teamLibrarySidebar'].includes(new URLSearchParams(window.location.search).get('variant') ?? '')) return;
   // This preview has no real session. The WebSocket singleton normally reacts
   // to authStore and forces a session check when it has no token, which would

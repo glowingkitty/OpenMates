@@ -17,7 +17,7 @@
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { appSkillsStore, featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
+    import { discoverableApps, featureAvailabilityStore, initializeFeatureAvailability, initializeUserAvailableSkills } from '../../stores/appSkillsStore';
     import { allAppsInitialFilter, type AllAppsFilterType } from '../../stores/allAppsFilterStore';
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -36,7 +36,7 @@
     // Exclude the AI app — its settings live under the top-level "AI" settings menu
     let apps = $derived.by(() => {
         void featureAvailabilityState;
-        const { ai: _excluded, ...rest } = appSkillsStore.getState().apps;
+        const { ai: _excluded, ...rest } = $discoverableApps;
         return rest;
     });
     let appsList = $derived(Object.values(apps));
@@ -72,6 +72,7 @@
      */
     onMount(() => {
         void initializeFeatureAvailability();
+        void initializeUserAvailableSkills();
         const unsubscribe = allAppsInitialFilter.subscribe((value) => {
             if (value !== 'all') {
                 activeFilter = value;

@@ -13,16 +13,18 @@ export {};
 const { test, expect } = require('./console-monitor');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { enterRuntimeAppsCatalog, expectRuntimeAppsCatalogIds } = require('./helpers/apps-catalog-readiness');
 
 const SETTINGS_TIMEOUT = 15_000;
-const INACTIVE_APP_IDS = ['plans', 'projects', 'tasks', 'workflows'];
-const INACTIVE_APP_FEATURE_IDS = INACTIVE_APP_IDS.flatMap((appId) => [`platform:${appId}`, `app:${appId}`]);
+const EXCLUDED_APP_IDS = ['openmates', 'plans', 'projects', 'tasks', 'workflows'];
+const EMPTY_APP_IDS = ['health', 'home', 'models3d', 'travel', 'events', 'fitness', 'hosting', 'shopping', 'tv', 'ideabucket'];
+const RETAINED_APP_IDS = ['web', 'weather', 'jobs', 'docs', 'mindmaps', 'diagrams', 'electronics'];
 
-async function mockInactiveWorkspaceApps(page: any): Promise<void> {
+async function enableAllWorkspaceFeatures(page: any): Promise<void> {
 	await page.route('**/v1/features/availability', async (route: any) => {
 		await route.fulfill({
 			contentType: 'application/json',
-			body: JSON.stringify({ disabled: INACTIVE_APP_FEATURE_IDS })
+			body: JSON.stringify({ disabled: [] })
 		});
 	});
 }
@@ -61,11 +63,14 @@ async function backToSettingsRoot(settingsMenu: any): Promise<void> {
 
 async function expectAppsCatalogLoaded(page: any): Promise<void> {
 	await expect(page.getByTestId('apps-workspace')).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-	await expect(page.getByTestId('app-store-card').first()).toBeVisible({
+	await expect(page.getByTestId('apps-all-items-grid').locator('[data-app-id]').first()).toBeVisible({
 		timeout: SETTINGS_TIMEOUT
 	});
-	for (const appId of INACTIVE_APP_IDS) {
-		await expect(page.locator(`[data-testid="app-store-card"][data-app-id="${appId}"]`)).toHaveCount(0);
+	for (const appId of RETAINED_APP_IDS) {
+		await expect(page.getByTestId('apps-all-items-grid').locator(`[data-app-id="${appId}"]`)).toBeVisible();
+	}
+	for (const appId of [...EXCLUDED_APP_IDS, ...EMPTY_APP_IDS]) {
+		await expect(page.getByTestId('apps-all-items-grid').locator(`[data-app-id="${appId}"]`)).toHaveCount(0);
 	}
 }
 
@@ -76,7 +81,7 @@ test('guest settings routes replace AI after opening a dynamic provider page', a
 	page: any;
 }) => {
 	test.setTimeout(120_000);
-	await mockInactiveWorkspaceApps(page);
+	await enableAllWorkspaceFeatures(page);
 
 	const settingsMenu = await openSettings(page);
 
@@ -103,14 +108,23 @@ test('guest settings routes replace AI after opening a dynamic provider page', a
 		await backToSettingsRoot(settingsMenu);
 	}
 
-	await page.goto(getE2EDebugUrl('/#apps/all'), { waitUntil: 'domcontentloaded' });
+	// Legacy Settings catalog links forward to Apps. Shared Settings rendering
+	// is covered by apps-catalog-availability; retain the supported full route.
+	const forwardedIds = await enterRuntimeAppsCatalog(page, 'forwarded-settings', () =>
+		page.goto(getE2EDebugUrl('/#settings/apps/all'), { waitUntil: 'domcontentloaded' }));
+	await expect(page).toHaveURL(/#apps\/all(?:&|$)/, { timeout: SETTINGS_TIMEOUT });
+	await expectAppsCatalogLoaded(page);
+  await page.goto(getE2EDebugUrl('/#apps/all'), { waitUntil: 'domcontentloaded' });
+  await expectRuntimeAppsCatalogIds(page, 'direct-apps', forwardedIds);
 	await expectAppsCatalogLoaded(page);
 	await expect(page).toHaveURL(/#apps\/all(?:&|$)/);
-	await page.reload({ waitUntil: 'domcontentloaded' });
+	const reloadedIds = await enterRuntimeAppsCatalog(page, 'reloaded-apps', () =>
+		page.reload({ waitUntil: 'domcontentloaded' }));
 	await expectAppsCatalogLoaded(page);
+	expect(reloadedIds).toEqual(forwardedIds);
 	await expect(page).toHaveURL(/#apps\/all(?:&|$)/);
 
-	const webAppCard = page.locator('[data-testid="app-store-card"][data-app-id="web"]').first();
+	const webAppCard = page.getByTestId('apps-all-items-grid').locator('[data-app-id="web"]').first();
 	await expect(webAppCard).toBeVisible({ timeout: SETTINGS_TIMEOUT });
 	await webAppCard.click();
 
@@ -129,7 +143,7 @@ test('combined chat settings deep link hydrates chat context after reload', asyn
 	test.setTimeout(120_000);
 	await loginToTestAccount(page);
 	await page.goto(
-		getE2EDebugUrl('/#chat-id=example-artemis-ii-mission&settings=chats/example-artemis-ii-mission/tasks'),
+		getE2EDebugUrl('/#chat-id=example-gigantic-airplanes&settings=chats/example-gigantic-airplanes/tasks'),
 		{ waitUntil: 'domcontentloaded' }
 	);
 
@@ -137,7 +151,7 @@ test('combined chat settings deep link hydrates chat context after reload', asyn
 		if (reload) await page.reload({ waitUntil: 'domcontentloaded' });
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/example-artemis-ii-mission', {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/example-gigantic-airplanes', {
 			timeout: SETTINGS_TIMEOUT
 		});
 

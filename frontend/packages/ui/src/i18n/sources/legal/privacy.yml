@@ -11271,27 +11271,27 @@ providers.web_and_search.wikimedia.description:
   verified_by_human: []
 providers.web_and_search.youtube.heading:
   context: Heading for YouTube provider entry
-  en: YouTube (video transcripts)
-  de: YouTube (Video-Transkripte)
-  zh: YouTube（视频字幕）
-  es: YouTube (transcripciones de vídeo)
-  fr: YouTube (transcriptions de vidéos)
-  ru: YouTube (транскрипты видео)
-  ja: YouTube (動画の文字起こし)
-  ko: YouTube (동영상 자막)
-  it: YouTube (trascrizioni video)
-  tr: YouTube (video transkriptleri)
-  vi: YouTube (bản ghi video)
-  id: YouTube (transkrip video)
-  pl: YouTube (transkrypcje wideo)
-  nl: YouTube (videotranscripties)
-  ar: YouTube (نصوص الفيديوهات)
-  hi: YouTube (वीडियो ट्रांसक्रिप्ट)
-  th: YouTube (คำบรรยายวิดีโอ)
-  pt: YouTube (transcrições de vídeo)
-  sv: YouTube (videotranskriptioner)
-  he: YouTube (תמלולי סרטונים)
-  cs: YouTube (přepisy videí)
+  en: YouTube (video metadata)
+  de: YouTube (Video-Metadaten)
+  zh: YouTube（视频元数据）
+  es: YouTube (metadatos de vídeos)
+  fr: YouTube (métadonnées vidéo)
+  ru: YouTube (метаданные видео)
+  ja: YouTube（動画メタデータ）
+  ko: YouTube (동영상 메타데이터)
+  it: YouTube (metadati video)
+  tr: YouTube (video meta verileri)
+  vi: YouTube (siêu dữ liệu video)
+  id: YouTube (metadata video)
+  pl: YouTube (metadane filmów)
+  nl: YouTube (videometadata)
+  ar: YouTube (بيانات الفيديو الوصفية)
+  hi: YouTube (वीडियो मेटाडेटा)
+  th: YouTube (ข้อมูลเมตาของวิดีโอ)
+  pt: YouTube (metadados de vídeos)
+  sv: YouTube (videometadata)
+  he: YouTube (מטא-נתונים של סרטונים)
+  cs: YouTube (metadata videí)
   verified_by_human: []
 providers.web_and_search.media_ccc.heading:
   context: Public conference video caption provider
@@ -11309,46 +11309,27 @@ providers.web_and_search.media_ccc.description:
   verified_by_human: []
 providers.web_and_search.youtube.description:
   context: YouTube description
-  en: YouTube is queried when you ask OpenMates to retrieve a transcript for a YouTube video. YouTube receives video URLs
-    and requested transcript language preferences without an OpenMates user identifier.
-  de: YouTube wird abgefragt, wenn du OpenMates bittest, ein Transkript für ein YouTube-Video abzurufen. YouTube erhält Video-URLs
-    und gewünschte Spracheinstellungen für das Transkript ohne eine OpenMates-Benutzerkennung.
-  zh: 当你要求 OpenMates 获取 YouTube 视频的字幕时，系统会查询 YouTube。YouTube 会接收视频 URL 和请求的字幕语言偏好，且不包含 OpenMates 用户标识符。
-  es: Se consulta a YouTube cuando pides a OpenMates que recupere una transcripción de un vídeo de YouTube. YouTube recibe
-    las URL de los vídeos y las preferencias de idioma de la transcripción solicitada sin un identificador de usuario de OpenMates.
-  fr: YouTube est sollicité lorsque tu demandes à OpenMates de récupérer la transcription d'une vidéo YouTube. YouTube reçoit
-    les URL des vidéos et les préférences de langue de transcription demandées sans identifiant utilisateur OpenMates.
-  ru: Запрос к YouTube отправляется, когда ты просишь OpenMates получить транскрипт видео. YouTube получает URL-адреса видео
-    и предпочтения по языку транскрипта без идентификатора пользователя OpenMates.
-  ja: YouTubeは、OpenMatesにYouTube動画の文字起こしの取得を依頼した際に照会されます。YouTubeは、OpenMatesのユーザー識別子を含まない動画のURLと言語設定を受信します。
-  ko: OpenMates에 YouTube 동영상 자막을 가져오도록 요청하면 YouTube에 쿼리가 전송됩니다. YouTube는 OpenMates 사용자 식별자 없이 동영상 URL과 요청된 자막 언어 설정을 수신합니다.
-  it: YouTube viene consultato quando chiedi a OpenMates di recuperare la trascrizione di un video di YouTube. YouTube riceve
-    gli URL dei video e le preferenze sulla lingua della trascrizione richiesta senza un identificativo utente OpenMates.
-  tr: OpenMates'ten bir YouTube videosu için transkript almasını istediğinde YouTube'a sorgu gönderilir. YouTube, video URL'lerini
-    ve istenen transkript dili tercihlerini bir OpenMates kullanıcı tanımlayıcısı olmadan alır.
-  vi: YouTube được truy vấn khi bạn yêu cầu OpenMates lấy bản ghi cho một video YouTube. YouTube nhận URL video và tùy chọn
-    ngôn ngữ bản ghi được yêu cầu mà không kèm theo mã định danh người dùng OpenMates.
-  id: YouTube dikueri saat kamu meminta OpenMates untuk mengambil transkrip video YouTube. YouTube menerima URL video dan
-    preferensi bahasa transkrip yang diminta tanpa pengenal pengguna OpenMates.
-  pl: Zapytania do YouTube są wysyłane, gdy poprosisz OpenMates o pobranie transkrypcji wideo. YouTube otrzymuje adresy URL
-    filmów i preferencje dotyczące języka transkrypcji bez identyfikatora użytkownika OpenMates.
-  nl: YouTube wordt geraadpleegd wanneer je OpenMates vraagt om een transcriptie van een YouTube-video op te halen. YouTube
-    ontvangt video-URL's en gevraagde taalvoorkeuren voor transcripties zonder een OpenMates-gebruikers-ID.
-  ar: يتم الاستعلام من YouTube عندما تطلب من OpenMates استرداد نص لفيديو YouTube. يتلقى YouTube عناوين URL للفيديو وتفضيلات
-    لغة النص المطلوبة دون معرف مستخدم OpenMates.
-  hi: जब तुम OpenMates से YouTube वीडियो के लिए ट्रांसक्रिप्ट प्राप्त करने के लिए कहते हो, तब YouTube से क्वेरी की जाती है।
-    YouTube को बिना किसी OpenMates उपयोगकर्ता पहचानकर्ता के वीडियो URL और अनुरोधित ट्रांसक्रिप्ट भाषा प्राथमिकताएं प्राप्त
-    होती हैं।
-  th: YouTube จะถูกเรียกใช้เมื่อคุณขอให้ OpenMates ดึงคำบรรยายสำหรับวิดีโอ YouTube โดย YouTube จะได้รับ URL ของวิดีโอและการตั้งค่าภาษาของคำบรรยายที่ขอ
-    โดยไม่มีตัวระบุผู้ใช้ OpenMates
-  pt: O YouTube é consultado quando você solicita ao OpenMates a transcrição de um vídeo do YouTube. O YouTube recebe URLs
-    de vídeos e preferências de idioma de transcrição solicitadas sem um identificador de usuário do OpenMates.
-  sv: YouTube anropas när du ber OpenMates hämta en transkription för en YouTube-video. YouTube tar emot video-URL:er och
-    önskade språkinställningar för transkriptionen utan en OpenMates-användaridentifierare.
-  he: מתבצעת פנייה ל-YouTube כאשר אתה מבקש מ-OpenMates לאחזר תמלול עבור סרטון YouTube. YouTube מקבלת כתובות URL של סרטונים
-    והעדפות שפת תמלול מבוקשות ללא מזהה משתמש של OpenMates.
-  cs: YouTube je dotazován, když požádáš OpenMates o získání přepisu videa na YouTube. YouTube obdrží URL videa a preference
-    jazyka přepisu bez identifikátoru uživatele OpenMates.
+  en: To retrieve public video and channel metadata, OpenMates sends video and channel identifiers to the official YouTube Data API. YouTube receives these identifiers and our server’s network information, without an OpenMates user identifier.
+  de: Um öffentliche Video- und Kanalmetadaten abzurufen, sendet OpenMates Video- und Kanal-IDs an die offizielle YouTube Data API. YouTube erhält diese IDs und die Netzwerkinformationen unseres Servers, ohne eine OpenMates-Benutzerkennung.
+  zh: 为获取公开的视频和频道元数据，OpenMates 会将视频和频道标识符发送至官方 YouTube Data API。YouTube 会收到这些标识符和我们服务器的网络信息，但不会收到 OpenMates 用户标识符。
+  es: Para obtener metadatos públicos de vídeos y canales, OpenMates envía identificadores de vídeos y canales a la API oficial YouTube Data API. YouTube recibe estos identificadores y la información de red de nuestro servidor, sin un identificador de usuario de OpenMates.
+  fr: Pour obtenir les métadonnées publiques des vidéos et des chaînes, OpenMates transmet leurs identifiants à l’API officielle YouTube Data API. YouTube reçoit ces identifiants et les informations réseau de notre serveur, sans identifiant utilisateur OpenMates.
+  ru: Для получения общедоступных метаданных видео и каналов OpenMates отправляет их идентификаторы в официальный YouTube Data API. YouTube получает эти идентификаторы и сетевую информацию нашего сервера без идентификатора пользователя OpenMates.
+  ja: 公開されている動画とチャンネルのメタデータを取得するため、OpenMates は動画とチャンネルの識別子を公式の YouTube Data API に送信します。YouTube はこれらの識別子と当社サーバーのネットワーク情報を受け取りますが、OpenMates のユーザー識別子は受け取りません。
+  ko: 공개 동영상 및 채널 메타데이터를 가져오기 위해 OpenMates는 동영상 및 채널 식별자를 공식 YouTube Data API로 전송합니다. YouTube는 이러한 식별자와 서버의 네트워크 정보를 받으며 OpenMates 사용자 식별자는 받지 않습니다.
+  it: Per recuperare metadati pubblici di video e canali, OpenMates invia i relativi identificativi alla API ufficiale YouTube Data API. YouTube riceve questi identificativi e le informazioni di rete del nostro server, senza un identificativo utente OpenMates.
+  tr: Herkese açık video ve kanal meta verilerini almak için OpenMates, video ve kanal tanımlayıcılarını resmî YouTube Data API’ye gönderir. YouTube bu tanımlayıcıları ve sunucumuzun ağ bilgilerini alır; OpenMates kullanıcı tanımlayıcısı almaz.
+  vi: Để lấy siêu dữ liệu công khai của video và kênh, OpenMates gửi mã định danh video và kênh đến YouTube Data API chính thức. YouTube nhận các mã này và thông tin mạng của máy chủ chúng tôi, nhưng không nhận mã định danh người dùng OpenMates.
+  id: Untuk mengambil metadata publik video dan kanal, OpenMates mengirim pengenal video dan kanal ke YouTube Data API resmi. YouTube menerima pengenal tersebut dan informasi jaringan server kami, tanpa pengenal pengguna OpenMates.
+  pl: Aby pobrać publiczne metadane filmów i kanałów, OpenMates wysyła ich identyfikatory do oficjalnego YouTube Data API. YouTube otrzymuje te identyfikatory i informacje sieciowe naszego serwera, bez identyfikatora użytkownika OpenMates.
+  nl: Om openbare video- en kanaalmetadata op te halen, stuurt OpenMates video- en kanaal-ID’s naar de officiële YouTube Data API. YouTube ontvangt deze ID’s en de netwerkinformatie van onze server, zonder een OpenMates-gebruikers-ID.
+  ar: لاسترجاع البيانات الوصفية العامة للفيديوهات والقنوات، يرسل OpenMates معرّفات الفيديوهات والقنوات إلى واجهة YouTube Data API الرسمية. يتلقى YouTube هذه المعرّفات ومعلومات شبكة خادمنا، دون معرّف مستخدم OpenMates.
+  hi: वीडियो और चैनल का सार्वजनिक मेटाडेटा प्राप्त करने के लिए OpenMates उनके पहचानकर्ता आधिकारिक YouTube Data API को भेजता है। YouTube को ये पहचानकर्ता और हमारे सर्वर की नेटवर्क जानकारी मिलती है, लेकिन OpenMates उपयोगकर्ता पहचानकर्ता नहीं मिलता।
+  th: เพื่อดึงข้อมูลเมตาสาธารณะของวิดีโอและช่อง OpenMates จะส่งตัวระบุวิดีโอและช่องไปยัง YouTube Data API อย่างเป็นทางการ YouTube จะได้รับตัวระบุเหล่านี้และข้อมูลเครือข่ายของเซิร์ฟเวอร์เรา โดยไม่ได้รับตัวระบุผู้ใช้ OpenMates
+  pt: Para obter metadados públicos de vídeos e canais, o OpenMates envia os seus identificadores à API oficial YouTube Data API. O YouTube recebe estes identificadores e as informações de rede do nosso servidor, sem um identificador de utilizador do OpenMates.
+  sv: För att hämta offentliga metadata för videor och kanaler skickar OpenMates deras identifierare till det officiella YouTube Data API. YouTube får dessa identifierare och vår servers nätverksinformation, utan någon OpenMates-användaridentifierare.
+  he: כדי לאחזר מטא-נתונים ציבוריים של סרטונים וערוצים, OpenMates שולח את מזהי הסרטונים והערוצים אל YouTube Data API הרשמי. YouTube מקבל מזהים אלה ואת פרטי הרשת של השרת שלנו, ללא מזהה משתמש של OpenMates.
+  cs: Pro získání veřejných metadat videí a kanálů odesílá OpenMates jejich identifikátory do oficiálního YouTube Data API. YouTube obdrží tyto identifikátory a síťové informace našeho serveru, nikoli identifikátor uživatele OpenMates.
   verified_by_human: []
 providers.travel.heading:
   context: Subheading for Group F providers (travel)

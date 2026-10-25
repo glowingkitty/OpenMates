@@ -421,10 +421,10 @@ specifications:
     required_applies_to:
     - gui.apple
   feature.apps-workspace:
-    version: 4
+    version: 5
     status: draft
     path: features/apps-workspace
-    fingerprint: 70bb0680a72bc244c696b61a3a2180e0f72b8b9c6ac1d50a45d009e2d4054c42
+    fingerprint: 24aa42a65e51bd0064472443ab5f8f641cea099a538a51cb95fce0de31e6b101
     required_applies_to:
     - rest_api
     - cli
@@ -5016,17 +5016,17 @@ assertions:
     required_applies_to:
     - gui.apple
   apps.discovery.public-catalog:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
-    fingerprint: 3979b69c4b2dc8d1c2d6029980188bb05f1ca507051457b96816f7bdcd81f159
+    fingerprint: 7113287b3b84a5aeda63373bbbe3ed7750136db5f440d188d590e450d6d3e73c
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   apps.navigation.hash-and-forwarding:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 11d6ad1665780e817605b64e64f58497e2bb57956005f491bdf4e21ced6973c3
@@ -5036,7 +5036,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.forms.metadata-driven:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 7ff3263749d5c325d624519bf7fad6554d3f84a086ffaf7463a78a586356c16e
@@ -5046,7 +5046,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.execution.direct-shared-contract:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: invariant
     fingerprint: 8f185f611eaad8525e80c5020529f892782bf7d11ae7d000282b56699af0cf0d
@@ -5056,7 +5056,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.results.web-retained-graph:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: cbbff5a0b4e318180a2c755572b1a383dda182093e33c86ad4058db6ac927a75
@@ -5066,7 +5066,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.results.cli-temporary-history:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: invariant
     fingerprint: 60cce926f420e8561cc074b56d91d54e0aa6b8e31d5647661f25dd633e305f7f
@@ -5076,7 +5076,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.library.embeds-account-paginated:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: security
     fingerprint: 6fe8f3ea52ae9dc231c7707d88b12f5b2cccc3374c51e795f45032f26424c3f4
@@ -5086,7 +5086,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.library.workflows-account-related:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: security
     fingerprint: 824c179b3fde8231d5342c6a364b9775b50f9916cd44ca368662d5b44df7b8db
@@ -5096,7 +5096,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.anonymous.cli-equivalent-gate:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: security
     fingerprint: 933d9a5ba755db6c94e7eb5e89b8226af8d5afc37d5c67b66f0d6bcebd8fdac7
@@ -5106,7 +5106,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.anonymous.local-results-and-promotion:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: dbd2291aa05f60f4c7a09bcb65d83b8dd67caa914faf23d382efa2b89a567339
@@ -5116,17 +5116,17 @@ assertions:
     - gui.web
     - gui.apple
   apps.presentation.shared-detail-and-recency:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
-    fingerprint: fc07977cd6e5688da7c5d2ff28d25bbf10d260aa7a4618cc303d3c52506189ca
+    fingerprint: 8203d63916bfe989e1c4fef039458b44251888dd0c92e4101a5a3fa84951e7e5
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   apps.requests.natural-language:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: b328a8d652a5de8dd86f3a2c2d74096c6714f3e03dbb1babe837808d932723d6
@@ -5136,7 +5136,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.results.shared-fullscreen:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 6e46b9d0268ed1ed82ad0994b40b3f6b43ace733d221df846ae436baafe34b47
@@ -5146,7 +5146,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.recommendations.private-daily:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: 93b6f356ed2a75519a00b859c4bfdca9d5be8b89612905386f9a70b806bcce98
@@ -5156,7 +5156,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.recommendations.public-daily:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: privacy
     fingerprint: a428f4e3cf6f1843de497ab3bd1d3962add179fbbd9530ae34400b204e1ae069
@@ -5166,7 +5166,7 @@ assertions:
     - gui.web
     - gui.apple
   apps.tui.child-previews:
-    specification: feature.apps-workspace@4
+    specification: feature.apps-workspace@5
     specification_id: feature.apps-workspace
     type: behavior
     fingerprint: 97289aaf190f6a08afe1f2901072cab41fa63bfa28a9bbf9ec58cab1cc244ac5

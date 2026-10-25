@@ -124,3 +124,35 @@ def test_public_skill_models_preserve_current_promotion_without_supplier_costs()
     assert published["pricing"]["tokens"]["input"]["per_credit_unit"] == 160
     assert published["pricing"]["context_bands"]["over_200k"]["min_input_tokens"] == 200001
     assert "costs" not in published
+
+
+# contract-test: supporting surface=rest_api assertions=settings-ui.localization.visible-content-resolves,apps.discovery.public-catalog
+@pytest.mark.parametrize("resolved", [True, False])
+def test_focus_display_prefers_resolved_translation_over_authored_fallback(monkeypatch, resolved):
+    from backend.core.api.app.routes import apps
+
+    app = AppYAML(
+        id="social_media", name_translation_key="apps.social_media",
+        description_translation_key="apps.social_media.description", category="work",
+        focuses=[{
+            "id": "post", "name_translation_key": "social_media.post",
+            "description_translation_key": "social_media.post.description",
+            "process": ["Review the draft."],
+            "system_prompt": "Help write a considered post.",
+            "process_translation_key": "social_media_post.process",
+            "systemprompt_translation_key": "social_media_post.systemprompt",
+        }],
+    )
+    localized = {
+        "social_media_post.process": "- Prüfe den Entwurf.\n  - Prüfe die Quellen.",
+        "social_media_post.systemprompt": "Hilf beim Verfassen eines durchdachten Beitrags.",
+    }
+    monkeypatch.setattr(apps, "resolve_translation", lambda service, key, namespace, fallback="": localized.get(key, fallback) if resolved else fallback or key)
+    item = apps.build_app_metadata_item(
+        app_id="social_media", app_metadata=app, translation_service=None, provider_configs={},
+    )
+    focus = item.focus_modes[0]
+    assert focus.process == (["Prüfe den Entwurf.", "Prüfe die Quellen."] if resolved else ["Review the draft."])
+    assert focus.system_prompt == (localized["social_media_post.systemprompt"] if resolved else "Help write a considered post.")
+    assert app.focuses[0].system_prompt == "Help write a considered post."
+    assert app.focuses[0].process == ["Review the draft."]

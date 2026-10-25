@@ -359,16 +359,7 @@ skills:
 
 
     provider_required: true
-focuses:
-  - id: prepare_doctor_report
-    name_translation_key: health.prepare_doctor_report
-    description_translation_key: health.prepare_doctor_report.description
-  - id: health_insights
-    name_translation_key: health.health_insights
-    description_translation_key: health.health_insights.description
-  - id: prepare_doctor_appointment
-    name_translation_key: health.prepare_doctor_appointment
-    description_translation_key: health.prepare_doctor_appointment.description
+focuses: []
 
 marketing_discovery:
   skills:

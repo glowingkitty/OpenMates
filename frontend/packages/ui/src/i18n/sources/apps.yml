@@ -412,27 +412,27 @@ hosting:
 
 hosting.description:
   context: "Description for the Hosting app"
-  en: "Find domain names and check availability and prices."
-  de: "Domainnamen finden und Verfügbarkeit und Preise prüfen."
-  zh: "查找域名并查看可用性和价格。"
-  es: "Encuentra nombres de dominio y consulta su disponibilidad y precios."
-  fr: "Trouvez des noms de domaine et vérifiez leur disponibilité et leurs prix."
-  pt: "Encontre nomes de domínio e verifique a disponibilidade e os preços."
-  ru: "Находите доменные имена и проверяйте доступность и цены."
-  ja: "ドメイン名を探し、空き状況と料金を確認します。"
-  ko: "도메인 이름을 찾고 사용 가능 여부와 가격을 확인하세요."
-  it: "Trova nomi di dominio e verifica disponibilità e prezzi."
-  tr: "Alan adları bulun, müsaitliklerini ve fiyatlarını kontrol edin."
-  vi: "Tìm tên miền và kiểm tra tình trạng còn trống cùng giá cả."
-  id: "Temukan nama domain dan periksa ketersediaan serta harganya."
-  pl: "Znajdź nazwy domen i sprawdź ich dostępność oraz ceny."
-  nl: "Zoek domeinnamen en controleer beschikbaarheid en prijzen."
-  ar: "اعثر على أسماء النطاقات وتحقق من توفرها وأسعارها."
-  hi: "डोमेन नाम खोजें और उनकी उपलब्धता और कीमतें जाँचें।"
-  th: "ค้นหาชื่อโดเมนและตรวจสอบความพร้อมใช้งานกับราคา"
-  cs: "Najděte doménová jména a ověřte jejich dostupnost a ceny."
-  sv: "Hitta domännamn och kontrollera tillgänglighet och priser."
-  he: "מצא שמות דומיין ובדוק זמינות ומחירים."
+  en: "Domain search is currently unavailable."
+  de: "Die Domainsuche ist derzeit nicht verfügbar."
+  zh: "域名搜索目前不可用。"
+  es: "La búsqueda de dominios no está disponible actualmente."
+  fr: "La recherche de domaines est actuellement indisponible."
+  pt: "A pesquisa de domínios está indisponível no momento."
+  ru: "Поиск доменов сейчас недоступен."
+  ja: "ドメイン検索は現在利用できません。"
+  ko: "도메인 검색은 현재 사용할 수 없습니다."
+  it: "La ricerca di domini non è attualmente disponibile."
+  tr: "Alan adı araması şu anda kullanılamıyor."
+  vi: "Tìm kiếm tên miền hiện không khả dụng."
+  id: "Pencarian domain saat ini tidak tersedia."
+  pl: "Wyszukiwanie domen jest obecnie niedostępne."
+  nl: "Domeinen zoeken is momenteel niet beschikbaar."
+  ar: "البحث عن أسماء النطاقات غير متاح حاليًا."
+  hi: "डोमेन खोज अभी उपलब्ध नहीं है।"
+  th: "การค้นหาโดเมนยังไม่พร้อมใช้งานในขณะนี้"
+  cs: "Vyhledávání domén nyní není dostupné."
+  sv: "Domänsökning är för närvarande inte tillgänglig."
+  he: "חיפוש דומיינים אינו זמין כרגע."
   verified_by_human: []
 
 hosting.skills.search_domains:
@@ -606,28 +606,28 @@ mail:
   verified_by_human: [en, de]
 mail.description:
   context: Description for the Mail app
-  en: Send, manage, and compose emails.
-  de: E-Mails senden, verwalten und verfassen.
-  zh: 发送、管理和撰写电子邮件。
-  es: Envía, gestiona y redacta correos.
-  fr: Envoyez, gérez et rédigez des e-mails.
-  pt: Envie, gerencie e redija e-mails.
-  ru: Отправляйте и управляйте письмами.
-  ja: メールの送信、管理、作成。
-  ko: 이메일 보내기, 관리 및 작성.
-  it: Invia, gestisci e componi e-mail.
-  tr: E-posta gönderin, yönetin ve yazın.
-  vi: Gửi, quản lý và soạn email.
-  id: Kirim, kelola, dan tulis email.
-  pl: Wysyłaj, zarządzaj i pisz e-maile.
-  nl: Verstuur, beheer en schrijf e-mails.
-  ar: أرسل وأدر واكتب رسائل البريد.
-  hi: ईमेल भेजें, प्रबंधित करें और लिखें।
-  th: ส่ง จัดการ และเขียนอีเมล
-  cs: Posílejte, spravujte a vytvářejte e-maily.
-  sv: Skicka, hantera och skriv e-post.
-  he: שלח, נהל וכתוב הודעות אימייל.
-  verified_by_human: [en, de]
+  en: Draft emails and work with mail.
+  de: E-Mails entwerfen und mit Post arbeiten.
+  zh: 起草电子邮件并处理邮件。
+  es: Redacta correos electrónicos y trabaja con tu correo.
+  fr: Rédigez des e-mails et gérez votre courrier.
+  pt: Crie rascunhos de e-mails e trabalhe com o seu correio.
+  ru: Создавайте черновики писем и работайте с почтой.
+  ja: メールの下書きを作成し、メールを扱います。
+  ko: 이메일 초안을 작성하고 메일을 관리하세요.
+  it: Scrivi bozze di email e lavora con la posta.
+  tr: E-posta taslakları hazırlayın ve postalarınızla çalışın.
+  vi: Soạn bản nháp email và làm việc với thư.
+  id: Buat draf email dan kelola surat.
+  pl: Twórz wersje robocze e-maili i pracuj z pocztą.
+  nl: Stel e-mails op en werk met je post.
+  ar: اكتب مسودات رسائل إلكترونية وتعامل مع البريد.
+  hi: ईमेल के मसौदे तैयार करें और डाक से जुड़े काम करें।
+  th: ร่างอีเมลและจัดการจดหมาย
+  cs: Připravujte koncepty e-mailů a pracujte s poštou.
+  sv: Skriv e-postutkast och arbeta med post.
+  he: כתבו טיוטות הודעות דוא״ל ועבדו עם דואר.
+  verified_by_human: []
 life_coaching:
   context: App name for the Life coaching app
   en: Life coaching
@@ -750,28 +750,28 @@ videos:
   verified_by_human: [en, de]
 videos.description:
   context: Description for the Videos app
-  en: Search videos, get transcripts & more.
-  de: Videos suchen und Transkripte abrufen.
-  zh: 搜索视频、获取转录等。
-  es: Busca videos, obtén transcripciones.
-  fr: Cherchez des vidéos, obtenez des transcriptions.
-  pt: Pesquise vídeos e obtenha transcrições.
-  ru: Ищите видео, получайте транскрипции.
-  ja: 動画を検索し、文字起こしを取得。
-  ko: 비디오 검색, 자막 가져오기 등.
-  it: Cerca video, ottieni trascrizioni.
-  tr: Video arayın, transkript alın.
-  vi: Tìm video, lấy bản ghi và hơn thế.
-  id: Cari video, dapatkan transkrip.
-  pl: Szukaj filmów, pobieraj transkrypcje.
-  nl: Zoek video's, krijg transcripties.
-  ar: ابحث عن فيديو واحصل على النصوص.
-  hi: वीडियो खोजें, ट्रांसक्रिप्ट पाएं।
-  th: ค้นหาวิดีโอ รับสำเนาและอื่นๆ
-  cs: Hledejte videa, získejte přepisy.
-  sv: Sök videor, hämta transkriptioner.
-  he: חפש סרטונים, קבל תמלולים ועוד.
-  verified_by_human: [en, de]
+  en: Find and create videos.
+  de: Finde und erstelle Videos.
+  zh: 查找并创建视频。
+  es: Busca y crea videos.
+  fr: Trouvez et créez des vidéos.
+  pt: Encontre e crie vídeos.
+  ru: Находите и создавайте видео.
+  ja: 動画を検索・作成。
+  ko: 동영상을 찾고 만드세요.
+  it: Trova e crea video.
+  tr: Video bulun ve oluşturun.
+  vi: Tìm và tạo video.
+  id: Temukan dan buat video.
+  pl: Znajduj i twórz filmy.
+  nl: Zoek en maak video's.
+  ar: ابحث عن مقاطع الفيديو وأنشئها.
+  hi: वीडियो खोजें और बनाएं।
+  th: ค้นหาและสร้างวิดีโอ
+  cs: Hledejte a vytvářejte videa.
+  sv: Hitta och skapa videor.
+  he: מצאו וצרו סרטונים.
+  verified_by_human: []
 tv:
   context: App name for the TV app
   en: TV
@@ -846,28 +846,28 @@ travel:
   verified_by_human: [en, de]
 travel.description:
   context: Description for the Travel app
-  en: Search stays, connections & plan trips.
-  de: Unterkünfte, Verbindungen suchen & planen.
-  zh: 搜索住宿、交通并规划旅行。
-  es: Busca alojamientos, conexiones y planifica.
-  fr: Cherchez hébergements, trajets et planifiez.
-  pt: Pesquise hospedagens, conexões e planeje.
-  ru: Ищите жильё, маршруты и планируйте.
-  ja: 宿泊先・交通手段を検索し旅行を計画。
-  ko: 숙소, 교통편 검색 및 여행 계획.
-  it: Cerca alloggi, trasporti e pianifica.
-  tr: Konaklama, ulaşım arayın ve planlayın.
-  vi: Tìm chỗ ở, phương tiện và lên kế hoạch.
-  id: Cari penginapan, transportasi dan rencana.
-  pl: Szukaj noclegów, połączeń i planuj.
-  nl: Zoek verblijven, verbindingen en plan.
-  ar: ابحث عن إقامات ووسائل نقل وخطط.
-  hi: आवास, कनेक्शन खोजें और योजना बनाएं।
-  th: ค้นหาที่พัก การเดินทาง และวางแผน
-  cs: Hledejte ubytování, spojení a plánujte.
-  sv: Sök boenden, förbindelser och planera.
-  he: חפש מקומות לינה, דרכי הגעה ותכנן טיולים.
-  verified_by_human: [en, de]
+  en: Plan trips and keep saved travel information.
+  de: Plane Reisen und bewahre gespeicherte Reiseinformationen auf.
+  zh: 规划行程并保存旅行信息。
+  es: Planifica viajes y conserva la información de viaje guardada.
+  fr: Planifiez vos voyages et conservez les informations enregistrées.
+  pt: Planeje viagens e guarde informações de viagem salvas.
+  ru: Планируйте поездки и храните сохранённую информацию о путешествиях.
+  ja: 旅行を計画し、保存した旅行情報を管理。
+  ko: 여행을 계획하고 저장한 여행 정보를 보관하세요.
+  it: Pianifica viaggi e conserva le informazioni salvate.
+  tr: Seyahat planlayın ve kaydedilmiş seyahat bilgilerini saklayın.
+  vi: Lên kế hoạch chuyến đi và lưu giữ thông tin du lịch đã lưu.
+  id: Rencanakan perjalanan dan simpan informasi perjalanan yang telah disimpan.
+  pl: Planuj podróże i przechowuj zapisane informacje o nich.
+  nl: Plan reizen en bewaar opgeslagen reisinformatie.
+  ar: خطط للرحلات واحتفظ بمعلومات السفر المحفوظة.
+  hi: यात्राओं की योजना बनाएं और सहेजी गई यात्रा जानकारी रखें।
+  th: วางแผนการเดินทางและเก็บข้อมูลการเดินทางที่บันทึกไว้
+  cs: Plánujte cesty a uchovávejte uložené cestovní informace.
+  sv: Planera resor och behåll sparad reseinformation.
+  he: תכננו נסיעות ושמרו מידע שמור על נסיעות.
+  verified_by_human: []
 study:
   context: App name for the Study app
   en: Study
@@ -990,28 +990,28 @@ electronics:
   verified_by_human: [en, de]
 electronics.description:
   context: Description for the Electronics app
-  en: Find components and design electronic circuits.
-  de: Finde Komponenten und entwirf elektronische Schaltungen.
-  zh: Find components and design electronic circuits.
-  es: Find components and design electronic circuits.
-  fr: Find components and design electronic circuits.
-  pt: Find components and design electronic circuits.
-  ru: Find components and design electronic circuits.
-  ja: Find components and design electronic circuits.
-  ko: Find components and design electronic circuits.
-  it: Find components and design electronic circuits.
-  tr: Find components and design electronic circuits.
-  vi: Find components and design electronic circuits.
-  id: Find components and design electronic circuits.
-  pl: Find components and design electronic circuits.
-  nl: Find components and design electronic circuits.
-  ar: Find components and design electronic circuits.
-  hi: Find components and design electronic circuits.
-  th: Find components and design electronic circuits.
-  cs: Find components and design electronic circuits.
-  sv: Find components and design electronic circuits.
-  he: Find components and design electronic circuits.
-  verified_by_human: [en, de]
+  en: Electronic component search is currently unavailable.
+  de: Die Suche nach elektronischen Bauteilen ist derzeit nicht verfügbar.
+  zh: 电子元件搜索目前不可用。
+  es: La búsqueda de componentes electrónicos no está disponible actualmente.
+  fr: La recherche de composants électroniques est actuellement indisponible.
+  pt: A pesquisa de componentes eletrônicos está indisponível no momento.
+  ru: Поиск электронных компонентов сейчас недоступен.
+  ja: 電子部品の検索は現在利用できません。
+  ko: 전자 부품 검색은 현재 사용할 수 없습니다.
+  it: La ricerca di componenti elettronici non è attualmente disponibile.
+  tr: Elektronik bileşen araması şu anda kullanılamıyor.
+  vi: Tìm kiếm linh kiện điện tử hiện không khả dụng.
+  id: Pencarian komponen elektronik saat ini tidak tersedia.
+  pl: Wyszukiwanie komponentów elektronicznych jest obecnie niedostępne.
+  nl: Elektronische componenten zoeken is momenteel niet beschikbaar.
+  ar: البحث عن المكونات الإلكترونية غير متاح حاليًا.
+  hi: इलेक्ट्रॉनिक पुर्जों की खोज अभी उपलब्ध नहीं है।
+  th: การค้นหาชิ้นส่วนอิเล็กทรอนิกส์ยังไม่พร้อมใช้งานในขณะนี้
+  cs: Vyhledávání elektronických součástek nyní není dostupné.
+  sv: Sökning efter elektroniska komponenter är för närvarande inte tillgänglig.
+  he: חיפוש רכיבים אלקטרוניים אינו זמין כרגע.
+  verified_by_human: []
 nutrition:
   context: App name for the Nutrition app
   en: Nutrition
@@ -1374,28 +1374,28 @@ home:
   verified_by_human: [en, de]
 home.description:
   context: Description for the Home (housing search) app
-  en: Search for a new home & more.
-  de: Ein neues Zuhause finden & mehr.
-  zh: 搜索新家及更多。
-  es: Busca un nuevo hogar y más.
-  fr: Trouvez un nouveau logement et plus.
-  pt: Pesquise uma nova casa e mais.
-  ru: Найдите новый дом и не только.
-  ja: 新しい住まいを探す。
-  ko: 새 집을 찾아보세요.
-  it: Cerca una nuova casa e altro.
-  tr: Yeni bir ev arayın ve daha fazlası.
-  vi: Tìm nhà mới và hơn thế nữa.
-  id: Cari rumah baru dan lainnya.
-  pl: Szukaj nowego domu i więcej.
-  nl: Zoek een nieuw huis en meer.
-  ar: ابحث عن منزل جديد والمزيد.
-  hi: एक नया घर खोजें और बहुत कुछ।
-  th: ค้นหาบ้านใหม่และอื่นๆ
-  cs: Hledejte nový domov a více.
-  sv: Sök ett nytt hem och mer.
-  he: חפש בית חדש ועוד.
-  verified_by_human: [en, de]
+  en: Keep saved housing information.
+  de: Bewahre gespeicherte Wohnungsinformationen auf.
+  zh: 保存住房信息。
+  es: Conserva información guardada sobre viviendas.
+  fr: Conservez les informations enregistrées sur les logements.
+  pt: Guarde informações salvas sobre moradias.
+  ru: Храните сохранённую информацию о жилье.
+  ja: 保存した住まいの情報を管理。
+  ko: 저장한 주거 정보를 보관하세요.
+  it: Conserva le informazioni salvate sugli alloggi.
+  tr: Kaydedilmiş konut bilgilerini saklayın.
+  vi: Lưu giữ thông tin nhà ở đã lưu.
+  id: Simpan informasi hunian yang telah disimpan.
+  pl: Przechowuj zapisane informacje o mieszkaniach.
+  nl: Bewaar opgeslagen woninginformatie.
+  ar: احتفظ بمعلومات السكن المحفوظة.
+  hi: सहेजी गई आवास जानकारी रखें।
+  th: เก็บข้อมูลที่อยู่อาศัยที่บันทึกไว้
+  cs: Uchovávejte uložené informace o bydlení.
+  sv: Behåll sparad bostadsinformation.
+  he: שמרו מידע שמור על דיור.
+  verified_by_human: []
 fitness:
   context: App name for the Fitness app
   en: Fitness
@@ -2046,28 +2046,28 @@ events:
   verified_by_human: [en, de]
 events.description:
   context: Description for the Events app
-  en: Discover meetups, conferences & local events.
-  de: Entdecke Meetups, Konferenzen und lokale Events.
-  zh: 发现聚会、会议和本地活动。
-  es: Descubre meetups, conferencias y eventos locales.
-  fr: Découvrez des meetups, conférences et événements locaux.
-  pt: Descubra meetups, conferências e eventos locais.
-  ru: Открывайте митапы, конференции и местные события.
-  ja: ミートアップ、カンファレンス、地元のイベントを発見。
-  ko: 밋업, 컨퍼런스 및 지역 이벤트를 발견하세요.
-  it: Scopri Gathering, conferenze ed eventi locali.
-  tr: Gathering, konferans ve yerel etkinlikleri keşfedin.
-  vi: Khám phá Gathering, hội nghị và sự kiện địa phương.
-  id: Temukan Gathering, konferensi & acara lokal.
-  pl: Odkryj meetupy, konferencje i lokalne wydarzenia.
-  nl: Ontdek meetups, conferenties en lokale evenementen.
-  ar: اكتشف اللقاءات والمؤتمرات والفعاليات المحلية.
-  hi: मीटअप, सम्मेलन और स्थानीय इवेंट खोजें।
-  th: ค้นพบ Gathering การประชุม และกิจกรรมท้องถิ่น
-  cs: Objevujte meetupy, konference a místní události.
-  sv: Hitta meetups, konferenser och lokala evenemang.
-  he: גלה מיטאפים, כנסים ואירועים מקומיים.
-  verified_by_human: [en, de]
+  en: Keep saved event information.
+  de: Bewahre gespeicherte Veranstaltungsinformationen auf.
+  zh: 保存活动信息。
+  es: Conserva información guardada sobre eventos.
+  fr: Conservez les informations enregistrées sur les événements.
+  pt: Guarde informações salvas sobre eventos.
+  ru: Храните сохранённую информацию о мероприятиях.
+  ja: 保存したイベント情報を管理。
+  ko: 저장한 행사 정보를 보관하세요.
+  it: Conserva le informazioni salvate sugli eventi.
+  tr: Kaydedilmiş etkinlik bilgilerini saklayın.
+  vi: Lưu giữ thông tin sự kiện đã lưu.
+  id: Simpan informasi acara yang telah disimpan.
+  pl: Przechowuj zapisane informacje o wydarzeniach.
+  nl: Bewaar opgeslagen evenementinformatie.
+  ar: احتفظ بمعلومات الفعاليات المحفوظة.
+  hi: सहेजी गई कार्यक्रम जानकारी रखें।
+  th: เก็บข้อมูลกิจกรรมที่บันทึกไว้
+  cs: Uchovávejte uložené informace o událostech.
+  sv: Behåll sparad evenemangsinformation.
+  he: שמרו מידע שמור על אירועים.
+  verified_by_human: []
 events.search:
   context: Skill name for search in Events app
   en: Search
@@ -3010,22 +3010,22 @@ pdf.description:
   de: PDFs hochladen und deren Inhalt lesen oder durchsuchen.
   zh: 上传PDF并读取或搜索内容。
   es: Sube PDFs y lee o busca en su contenido.
-  fr: "T\u00e9l\u00e9versez des PDFs et lisez ou recherchez."
+  fr: "Téléversez des PDFs et lisez ou recherchez."
   pt: Carregue PDFs e leia ou pesquise o conteúdo.
   ru: Загружайте PDF и читайте или ищите их содержимое.
   ja: PDFをアップロードしてコンテンツを読んだり検索したりできます。
   ko: PDF를 업로드하여 내용을 읽거나 검색하세요.
   it: Carica PDF e leggi o cerca il loro contenuto.
   tr: PDF yükleyin ve içeriklerini okuyun veya arayın.
-  vi: "T\u1ea3i PDF l\u00ean v\u00e0 \u0111\u1ecdc ho\u1eb7c t\u00ecm ki\u1ebfm n\u1ed9i dung."
+  vi: "Tải PDF lên và đọc hoặc tìm kiếm nội dung."
   id: Unggah PDF dan baca atau cari isinya.
-  pl: "Prze\u015blij PDF i czytaj lub szukaj ich tre\u015bci."
+  pl: "Prześlij PDF i czytaj lub szukaj ich treści."
   nl: Upload PDF's en lees of doorzoek de inhoud.
-  ar: "\u0627\u0631\u0641\u0639 PDF \u0648\u0627\u0642\u0631\u0623 \u0623\u0648 \u0627\u0628\u062d\u062b \u0641\u064a \u0645\u062d\u062a\u0648\u0627\u0647\u0627."
-  hi: "PDF \u0905\u092a\u0932\u094b\u0921 \u0915\u0930\u0947\u0902 \u0914\u0930 \u0909\u0928\u0915\u0940 \u0938\u093e\u092e\u0917\u094d\u0930\u0940 \u092a\u0922\u093c\u0947\u0902 \u092f\u093e \u0916\u094b\u091c\u0947\u0902\u0964"
-  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14 PDF \u0e41\u0e25\u0e30\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32"
-  cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
-  sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
+  ar: "ارفع PDF واقرأ أو ابحث في محتواها."
+  hi: "PDF अपलोड करें और उनकी सामग्री पढ़ें या खोजें।"
+  th: "อัปโหลด PDF และอ่านหรือค้นหาเนื้อหา"
+  cs: "Nahrajte PDF a čtěte nebo prohledejte jejich obsah."
+  sv: "Ladda upp PDF och läs eller sök i innehållet."
   he: העלאת קובצי PDF וקריאה או חיפוש בתוכן שלהם.
   verified_by_human: [en, de]
 mindmaps:
@@ -3102,28 +3102,28 @@ models3d:
   verified_by_human: [en, de]
 models3d.description:
   context: Description for the 3D Models app
-  en: Generate 3D models from prompts or reference images.
-  de: Generiere 3D-Modelle aus Prompts oder Referenzbildern.
-  zh: Generate 3D models from prompts or reference images.
-  es: Generate 3D models from prompts or reference images.
-  fr: Generate 3D models from prompts or reference images.
-  pt: Generate 3D models from prompts or reference images.
-  ru: Generate 3D models from prompts or reference images.
-  ja: Generate 3D models from prompts or reference images.
-  ko: Generate 3D models from prompts or reference images.
-  it: Generate 3D models from prompts or reference images.
-  tr: Generate 3D models from prompts or reference images.
-  vi: Generate 3D models from prompts or reference images.
-  id: Generate 3D models from prompts or reference images.
-  pl: Generate 3D models from prompts or reference images.
-  nl: Generate 3D models from prompts or reference images.
-  ar: Generate 3D models from prompts or reference images.
-  hi: Generate 3D models from prompts or reference images.
-  th: Generate 3D models from prompts or reference images.
-  cs: Generate 3D models from prompts or reference images.
-  sv: Generate 3D models from prompts or reference images.
-  he: Generate 3D models from prompts or reference images.
-  verified_by_human: [en, de]
+  en: View saved 3D models.
+  de: Sieh dir gespeicherte 3D-Modelle an.
+  zh: 查看已保存的3D模型。
+  es: Visualiza modelos 3D guardados.
+  fr: Consultez les modèles 3D enregistrés.
+  pt: Visualize modelos 3D salvos.
+  ru: Просматривайте сохранённые 3D-модели.
+  ja: 保存した3Dモデルを表示。
+  ko: 저장한 3D 모델을 확인하세요.
+  it: Visualizza i modelli 3D salvati.
+  tr: Kaydedilmiş 3B modelleri görüntüleyin.
+  vi: Xem các mô hình 3D đã lưu.
+  id: Lihat model 3D yang disimpan.
+  pl: Przeglądaj zapisane modele 3D.
+  nl: Bekijk opgeslagen 3D-modellen.
+  ar: اعرض النماذج ثلاثية الأبعاد المحفوظة.
+  hi: सहेजे गए 3D मॉडल देखें।
+  th: ดูโมเดล 3 มิติที่บันทึกไว้
+  cs: Zobrazujte uložené 3D modely.
+  sv: Visa sparade 3D-modeller.
+  he: צפו במודלים תלת־ממדיים שמורים.
+  verified_by_human: []
 math:
   context: App name for the Math app
   en: Math
@@ -3246,28 +3246,28 @@ shopping:
   verified_by_human: [en, de]
 shopping.description:
   context: Description for the Shopping app
-  en: Compare supermarket prices and find deals.
-  de: Supermarktpreise vergleichen und Angebote finden.
-  zh: 比较超市价格，找到优惠。
-  es: Compara precios de supermercado y encuentra ofertas.
-  fr: Comparez les prix des supermarchés et trouvez des offres.
-  pt: Compare preços de supermercado e encontre ofertas.
-  ru: Сравнивайте цены супермаркетов и находите предложения.
-  ja: スーパーの価格を比較してお得情報を見つけよう。
-  ko: 슈퍼마켓 가격 비교 및 할인 찾기.
-  it: Confronta prezzi del supermercato e trova offerte.
-  tr: Süpermarket fiyatlarını karşılaştırın ve fırsatlar bulun.
-  vi: So sánh giá siêu thị và tìm ưu đãi.
-  id: Bandingkan harga supermarket dan temukan penawaran.
-  pl: Porównuj ceny w supermarketach i znajdź okazje.
-  nl: Vergelijk supermarktprijzen en vind aanbiedingen.
-  ar: قارن أسعار السوبر ماركت واعثر على العروض.
-  hi: सुपरमार्केट कीमतें तुलना करें और डील खोजें।
-  th: เปรียบเทียบราคาซุปเปอร์มาร์เก็ตและค้นหาข้อเสนอ
-  cs: Porovnejte ceny v supermarketech a najděte nabídky.
-  sv: Jämför supermarketpriser och hitta erbjudanden.
-  he: השוואת מחירי סופרמרקטים ומציאת מבצעים.
-  verified_by_human: [en, de]
+  en: Product search is currently unavailable.
+  de: Die Produktsuche ist derzeit nicht verfügbar.
+  zh: 商品搜索目前不可用。
+  es: La búsqueda de productos no está disponible actualmente.
+  fr: La recherche de produits est actuellement indisponible.
+  pt: A pesquisa de produtos está indisponível no momento.
+  ru: Поиск товаров сейчас недоступен.
+  ja: 商品検索は現在利用できません。
+  ko: 상품 검색은 현재 사용할 수 없습니다.
+  it: La ricerca di prodotti non è attualmente disponibile.
+  tr: Ürün araması şu anda kullanılamıyor.
+  vi: Tìm kiếm sản phẩm hiện không khả dụng.
+  id: Pencarian produk saat ini tidak tersedia.
+  pl: Wyszukiwanie produktów jest obecnie niedostępne.
+  nl: Producten zoeken is momenteel niet beschikbaar.
+  ar: البحث عن المنتجات غير متاح حاليًا.
+  hi: उत्पाद खोज अभी उपलब्ध नहीं है।
+  th: การค้นหาสินค้ายังไม่พร้อมใช้งานในขณะนี้
+  cs: Vyhledávání produktů nyní není dostupné.
+  sv: Produktsökning är för närvarande inte tillgänglig.
+  he: חיפוש מוצרים אינו זמין כרגע.
+  verified_by_human: []
 weather:
   context: App name for the Weather app
   en: Weather

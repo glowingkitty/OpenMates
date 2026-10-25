@@ -682,6 +682,7 @@ skills:
   # Get Flight — Flightradar24 real flight track + enrichment metadata
   # -----------------------------------------------------------------------
   - id: get_flight
+    default_enabled: false
     anonymous_access: inline
     name_translation_key: app_skills.travel.get_flight
     description_translation_key: app_skills.travel.get_flight.description

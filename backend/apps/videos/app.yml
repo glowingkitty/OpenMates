@@ -327,7 +327,9 @@ skills:
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
     providers:
-      - media.ccc.de
+      - name: media.ccc.de
+        id: media_ccc
+        no_api_key: true
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # These fields are removed before adding to message history for LLM processing
     # but remain in the full response stored in chat history for proper UI rendering

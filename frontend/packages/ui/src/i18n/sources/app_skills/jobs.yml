@@ -25,28 +25,28 @@ search:
 
 search.description:
   context: Description for the public job search skill
-  en: Find current jobs from public employment sources in Germany and Sweden.
-  de: Finde aktuelle Stellen aus öffentlichen Jobquellen in Deutschland und Schweden.
-  zh: Find current jobs from public employment sources in Germany and Sweden.
-  es: Find current jobs from public employment sources in Germany and Sweden.
-  fr: Find current jobs from public employment sources in Germany and Sweden.
-  pt: Find current jobs from public employment sources in Germany and Sweden.
-  ru: Find current jobs from public employment sources in Germany and Sweden.
-  ja: Find current jobs from public employment sources in Germany and Sweden.
-  ko: Find current jobs from public employment sources in Germany and Sweden.
-  it: Find current jobs from public employment sources in Germany and Sweden.
-  tr: Find current jobs from public employment sources in Germany and Sweden.
-  vi: Find current jobs from public employment sources in Germany and Sweden.
-  id: Find current jobs from public employment sources in Germany and Sweden.
-  pl: Find current jobs from public employment sources in Germany and Sweden.
-  nl: Find current jobs from public employment sources in Germany and Sweden.
-  ar: Find current jobs from public employment sources in Germany and Sweden.
-  hi: Find current jobs from public employment sources in Germany and Sweden.
-  th: Find current jobs from public employment sources in Germany and Sweden.
-  cs: Find current jobs from public employment sources in Germany and Sweden.
-  sv: Find current jobs from public employment sources in Germany and Sweden.
-  he: Find current jobs from public employment sources in Germany and Sweden.
-  verified_by_human: [en, de]
+  en: Search public job listings in Sweden with JobTech.
+  de: Suche öffentliche Stellenangebote in Schweden mit JobTech.
+  zh: 通过 JobTech 搜索瑞典的公开职位信息。
+  es: Busca ofertas de empleo públicas en Suecia con JobTech.
+  fr: Recherchez des offres d'emploi publiques en Suède avec JobTech.
+  pt: Pesquise vagas de emprego públicas na Suécia com o JobTech.
+  ru: Ищите открытые вакансии в Швеции с помощью JobTech.
+  ja: JobTechでスウェーデンの公開求人を検索。
+  ko: JobTech로 스웨덴의 공개 채용 공고를 검색하세요.
+  it: Cerca offerte di lavoro pubbliche in Svezia con JobTech.
+  tr: JobTech ile İsveç'teki herkese açık iş ilanlarını arayın.
+  vi: Tìm tin tuyển dụng công khai tại Thụy Điển bằng JobTech.
+  id: Cari lowongan pekerjaan publik di Swedia dengan JobTech.
+  pl: Szukaj publicznych ofert pracy w Szwecji za pomocą JobTech.
+  nl: Zoek openbare vacatures in Zweden met JobTech.
+  ar: ابحث عن إعلانات الوظائف العامة في السويد باستخدام JobTech.
+  hi: JobTech से स्वीडन की सार्वजनिक नौकरी सूचियां खोजें।
+  th: ค้นหาประกาศงานสาธารณะในสวีเดนด้วย JobTech
+  cs: Hledejte veřejné pracovní nabídky ve Švédsku pomocí JobTech.
+  sv: Sök offentliga jobbannonser i Sverige med JobTech.
+  he: חפשו מודעות דרושים ציבוריות בשוודיה באמצעות JobTech.
+  verified_by_human: []
 
 search.how_to_use.1:
   context: Example job search prompt for Germany

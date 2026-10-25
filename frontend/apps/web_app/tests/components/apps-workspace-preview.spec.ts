@@ -278,7 +278,7 @@ test.describe('Apps bare component previews', () => {
       const iconBounds = await webCard.getByTestId('app-card-icon').boundingBox();
       const nameBounds = await webCard.getByTestId('app-card-name').boundingBox();
       expect(iconBounds!.x + iconBounds!.width).toBeLessThan(nameBounds!.x);
-      await expect(page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Health') })).toHaveAttribute('data-app-id', 'health');
+      await expect(page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Weather') })).toHaveAttribute('data-app-id', 'weather');
       const webCardBounds = await webCard.boundingBox();
       expect(webCardBounds).not.toBeNull();
       if (width === 390) {
@@ -368,7 +368,7 @@ test.describe('Apps bare component previews', () => {
       await waitForComponentPreview(page);
       const fullscreen=page.getByTestId('apps-detail-fullscreen');
       await expect(fullscreen).toBeVisible();
-      await expect(fullscreen.getByTestId('embed-header-title')).toContainText('Health');
+      await expect(fullscreen.getByTestId('embed-header-title')).toContainText('Web');
       const hero=fullscreen.getByTestId('apps-hero-icon');
       await expect(hero).toBeVisible();await expect(hero).toHaveAttribute('aria-hidden','true');await expect(hero).not.toHaveAttribute('tabindex','0');await expect(hero).toHaveCSS('pointer-events','none');
       const tile=hero.locator('.apps-header-app-icon');await expect(tile).toBeVisible();expect(await tile.evaluate(element=>getComputedStyle(element).backgroundImage)).toContain('linear-gradient');expect(await tile.evaluate(element=>getComputedStyle(element,'::before').backgroundImage)).not.toBe('none');
@@ -394,7 +394,7 @@ test.describe('Apps bare component previews', () => {
       }
       const submit=page.getByTestId('apps-request-submit');
       await expect(submit).toHaveCount(0);
-      await page.getByTestId('apps-request-textarea').fill('Find dermatologists in Berlin');
+      await page.getByTestId('apps-request-textarea').fill('Find public sources about urban gardens');
       await expect(submit).toBeVisible();await expectContainedInPreview(page,submit);
       await page.getByTestId('apps-request-textarea').fill('');
       await expect(submit).toHaveCount(0);await expect(page.getByTestId('apps-request-mic')).toBeVisible();
@@ -412,7 +412,7 @@ test.describe('Apps bare component previews', () => {
       const exampleNavigation=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
       await examples.last().click();expect(await exampleNavigation).toBe('#chat-id='+encodeURIComponent(ids.at(-1)!));
       await page.getByTestId('apps-request-textarea').focus();await expect(page.getByTestId('apps-request-textarea')).toBeFocused();
-      await expectSettingsDispatch(page, 'apps/health');
+      await expectSettingsDispatch(page, 'apps/web');
       await expect(page.getByTestId('apps-daily-searches')).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
       const navigated=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
@@ -421,7 +421,7 @@ test.describe('Apps bare component previews', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.results.shared-fullscreen
-  test('Travel map zoom and round controls remain reachable below header overlays on laptop and phone', async ({ page }: { page: Page }) => {
+  test('Calendar map zoom and round controls remain reachable below header overlays on laptop and phone', async ({ page }: { page: Page }) => {
     await fixturePublicApps(page);
     await page.route('https://*.tile.openstreetmap.org/**', route => route.fulfill({
       contentType: 'image/png',
@@ -429,7 +429,7 @@ test.describe('Apps bare component previews', () => {
     }));
     for (const width of [1180, 390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(preview('apps/AppsWorkspace', width, 'appTravel'), { waitUntil: 'domcontentloaded' });
+      await page.goto(preview('apps/AppsWorkspace', width, 'appCalendar'), { waitUntil: 'domcontentloaded' });
       await waitForComponentPreview(page);
       const header = page.getByTestId('apps-map-header');
       await expect(header.getByTestId('embed-leaflet-map')).toHaveAttribute('data-map-ready', 'true');
@@ -454,7 +454,7 @@ test.describe('Apps bare component previews', () => {
       await zoomButtons.first().click();
       await zoomButtons.last().click();
       await expectNoHorizontalOverflow(page);
-      await attachWorkspaceScreenshot(page, `apps-travel-controls-${width}.png`);
+      await attachWorkspaceScreenshot(page, `apps-calendar-controls-${width}.png`);
     }
   });
 
