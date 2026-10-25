@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: calendar-event-embeds
+title: Standalone Calendar Event Embeds
+status: implementing
+goal: >
+  Add standalone calendar event embeds generated through optimized assistant
+  instructions, with shared Expand/More and separate Add to calendar controls,
+  a details/week-calendar split, optional dimmed contextual events, fullscreen
+  details, and primary-only calendar export.
+specification: feature.calendar-event-embeds@1
+task: TASK-7680
+approval:
+  fingerprint: d5649be2b51c55836910302e5e257c98d332fb2d40478cfb965c037893c8ab55
+  confirmation: Explicit user approval in this Codex chat on 2026-10-25.
+stages:
+  - Backend structured-event validation, relevance-gated instructions, and encrypted streaming lifecycle.
+  - Real native CLI/SDK generation, retrieval, persistence, and primary-only export evidence before web work.
+  - Extract reusable weekly results-calendar presentation and add registered preview/fullscreen components.
+  - Focused component and assistant/export E2E coverage in isolated CI, dev deployment, and visual review.
+decisions:
+  - Reuse the Calendar app without requiring connected-account skills.
+  - Reuse shared preview/fullscreen controls and existing results calendar; do not duplicate their layout systems.
+  - Context events are included now and never exported with the primary event.
+  - Real OpenMates inference retains automatic routing, following the user's explicit global instruction.
+  - Cloud-calendar operations and Apple implementation remain outside this stage.
+verification:
+  required:
+    - Focused backend validation/streaming unit tests and relevant lint.
+    - Real dev inference through native CLI and required SDK paths before starting web components.
+    - Isolated CI component and assistant/export checks for compact/large, phone/laptop, light/dark, context overlap, and invalid data.
+    - Deployed visual review and delivery of selected E2E recordings.
+implementation_notes:
+  - The installed openmates-rust preview is available; native client and shared Rust SDK source integration is owned by the ongoing Rust migration and is absent from this checkout's base.

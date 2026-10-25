@@ -43,6 +43,8 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
+from backend.apps.ai.utils.json_content_fences import json_content_embed_type
 from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
@@ -711,6 +713,7 @@ class EmbedService:
             "mermaid": ("diagrams", "mermaid"),
             "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
+            "calendar_event": ("calendar", "event"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -3588,46 +3591,59 @@ class EmbedService:
             return False
 
     # =========================================================================
-    # Mind map embed methods (for ```openmates_mindmap ... ``` fenced blocks)
-    # Source-first direct embeds owned by the Mind Maps app.
+    # Explicit JSON content embeds share encryption and streaming lifecycle.
+    # App-owned normalizers retain each artifact's domain validation.
     # =========================================================================
 
-    async def create_mindmap_embed_placeholder(
+    async def create_mindmap_embed_placeholder(self, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        """Preserve existing Mind Maps callers while sharing streaming lifecycle."""
+        return await self.create_json_content_embed_placeholder(source_language="openmates_mindmap", **kwargs)
+
+    async def update_mindmap_embed_content(self, **kwargs: Any) -> bool:
+        """Preserve existing Mind Maps editing callers."""
+        return await self.update_json_content_embed_content(source_language="openmates_mindmap", **kwargs)
+
+    async def create_json_content_embed_placeholder(
         self,
         chat_id: str,
         message_id: str,
         user_id: str,
         user_id_hash: str,
         user_vault_key_id: str,
+        source_language: str = "openmates_mindmap",
         task_id: Optional[str] = None,
         title: Optional[str] = None,
         log_prefix: str = "",
     ) -> Optional[Dict[str, Any]]:
-        """Create a processing Mind Maps direct embed placeholder."""
+        """Create an encrypted placeholder for a supported explicit JSON artifact."""
         try:
+            embed_type = json_content_embed_type(source_language)
+            if embed_type is None:
+                raise ValueError("Unsupported JSON content fence")
+            app_id, skill_id = self._direct_embed_app_skill(embed_type)
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
-            next_title = title or "Mind Map"
+            next_title = title or ("Calendar event" if embed_type == "calendar_event" else "Mind Map")
             embed_ref = self._generate_direct_embed_ref(
-                "mindmap",
+                embed_type,
                 embed_id,
                 {"title": next_title},
             )
             now = int(datetime.now().timestamp())
             placeholder_content = {
-                "type": "mindmap",
-                "app_id": "mindmaps",
-                "skill_id": "mindmap",
+                "type": embed_type,
+                "app_id": app_id,
+                "skill_id": skill_id,
                 "title": next_title,
                 "source_json": "",
                 "model": None,
                 "embed_ref": embed_ref,
                 "status": "processing",
-                "node_count": 0,
-                "edge_count": 0,
+                **({"primary_event": None, "context_events": []} if embed_type == "calendar_event"
+                   else {"node_count": 0, "edge_count": 0}),
                 "validation": {"status": "processing", "warnings": []},
                 "version_number": 1,
             }
@@ -3638,7 +3654,7 @@ class EmbedService:
             )
             embed_data = {
                 "embed_id": embed_id,
-                "type": "mindmap",
+                "type": embed_type,
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "hashed_chat_id": hashed_chat_id,
@@ -3659,7 +3675,7 @@ class EmbedService:
             await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
-                embed_type="mindmap",
+                embed_type=embed_type,
                 content_toon=placeholder_toon,
                 chat_id=chat_id,
                 message_id=message_id,
@@ -3675,16 +3691,16 @@ class EmbedService:
                 log_prefix=log_prefix,
             )
 
-            logger.info(f"{log_prefix} Created processing mind map embed {embed_id}")
+            logger.info(f"{log_prefix} Created processing JSON content embed {embed_id}")
             return {
                 "embed_id": embed_id,
-                "embed_reference": json.dumps({"type": "mindmap", "embed_id": embed_id}),
+                "embed_reference": json.dumps({"type": embed_type, "embed_id": embed_id}),
             }
         except Exception as e:
-            logger.error(f"{log_prefix} Error creating mind map embed placeholder: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Error creating JSON content embed placeholder: {e}", exc_info=True)
             return None
 
-    async def update_mindmap_embed_content(
+    async def update_json_content_embed_content(
         self,
         embed_id: str,
         source_json: str,
@@ -3692,6 +3708,7 @@ class EmbedService:
         user_id: str,
         user_id_hash: str,
         user_vault_key_id: str,
+        source_language: str = "openmates_mindmap",
         status: str = "finished",
         title: Optional[str] = None,
         version_number: Optional[int] = None,
@@ -3699,11 +3716,15 @@ class EmbedService:
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = "",
     ) -> bool:
-        """Update Mind Maps source JSON and derived render metadata."""
+        """Normalize a JSON artifact and retain the established encrypted lifecycle."""
         try:
+            embed_type = json_content_embed_type(source_language)
+            if embed_type is None:
+                raise ValueError("Unsupported JSON content fence")
+            app_id, skill_id = self._direct_embed_app_skill(embed_type)
             cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             if not cached_embed:
-                logger.warning(f"{log_prefix} Mind map embed {embed_id} not found in cache, cannot update")
+                logger.warning(f"{log_prefix} JSON content embed {embed_id} not found in cache, cannot update")
                 return False
 
             existing_content: Dict[str, Any] = {}
@@ -3716,31 +3737,39 @@ class EmbedService:
                 except RequiredRecoveryOutputError:
                     raise
                 except Exception as e:
-                    logger.warning(f"{log_prefix} Failed to decode existing mind map content: {e}")
+                    logger.warning(f"{log_prefix} Failed to decode existing JSON content: {e}")
 
-            normalized = normalize_mindmap_source(source_json)
+            normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
+                          else normalize_mindmap_source(source_json))
+            if embed_type == "calendar_event" and status == "finished" and normalized.model is None:
+                status = "error"
             next_title = title or normalized.title or existing_content.get("title") or "Mind Map"
             next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
             next_content_hash = content_hash
             if next_content_hash is None and status == "finished":
                 next_content_hash = hashlib.sha256(normalized.source_json.encode("utf-8")).hexdigest()
 
+            artifact_fields = (
+                {"primary_event": (normalized.model or {}).get("primary_event"),
+                 "context_events": (normalized.model or {}).get("context_events", [])}
+                if embed_type == "calendar_event"
+                else {"node_count": normalized.node_count, "edge_count": normalized.edge_count}
+            )
             updated_content = {
                 **existing_content,
-                "type": "mindmap",
-                "app_id": "mindmaps",
-                "skill_id": "mindmap",
+                "type": embed_type,
+                "app_id": app_id,
+                "skill_id": skill_id,
                 "title": next_title,
                 "source_json": normalized.source_json,
                 "model": normalized.model,
                 "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
-                    "mindmap",
+                    embed_type,
                     embed_id,
                     {"title": next_title},
                 ),
                 "status": status,
-                "node_count": normalized.node_count,
-                "edge_count": normalized.edge_count,
+                **artifact_fields,
                 "validation": {
                     "status": normalized.status,
                     "warnings": normalized.warnings,
@@ -3755,7 +3784,7 @@ class EmbedService:
             )
             updated_embed_data = {
                 **cached_embed,
-                "type": "mindmap",
+                "type": embed_type,
                 "encrypted_content": encrypted_content,
                 "status": status,
                 "version_number": next_version_number,
@@ -3771,7 +3800,7 @@ class EmbedService:
             if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
-                    embed_type="mindmap",
+                    embed_type=embed_type,
                     content_toon=updated_toon,
                     chat_id=chat_id,
                     message_id=cached_embed.get("message_id", ""),
@@ -3795,8 +3824,8 @@ class EmbedService:
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.info(
-                f"{log_prefix} Updated mind map embed {embed_id} "
-                f"(nodes={normalized.node_count}, edges={normalized.edge_count}, status={status})"
+                f"{log_prefix} Updated JSON content embed {embed_id} "
+                f"(type={embed_type}, status={status})"
             )
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
@@ -3804,7 +3833,7 @@ class EmbedService:
         except RequiredRecoveryOutputError:
             raise
         except Exception as e:
-            logger.error(f"{log_prefix} Error updating mind map embed content: {e}", exc_info=True)
+            logger.error(f"{log_prefix} Error updating JSON content embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================

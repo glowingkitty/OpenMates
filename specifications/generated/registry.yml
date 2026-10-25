@@ -462,6 +462,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.calendar-event-embeds:
+    version: 1
+    status: draft
+    path: features/calendar-event-embeds
+    fingerprint: d5649be2b51c55836910302e5e257c98d332fb2d40478cfb965c037893c8ab55
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.chat-message-timeline:
     version: 1
     status: draft
@@ -6119,6 +6131,114 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  calendar-event.content.validated:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: 28391489f2dc27b39238136ab7991d53ae05241d92c3765787e3d74ca2faaba1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.assistant.relevant-research:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: 929736f25dab74d5feb8b88eb8e1b1b25940d738c15671bba62c6310b091ab9d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.streaming.saved-lifecycle:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: b371842eb64c7763831e7a00802336d200a8fa1bdb06799b325c67b1dacbd871
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.preview.shared-week-layout:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: f9f883b202b852643d6836ae23752b634d38987a6d6524faa0781c4d87f70f10
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.preview.context-highlight:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: 172197cd86c85ddb18041e65d1fdde21d484c02444a634af0aea67ee6ee5cca1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.fullscreen.details:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: fcb553033009298eaf1a4e954ba2b18e24dfdbffa0c9b76d1e3fb96821d875c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.export.primary-only:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: behavior
+    fingerprint: 6dd50dee81c6eb61ae323e5115fe04db25c98302b28d8d070b16811e88268c64
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.privacy.explicit-local-export:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: security
+    fingerprint: 6f120bc972bd152027036cfccd33dadf114f394b3b2d505597f01b4a5d54e5f8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar-event.surfaces.verification-order:
+    specification: feature.calendar-event-embeds@1
+    specification_id: feature.calendar-event-embeds
+    type: parity
+    fingerprint: 43fea26331f2e8a07ac2590fa3ad2de6419569da2ce54c7e236ab66a2840b7ff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   chat-message-timeline.visibility-and-spacing:
     specification: feature.chat-message-timeline@1
     specification_id: feature.chat-message-timeline

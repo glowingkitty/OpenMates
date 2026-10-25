@@ -1,0 +1,196 @@
+schema_version: 1
+id: feature.calendar-event-embeds
+version: 1
+status: draft
+title: Standalone Calendar Event Embeds
+summary: >
+  Assistants turn researched or user-provided event details into an individual
+  calendar event embed with a shared preview, a weekly calendar visualization,
+  optional contextual events, fullscreen details, and explicit calendar export.
+  No connected calendar account is needed.
+
+related_contracts:
+  - specification: feature.app-skills.calendar@3
+    relationship: >
+      Reuse its timed and all-day semantics. Its connected-account discovery and
+      mutation contract cannot own account-free assistant content artifacts.
+  - specification: feature.app-skill.events-search@1
+    relationship: >
+      Reuse existing event presentation and calendar export foundations. This
+      feature does not expand the search skill's supported providers or introduce
+      an events-search fallback; ordinary web research remains a separate skill.
+  - specification: feature.chats@7
+    relationship: >
+      Preserve its authored-content placement, streaming identity, encrypted
+      persistence, recovery, and shared embed controls.
+
+scope:
+  includes:
+    - One primary calendar event authored as structured assistant content, like a code embed.
+    - Relevance-gated generation instructions for event research and explicit event requests.
+    - Title and date details beside a weekly calendar using the existing results-calendar presentation.
+    - Optional assistant-selected contextual events shown with reduced opacity from the first release.
+    - Shared Expand and More controls plus a separate quick Add to calendar action.
+    - Fullscreen details and a local iCalendar download containing only the primary event.
+    - Shared client validation/export semantics and CLI/SDK evidence before web verification.
+  excludes:
+    - Cloud-calendar connection, discovery, automatic reads, or writes for this feature.
+    - Invitations, RSVPs, reminders, recurring series, event editing, or automatic conflict resolution.
+    - Importing arbitrary uploaded calendar files or adding a provider integration.
+    - Automatic publication, sharing, or exporting of private event content.
+    - Apple implementation in this first stage; it follows verified web behavior and user review.
+
+models:
+  CalendarEvent:
+    title: {type: string, required: true, constraints: {nonblank: true}}
+    start: {type: date_or_offset_datetime, required: true}
+    end: {type: date_or_offset_datetime, required: false, constraints: {same_kind_as_start: true, after_start: true, date_end_exclusive: true}}
+    timezone: {type: iana_timezone, required: false, constraints: {consistent_with_explicit_offsets: true}}
+    description: {type: string, required: false}
+    location: {type: string, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+  CalendarEventEmbed:
+    primary_event: {type: CalendarEvent, required: true}
+    context_events: {type: array, items: CalendarEvent, required: false, default: [], constraints: {bounded: true}}
+
+assertions:
+  - id: calendar-event.content.validated
+    type: behavior
+    must: >
+      Parse one primary event with a nonblank title and a real start date or
+      offset-qualified timestamp, plus optional description, location, source,
+      and end. Reject impossible dates, offset-free timed starts, incompatible
+      start/end kinds, and ends that are not after the start. Date-only values
+      stay all-day dates in every viewer timezone; their end is exclusive.
+      Preserve supplied timed instants and timezone information. An omitted
+      all-day end means one day; an omitted timed end remains unknown rather
+      than acquiring an invented duration. Apply the same validation to context
+      events and exclude invalid context entries without changing the primary.
+    depends_on: [examples.content]
+  - id: calendar-event.assistant.relevant-research
+    type: behavior
+    must: >
+      Use the existing relevance-gated content-instruction mechanism to generate
+      an inline event embed when an event/date research answer would usefully
+      let the user add the event, or the user explicitly requests an event.
+      After web research, use supported event facts and retain a source link;
+      user-provided facts need no fabricated web source. Do not infer dates or
+      exact times from a prior edition or an unconfirmed announcement. Explain
+      unavailable or conflicting dates instead of offering an exportable event.
+      Creating this content never requires selecting a cloud-calendar skill or
+      a connected account, and unrelated answers receive no calendar guidance.
+    depends_on: [examples.assistant]
+  - id: calendar-event.streaming.saved-lifecycle
+    type: behavior
+    must: >
+      Structured assistant event content becomes one registered calendar event
+      embed at its authored message position through the existing streaming and
+      embed lifecycle. Preserve identity and data across finalization, reload,
+      and synchronization. Partial, malformed, cancelled, or invalid primary
+      content never exposes a working calendar export or masquerades as a
+      finished event; show an honest unavailable/error state. Completed content
+      displays as an event rather than a raw code block or JSON payload.
+    depends_on: [examples.lifecycle]
+  - id: calendar-event.preview.shared-week-layout
+    type: behavior
+    must: >
+      Reuse the existing shared embed preview shell, sizing, theme, app identity,
+      and top-right Expand and More controls. Add a separate accessible Add to
+      calendar quick action using the same control system. Both compact and
+      large previews use a split with approximately one third for primary title
+      and date/time details on the left and two thirds for a weekly calendar on
+      the right. Reuse or extract the existing assistant results-calendar
+      presentation and layout rules rather than build a second independent
+      calendar. Initially show the primary event's starting week. Preserve
+      all-day spans, overnight continuation, and overlapping event placement.
+      Keep controls and both columns within supported phone/laptop containers;
+      provide readable accessible event details even when visual copy truncates.
+    depends_on: [examples.preview]
+  - id: calendar-event.preview.context-highlight
+    type: behavior
+    must: >
+      Support an optional bounded collection of assistant-selected context
+      events now, even before cloud-calendar integration. Render provided
+      context entries in the same weekly view at reduced opacity while keeping
+      the primary event prominently highlighted and legible. Use an accessible
+      primary/context distinction beyond color alone and retain readable labels.
+      Show real overlaps without hiding either event. Context cannot replace
+      the primary identity, move the initial week away from the primary, or
+      become extra exported events. With no context, render only the primary.
+      Rendering never fetches a private calendar; contextual information must
+      already be available within the user's authorized chat/embed context.
+    depends_on: [examples.context]
+  - id: calendar-event.fullscreen.details
+    type: behavior
+    must: >
+      Expand opens the registered shared fullscreen layout with the complete
+      primary title, date range, known time/timezone, optional description and
+      location, source link when present, and Add to calendar action. Reuse
+      existing shared fullscreen and information components. Missing optional
+      details do not create empty sections. Render descriptions as safe content
+      and retain accessible keyboard/touch actions in light and dark themes.
+    depends_on: [examples.fullscreen]
+  - id: calendar-event.export.primary-only
+    type: behavior
+    must: >
+      The preview quick action and fullscreen Add to calendar export the same
+      RFC 5545 iCalendar file containing exactly one VEVENT for the primary
+      event. Use a stable UID derived from its embed identity, a safe filename,
+      and correct title, description, location, source, and date/time values.
+      All-day exports use DATE values and exclusive ends; timed exports preserve
+      the instants without inventing an end. Escape text and control characters
+      and fold lines by UTF-8 octets so content cannot inject properties or
+      additional events. Do not add attendees, alarms, invitation methods, or
+      context entries. Report export failures without claiming a calendar write.
+    depends_on: [examples.export]
+  - id: calendar-event.privacy.explicit-local-export
+    type: security
+    must: >
+      Keep primary and context data within the existing encrypted embed,
+      ownership, sharing, and synchronization boundaries. Generating, viewing,
+      expanding, or receiving an embed performs no external calendar operation.
+      Only an explicit user export action creates the local download; the user
+      controls importing it through their calendar application. Require no
+      OAuth, account grant, additional calendar-service request, new public
+      plaintext endpoint, or cloud-write permission. Never claim the event was
+      saved to a calendar merely because an embed or file was produced.
+    depends_on: [examples.privacy]
+  - id: calendar-event.surfaces.verification-order
+    type: parity
+    must: >
+      Existing first-party chat/embed transport, the native Rust CLI, and Rust,
+      npm, and Python SDKs expose the same primary/context payload, dates,
+      validation, identity, persistence, and export semantics. Reusable headless
+      client behavior belongs in the shared Rust core with thin platform
+      adapters. Prove real assistant generation against dev with automatic model
+      routing through CLI and required SDKs before starting web components.
+      Then verify bare component states and the assistant-response/export flow
+      in isolated CI, including compact/large previews, phone/laptop layouts,
+      light/dark themes, optional details, overlapping context, and invalid data.
+      Real-inference acceptance runs on dev; deterministic product/browser
+      integration runs in isolated CI. Review deployed web visuals before
+      requesting user confirmation for any later Apple stage.
+    depends_on: [examples.surfaces]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party encrypted chat/embed transport; no new public endpoint or calendar integration.
+  cli: {required: true, parity: semantic, implementation: native_rust}
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      rust: {required: true}
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Deferred until shared/CLI/SDK and web verification plus user review.}
+
+examples:
+  file: examples.yml
+  required_groups: [content, assistant, lifecycle, preview, context, fullscreen, export, privacy, surfaces]

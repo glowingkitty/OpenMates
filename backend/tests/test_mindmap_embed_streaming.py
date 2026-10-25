@@ -111,10 +111,10 @@ def test_mindmaps_app_definition_registers_direct_embed_type() -> None:
 def test_streaming_path_handles_mindmap_branches() -> None:
     source = STREAM_CONSUMER.read_text(encoding="utf-8")
 
-    assert "is_mindmap_block" in source
-    assert "is_mindmap_block_multi" in source
-    assert "create_mindmap_embed_placeholder" in source
-    assert "update_mindmap_embed_content" in source
+    assert "is_json_content_block" in source
+    assert "is_json_content_block_multi" in source
+    assert "create_json_content_embed_placeholder" in source
+    assert "update_json_content_embed_content" in source
 
 
 redis_stub = types.ModuleType("redis")
@@ -260,3 +260,34 @@ async def test_embed_service_creates_and_updates_mindmap_payload() -> None:
     assert final_event["version_number"] == 2
     assert final_event["content_hash"] == "content-hash-v2"
     assert "openmatesType" in final_event["content"]
+
+
+# contract-test: supporting surface=rest_api assertions=calendar-event.streaming.saved-lifecycle,calendar-event.content.validated,calendar-event.privacy.explicit-local-export
+@pytest.mark.asyncio
+async def test_calendar_artifact_reuses_encrypted_lifecycle_and_rejects_invalid_final_content() -> None:
+    cache = FakeCacheService()
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+    common = {"chat_id": "chat-1", "user_id": "user-1", "user_id_hash": "user-hash", "user_vault_key_id": "vault-1",
+              "source_language": "openmates_calendar_event"}
+    created = await service.create_json_content_embed_placeholder(message_id="message-1", task_id="task-1", **common)
+    assert json.loads(created["embed_reference"])["type"] == "calendar_event"
+    event = {"title": "FOSDEM 2027", "start": "2027-01-30", "end": "2027-02-01"}
+    source = json.dumps({"openmatesType": "calendar_event", "schemaVersion": 1, "primary_event": event,
+                         "context_events": [{"title": "Travel", "start": "2027-01-29"}]})
+    assert await service.update_json_content_embed_content(embed_id=created["embed_id"], source_json=source, status="processing", **common)
+    assert await service.update_json_content_embed_content(embed_id=created["embed_id"], source_json=source, status="finished", **common)
+    stored = json.loads(cache._client.values[f"embed:{created['embed_id']}"])
+    content = decode(stored["encrypted_content"])
+    assert stored["encryption_mode"] == "client"
+    assert stored["type"] == "calendar_event"
+    assert content["app_id"] == "calendar" and content["skill_id"] == "event"
+    assert content["primary_event"] == event
+    assert content["context_events"] == [{"title": "Travel", "start": "2027-01-29"}]
+    assert content["status"] == "finished" and content["validation"]["status"] == "valid"
+    assert "node_count" not in content
+    assert await service.update_json_content_embed_content(embed_id=created["embed_id"], source_json="{}", status="finished", **common)
+    stored = json.loads(cache._client.values[f"embed:{created['embed_id']}"])
+    content = decode(stored["encrypted_content"])
+    assert stored["status"] == content["status"] == "error"
+    assert content["primary_event"] is None and content["context_events"] == []

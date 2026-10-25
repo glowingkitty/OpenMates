@@ -100,7 +100,7 @@ from backend.apps.ai.utils.diagram_html_fences import (
     is_diagram_html_fence,
     validate_diagram_html_source,
 )
-from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
+from backend.apps.ai.utils.json_content_fences import is_json_content_fence
 from backend.apps.ai.utils.embeds_map_view import (
     MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
@@ -6600,9 +6600,9 @@ async def _consume_main_processing_stream(
     in_mermaid_block = False
     in_diagram_html_block = False
 
-    # Mind map tracking: ```openmates_mindmap ... ``` fences produce Mind Maps
+    # Structured JSON tracking: Mind Maps and Calendar Event fences produce
     # direct embeds instead of generic Code embeds during incremental streaming.
-    in_mindmap_block = False
+    in_json_content_block = False
 
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
@@ -7408,8 +7408,8 @@ async def _consume_main_processing_stream(
                                 is_mermaid_block = _is_mermaid_fence(current_code_language)
                                 is_diagram_html_block = is_diagram_html_fence(current_code_language)
 
-                                # Check if this is a Mind Maps OpenMates JSON block.
-                                is_mindmap_block = is_mindmap_fence(current_code_language)
+                                # Check for a supported structured OpenMates JSON artifact.
+                                is_json_content_block = is_json_content_fence(current_code_language)
 
                                 # Check if this is a diff block (```diff:embed_ref).
                                 # Some models emit a bare ```diff fence even after
@@ -7465,8 +7465,9 @@ async def _consume_main_processing_stream(
                                     current_code_content = ""
                                     current_code_embed_id = None
 
-                                elif is_mindmap_block:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -7477,7 +7478,8 @@ async def _consume_main_processing_stream(
                                     )
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
-                                        await embed_service.update_mindmap_embed_content(
+                                        await embed_service.update_json_content_embed_content(
+                                            source_language=current_code_language,
                                             embed_id=current_code_embed_id,
                                             source_json=code_content,
                                             chat_id=request_data.chat_id,
@@ -7490,12 +7492,12 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(
-                                            f"{log_prefix} Created and finalized mind map embed {current_code_embed_id} "
-                                            f"for complete Mind Maps block"
+                                            f"{log_prefix} Created and finalized JSON content embed {current_code_embed_id} "
+                                            f"for complete JSON content block"
                                         )
 
                                         in_code_block = False
-                                        in_mindmap_block = False
+                                        in_json_content_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""
@@ -8049,7 +8051,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_multi = _is_pcb_schematic_fence(current_code_language)
-                        is_mindmap_block_multi = is_mindmap_fence(current_code_language)
+                        is_json_content_block_multi = is_json_content_fence(current_code_language)
                         is_mermaid_block_multi = _is_mermaid_fence(current_code_language)
                         is_diagram_html_block_multi = is_diagram_html_fence(current_code_language)
                         if is_plot_block_multi:
@@ -8065,8 +8067,8 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_multi:
                             in_pcb_schematic_block = True
-                        elif is_mindmap_block_multi:
-                            in_mindmap_block = True
+                        elif is_json_content_block_multi:
+                            in_json_content_block = True
                         elif is_mermaid_block_multi:
                             in_mermaid_block = True
                         elif is_diagram_html_block_multi:
@@ -8217,8 +8219,9 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id}")
-                                elif is_mindmap_block_multi:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block_multi:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -8232,7 +8235,8 @@ async def _consume_main_processing_stream(
                                         current_code_embed_id = embed_data["embed_id"]
 
                                         if current_code_content:
-                                            await embed_service.update_mindmap_embed_content(
+                                            await embed_service.update_json_content_embed_content(
+                                                source_language=current_code_language,
                                                 embed_id=current_code_embed_id,
                                                 source_json=current_code_content,
                                                 chat_id=request_data.chat_id,
@@ -8245,7 +8249,7 @@ async def _consume_main_processing_stream(
 
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id}")
+                                        logger.info(f"{log_prefix} Created JSON content embed placeholder {current_code_embed_id}")
                                 elif is_diagram_html_block_multi:
                                     embed_data = await embed_service.create_diagram_html_embed_placeholder(
                                         chat_id=request_data.chat_id, message_id=request_data.message_id,
@@ -8491,7 +8495,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_post_bare = _is_pcb_schematic_fence(current_code_language)
-                        is_mindmap_block_post_bare = is_mindmap_fence(current_code_language)
+                        is_json_content_block_post_bare = is_json_content_fence(current_code_language)
                         is_mermaid_block_post_bare = _is_mermaid_fence(current_code_language)
                         is_diagram_html_block_post_bare = is_diagram_html_fence(current_code_language)
                         if is_plot_block_post_bare:
@@ -8507,8 +8511,8 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_post_bare:
                             in_pcb_schematic_block = True
-                        elif is_mindmap_block_post_bare:
-                            in_mindmap_block = True
+                        elif is_json_content_block_post_bare:
+                            in_json_content_block = True
                         elif is_mermaid_block_post_bare:
                             in_mermaid_block = True
                         elif is_diagram_html_block_post_bare:
@@ -8665,8 +8669,9 @@ async def _consume_main_processing_stream(
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id} (language resolved after bare fence)")
                                     else:
                                         chunk = ""
-                                elif is_mindmap_block_post_bare:
-                                    embed_data = await embed_service.create_mindmap_embed_placeholder(
+                                elif is_json_content_block_post_bare:
+                                    embed_data = await embed_service.create_json_content_embed_placeholder(
+                                        source_language=current_code_language,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -8680,7 +8685,8 @@ async def _consume_main_processing_stream(
                                         current_code_embed_id = embed_data["embed_id"]
 
                                         if current_code_content:
-                                            await embed_service.update_mindmap_embed_content(
+                                            await embed_service.update_json_content_embed_content(
+                                                source_language=current_code_language,
                                                 embed_id=current_code_embed_id,
                                                 source_json=current_code_content,
                                                 chat_id=request_data.chat_id,
@@ -8693,7 +8699,7 @@ async def _consume_main_processing_stream(
 
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created mind map embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                        logger.info(f"{log_prefix} Created JSON content embed placeholder {current_code_embed_id} (language resolved after bare fence)")
                                     else:
                                         chunk = ""
                                 elif is_diagram_html_block_post_bare:
@@ -9034,7 +9040,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9091,7 +9097,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9148,7 +9154,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9187,7 +9193,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9213,7 +9219,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None
@@ -9228,7 +9234,7 @@ async def _consume_main_processing_stream(
                             and not in_document_block
                             and not in_email_block
                             and not in_pcb_schematic_block
-                            and not in_mindmap_block
+                            and not in_json_content_block
                             and not in_mermaid_block
                             and not in_diagram_html_block
                             and _should_skip_code_block_for_embed(current_code_content)
@@ -9364,8 +9370,9 @@ async def _consume_main_processing_stream(
                                     )
 
                                     logger.info(f"{log_prefix} Finalized PCB schematic embed {current_code_embed_id}")
-                                elif in_mindmap_block:
-                                    await embed_service.update_mindmap_embed_content(
+                                elif in_json_content_block:
+                                    await embed_service.update_json_content_embed_content(
+                                        source_language=current_code_language,
                                         embed_id=current_code_embed_id,
                                         source_json=current_code_content,
                                         chat_id=request_data.chat_id,
@@ -9376,7 +9383,7 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
 
-                                    logger.info(f"{log_prefix} Finalized mind map embed {current_code_embed_id}")
+                                    logger.info(f"{log_prefix} Finalized JSON content embed {current_code_embed_id}")
                                 elif in_diagram_html_block:
                                     await _finalize_diagram_html_embed(
                                         embed_service, current_code_embed_id, current_code_content,
@@ -9556,7 +9563,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
-                            in_mindmap_block = False
+                            in_json_content_block = False
                             in_mermaid_block = False
                             in_diagram_html_block = False
                             current_document_title = None

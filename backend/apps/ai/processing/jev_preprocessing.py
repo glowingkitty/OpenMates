@@ -36,6 +36,7 @@ PREVIEW_TYPES = {
     "website": "A web page or HTML artifact.",
     "image": "An image or visual artifact.",
     "music": "Music or audio composition output.",
+    "calendar_event": "A dated event the user can add to a calendar: conference/event date research or an explicit event request. No calendar account is needed.",
 }
 PUBLIC_APP_CAPABILITIES = {
     "diagrams": "Create editable editorial HTML/SVG diagrams and charts across 44 visual types, including architecture, flowcharts, timelines, data flow, and quantitative charts.",
