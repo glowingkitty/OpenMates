@@ -127,15 +127,38 @@ def copy_compiled_wasm(artifact, destination):
     return metadata
 
 
-def detach_installed_bindgen(work, deadline):
+def detach_installed_bindgen(work, deadline, diagnostic=None):
     """Detach only the closed Cargo install/build hardlink set, before execution.
 
     Unknown links are never adopted. The provenance reader below still requires
     nlink==1; this preparation cannot make an arbitrary hardlink admissible.
     """
+    def note(substage, **values):
+        # Observation never authorizes a guard or replaces a filesystem failure.
+        try:
+            if diagnostic is not None:
+                diagnostic.update(substage=substage, **values)
+        except Exception:
+            pass
+
+    def observed(key, value):
+        try:
+            if diagnostic is not None:
+                diagnostic[key] = value
+        except Exception:
+            pass
+        return value
+
+    note("detach-work")
     sdk.require(work.is_absolute() and work.resolve() == work, "packaging")
     binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    note("detach-stat")
     original = binary.lstat()
+    note("detach-link-guard", detachOriginalLinks=min(original.st_nlink, 65536),
+         binaryBytes=min(original.st_size, 64 * 1024**2 + 1),
+         binaryRegular=stat.S_ISREG(original.st_mode), binaryOwner=original.st_uid == os.getuid(),
+         binaryModeSafe=not bool(original.st_mode & 0o022), binaryExecutable=bool(original.st_mode & 0o111),
+         binarySingleLink=original.st_nlink == 1, binarySizeWithinLimit=0 < original.st_size <= 64 * 1024**2)
     if original.st_nlink == 1:
         return
     sdk.require(original.st_nlink in {2, 3} and stat.S_ISREG(original.st_mode)
@@ -145,89 +168,118 @@ def detach_installed_bindgen(work, deadline):
                    work / ".ci-bindgen-target", work / ".ci-bindgen-target/release",
                    work / ".ci-bindgen-target/release/deps"]
     directory_ids = []
-    for directory in directories:
+    for index, directory in enumerate(directories):
+        note("detach-directory-stat", detachDirectoryIndex=index)
         before = directory.lstat()
+        note("detach-directory-guard", detachDirectoryOwner=before.st_uid == os.getuid(),
+             detachDirectoryModeSafe=not bool(before.st_mode & 0o022), detachDirectoryRegular=stat.S_ISDIR(before.st_mode))
         sdk.require(directory.resolve() == directory and stat.S_ISDIR(before.st_mode)
                     and before.st_uid == os.getuid() and not before.st_mode & 0o022, "packaging")
         directory_ids.append((before.st_dev, before.st_ino, before.st_mode, before.st_uid, before.st_gid))
 
     def current():
+        note("detach-current-deadline")
         sdk.require(time.monotonic() < deadline, "deadline")
-        for directory, expected in zip(directories, directory_ids):
+        for index, (directory, expected) in enumerate(zip(directories, directory_ids)):
+            note("detach-current-directory", detachDirectoryIndex=index)
             now = directory.lstat()
             sdk.require(directory.resolve() == directory
                         and (now.st_dev, now.st_ino, now.st_mode, now.st_uid, now.st_gid) == expected, "packaging")
 
     current()
     aliases = [work / ".ci-bindgen-target/release/wasm-bindgen"]
+    note("detach-scan-open")
     with os.scandir(directories[-1]) as entries:
         for index, entry in enumerate(entries):
+            note("detach-scan-bound", detachEntriesSeen=min(index + 1, 4097))
             sdk.require(index < 4096, "packaging")
             if re.fullmatch(r"wasm_bindgen-[0-9a-f]{16}", entry.name):
                 aliases.append(Path(entry.path))
+                note("detach-alias-bound", detachAliasCount=min(len(aliases), 3))
                 sdk.require(len(aliases) <= 2, "packaging")
+    note("detach-link-count", detachAliasCount=min(len(aliases), 3))
     sdk.require(original.st_nlink == len(aliases) + 1, "packaging")
-    for alias in aliases:
-        sdk.require(alias.resolve() == alias
-                    and sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
+    for index, alias in enumerate(aliases):
+        note("detach-alias-identity", detachAliasIndex=index)
+        sdk.require(observed("detachAliasPathMatches", alias.resolve() == alias)
+                    and observed("detachAliasIdentityMatches", sdk.file_identity(alias.lstat()) == sdk.file_identity(original)), "packaging")
     # Keep the source descriptor open through publication, so path replacement
     # cannot conceal source mutation or an unexpected surviving link.
+    note("detach-source-open")
     source_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     temporary = binary.with_name(".wasm-bindgen-detached")
     copied = None
     directory_fd = None
     try:
+        note("detach-source-identity")
         sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        note("detach-source-read")
         data = sdk.regular(binary)
         digest = sdk.sha(data)
         current()
+        note("detach-source-identity")
         sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        note("detach-directory-open")
         directory_fd = os.open(binary.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        note("detach-directory-identity")
         sdk.require((os.fstat(directory_fd).st_dev, os.fstat(directory_fd).st_ino) == directory_ids[2][:2], "packaging")
+        note("detach-copy-open")
         fd = os.open(temporary.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                      0o700, dir_fd=directory_fd)
         copied = os.fstat(fd)
+        note("detach-copy-write")
         with os.fdopen(fd, "wb") as stream:
             os.fchmod(stream.fileno(), 0o700)
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
             copied = os.fstat(stream.fileno())
+        note("detach-copy-identity")
         sdk.require(stat.S_ISREG(copied.st_mode) and copied.st_uid == os.getuid()
                     and copied.st_mode & 0o777 == 0o700 and copied.st_nlink == 1
                     and (copied.st_dev, copied.st_ino) != (original.st_dev, original.st_ino)
                     and copied.st_size == original.st_size, "packaging")
+        note("detach-copy-read")
         sdk.require(sdk.sha(sdk.regular(temporary)) == digest
                     and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
         current()
+        note("detach-prepublish-identity")
         sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
                     and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
-        for alias in aliases:
+        for index, alias in enumerate(aliases):
+            note("detach-prepublish-alias", detachAliasIndex=index)
             sdk.require(alias.resolve() == alias
                         and sdk.file_identity(alias.lstat()) == sdk.file_identity(original)
                         and sdk.sha(sdk.regular(alias)) == digest, "packaging")
         current()
+        note("detach-prepublish-identity")
         sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
                     and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original)
                     and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
-        for alias in aliases:
+        for index, alias in enumerate(aliases):
+            note("detach-prepublish-alias", detachAliasIndex=index)
             sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
+        note("detach-publish")
         os.replace(temporary.name, binary.name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+        note("detach-publish-fsync")
         os.fsync(directory_fd)
         current()
+        note("detach-installed")
         installed = binary.lstat()
         sdk.require((installed.st_dev, installed.st_ino, installed.st_size, installed.st_mode,
                      installed.st_uid, installed.st_gid, installed.st_nlink, installed.st_mtime_ns)
                     == (copied.st_dev, copied.st_ino, copied.st_size, copied.st_mode,
                         copied.st_uid, copied.st_gid, 1, copied.st_mtime_ns)
                     and sdk.sha(sdk.regular(binary)) == digest, "packaging")
+        note("detach-remaining")
         remaining = os.fstat(source_fd)
         sdk.require((remaining.st_dev, remaining.st_ino, remaining.st_size, remaining.st_mode,
                      remaining.st_uid, remaining.st_gid, remaining.st_nlink, remaining.st_mtime_ns)
                     == (original.st_dev, original.st_ino, original.st_size, original.st_mode,
                         original.st_uid, original.st_gid, original.st_nlink - 1, original.st_mtime_ns)
                     and remaining.st_ctime_ns >= original.st_ctime_ns, "packaging")
-        for alias in aliases:
+        for index, alias in enumerate(aliases):
+            note("detach-final-alias", detachAliasIndex=index)
             sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(remaining)
                         and sdk.sha(sdk.regular(alias)) == digest, "packaging")
     finally:
@@ -272,6 +324,7 @@ def package_inventory(folder):
 
 
 PROVENANCE_SUBSTAGES = frozenset({
+    "detach-alias-bound", "detach-alias-identity", "detach-copy-identity", "detach-copy-open", "detach-copy-read", "detach-copy-write", "detach-current-deadline", "detach-current-directory", "detach-directory-guard", "detach-directory-identity", "detach-directory-open", "detach-directory-stat", "detach-final-alias", "detach-installed", "detach-link-count", "detach-link-guard", "detach-prepublish-alias", "detach-prepublish-identity", "detach-publish", "detach-publish-fsync", "detach-remaining", "detach-scan-bound", "detach-scan-open", "detach-source-identity", "detach-source-open", "detach-source-read", "detach-stat", "detach-work",
     "locked-version", "install", "source-discovery", "archive-discovery", "unique-count",
     "manifest-read", "manifest-identity", "registry-pin", "archive-read", "checksum-validation",
     "published-lock-read", "published-lock-root", "binary-stat", "binary-read", "binary-identity",
@@ -288,9 +341,15 @@ PROVENANCE_CLASSES = frozenset({"Refused", "FileNotFoundError", "PermissionError
                                 "JSONDecodeError", "UnicodeDecodeError", "KeyError", "TypeError", "AttributeError", "ValueError", "other"})
 
 
+DETACH_BOOLEANS = ("detachDirectoryOwner", "detachDirectoryModeSafe", "detachDirectoryRegular",
+                   "detachAliasPathMatches", "detachAliasIdentityMatches")
+DETACH_COUNTS = {"detachOriginalLinks": 65536, "detachDirectoryIndex": 5,
+                 "detachEntriesSeen": 4097, "detachAliasCount": 3, "detachAliasIndex": 1}
+
+
 def new_provenance_diagnostic():
     return {"substage": "locked-version", "sourceCount": None, "archiveCount": None,
-            **{key: None for key in PROVENANCE_BOOLEANS}, "binaryBytes": None,
+            **{key: None for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS, *DETACH_COUNTS)}, "binaryBytes": None,
             "beforeVersionFreeBytes": None, "beforeVersionMinimumFreeBytes": None, "minimumReserveBytes": None}
 
 
@@ -298,11 +357,14 @@ def closed_provenance_diagnostic(state, error):
     """A closed diagnostic only; never stringify exceptions, paths or private data."""
     sdk.require(type(state) is dict and set(state) == set(new_provenance_diagnostic()), "packaging")
     sdk.require(type(state["substage"]) is str and state["substage"] in PROVENANCE_SUBSTAGES, "packaging")
-    for key in PROVENANCE_BOOLEANS:
+    for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS):
         sdk.require(state[key] is None or type(state[key]) is bool, "packaging")
     for key, limit in (("sourceCount", 2), ("archiveCount", 2), ("binaryBytes", 64 * 1024**2 + 1),
                        ("beforeVersionFreeBytes", 2**63 - 1), ("beforeVersionMinimumFreeBytes", 2**63 - 1),
                        ("minimumReserveBytes", 2**63 - 1)):
+        value = state[key]
+        sdk.require(value is None or type(value) is int and 0 <= value <= limit, "packaging")
+    for key, limit in DETACH_COUNTS.items():
         value = state[key]
         sdk.require(value is None or type(value) is int and 0 <= value <= limit, "packaging")
     classes = {sdk.Refused: "Refused", FileNotFoundError: "FileNotFoundError", PermissionError: "PermissionError",
@@ -389,7 +451,7 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
         diagnostic["substage"] = "install"
         runner.run("bindgen-install", commands()[3], seconds=STAGE_SECONDS[3])
         diagnostic["substage"] = "binary-detach"
-        detach_installed_bindgen(work, runner.deadline)
+        detach_installed_bindgen(work, runner.deadline, diagnostic)
         provenance = installed_bindgen_provenance(private, work, diagnostic)
         runner.env["PATH"] = str(work / ".ci-bindgen/bin") + os.pathsep + runner.env["PATH"]
         diagnostic["substage"] = "before-version"

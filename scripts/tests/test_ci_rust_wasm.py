@@ -1406,3 +1406,89 @@ class BindgenDetachmentTests(SyntheticPinTests):
                         (target.parent / "deps" / str(number)).touch()
                 with self.assertRaises(lane.sdk.Refused):
                     lane.detach_installed_bindgen(work, time.monotonic() + 10)
+
+
+class BindgenDetachmentDiagnosticTests(unittest.TestCase):
+    """Closed observations from inert owned files; never Cargo or installed tools."""
+
+    def fixture(self, root, deps=False):
+        return BindgenDetachmentTests().fixture(root, deps)
+
+    def test_successful_known_alias_detachment_and_independent_file_keep_closed_observations(self):
+        for deps in (False, True):
+            with self.subTest(deps=deps), TemporaryDirectory() as directory:
+                _, work, binary, target = self.fixture(Path(directory), deps)
+                state = lane.new_provenance_diagnostic()
+                lane.detach_installed_bindgen(work, time.monotonic() + 10, state)
+                self.assertEqual(state["detachOriginalLinks"], 3 if deps else 2)
+                self.assertEqual(state["detachAliasCount"], 2 if deps else 1)
+                self.assertTrue(state["detachAliasPathMatches"])
+                self.assertTrue(state["detachAliasIdentityMatches"])
+                self.assertEqual(binary.stat().st_nlink, 1)
+                self.assertEqual(binary.read_bytes(), target.read_bytes())
+                result = lane.closed_provenance_diagnostic(state, lane.sdk.Refused("packaging"))
+                self.assertNotIn(str(work), json.dumps(result))
+        with TemporaryDirectory() as directory:
+            _, work, binary, target = self.fixture(Path(directory))
+            target.unlink()
+            original = lane.sdk.file_identity(binary.lstat())
+            state = lane.new_provenance_diagnostic()
+            lane.detach_installed_bindgen(work, time.monotonic() + 10, state)
+            self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+            self.assertEqual(state["detachOriginalLinks"], 1)
+            self.assertIsNone(state["detachAliasCount"])
+
+    def test_unknown_alias_and_directory_faults_report_exact_closed_boundary_and_keep_refusal(self):
+        for fault, expected in (("link-count", "detach-link-count"),
+                                ("wrong-alias", "detach-alias-identity"),
+                                ("directory-mode", "detach-directory-guard"),
+                                ("deadline", "detach-current-deadline")):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, work, binary, target = self.fixture(root)
+                if fault == "link-count":
+                    os.link(binary, root / "PRIVATE_UNKNOWN")
+                elif fault == "wrong-alias":
+                    os.link(binary, root / "PRIVATE_UNKNOWN")
+                    target.unlink()
+                    target.write_bytes(b"PRIVATE_DIFFERENT")
+                elif fault == "directory-mode":
+                    target.parent.chmod(0o777)
+                original = lane.sdk.file_identity(binary.lstat())
+                state = lane.new_provenance_diagnostic()
+                with self.assertRaises(lane.sdk.Refused) as caught:
+                    lane.detach_installed_bindgen(work, time.monotonic() - 1 if fault == "deadline" else time.monotonic() + 10, state)
+                result = lane.closed_provenance_diagnostic(state, caught.exception)
+                self.assertEqual(result["substage"], expected)
+                self.assertEqual(result["code"], "deadline" if fault == "deadline" else "packaging")
+                self.assertNotIn("PRIVATE", json.dumps(result))
+                self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
+                if fault == "wrong-alias":
+                    self.assertTrue(result["detachAliasPathMatches"])
+                    self.assertFalse(result["detachAliasIdentityMatches"])
+                if fault == "directory-mode":
+                    self.assertFalse(result["detachDirectoryModeSafe"])
+
+    def test_detach_diagnostic_schema_is_strict_and_cannot_authorize_a_guard(self):
+        for key, limit in lane.DETACH_COUNTS.items():
+            for invalid in (-1, limit + 1, True, "PRIVATE"):
+                state = lane.new_provenance_diagnostic()
+                state[key] = invalid
+                with self.subTest(key=key, invalid=invalid), self.assertRaises(lane.sdk.Refused):
+                    lane.closed_provenance_diagnostic(state, RuntimeError("PRIVATE"))
+        for key in lane.DETACH_BOOLEANS:
+            state = lane.new_provenance_diagnostic()
+            state[key] = 1
+            with self.subTest(key=key), self.assertRaises(lane.sdk.Refused):
+                lane.closed_provenance_diagnostic(state, RuntimeError("PRIVATE"))
+        class BrokenObserver(dict):
+            def update(self, *args, **kwargs):
+                raise RuntimeError("PRIVATE_OBSERVER")
+            def __setitem__(self, *args):
+                raise RuntimeError("PRIVATE_OBSERVER")
+        with TemporaryDirectory() as directory:
+            _, work, binary, target = self.fixture(Path(directory))
+            os.link(binary, Path(directory) / "PRIVATE_UNKNOWN")
+            with self.assertRaises(lane.sdk.Refused) as caught:
+                lane.detach_installed_bindgen(work, time.monotonic() + 10, BrokenObserver())
+            self.assertEqual(caught.exception.args, ("packaging",))
