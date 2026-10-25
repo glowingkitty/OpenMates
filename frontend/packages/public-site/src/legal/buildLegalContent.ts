@@ -200,6 +200,7 @@ export function buildPrivacyPolicyContent(
     openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
     typesafe: "legal.privacy.providers.ai_models.typesafe.heading",
     inception: "legal.privacy.providers.ai_models.inception.heading",
+    baseten: "legal.privacy.providers.ai_models.baseten.heading",
     fal: "legal.privacy.providers.image_generation.fal.heading",
     recraft: "legal.privacy.providers.image_generation.recraft.heading",
     hi3d: "legal.privacy.providers.model_generation.hi3d.heading",
@@ -292,6 +293,7 @@ export function buildPrivacyPolicyContent(
   );
   lines.push("");
   renderProvider("legal.privacy.providers.ai_models.inception", privacyPolicyLinks.inception);
+  renderProvider("legal.privacy.providers.ai_models.baseten", privacyPolicyLinks.baseten);
   renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
   renderProvider("legal.privacy.providers.ai_models.google_gemini_v2", privacyPolicyLinks.googleGemini);
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);

@@ -27,7 +27,7 @@ def _model():
 
 def _use_catalog(monkeypatch):
     monkeypatch.setattr(llm_utils.config_manager, 'get_provider_config', lambda provider: _catalog() if provider == 'zai' else None)
-    monkeypatch.setattr(llm_utils.config_manager, 'get_model_pricing', lambda provider, model: _model() if (provider, model) == ('zai', 'zai-glm-5.3') else None)
+    monkeypatch.setattr(llm_utils.config_manager, 'get_model_pricing', lambda provider, model, **_kw: _model() if (provider, model) == ('zai', 'zai-glm-5.3') else None)
 
 
 def test_glm_default_host_uses_mistral_api_id_and_verified_rates(monkeypatch):
@@ -96,7 +96,7 @@ def test_preprocessing_mistral_fallback_uses_its_own_catalog_not_primary(monkeyp
     monkeypatch.setattr(llm_utils, 'CacheService', CacheWithoutClient)
     monkeypatch.setattr(llm_utils, 'resolve_default_server_from_provider_config', lambda _: (None, None))
     monkeypatch.setattr(llm_utils, '_get_provider_client', lambda provider: fallback if provider == 'mistral' else primary)
-    monkeypatch.setattr(mistral_client.config_manager, 'get_model_pricing', lambda provider, _: {'reasoning_effort': 'none' if provider == 'mistral' else 'medium'})
+    monkeypatch.setattr(mistral_client.config_manager, 'get_model_pricing', lambda provider, _, **_kw: {'reasoning_effort': 'none' if provider == 'mistral' else 'medium'})
     result = asyncio.run(llm_utils.call_preprocessing_llm(
         task_id='test', model_id='google/primary',
         message_history=[{'role': 'user', 'content': 'Classify this.'}],

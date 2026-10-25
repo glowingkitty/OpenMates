@@ -163,6 +163,8 @@ async def invoke_openrouter_chat_completions(
     stream: bool = False,
     fallback_models: Optional[List[str]] = None,
     reasoning_effort: Optional[str] = None,
+    prompt_cache_key: Optional[str] = None,
+    catalog_model_id: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Public wrapper for invoking the OpenRouter API with OpenAI models.
@@ -229,7 +231,7 @@ async def invoke_openrouter_chat_completions(
     # Get provider overrides if configured for this model
     # Provider overrides allow specifying which upstream provider OpenRouter should use
     # (e.g., forcing a specific provider when multiple are available)
-    provider_overrides = _get_provider_overrides_for_model(model_id)
+    provider_overrides = _get_provider_overrides_for_model(catalog_model_id or model_id)
     if provider_overrides:
         logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
     
@@ -246,5 +248,6 @@ async def invoke_openrouter_chat_completions(
         tool_choice=tool_choice,
         stream=stream,
         provider_overrides=provider_overrides,
+        session_id=prompt_cache_key,
         fallback_models=resolved_fallback_models,
     )

@@ -69,6 +69,7 @@ async def invoke_together_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     top_p: Optional[float] = None,
+    prompt_cache_key: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
@@ -141,5 +142,6 @@ async def invoke_together_chat_completions(
         tools=tools,
         tool_choice=tool_choice,
         stream=stream,
-        top_p=top_p
+        top_p=top_p,
+        prompt_cache_key=prompt_cache_key
     )

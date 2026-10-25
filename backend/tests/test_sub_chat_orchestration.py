@@ -406,7 +406,7 @@ def test_skill_operation_identity_distinguishes_repeated_tool_calls() -> None:
 def test_ai_iteration_quote_uses_input_and_maximum_output_tokens(monkeypatch) -> None:
     monkeypatch.setattr(
         "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",
-        lambda provider_id, model_id: {
+        lambda provider_id, model_id, **_kwargs: {
             "pricing": {
                 "tokens": {
                     "input": {"per_credit_unit": 10},
@@ -438,7 +438,7 @@ def test_ai_iteration_quote_bounds_enabled_separate_cache_writes(monkeypatch) ->
         "cache_pricing": {"enabled": False, "write_billing": "separate"},
         "features": {"max_output_tokens": 1},
     }
-    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     quote_args = {
         "model_id": "provider/model",
         "system_prompt": "s" * 1_000,
@@ -468,7 +468,7 @@ def test_mistral_prompt_cache_key_is_scoped_to_user_team_and_chat(monkeypatch) -
 def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> None:
     monkeypatch.setattr(
         "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",
-        lambda provider_id, model_id: {
+        lambda provider_id, model_id, **_kwargs: {
             "pricing": {
                 "tokens": {
                     "input": {"per_credit_unit": 10},
@@ -521,7 +521,7 @@ def test_ai_output_limit_fits_authoritative_remaining_orchestration_credits(monk
 def test_orchestration_output_limit_preserves_lower_model_limit(monkeypatch) -> None:
     monkeypatch.setattr(
         "backend.apps.ai.processing.main_processor.config_manager.get_model_pricing",
-        lambda provider_id, model_id: {"features": {"max_output_tokens": 1_024}},
+        lambda provider_id, model_id, **_kwargs: {"features": {"max_output_tokens": 1_024}},
     )
 
     assert _orchestrated_ai_output_token_limit("provider/model", "orchestration") == 1_024

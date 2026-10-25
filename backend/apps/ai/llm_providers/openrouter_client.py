@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
 from .openai_shared import (
+    openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
@@ -46,6 +47,7 @@ async def invoke_openrouter_api(
     provider_overrides: Optional[Dict[str, Any]] = None,
     fallback_models: Optional[List[str]] = None,
     reasoning_effort: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the OpenRouter API with the given parameters.
@@ -78,6 +80,8 @@ async def invoke_openrouter_api(
         "temperature": temperature,
         "stream": stream
     }
+    if session_id:
+        payload["session_id"] = session_id
     if fallback_models:
         # The raw HTTP API accepts an ordered models array. Keep the ordinary
         # single-model payload untouched unless a caller explicitly opts in.
@@ -242,6 +246,7 @@ async def _send_openrouter_request(
             breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
             
             usage = OpenAIUsageMetadata(
+                **openai_usage_details(usage_data, inference_host="openrouter", provider_request_id=response_data.get("id")),
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
                 total_tokens=usage_data.get("total_tokens", 0),
@@ -347,8 +352,11 @@ async def _stream_openrouter_response(
     
     # Ensure streaming is enabled in the payload
     payload["stream"] = True
+    payload["stream_options"] = {"include_usage": True}
     
     # Track usage across chunks
+    reported_usage: Dict[str, Any] = {}
+    provider_request_id = None
     cumulative_usage = {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -440,6 +448,12 @@ async def _stream_openrouter_response(
                     
                     try:
                         chunk = json.loads(line)
+                        provider_request_id = chunk.get("id") or provider_request_id
+                        merge_openai_usage(reported_usage, chunk.get("usage"))
+                        cumulative_usage["input_tokens"] = reported_usage.get("prompt_tokens", cumulative_usage["input_tokens"])
+                        cumulative_usage["output_tokens"] = reported_usage.get("completion_tokens", cumulative_usage["output_tokens"])
+                        cumulative_usage["total_tokens"] = reported_usage.get("total_tokens", cumulative_usage["total_tokens"])
+
                         
                         # Extract content from the chunk
                         choices = chunk.get("choices", [])
@@ -521,12 +535,6 @@ async def _stream_openrouter_response(
                             logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
                             yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
 
-                        # Update usage if present
-                        if "usage" in chunk:
-                            usage = chunk["usage"]
-                            cumulative_usage["input_tokens"] = usage.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
                     
                     except json.JSONDecodeError as e:
                         logger.warning(
@@ -537,6 +545,7 @@ async def _stream_openrouter_response(
                 
                 # Yield final usage information
                 yield OpenAIUsageMetadata(
+                    **openai_usage_details(reported_usage, inference_host="openrouter", provider_request_id=provider_request_id),
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
                     total_tokens=cumulative_usage["total_tokens"],

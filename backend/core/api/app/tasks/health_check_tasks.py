@@ -706,6 +706,17 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
           4. Is the health check actually validating OpenRouter's availability correctly?
     """
     try:
+        if provider_id == "baseten":
+            # Credential/catalog readiness is sufficient for this transport.
+            # Background health checks must not incur paid V4.1 generations.
+            from backend.shared.providers.baseten import BasetenClient, resolve_api_key
+
+            start_time = time.time()
+            key = await resolve_api_key(secrets_manager)
+            models = await asyncio.wait_for(BasetenClient(key, timeout=15).models(), timeout=15)
+            available = any(row.get("id") for row in models)
+            return available, None if available else "Baseten returned an empty model catalog", (time.time() - start_time) * 1000
+
         # Probe Groq itself using the selected configured model, even when that
         # model normally routes to another server for product requests.
         if provider_id == "groq":

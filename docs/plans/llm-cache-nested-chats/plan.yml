@@ -1,0 +1,59 @@
+schema_version: 2
+profile: concise
+id: llm-cache-nested-chats
+title: Direct Baseten and correct provider caching throughout nested chats
+status: verified
+goal: >-
+  We need to add the 4.1 Flash model from DeepSeek and support for Baseten when
+  an API key is available. Caching has to work, including OpenRouter cache-hit
+  usage details and correct billing for sub-chats and sub-chats in sub-chats.
+task: TASK-3871
+session: b26c
+authorization: User explicitly requested implementation on 2026-10-25 after the provider and cache-scope audit.
+contract_refs:
+  - specifications/features/billing/specification.yml#billing.usage.receipt-token-breakdown
+  - specifications/features/chats/specification.yml
+scope:
+  - Add the documented direct Baseten provider and DeepSeek V4.1 Flash catalog route with OpenRouter fallback.
+  - Preserve reported usage and usage-only terminal events across all compatible providers; never invent cache hits.
+  - Admit authenticated orchestrated parent/child/grandchild cache tariffs while retaining native replay and summary-charge boundaries.
+  - Preserve root reservation limits, attribution, idempotency and encrypted receipts.
+  - Document provider-specific cache support, tariff eligibility and verified limitations.
+checks:
+  required:
+    - Focused local provider transport, normalization, nested reservation and receipt arithmetic tests.
+    - Isolated GitHub product regression coverage for cache receipts and nested attribution.
+    - Catalog/metadata generation, relevant lint, Plan and existing contract validation.
+constraints:
+  - OpenMates chat tests retain automatic routing with no account/model/provider overrides.
+  - Real inference runs only on isolated dev state; no paid inference in CI.
+  - No raw prompt/response or credential logging in the new provider.
+  - No new workflow, Spec Navigator or cloud coding runner work.
+provider_contract:
+  reviewed_on: '2026-10-25'
+  permission_source: https://www.baseten.co/terms-and-conditions/
+  api_documentation: https://docs.baseten.co/reference/inference-api/chat-completions
+  privacy_policy: https://www.baseten.co/privacy-policy/
+  endpoints:
+    - POST https://inference.baseten.co/v1/chat/completions; Bearer API key; documented OpenAI-compatible messages/tools/reasoning; SSE with final usage.
+    - GET https://inference.baseten.co/v1/models; Bearer API key; non-billable credential/catalog health check.
+  usage: Inclusive prompt/completion totals, optional cached input/write/reasoning counters, actual request identity and inference host.
+  affinity: Opaque owner-scoped root chat identity, shared across descendants, never raw user identifiers.
+  failures: Bounded 429 retry before execution only; no silent partial-stream replay; existing logical-model fallback handles unavailable keys/hosts.
+  pricing: Verified host-specific supplier costs and customer cache rates; missing counters remain unknown.
+  retention: Existing client encryption unchanged; synchronous Model APIs document zero data retention, with automatic transient KV caching. Shared regions are not fixed residency guarantees.
+
+verification:
+  reviewed_on: '2026-10-25'
+  focused_backend: 240 passed; provider transport, normalization, tariff scope, nested/root budgets, replay and receipts.
+  lint: Scoped Python, TypeScript and YAML lint passed; generated model/provider metadata, training disclosures and locales refreshed.
+  isolated_product:
+    source: 367e45f6a64f9cf03fc48d9557f12d484a3bdbc2
+    coordinator_job: 3ca2afbecfdf01372691e825d6c7a489e9107a73f113f729cb515f566a6265f0
+    github_run: https://github.com/glowingkitty/OpenMates/actions/runs/40178179649
+    result: Passed without retry or skips; real root/child/grandchild authorizations, holds, encrypted receipts, owner API and replay settlement; synthetic counters, no paid inference.
+  admission_review: Existing credit admission and native transcript rollout remain on the standalone scope; only verified customer tariff eligibility extends to authenticated orchestration.
+  live_provider:
+    baseten_credential_configured: false
+    inference_requests: 0
+    limitation: Live Baseten cache-hit measurement requires a configured API key; a deterministic accounting test is not evidence of a provider cache hit.

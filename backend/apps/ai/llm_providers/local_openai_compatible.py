@@ -14,6 +14,7 @@ from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 from .openai_shared import (
+    openai_usage_details, merge_openai_usage,
     OpenAIUsageMetadata,
     ParsedOpenAIToolCall,
     RawOpenAIChatCompletionResponse,
@@ -175,12 +176,21 @@ async def _invoke_local_openai_compatible_chat_completions(
     )
 
     async def _iterate_stream() -> AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]:
+        reported_usage: Dict[str, Any] = {}
+        provider_request_id = None
         collected_text: List[str] = []
         tool_calls_buffer: Dict[str, Dict[str, Any]] = {}
         usage_tokens = {"input": 0, "output": 0, "total": 0}
         try:
-            stream_resp = await client.chat.completions.create(**payload, stream=True)  # type: ignore[arg-type]
+            stream_resp = await client.chat.completions.create(**payload, stream=True, stream_options={"include_usage": True})  # type: ignore[arg-type]
             async for chunk in stream_resp:  # type: ignore[union-attr]
+                provider_request_id = getattr(chunk, "id", None) or provider_request_id
+                merge_openai_usage(reported_usage, getattr(chunk, "usage", None))
+                usage_tokens.update({
+                    "input": reported_usage.get("prompt_tokens", usage_tokens["input"]),
+                    "output": reported_usage.get("completion_tokens", usage_tokens["output"]),
+                    "total": reported_usage.get("total_tokens", usage_tokens["total"]),
+                })
                 choices = getattr(chunk, "choices", None) or []
                 if not choices:
                     continue
@@ -233,7 +243,7 @@ async def _invoke_local_openai_compatible_chat_completions(
                     usage_tokens["output"] = int(getattr(usage_obj, "completion_tokens", 0) or 0)
                     usage_tokens["total"] = int(getattr(usage_obj, "total_tokens", 0) or 0)
 
-            if not any(usage_tokens.values()):
+            if not reported_usage:
                 output_tokens = _estimate_output_tokens("".join(collected_text), model_id)
                 input_tokens = int(token_breakdown.get("user_input_tokens", 0) or 0) + int(
                     token_breakdown.get("system_prompt_tokens", 0) or 0
@@ -241,6 +251,7 @@ async def _invoke_local_openai_compatible_chat_completions(
                 usage_tokens.update({"input": input_tokens, "output": output_tokens, "total": input_tokens + output_tokens})
 
             yield OpenAIUsageMetadata(
+                **openai_usage_details(reported_usage, inference_host=server_id, provider_request_id=provider_request_id),
                 input_tokens=usage_tokens["input"],
                 output_tokens=usage_tokens["output"],
                 total_tokens=usage_tokens["total"],
@@ -264,6 +275,7 @@ async def _invoke_local_openai_compatible_chat_completions(
         output_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0) if usage_obj is not None else _estimate_output_tokens(str(content or ""), model_id)
         input_tokens = int(getattr(usage_obj, "prompt_tokens", 0) or 0) if usage_obj is not None else int(token_breakdown.get("user_input_tokens", 0) or 0) + int(token_breakdown.get("system_prompt_tokens", 0) or 0)
         usage = OpenAIUsageMetadata(
+            **openai_usage_details(usage_obj, inference_host=server_id, provider_request_id=getattr(response, "id", None)),
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=int(getattr(usage_obj, "total_tokens", input_tokens + output_tokens) or input_tokens + output_tokens) if usage_obj is not None else input_tokens + output_tokens,

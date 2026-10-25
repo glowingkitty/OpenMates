@@ -14272,6 +14272,14 @@
             "description": {
               "text": "Inception receives text and context for selected Mercury model requests, and raw voice transcripts plus a language hint when its correction and title-generation route is enabled. Audio is not sent to Inception. Raw transcripts do not receive typed-message placeholder substitution and may contain sensitive data. Its terms permit training on submissions unless the API Platform account opts out; the account owner confirmed on 2026-10-20 that this is OFF for the OpenMates API account. Training may apply if reenabled. Retention has no fixed public maximum; zero retention is not guaranteed."
             }
+          },
+          "baseten": {
+            "heading": {
+              "text": "Baseten"
+            },
+            "description": {
+              "text": "Baseten receives model input, authorized chat context, tool definitions and results, and supported images when a request uses its inference service. Related sub-chats share an opaque cache-affinity identifier. Its terms prohibit training on customer content. Synchronous Model APIs document zero input/output retention with transient prefix caching. Shared endpoint regions may change; this is not a fixed regional processing guarantee."
+            }
           }
         },
         "image_generation": {

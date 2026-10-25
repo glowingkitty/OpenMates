@@ -33,6 +33,16 @@ last_full_audit: "2026-04-16"
 # =============================================================================
 
 providers:
+  baseten:
+    status: no_training
+    provider_group: ai_models
+    policy_url: https://www.baseten.co/privacy-policy/
+    terms_url: https://www.baseten.co/terms-and-conditions/
+    source_document: Baseten Terms and Conditions, section 6.3
+    quote: "Baseten will not use Customer Content"
+    mechanism: Contractual prohibition on using customer models, outputs and inference logs to train or develop AI models.
+    notes: Synchronous Model APIs document zero data retention with transient prefix caching; regional deployment is separate from company domicile.
+    last_verified: "2026-10-25"
 
   # ─── AI model inference providers (Group C in privacy_policy.yml) ──────────
 

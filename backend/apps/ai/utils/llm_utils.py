@@ -1770,6 +1770,8 @@ async def call_preprocessing_llm(
                         _snapshot_for_customer_scope(attempt_pricing, cache_pricing_enabled=False)
                         if attempt_pricing else None
                     )
+                    if provider_prefix == "openrouter":
+                        provider_request_kwargs["catalog_model_id"] = attempt_model_id
                     provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
@@ -2425,8 +2427,10 @@ async def call_main_llm_stream(
             if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
                     and _cache_checkpoint_allowed(_retry_tariff, "openai")):
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
-            if _retry_provider_prefix == "mistral" and prompt_cache_key:
+            if _retry_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
+            if _retry_provider_prefix == "openrouter":
+                _retry_input["catalog_model_id"] = original_model_id
             if _retry_provider_prefix == "mistral":
                 _retry_input["catalog_model_id"] = original_model_id
             if pre_dispatch_admission is not None:
@@ -2606,6 +2610,10 @@ async def call_main_llm_stream(
                                 logger.debug(f"{attempt_log_prefix} Using fallback server model_id '{server_actual_model_id}' for openrouter")
                             break
 
+        if server_provider_prefix == "openrouter":
+            # Preserve logical-model host restrictions on secondary routes too.
+            server_llm_input_details["catalog_model_id"] = original_model_id
+
         if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
             server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
         if server_provider_prefix == "mistral":
@@ -2670,7 +2678,7 @@ async def call_main_llm_stream(
         if (prepared_native_context is None and server_provider_prefix == "openai" and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
-        if server_provider_prefix == "mistral" and prompt_cache_key:
+        if server_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
             server_llm_input_details["prompt_cache_key"] = prompt_cache_key
 
         # The previous host may have incurred usage without producing visible

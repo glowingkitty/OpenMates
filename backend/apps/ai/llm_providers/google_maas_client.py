@@ -19,6 +19,7 @@ import time
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 
 from .openai_shared import (
+    openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
@@ -255,6 +256,7 @@ async def _send_google_maas_request(
             breakdown = calculate_token_breakdown(messages_for_breakdown, model_id, tools=payload.get("tools"))
 
             usage = OpenAIUsageMetadata(
+                **openai_usage_details(usage_data, inference_host="google_maas", provider_request_id=response_data.get("id")),
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
                 total_tokens=usage_data.get("total_tokens", 0),
@@ -335,7 +337,10 @@ async def _stream_google_maas_response(
     logger.info(f"{log_prefix} Starting stream request to {api_url}")
 
     payload["stream"] = True
+    payload["stream_options"] = {"include_usage": True}
 
+    reported_usage: Dict[str, Any] = {}
+    provider_request_id = None
     cumulative_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     tool_calls_buffer: Dict[int, Dict[str, Any]] = {}
 
@@ -403,6 +408,12 @@ async def _stream_google_maas_response(
 
                     try:
                         chunk = json.loads(line)
+                        provider_request_id = chunk.get("id") or provider_request_id
+                        merge_openai_usage(reported_usage, chunk.get("usage"))
+                        cumulative_usage["input_tokens"] = reported_usage.get("prompt_tokens", cumulative_usage["input_tokens"])
+                        cumulative_usage["output_tokens"] = reported_usage.get("completion_tokens", cumulative_usage["output_tokens"])
+                        cumulative_usage["total_tokens"] = reported_usage.get("total_tokens", cumulative_usage["total_tokens"])
+
                         choices = chunk.get("choices", [])
                         if not choices:
                             continue
@@ -465,12 +476,6 @@ async def _stream_google_maas_response(
                             logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
                             yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
 
-                        # Update usage if present
-                        if "usage" in chunk:
-                            usage = chunk["usage"]
-                            cumulative_usage["input_tokens"] = usage.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
 
                     except json.JSONDecodeError as e:
                         logger.warning(
@@ -481,6 +486,7 @@ async def _stream_google_maas_response(
 
                 # Yield final usage
                 yield OpenAIUsageMetadata(
+                    **openai_usage_details(reported_usage, inference_host="google_maas", provider_request_id=provider_request_id),
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
                     total_tokens=cumulative_usage["total_tokens"],

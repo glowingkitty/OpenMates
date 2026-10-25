@@ -14194,6 +14194,14 @@
             "description": {
               "text": "Inception erhält Text und Kontext für Anfragen mit ausgewählten Mercury-Modellen sowie Rohtranskripte und einen Sprachhinweis, wenn der Inception-Weg für Korrektur und Titelerstellung aktiviert ist. Audio wird nicht an Inception gesendet. Rohtranskripte erhalten keine Platzhalterersetzung und können sensible Daten enthalten. Die Bedingungen erlauben Training mit eingereichten Inhalten, sofern das API-Platform-Konto nicht widerspricht; der Kontoinhaber hat am 20.10.2026 bestätigt, dass diese Option für das OpenMates-API-Konto ausgeschaltet ist. Bei erneuter Aktivierung ist Training möglich. Es gibt keine feste öffentlich zugesagte maximale Aufbewahrungsfrist; eine Verarbeitung ohne Aufbewahrung wird nicht garantiert."
             }
+          },
+          "baseten": {
+            "heading": {
+              "text": "Baseten"
+            },
+            "description": {
+              "text": "Baseten erhält Modelleingaben, autorisierten Chat-Kontext, Werkzeugdefinitionen und Ergebnisse sowie unterstützte Bilder, wenn eine Anfrage seinen Inferenzdienst nutzt. Zugehörige Unter-Chats teilen eine undurchsichtige Kennung für die Cache-Zuordnung. Die Vertragsbedingungen untersagen das Training mit Kundeninhalten. Für synchrone Model APIs wird keine Aufbewahrung von Ein- und Ausgaben angegeben; temporäres Präfix-Caching wird verwendet. Die Regionen gemeinsam genutzter Endpunkte können sich ändern; eine Verarbeitung in einer festen Region wird damit nicht zugesichert."
+            }
           }
         },
         "image_generation": {

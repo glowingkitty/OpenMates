@@ -7,6 +7,7 @@ import json
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from .openai_shared import (
+    openai_usage_details, merge_openai_usage,
     UnifiedOpenAIResponse,
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
@@ -220,9 +221,16 @@ async def _invoke_groq_direct_api(
                     current_tool_function_name: Optional[str] = None
                     current_tool_function_args_buffer: str = ""
                     aggregated_content = ""
-                    usage_info: Optional[Dict[str, int]] = None
+                    usage_info: Dict[str, Any] = {}
+                    provider_request_id = None
                     
                     async for chunk in stream_response:
+                        provider_request_id = getattr(chunk, "id", None) or provider_request_id
+                        chunk_usage = getattr(chunk, "usage", None)
+                        if chunk_usage is None:
+                            extra = getattr(chunk, "x_groq", None)
+                            chunk_usage = extra.get("usage") if isinstance(extra, dict) else getattr(extra, "usage", None)
+                        merge_openai_usage(usage_info, chunk_usage)
                         if not chunk.choices:
                             continue
                             
@@ -292,21 +300,11 @@ async def _invoke_groq_direct_api(
                             logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
                             yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
 
-                        # Handle usage metadata (usually in final chunk)
-                        if hasattr(chunk, 'usage') and chunk.usage:
-                            # Calculate token breakdown from input messages (estimate)
-                            breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
-                            usage_info = {
-                                "prompt_tokens": chunk.usage.prompt_tokens if hasattr(chunk.usage, 'prompt_tokens') else 0,
-                                "completion_tokens": chunk.usage.completion_tokens if hasattr(chunk.usage, 'completion_tokens') else 0,
-                                "total_tokens": chunk.usage.total_tokens if hasattr(chunk.usage, 'total_tokens') else 0,
-                                "user_input_tokens": breakdown.get("user_input_tokens"),
-                                "system_prompt_tokens": breakdown.get("system_prompt_tokens")
-                            }
-                    
                     # Yield final usage metadata if available
                     if usage_info:
+                        usage_info.update(calculate_token_breakdown(messages, model_id, tools=tools))
                         yield OpenAIUsageMetadata(
+                            **openai_usage_details(usage_info, inference_host="groq", provider_request_id=provider_request_id),
                             input_tokens=usage_info.get("prompt_tokens", 0),
                             output_tokens=usage_info.get("completion_tokens", 0),
                             total_tokens=usage_info.get("total_tokens", 0),
@@ -339,6 +337,7 @@ async def _invoke_groq_direct_api(
                 # Calculate token breakdown from input messages (estimate)
                 breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
                 usage_metadata = OpenAIUsageMetadata(
+                    **openai_usage_details(response.usage, inference_host="groq", provider_request_id=getattr(response, "id", None)),
                     input_tokens=response.usage.prompt_tokens if hasattr(response.usage, 'prompt_tokens') else 0,
                     output_tokens=response.usage.completion_tokens if hasattr(response.usage, 'completion_tokens') else 0,
                     total_tokens=response.usage.total_tokens if hasattr(response.usage, 'total_tokens') else 0,

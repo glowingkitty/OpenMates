@@ -2489,20 +2489,26 @@ async def _settle_anonymous_skill_quote(
     return sum(quotes)
 
 
-def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
-    """Admit cache customer pricing only for ordinary standalone chats."""
+def _customer_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Verified host tariffs apply equally to parent, child and grandchild AI."""
     preferences = getattr(request_data, "user_preferences", None) or {}
     return not (
         getattr(request_data, "is_anonymous", False)
         or getattr(request_data, "is_external", False)
-        or getattr(request_data, "is_sub_chat", False)
+        or preferences.get("workflow_ai") is True
+        or preferences.get("workflow_budget") is not None
+        or preferences.get("workflow_credit_allowance") is not None
+    )
+
+
+def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Native transcript replay/summary pricing retain their standalone rollout."""
+    return _customer_cache_pricing_scope(request_data) and not (
+        getattr(request_data, "is_sub_chat", False)
         or getattr(request_data, "is_sub_chat_continuation", False)
         or getattr(request_data, "parent_id", None)
         or getattr(request_data, "orchestration_id", None)
         or (getattr(request_data, "sub_chat_depth", 0) or 0) > 0
-        or preferences.get("workflow_ai") is True
-        or preferences.get("workflow_budget") is not None
-        or preferences.get("workflow_credit_allowance") is not None
     )
 
 
@@ -2648,12 +2654,13 @@ def _quote_ai_iteration_credits(
 
 
 def _mistral_prompt_cache_key(request_data: AskSkillRequest) -> Optional[str]:
-    """Bind Mistral's opaque key to one authorized user/team/chat scope."""
+    """Opaque owner/team/root key; descendants share the same provider affinity."""
     if not INTERNAL_API_SHARED_TOKEN or not request_data.chat_id:
         return None
     scope = json.dumps(
         [getattr(request_data, "user_id_hash", "") or "",
-         getattr(request_data, "team_id", None), request_data.chat_id],
+         getattr(request_data, "team_id", None),
+         getattr(request_data, "root_chat_id", None) or request_data.chat_id],
         separators=(",", ":"), ensure_ascii=False,
     )
     return hmac.new(
@@ -2743,7 +2750,7 @@ async def _fit_anonymous_output_token_limit(
         available_credits=available,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
@@ -2799,7 +2806,7 @@ async def _reserve_authenticated_ai_turn(
             inference_host=inference_host,
             tariff_snapshot=tariff_snapshot,
             region=region,
-            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+            customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
         )
         cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
         try:
@@ -2828,7 +2835,7 @@ async def _reserve_authenticated_ai_turn(
                 inference_host=inference_host,
                 tariff_snapshot=tariff_snapshot,
                 region=region,
-                customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
             )
             if affordable is None or affordable >= fitted_limit:
                 raise AuthenticatedReservationLimitError("Insufficient credits for inference input") from error
@@ -2906,7 +2913,7 @@ def _fit_workflow_output_token_limit(
         requested_output_token_limit=requested_output_token_limit,
         available_credits=allowance, input_envelope_tokens=512,
         credit_rounding_headroom=1,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise RuntimeError("Workflow Ask AI input exceeds its credit allowance")
@@ -2952,7 +2959,7 @@ async def _fit_orchestrated_output_token_limit(
         tools=tools,
         requested_output_token_limit=requested_output_token_limit,
         available_credits=available_credits,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if fitted_limit is None:
         raise SubChatOrchestrationProtocolError(409, "orchestration_credit_limit_exceeded")
@@ -3065,7 +3072,7 @@ async def _fit_personal_chat_output_token_limit(
             inference_host=inference_host,
             tariff_snapshot=tariff_snapshot,
             region=region,
-            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+            customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
         )
     except Exception as exc:
         raise AuthenticatedReservationError("Personal inference quote is unavailable") from exc
@@ -3099,7 +3106,7 @@ async def _reserve_ai_iteration(
         output_token_limit=output_token_limit,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM if is_anonymous else 0,
-        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
     )
     if quote <= 0:
         return None
@@ -7052,7 +7059,7 @@ async def handle_main_processing(
                         cacheable_system_prefix=cacheable_system_prefix or None,
                         prompt_cache_key=_mistral_prompt_cache_key(request_data),
                         pre_dispatch_admission=admit_actual_provider,
-                        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                        customer_cache_pricing_enabled=_customer_cache_pricing_scope(request_data),
                         native_cache_context=native_prepared_context,
                         failed_servers_in_turn=failed_servers_in_turn,
                     )

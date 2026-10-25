@@ -12,6 +12,7 @@ export const privacyPolicyLinks = {
   revolutBusiness: "https://www.revolut.com/en-LT/legal/privacy/", // Revolut Bank UAB (Lithuania) — verified 2026-04-14
 
   // Group C — AI models
+  baseten: "https://www.baseten.co/privacy-policy/", // verified 2026-10-25
   inception: "https://www.inceptionlabs.ai/docs/privacy-policy", // verified 2026-10-20
   inceptionTerms: "https://www.inceptionlabs.ai/docs/terms-of-use", // verified 2026-10-20
   mistral: "https://legal.mistral.ai/terms/privacy-policy/", // verified 2026-09-23

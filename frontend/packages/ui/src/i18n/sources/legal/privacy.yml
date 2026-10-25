@@ -15419,3 +15419,27 @@ providers.ai_models.inception.description:
     für das OpenMates-API-Konto ausgeschaltet ist. Bei erneuter Aktivierung ist Training möglich. Es gibt keine feste öffentlich
     zugesagte maximale Aufbewahrungsfrist; eine Verarbeitung ohne Aufbewahrung wird nicht garantiert.
   verified_by_human: []
+
+providers.ai_models.baseten.heading:
+  context: Baseten inference provider entry
+  en: Baseten
+  de: Baseten
+  verified_by_human: []
+providers.ai_models.baseten.description:
+  context: Direct model inference, opaque cache affinity, training policy and region limitations
+  en: >-
+    Baseten receives model input, authorized chat context, tool definitions and results,
+    and supported images when a request uses its inference service. Related sub-chats
+    share an opaque cache-affinity identifier. Its terms prohibit training on customer
+    content. Synchronous Model APIs document zero input/output retention with transient
+    prefix caching. Shared endpoint regions may change; this is not a fixed regional
+    processing guarantee.
+  de: >-
+    Baseten erhält Modelleingaben, autorisierten Chat-Kontext, Werkzeugdefinitionen und
+    Ergebnisse sowie unterstützte Bilder, wenn eine Anfrage seinen Inferenzdienst nutzt.
+    Zugehörige Unter-Chats teilen eine undurchsichtige Kennung für die Cache-Zuordnung.
+    Die Vertragsbedingungen untersagen das Training mit Kundeninhalten. Für synchrone
+    Model APIs wird keine Aufbewahrung von Ein- und Ausgaben angegeben; temporäres
+    Präfix-Caching wird verwendet. Die Regionen gemeinsam genutzter Endpunkte können
+    sich ändern; eine Verarbeitung in einer festen Region wird damit nicht zugesichert.
+  verified_by_human: []

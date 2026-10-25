@@ -400,6 +400,19 @@ provider_groups:
       feature explicitly says otherwise. You can see which provider a selectable
       model uses in the model details panel.
     providers:
+      baseten:
+        privacy_policy: https://www.baseten.co/privacy-policy/ # verified 2026-10-25
+        location: global
+        used_for:
+          - Direct DeepSeek V4.1 Flash inference when Baseten credentials are configured
+        data_shared:
+          - Model input, authorized chat context, tool definitions and results, and supported image inputs
+          - An opaque owner-scoped affinity identifier shared by related sub-chats
+        notes: >-
+          Baseten's terms prohibit training on customer content. Its synchronous
+          Model APIs document zero input/output retention while using automatic
+          transient KV caching. Shared endpoint regions can change; no fixed
+          processing-region guarantee is implied.
       inception:
         privacy_policy: https://www.inceptionlabs.ai/docs/privacy-policy  # verified 2026-10-20
         location: US
