@@ -8,6 +8,8 @@ See docs/plans/isolated-github-tests/plan.yml.
 """
 
 import io
+import hashlib
+import os
 import stat
 import sys
 import zipfile
@@ -426,3 +428,149 @@ def test_node_startup_failure_envelope_is_retrievable_without_execution_claims(t
         result = ci_results.fetch(Remote(), job, tmp_path)
         assert result["state"] == "failure" and result["report"]["success"] is False
         assert result["report"]["results"] == [] and result["cleanup_verified"] is False
+
+
+@pytest.mark.parametrize("mask", [0o002, 0o077])
+@pytest.mark.parametrize("explicit_directories", [False, True])
+def test_nested_wasm_extraction_seals_only_fresh_bytes_independent_of_umask(
+    tmp_path, mask, explicit_directories
+):
+    from scripts import ci_rust_wasm as wasm
+
+    snippet = "snippets/openmates-browser-bindings-0123456789abcdef/inline0.js"
+    files = {
+        "openmates_browser.js": wasm.package_import_headers(snippet)[1]
+        + b"export function read() { return new URL('openmates_browser_bg.wasm', import.meta.url); }",
+        "openmates_browser_bg.wasm": b"\x00asm\x01\x00\x00\x00",
+        "openmates_browser.d.ts": b"export function read(): URL;",
+        snippet: wasm.SNIPPET_BYTES,
+    }
+    archive = tmp_path / "nested.zip"
+    prefix = "rust-wasm/package/"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        if explicit_directories:
+            for name in ("rust-wasm/", prefix, prefix + "snippets/", prefix + snippet.rsplit("/", 1)[0] + "/"):
+                bundle.writestr(name, b"")
+        for name, content in files.items():
+            bundle.writestr(prefix + name, content)
+    destination = tmp_path / "out"
+    previous = os.umask(mask)
+    try:
+        ci_results.extract(archive, destination)
+    finally:
+        os.umask(previous)
+    for path in [destination, *destination.rglob("*")]:
+        info = path.lstat()
+        assert info.st_uid == os.getuid()
+        assert stat.S_IMODE(info.st_mode) == (0o700 if path.is_dir() else 0o600)
+        assert not path.is_symlink()
+    for name, content in files.items():
+        path = destination / prefix / name
+        assert path.read_bytes() == content
+        assert path.stat().st_nlink == 1
+    inventory = wasm.package_inventory(
+        destination / prefix, {wasm.SNIPPET_SOURCE: wasm.SNIPPET_SOURCE_SHA256}
+    )
+    assert inventory["files"] == [
+        {"path": name, "rawBytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+        for name, content in sorted(files.items())
+    ]
+    assert inventory["rawBytes"] == sum(map(len, files.values()))
+
+
+@pytest.mark.parametrize("kind", ["empty", "nonempty", "writable", "file", "symlink", "broken-symlink"])
+def test_extract_refuses_preexisting_targets_without_changing_them(tmp_path, kind):
+    archive = tmp_path / "proof.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("proof.txt", b"proof")
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o750)
+    sentinel = outside / "sentinel"
+    sentinel.write_bytes(b"preserve")
+    sentinel.chmod(0o640)
+    destination = tmp_path / "out"
+    if kind in {"symlink", "broken-symlink"}:
+        destination.symlink_to(outside if kind == "symlink" else tmp_path / "missing", target_is_directory=True)
+    elif kind == "file":
+        destination.write_bytes(b"preserve target")
+    else:
+        destination.mkdir(mode=0o770 if kind == "writable" else 0o700)
+        if kind == "nonempty":
+            (destination / "sentinel").write_bytes(b"preserve target")
+    before = destination.lstat()
+    outside_mode = stat.S_IMODE(outside.stat().st_mode)
+    sentinel_mode = stat.S_IMODE(sentinel.stat().st_mode)
+    with pytest.raises(RuntimeError, match="fresh destination"):
+        ci_results.extract(archive, destination)
+    after = destination.lstat()
+    assert (before.st_dev, before.st_ino, before.st_mode) == (after.st_dev, after.st_ino, after.st_mode)
+    assert stat.S_IMODE(outside.stat().st_mode) == outside_mode
+    assert stat.S_IMODE(sentinel.stat().st_mode) == sentinel_mode
+    assert sentinel.read_bytes() == b"preserve"
+    assert not (outside / "proof.txt").exists()
+
+
+@pytest.mark.parametrize("link", ["symlink", "hardlink"])
+def test_private_normalization_refuses_unexpected_links_without_chmod_outside(tmp_path, monkeypatch, link):
+    archive = tmp_path / "proof.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("proof.txt", b"proof")
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"preserve")
+    outside.chmod(0o640)
+    original = zipfile.ZipFile.extractall
+
+    def inject(bundle, destination):
+        original(bundle, destination)
+        alias = destination / "injected-link"
+        if link == "symlink":
+            alias.symlink_to(outside)
+        else:
+            os.link(outside, alias)
+
+    monkeypatch.setattr(zipfile.ZipFile, "extractall", inject)
+    with pytest.raises((RuntimeError, OSError)):
+        ci_results.extract(archive, tmp_path / "out")
+    assert outside.read_bytes() == b"preserve"
+    assert stat.S_IMODE(outside.stat().st_mode) == 0o640
+
+
+@pytest.mark.parametrize("fault", ["traversal", "private", "symlink", "size", "count"])
+def test_extract_preflight_still_refuses_before_creating_destination(tmp_path, monkeypatch, fault):
+    archive = tmp_path / "bad.zip"
+    name = "../escape" if fault == "traversal" else "ci-private/account.env" if fault == "private" else "safe"
+    entry = zipfile.ZipInfo(name)
+    if fault == "symlink":
+        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(archive, "w") as bundle:
+        if fault == "count":
+            for index in range(10001):
+                bundle.writestr(str(index), b"")
+        else:
+            bundle.writestr(entry, b"private")
+    if fault == "size":
+        monkeypatch.setattr(ci_results, "MAX_EXPANDED", 1)
+    destination = tmp_path / "out"
+    with pytest.raises(RuntimeError):
+        ci_results.extract(archive, destination)
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize("fault", ["symlink", "writable"])
+def test_extract_refuses_unsafe_parent_without_touching_existing_directory(tmp_path, fault):
+    archive = tmp_path / "proof.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("proof.txt", b"proof")
+    directory = tmp_path / "directory"
+    directory.mkdir(mode=0o700)
+    if fault == "symlink":
+        parent = tmp_path / "alias"
+        parent.symlink_to(directory, target_is_directory=True)
+    else:
+        parent = directory
+        parent.chmod(0o770)
+    original_mode = stat.S_IMODE(directory.stat().st_mode)
+    with pytest.raises(RuntimeError, match="extraction parent"):
+        ci_results.extract(archive, parent / "out")
+    assert stat.S_IMODE(directory.stat().st_mode) == original_mode
+    assert not (directory / "out").exists()

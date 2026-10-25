@@ -211,7 +211,34 @@ def extract(archive: Path, destination: Path):
                 raise RuntimeError(
                     "Private setup state must not be returned as test evidence"
                 )
+        # Only a newly created tree may be normalized: never chmod caller-owned
+        # existing paths or allow extraction through their links. The private
+        # root excludes other users while ZIP-created children inherit umask.
+        parent = destination.parent
+        if (not destination.is_absolute() or parent.resolve() != parent
+                or not parent.is_dir() or parent.stat().st_uid != os.getuid()
+                or parent.stat().st_mode & 0o022):
+            raise RuntimeError("Unsafe CI artifact extraction parent")
+        try:
+            destination.mkdir(mode=0o700)
+        except FileExistsError:
+            raise RuntimeError("CI artifact extraction requires a fresh destination") from None
         bundle.extractall(destination)
+        for directory, directories, files in os.walk(destination, followlinks=False):
+            for path in [Path(directory), *(Path(directory) / name for name in directories + files)]:
+                descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                try:
+                    info = os.fstat(descriptor)
+                    if (info.st_uid != os.getuid()
+                            or not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
+                            or stat.S_ISREG(info.st_mode) and info.st_nlink != 1):
+                        raise RuntimeError("Unsafe extracted CI artifact entry")
+                    os.fchmod(descriptor, 0o700 if stat.S_ISDIR(info.st_mode) else 0o600)
+                    held = path.lstat()
+                    if (held.st_dev, held.st_ino) != (info.st_dev, info.st_ino):
+                        raise RuntimeError("Changed extracted CI artifact entry")
+                finally:
+                    os.close(descriptor)
 
 
 def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
@@ -789,7 +816,6 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
         with archive.open("wb") as output:
             download(command, root, output)
         extracted = Path(temporary) / "results"
-        extracted.mkdir()
         extract(archive, extracted)
         candidates = list(extracted.rglob("ci-results.json"))
         environment = list(extracted.rglob("ci-environment.json"))
