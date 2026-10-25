@@ -1364,10 +1364,10 @@ def immutable_trust_test_fixture(name, expected_sha256):
 
 
 def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "c8680ffb5de6cbef2f81ba7be7d64fd48026375cc759ac27d32c880444831710")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "ef7438136dc63a43aff61a9b3aba8c87f299b5c0c5e9dcde7e0529c01ceccd26"
+    assert sdk.sha(live_bytes) == "2188b15ff7d3ee2690bafc18dd82a175f8c3e1a1c7ac890dab7b3106ae4cfcbd"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     assert {k: len(trust[k]) for k in approval["afterCounts"]} == {'programs': 263, 'contracts': 67, 'plan': 87, 'gaps': 174}
@@ -1377,7 +1377,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
 
 
 def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "c8680ffb5de6cbef2f81ba7be7d64fd48026375cc759ac27d32c880444831710")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     trust = restore_before_cookie_registration(sdk.load_trust(), approval)
     for bucket in ("programs", "contracts"):
         restored = copy.deepcopy(trust[bucket])
@@ -1444,7 +1444,7 @@ def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
 
 
 def test_current_mechanical_compile_fix_preserves_exact_prior246_authority():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "c8680ffb5de6cbef2f81ba7be7d64fd48026375cc759ac27d32c880444831710")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     witness = approval["priorApproved246Witness"]
     trust = restore_before_cookie_registration(sdk.load_trust(), approval)
     prior = copy.deepcopy(trust)

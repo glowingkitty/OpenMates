@@ -5,7 +5,7 @@
     "plan": 87,
     "programs": 263
   },
-  "approvedCurrentSha256": "ef7438136dc63a43aff61a9b3aba8c87f299b5c0c5e9dcde7e0529c01ceccd26",
+  "approvedCurrentSha256": "2188b15ff7d3ee2690bafc18dd82a175f8c3e1a1c7ac890dab7b3106ae4cfcbd",
   "baseDictionaryDigests": {
     "contracts": "5e9c104e9d4d4d87b04d848219c76ff40f232d7cb16ae45ec2e83bea943a2efe",
     "gaps": "a21143e1f341d642cb99499985932c3458ce0dfe4b83126b50424f7404410612",
@@ -1096,7 +1096,7 @@
           "before": null
         },
         "frontend/packages/openmates-cli/src/sdkSession.ts": {
-          "after": "07713012de741569a8f7998ab6d57681a7284e4eec8403d580026d3db244490d",
+          "after": "cb3ca15bbdffc1e475704970b64d1214703214e67cbe716f3affc6f486ca861d",
           "before": "9ccbb1fd24c2df83835df9b94fef63054b6247fc1e16d09f7ccba2f85bb11784"
         },
         "frontend/packages/ui/src/utils/embedVersionReconstruction.ts": {

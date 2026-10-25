@@ -2632,7 +2632,7 @@
     "frontend/packages/openmates-cli/src/index.ts": "7a17b429308cb8a4bbfeb0d5e926e58b542e6c414346dc6714d02bb40a60e127",
     "frontend/packages/openmates-cli/src/sdk.ts": "415625748e646f20422b4bb682ab6334e113b87bdc717ffcc03946cd14939aa1",
     "frontend/packages/openmates-cli/src/sdkEmbedVersion.ts": "b93593854d4e728af83910b824b52802c3410740cb678934edaf79225ee979f9",
-    "frontend/packages/openmates-cli/src/sdkSession.ts": "07713012de741569a8f7998ab6d57681a7284e4eec8403d580026d3db244490d",
+    "frontend/packages/openmates-cli/src/sdkSession.ts": "cb3ca15bbdffc1e475704970b64d1214703214e67cbe716f3affc6f486ca861d",
     "frontend/packages/openmates-cli/tests/sdk-session-drafts.test.ts": "540bbdcfb9daf84322fe32af24da7cc269ebbde33f5b1d856a73b35ff8dcc24d",
     "frontend/packages/openmates-tui-native/src/cli/docs.rs": "7fa7f79dce3a4af650981ddf6dde85152a99ada7f63956544a4a0300bfc348f9",
     "frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts": "e6e9e4bda2af41648c767fd3e6be1cf331fd37c414b04bce7073d6df06a63301",
