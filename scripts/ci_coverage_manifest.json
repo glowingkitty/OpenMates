@@ -436,6 +436,7 @@
         "public-example-activity-summary.spec.ts",
         "components/chat-message-openmates-identity.spec.ts",
         "components/voice-call-header-actions.spec.ts",
+        "components/voice-call-focused-draft.spec.ts",
         "landing-shopping-replacement.spec.ts",
         "landing-home-replacement.spec.ts",
         "landing-videos-replacement.spec.ts",
