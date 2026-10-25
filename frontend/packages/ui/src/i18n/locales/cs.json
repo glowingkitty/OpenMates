@@ -2938,6 +2938,44 @@
       "text": "Přehrát"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Přidat do kalendáře"
+    },
+    "all_day": {
+      "text": "Celý den"
+    },
+    "primary": {
+      "text": "Hlavní událost"
+    },
+    "context": {
+      "text": "Související událost"
+    },
+    "unavailable": {
+      "text": "Událost není dostupná"
+    },
+    "export_failed": {
+      "text": "Událost se nepodařilo exportovat"
+    },
+    "source": {
+      "text": "Zdroj"
+    },
+    "week": {
+      "text": "Týden"
+    },
+    "previous": {
+      "text": "Předchozí týden"
+    },
+    "next": {
+      "text": "Příští týden"
+    },
+    "end_unknown": {
+      "text": "Čas konce není uveden"
+    },
+    "preparing": {
+      "text": "Příprava události…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Zavřít kameru"

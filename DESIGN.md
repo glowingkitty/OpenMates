@@ -390,6 +390,7 @@ Use `UnifiedEmbedPreview.svelte`.
 | Shadow | Floating two-layer shadow. |
 | Layout | Every result automatically uses the shared app corner; Code/Docs/Sheets retain their content beneath the compact identity header. The circular icon and original `BasicInfosBar` belong exclusively to app-skill execution previews. See `docs/design-guide/result-embeds.md`. |
 | Text selection | Assistant result content stays selectable; Expand opens fullscreen. Clickable result collections retain card activation. |
+| Calendar event content | Keep the shared Expand/More controls and a separate Add to calendar quick action. Compact and large previews split primary details (one third) and the shared weekly results calendar (two thirds). Use the shared 300px landscape shell on phones so the split and three actions remain readable. Context entries have reduced opacity and dashed borders; the primary stays highlighted. Reuse `ResultCalendarWeek` for results and event cards. |
 | Skill source images | A compact horizontal “Image used” strip appears above skill details when `input_embed_ids` is present; each thumbnail opens the original image viewer. |
 | Finished state | Pointer cursor, keyboard activation, hover/tilt and active press only when the card itself opens fullscreen. |
 | Error state | Error border and error-tinted background. |

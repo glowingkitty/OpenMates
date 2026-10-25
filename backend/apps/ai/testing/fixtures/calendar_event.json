@@ -1,0 +1,63 @@
+{
+  "fixture_id": "calendar_event",
+  "recorded_at": "2026-10-14T00:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "When is FOSDEM 2027?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "FOSDEM 2027 calendar event",
+    "icon_names": [
+      "calendar"
+    ],
+    "selected_model_id": "automatic",
+    "selected_model_name": "Assistant",
+    "mate_id": "default",
+    "chat_summary": "FOSDEM dates and local calendar export.",
+    "chat_tags": [
+      "calendar"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Assistant",
+    "provider_name": "Fixture",
+    "server_region": "EU"
+  },
+  "response": "FOSDEM 2027 takes place on January 30\u201331 in Brussels. Add the conference to your calendar.\n\n```json\n{\"type\": \"calendar_event\", \"embed_id\": \"18bc6927-f327-4368-9584-29e5e5c0a349\"}\n```",
+  "embeds": {
+    "18bc6927-f327-4368-9584-29e5e5c0a349": {
+      "type": "calendar_event",
+      "document": {
+        "openmatesType": "calendar_event",
+        "schemaVersion": 1,
+        "primary_event": {
+          "title": "FOSDEM 2027",
+          "start": "2027-01-30",
+          "end": "2027-02-01",
+          "description": "A free conference for open source developers and communities.",
+          "location": "ULB Solbosch, Brussels",
+          "source_url": "https://fosdem.org/2027/"
+        },
+        "context_events": [
+          {
+            "title": "Context only: planning day",
+            "start": "2027-01-30"
+          }
+        ]
+      }
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 65,
+    "total_credits": 5,
+    "model_name": "Assistant"
+  }
+}

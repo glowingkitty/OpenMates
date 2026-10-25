@@ -33,7 +33,7 @@
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v6-openmates-mentions';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v7-calendar-event';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available

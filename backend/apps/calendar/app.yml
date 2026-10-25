@@ -17,10 +17,11 @@ instructions:
       or research; never infer next year's dates or unpublished session times.
       Explain unknown/conflicting dates instead of creating an exportable entry.
       Include a normal citation in the answer and source_url in researched events.
+      Use an exact URL returned by the research; never construct a source URL.
 
       Create the card with this explicit fenced JSON format:
       ```openmates_calendar_event
-      {"openmatesType":"calendar_event","schemaVersion":1,"primary_event":{"title":"FOSDEM 2027","start":"2027-01-30","end":"2027-02-01","location":"ULB Solbosch, Brussels","source_url":"https://fosdem.org/2027/news/fosdem-2027-dates/"},"context_events":[]}
+      {"openmatesType":"calendar_event","schemaVersion":1,"primary_event":{"title":"FOSDEM 2027","start":"2027-01-30","end":"2027-02-01","location":"ULB Solbosch, Brussels","source_url":"https://fosdem.org/2027/"},"context_events":[]}
       ```
 
       primary_event requires title and start; description, location, source_url,
@@ -41,14 +42,12 @@ instructions:
 embed_types:
   - id: event
     category: direct
-    # Backend/CLI evidence precedes enabling the web renderer.
-    default_enabled: false
     frontend_type: calendar-event
     backend_type: calendar_event
     has_children: false
     groupable: true
-    preview_component: null
-    fullscreen_component: null
+    preview_component: calendar/CalendarEventEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventEmbedFullscreen.svelte
     icon: calendar
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.event

@@ -1102,6 +1102,10 @@ export class GroupHandlerRegistry {
       ]),
     );
 
+    this.register(new BaseGroupHandler("calendar-event", [
+      "id", "type", "status", "contentRef", "title", "primary_event", "context_events", "source_json", "model", "validation",
+    ]));
+
     // Generic handlers for embed types that follow the standard grouping pattern
     this.register(
       new BaseGroupHandler("home-listing", [

@@ -2938,6 +2938,44 @@
       "text": "Oynat"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Takvime ekle"
+    },
+    "all_day": {
+      "text": "Tüm gün"
+    },
+    "primary": {
+      "text": "Ana etkinlik"
+    },
+    "context": {
+      "text": "İlgili etkinlik"
+    },
+    "unavailable": {
+      "text": "Etkinlik kullanılamıyor"
+    },
+    "export_failed": {
+      "text": "Etkinlik dışa aktarılamadı"
+    },
+    "source": {
+      "text": "Kaynak"
+    },
+    "week": {
+      "text": "Hafta"
+    },
+    "previous": {
+      "text": "Önceki hafta"
+    },
+    "next": {
+      "text": "Sonraki hafta"
+    },
+    "end_unknown": {
+      "text": "Bitiş saati belirtilmedi"
+    },
+    "preparing": {
+      "text": "Etkinlik hazırlanıyor…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Kamerayı kapat"

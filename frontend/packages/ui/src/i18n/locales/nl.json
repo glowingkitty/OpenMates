@@ -2938,6 +2938,44 @@
       "text": "Afspelen"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Toevoegen aan agenda"
+    },
+    "all_day": {
+      "text": "Hele dag"
+    },
+    "primary": {
+      "text": "Hoofdafspraak"
+    },
+    "context": {
+      "text": "Gerelateerde afspraak"
+    },
+    "unavailable": {
+      "text": "Afspraak niet beschikbaar"
+    },
+    "export_failed": {
+      "text": "De afspraak kon niet worden geëxporteerd"
+    },
+    "source": {
+      "text": "Bron"
+    },
+    "week": {
+      "text": "Week"
+    },
+    "previous": {
+      "text": "Vorige week"
+    },
+    "next": {
+      "text": "Volgende week"
+    },
+    "end_unknown": {
+      "text": "Eindtijd niet opgegeven"
+    },
+    "preparing": {
+      "text": "Afspraak voorbereiden…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Camera sluiten"

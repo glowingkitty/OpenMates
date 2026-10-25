@@ -2938,6 +2938,44 @@
       "text": "Reproducir"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Añadir al calendario"
+    },
+    "all_day": {
+      "text": "Todo el día"
+    },
+    "primary": {
+      "text": "Evento principal"
+    },
+    "context": {
+      "text": "Evento de contexto"
+    },
+    "unavailable": {
+      "text": "Evento no disponible"
+    },
+    "export_failed": {
+      "text": "No se pudo exportar el evento"
+    },
+    "source": {
+      "text": "Fuente"
+    },
+    "week": {
+      "text": "Semana"
+    },
+    "previous": {
+      "text": "Semana anterior"
+    },
+    "next": {
+      "text": "Semana siguiente"
+    },
+    "end_unknown": {
+      "text": "Hora de fin no especificada"
+    },
+    "preparing": {
+      "text": "Preparando evento…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Cerrar cámara"

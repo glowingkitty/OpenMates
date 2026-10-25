@@ -676,6 +676,14 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return "";
 
       }
+    case "calendar-event":
+      {
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        return `\`\`\`json\n${JSON.stringify(createEmbedReference("calendar_event", embed_id), null, 2)}\n\`\`\``;
+      }
+      return "";
+      }
     case "mindmaps-mindmap":
       {
       if (attrs.contentRef?.startsWith("embed:")) {

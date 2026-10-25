@@ -3558,6 +3558,44 @@
       "text": "Abspielen"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Zum Kalender hinzufügen"
+    },
+    "all_day": {
+      "text": "Ganztägig"
+    },
+    "primary": {
+      "text": "Hauptereignis"
+    },
+    "context": {
+      "text": "Kontexttermin"
+    },
+    "unavailable": {
+      "text": "Kalendereintrag nicht verfügbar"
+    },
+    "export_failed": {
+      "text": "Der Termin konnte nicht exportiert werden"
+    },
+    "source": {
+      "text": "Quelle"
+    },
+    "week": {
+      "text": "Woche"
+    },
+    "previous": {
+      "text": "Vorherige Woche"
+    },
+    "next": {
+      "text": "Nächste Woche"
+    },
+    "end_unknown": {
+      "text": "Endzeit nicht angegeben"
+    },
+    "preparing": {
+      "text": "Termin wird vorbereitet…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Kamera schließen"

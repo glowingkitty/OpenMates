@@ -2,6 +2,7 @@
 import { encode } from '@toon-format/toon';
 import { embedStore } from '../services/embedStore';
 import { chatSyncService } from '../services/chatSyncService';
+import { eventContent } from './embeds/calendar/CalendarEventEmbedPreview.preview';
 const defaultProps = {
   role: 'user' as const,
   content: 'A saved message.',
@@ -53,6 +54,11 @@ function seedSvgCode(code: string) {
   }));
 }
 seedSvgCode(svgSource);
+const calendarEventId = '904f0053-d60a-435d-a122-f1b7f6311bca';
+embedStore.registerStaticEmbed({ embedId: calendarEventId, type: 'calendar_event', appId: 'calendar', skillId: 'event',
+  content: encode({ ...eventContent, app_id: 'calendar', skill_id: 'event',
+    context_events: [{ title: 'Planning day', start: '2027-01-30' }] }),
+});
 const deferredEventId = 'preview-deferred-reply-event';
 function seedDeferredEvent() {
   embedStore.registerStaticEmbed({ embedId: deferredEventId, type: 'event', appId: 'events', skillId: 'event',
@@ -73,6 +79,13 @@ if (typeof document !== 'undefined') {
 export default defaultProps;
 
 export const variants = {
+  calendarEventReply: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: 'FOSDEM takes place on January 30–31.\n\n```json\n' + JSON.stringify({
+      type: 'calendar_event', embed_id: calendarEventId,
+    }) + '\n```',
+  },
   deferredEventReply: {
     ...defaultProps,
     content: 'Can I bring my existing project?\n\n```json\n' + JSON.stringify({

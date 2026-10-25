@@ -19,6 +19,8 @@ export {
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { createChatModelPreferences } from "./chatModelPreferences.js";
+export { buildCalendarEventFile } from "../../ui/src/utils/calendarDownload.js";
+export type { CalendarEvent, CalendarEventDocument } from "../../ui/src/utils/calendarEvent.js";
 export type {
   ChatModelCatalog, ChatModelCatalogEntry, ChatModelPreferenceState, ChatModelPreferences,
   ChatModelSelection, ChatModelValidation,

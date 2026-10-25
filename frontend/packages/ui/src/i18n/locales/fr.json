@@ -2938,6 +2938,44 @@
       "text": "Lire"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Ajouter au calendrier"
+    },
+    "all_day": {
+      "text": "Toute la journée"
+    },
+    "primary": {
+      "text": "Événement principal"
+    },
+    "context": {
+      "text": "Événement de contexte"
+    },
+    "unavailable": {
+      "text": "Événement indisponible"
+    },
+    "export_failed": {
+      "text": "Impossible d’exporter l’événement"
+    },
+    "source": {
+      "text": "Source"
+    },
+    "week": {
+      "text": "Semaine"
+    },
+    "previous": {
+      "text": "Semaine précédente"
+    },
+    "next": {
+      "text": "Semaine suivante"
+    },
+    "end_unknown": {
+      "text": "Heure de fin non précisée"
+    },
+    "preparing": {
+      "text": "Préparation de l’événement…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Fermer la caméra"

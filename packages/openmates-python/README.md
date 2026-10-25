@@ -262,6 +262,22 @@ The SDK raises:
 - `OpenMatesApiError` for API responses such as expired keys, unapproved devices,
   missing scopes, or exceeded credit limits.
 
+## Export a calendar event
+
+```python
+from pathlib import Path
+from openmates import build_calendar_event_file
+
+# Use the decrypted content of a finished calendar_event embed.
+calendar_file = build_calendar_event_file(embed_id, content)
+if calendar_file is not None:
+    Path("event.ics").write_bytes(calendar_file.encode("utf-8"))
+```
+
+The local serializer exports only the primary event. It validates dates and
+timezones and preserves an unknown end time without inventing a duration.
+Context events are for display only. No calendar account or network call is required.
+
 ## Versioning
 
 OpenMates shows the short product line, for example `v0.28`, in the web app.

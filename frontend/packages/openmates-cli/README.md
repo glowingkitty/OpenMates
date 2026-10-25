@@ -121,8 +121,13 @@ openmates chats share last --expires 604800
 openmates chats delete <chat-id> --yes
 ```
 
-Exports include YAML and Markdown. When present, code embeds and video
-transcripts are written as separate files.
+Exports include YAML and Markdown. When present, code embeds, video transcripts,
+and calendar events are written as separate files. Calendar files appear in
+`calendar/` as `.ics` files, each containing only its primary event.
+
+The TypeScript SDK also supports local calendar export from decrypted embed
+content. `buildCalendarEventFile(embedId, content)` returns an RFC 5545 string;
+it requires a valid finished calendar event and does not contact a calendar provider.
 
 ### Use apps and typed commands
 

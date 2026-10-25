@@ -206,6 +206,12 @@ resolvers.set('jobs-job-result', async ({ embedId, decodedContent, onFullscreen 
   return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
 });
 
+resolvers.set('calendar-event', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const component = (await import('../components/embeds/calendar/CalendarEventEmbedPreview.svelte')).default;
+  return { component, props: { id: embedId, content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen } };
+});
+
 for (const skillId of ["search", "read"] as const) {
   resolvers.set(`app:projects:${skillId}`, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } = await import("../components/embeds/projects/ProjectReferenceEmbedPreview.svelte");

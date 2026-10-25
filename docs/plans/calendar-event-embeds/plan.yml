@@ -15,7 +15,7 @@ approval:
   confirmation: Explicit user approval in this Codex chat on 2026-10-25.
 stages:
   - Backend structured-event validation, relevance-gated instructions, and encrypted streaming lifecycle.
-  - Real native CLI/SDK generation, retrieval, persistence, and primary-only export evidence before web work.
+  - Current CLI/SDK generation, retrieval, persistence, and primary-only export evidence, with native Rust integration deferred by the user.
   - Extract reusable weekly results-calendar presentation and add registered preview/fullscreen components.
   - Focused component and assistant/export E2E coverage in isolated CI, dev deployment, and visual review.
 decisions:
@@ -24,11 +24,19 @@ decisions:
   - Context events are included now and never exported with the primary event.
   - Real OpenMates inference retains automatic routing, following the user's explicit global instruction.
   - Cloud-calendar operations and Apple implementation remain outside this stage.
+waivers:
+  - date: '2026-10-25'
+    user_quote: Proceed; defer Rust integration
+    scope: >
+      Implement and verify the web feature with the current CLI/SDK and shared
+      calendar helpers. Native Rust SDK/export integration is deferred until the
+      ongoing Rust migration lands; it does not block this web implementation.
+    source: Explicit reply to this chat's native Rust dependency question.
 verification:
   required:
     - Focused backend validation/streaming unit tests and relevant lint.
-    - Real dev inference through native CLI and required SDK paths before starting web components.
+    - Real dev inference through the current CLI and local SDK export checks; native Rust integration is waived for this stage.
     - Isolated CI component and assistant/export checks for compact/large, phone/laptop, light/dark, context overlap, and invalid data.
     - Deployed visual review and delivery of selected E2E recordings.
 implementation_notes:
-  - The installed openmates-rust preview is available; native client and shared Rust SDK source integration is owned by the ongoing Rust migration and is absent from this checkout's base.
+  - Native Rust SDK/export integration belongs to the ongoing Rust migration and is explicitly deferred by the user. Shared export fixtures are retained for that integration.

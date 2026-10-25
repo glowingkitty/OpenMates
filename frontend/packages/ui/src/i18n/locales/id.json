@@ -2938,6 +2938,44 @@
       "text": "Putar"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Tambahkan ke kalender"
+    },
+    "all_day": {
+      "text": "Sepanjang hari"
+    },
+    "primary": {
+      "text": "Acara utama"
+    },
+    "context": {
+      "text": "Acara terkait"
+    },
+    "unavailable": {
+      "text": "Acara tidak tersedia"
+    },
+    "export_failed": {
+      "text": "Tidak dapat mengekspor acara"
+    },
+    "source": {
+      "text": "Sumber"
+    },
+    "week": {
+      "text": "Minggu"
+    },
+    "previous": {
+      "text": "Minggu sebelumnya"
+    },
+    "next": {
+      "text": "Minggu berikutnya"
+    },
+    "end_unknown": {
+      "text": "Waktu selesai tidak ditentukan"
+    },
+    "preparing": {
+      "text": "Menyiapkan acara…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Tutup kamera"

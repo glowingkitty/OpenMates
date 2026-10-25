@@ -2938,6 +2938,44 @@
       "text": "Phát"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Thêm vào lịch"
+    },
+    "all_day": {
+      "text": "Cả ngày"
+    },
+    "primary": {
+      "text": "Sự kiện chính"
+    },
+    "context": {
+      "text": "Sự kiện liên quan"
+    },
+    "unavailable": {
+      "text": "Sự kiện không khả dụng"
+    },
+    "export_failed": {
+      "text": "Không thể xuất sự kiện"
+    },
+    "source": {
+      "text": "Nguồn"
+    },
+    "week": {
+      "text": "Tuần"
+    },
+    "previous": {
+      "text": "Tuần trước"
+    },
+    "next": {
+      "text": "Tuần sau"
+    },
+    "end_unknown": {
+      "text": "Chưa có giờ kết thúc"
+    },
+    "preparing": {
+      "text": "Đang chuẩn bị sự kiện…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Đóng camera"

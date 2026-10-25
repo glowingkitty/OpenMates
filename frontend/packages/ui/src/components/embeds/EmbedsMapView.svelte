@@ -8,6 +8,8 @@
 -->
 
 <script lang="ts">
+  import ResultCalendarWeek from "@repo/public-site/components/results/ResultCalendarWeek.svelte";
+  import type { CalendarWeekEntry } from "@repo/public-site/components/results/calendarWeek";
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
@@ -61,10 +63,6 @@
   const MAX_TRAVEL_LEGS = 8;
   const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
-  const CALENDAR_WEEK_DAYS = 7;
-  const CALENDAR_VISIBLE_HOURS = 8;
-  const CALENDAR_MINUTES_PER_HOUR = 60;
-  const CALENDAR_DEFAULT_EVENT_MINUTES = 45;
 
   interface Props {
     id: string;
@@ -157,22 +155,6 @@
     label: string;
   }
 
-  interface CalendarEntry {
-    entry: MapViewEntry;
-    dateOrdinal: number;
-    startMinutes: number;
-    endMinutes?: number;
-    dateOnly: boolean;
-    column?: number;
-    columnCount?: number;
-  }
-
-  interface CalendarWeekDay {
-    dateOrdinal: number;
-    entries: CalendarEntry[];
-    isToday: boolean;
-  }
-
   let {
     id,
     title,
@@ -198,7 +180,6 @@
   let mapViewportEntryRefs = $state<string[] | null>(null);
   let mapSelectionRefs = $state<string[]>([]);
   let mapSelectionKey = $state<string | null>(null);
-  let calendarWeekStartOrdinal = $state<number | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
   let unsubscribeEmbedAvailability: (() => void) | null = null;
   let mapHydrationObserver: IntersectionObserver | null = null;
@@ -277,30 +258,10 @@
   const endpointMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-endpoint')).length);
   const stopMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-stop')).length);
   const routePaths = $derived<MapRoutePath[]>(buildResultRoutePaths(visibleEntries, activeGeometryRefs, 'embeds-map-view-route-path'));
-  const calendarEntries = $derived<CalendarEntry[]>(visibleEntries
+  const calendarEntries = $derived<CalendarWeekEntry[]>(visibleEntries
     .map(calendarEntryFromMapEntry)
-    .filter((entry): entry is CalendarEntry => entry != null)
-    .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.entry.title.localeCompare(b.entry.title)));
-  const calendarAvailableWeekStarts = $derived(calendarWeeksWithEntries(calendarEntries));
-  const activeCalendarWeekStart = $derived(
-    calendarWeekStartOrdinal != null && calendarAvailableWeekStarts.includes(calendarWeekStartOrdinal)
-      ? calendarWeekStartOrdinal
-      : calendarAvailableWeekStarts[0] ?? null,
-  );
-  const activeCalendarWeekIndex = $derived(activeCalendarWeekStart == null ? -1 : calendarAvailableWeekStarts.indexOf(activeCalendarWeekStart));
-  const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
-  const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
-  const calendarWeekHasTimedEntries = $derived(calendarWeekDays.some((day) => day.entries.some((entry) => !entry.dateOnly)));
-  const calendarTimedEntries = $derived(calendarWeekDays.flatMap((day) => day.entries.filter((entry) => !entry.dateOnly)));
-  const calendarTimelineStartMinutes = $derived(calendarTimedEntries.length > 0
-    ? Math.floor(Math.min(...calendarTimedEntries.map((entry) => entry.startMinutes)) / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR
-    : 0);
-  const calendarTimelineHours = $derived(calendarTimedEntries.length > 0
-    ? Math.min(24 - calendarTimelineStartMinutes / CALENDAR_MINUTES_PER_HOUR, Math.max(CALENDAR_VISIBLE_HOURS,
-      Math.ceil((Math.max(...calendarTimedEntries.map(calendarEndMinutes)) - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR)))
-    : CALENDAR_VISIBLE_HOURS);
-  const calendarRowTemplate = $derived(['42px', ...(dateOnlyRowCount > 0 ? [`${dateOnlyRowCount * 4}rem`] : []), ...(calendarWeekHasTimedEntries ? ['calc(var(--calendar-hour-height) * var(--calendar-timeline-hours))'] : [])].join(' '));
-  const calendarHourLabels = $derived(Array.from({ length: calendarTimelineHours + 1 }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
+    .filter((entry): entry is CalendarWeekEntry => entry != null)
+    .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.title.localeCompare(b.title)));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapMarkers.map((marker) => ({ lat: marker.lat, lon: marker.lon })),
@@ -782,7 +743,7 @@
     return tabs;
   }
 
-  function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarEntry | null {
+  function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarWeekEntry | null {
     if (entry.status !== 'ready') return null;
     const dateOrdinal = numberFacet(entry, 'dateOrdinal');
     const departureMinutes = numberFacet(entry, 'departureMinutes');
@@ -796,51 +757,20 @@
     const endMinutes = rawEndMinutes != null && (rawEndMinutes !== startMinutes || endDayOffset > 0)
       ? rawEndMinutes + (endDayOffset || (rawEndMinutes < startMinutes ? 1440 : 0))
       : durationMinutes != null && durationMinutes > 0 ? startMinutes + durationMinutes : undefined;
-    return { entry, dateOrdinal, startMinutes, endMinutes, dateOnly: departureMinutes == null };
+    return {
+      ref: entry.ref, title: entry.title, category: entry.category, highlighted: entry.highlighted,
+      location: calendarLocation(entry), dateOrdinal, startMinutes, endMinutes,
+      dateOnly: departureMinutes == null,
+      endDateOrdinal: departureMinutes == null && typeof entry.decodedContent?.date_end === 'string'
+        && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end) ? endDateOrdinal ?? undefined : undefined,
+    };
   }
 
-  function weekStartOrdinal(dateOrdinal: number): number {
-    const day = new Date(dateOrdinal * 86400000).getUTCDay();
-    return dateOrdinal - ((day + 6) % CALENDAR_WEEK_DAYS);
-  }
 
   // Include every week occupied by an event, including its overnight continuation.
   // Event end times are exclusive, so an event ending at Monday 00:00 stays in Sunday.
-  function calendarWeeksWithEntries(items: CalendarEntry[]): number[] {
-    const weeks = new Set<number>();
-    for (const item of items) {
-      const lastDay = item.dateOnly ? item.dateOrdinal
-        : item.dateOrdinal + Math.ceil(calendarEndMinutes(item) / 1440) - 1;
-      const finalWeek = weekStartOrdinal(lastDay);
-      for (let week = weekStartOrdinal(item.dateOrdinal); week <= finalWeek; week += CALENDAR_WEEK_DAYS) {
-        weeks.add(week);
-      }
-    }
-    return [...weeks].sort((a, b) => a - b);
-  }
 
-  function todayOrdinal(): number {
-    const now = new Date();
-    return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
-  }
 
-  function buildCalendarWeekDays(weekStart: number, items: CalendarEntry[]): CalendarWeekDay[] {
-    const today = todayOrdinal();
-    return Array.from({ length: CALENDAR_WEEK_DAYS }, (_, index) => {
-      const dateOrdinal = weekStart + index;
-      return {
-        dateOrdinal,
-        entries: layoutCalendarDay(items.flatMap((item) => {
-          if (item.dateOnly) return item.dateOrdinal === dateOrdinal ? [item] : [];
-          const offset = (dateOrdinal - item.dateOrdinal) * 1440;
-          const start = Math.max(0, item.startMinutes - offset);
-          const end = Math.min(1440, calendarEndMinutes(item) - offset);
-          return end > start && start < 1440 ? [{ ...item, dateOrdinal, startMinutes: start, endMinutes: end }] : [];
-        })),
-        isToday: dateOrdinal === today,
-      };
-    });
-  }
 
   function formatOptionLabel(value: string): string {
     return value
@@ -862,49 +792,11 @@
     return `${Math.round(value)}${control.unit ? ` ${control.unit}` : ''}`;
   }
 
-  function formatCalendarTime(item: CalendarEntry): string {
-    if (item.dateOnly) return dateFromOrdinal(item.dateOrdinal);
-    if (item.endMinutes == null) return formatTimeMinutes(item.startMinutes);
-    return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
-  }
 
-  function formatCalendarHour(value: number): string {
-    return `${Math.floor(value / CALENDAR_MINUTES_PER_HOUR).toString().padStart(2, '0')}:00`;
-  }
 
-  function calendarEndMinutes(item: CalendarEntry): number {
-    return item.endMinutes != null && item.endMinutes > item.startMinutes
-      ? item.endMinutes : item.startMinutes + CALENDAR_DEFAULT_EVENT_MINUTES;
-  }
 
   // Overlaps share the day's width; they never move away from their real time.
-  function layoutCalendarDay(items: CalendarEntry[]): CalendarEntry[] {
-    const timed = items.filter((item) => !item.dateOnly).sort((a, b) => a.startMinutes - b.startMinutes);
-    let group: CalendarEntry[] = [];
-    let laneEnds: number[] = [];
-    let groupEnd = -1;
-    const finishGroup = () => { for (const item of group) item.columnCount = laneEnds.length; };
-    for (const item of timed) {
-      if (item.startMinutes >= groupEnd) {
-        finishGroup();
-        group = [];
-        laneEnds = [];
-      }
-      const freeLane = laneEnds.findIndex((end) => end <= item.startMinutes);
-      item.column = freeLane < 0 ? laneEnds.length : freeLane;
-      laneEnds[item.column] = calendarEndMinutes(item);
-      group.push(item);
-      groupEnd = Math.max(...laneEnds);
-    }
-    finishGroup();
-    return [...items.filter((item) => item.dateOnly), ...timed];
-  }
 
-  function calendarItemStyle(item: CalendarEntry): string {
-    const topHours = (item.startMinutes - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR;
-    const heightHours = (calendarEndMinutes(item) - item.startMinutes) / CALENDAR_MINUTES_PER_HOUR;
-    return `--calendar-item-top-hours: ${topHours}; --calendar-item-height-hours: ${heightHours}; --calendar-item-column: ${item.column ?? 0}; --calendar-item-columns: ${item.columnCount ?? 1};`;
-  }
 
   function calendarLocation(entry: MapViewEntry): string {
     const content = entry.decodedContent;
@@ -914,39 +806,10 @@
       content?.formattedAddress, content?.formatted_address, content?.address, venue?.address, location?.address);
   }
 
-  function formatCalendarDayLabel(value: number): string {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'UTC',
-      weekday: 'short',
-    }).format(new Date(value * 86400000));
-  }
 
-  function formatCalendarDayNumber(value: number): string {
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'UTC',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date(value * 86400000));
-  }
 
-  function calendarIsoWeekInfo(value: number): { week: number; year: number } {
-    const date = new Date(value * 86400000);
-    const day = date.getUTCDay() || CALENDAR_WEEK_DAYS;
-    date.setUTCDate(date.getUTCDate() + 4 - day);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / CALENDAR_WEEK_DAYS);
-    return { week, year: date.getUTCFullYear() };
-  }
 
-  function formatCalendarWeekTitle(weekStart: number): string {
-    const { week, year } = calendarIsoWeekInfo(weekStart);
-    return `Week ${week} ${year}`;
-  }
 
-  function formatCalendarWeekLabel(weekStart: number): string {
-    const weekEnd = weekStart + CALENDAR_WEEK_DAYS - 1;
-    return `${formatCalendarDayNumber(weekStart)} - ${formatCalendarDayNumber(weekEnd)}`;
-  }
 
   function formatProviderLabel(value: string): string {
     return value
@@ -1245,11 +1108,6 @@
     mapViewportEntryRefs = refsInBounds.length > 0 && refsInBounds.length < visibleEntries.length ? refsInBounds : null;
   }
 
-  function moveCalendarWeek(delta: -1 | 1): void {
-    if (activeCalendarWeekIndex < 0) return;
-    const nextWeek = calendarAvailableWeekStarts[activeCalendarWeekIndex + delta];
-    if (nextWeek != null) calendarWeekStartOrdinal = nextWeek;
-  }
 
   // Svelte's dynamic component type needs a permissive cast because registry
   // entries point at heterogeneous preview components with different props.
@@ -1358,12 +1216,6 @@
     }
   });
 
-  $effect(() => {
-    // Persist the filtered fallback so clearing filters cannot revive an invalid week.
-    if (calendarWeekStartOrdinal !== activeCalendarWeekStart) {
-      calendarWeekStartOrdinal = activeCalendarWeekStart;
-    }
-  });
 
   $effect(() => {
     if (mapSelectionRefs.length > 0) {
@@ -1587,81 +1439,10 @@
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
       {#if selectedVisualTab === 'calendar'}
-        <div class="results-view-calendar" class:date-only={!calendarWeekHasTimedEntries} data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
-          {#if activeCalendarWeekStart != null}
-            <header class="calendar-week-toolbar">
-              <button type="button" aria-label="Previous week" disabled={activeCalendarWeekIndex <= 0} onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
-              <strong data-testid="embeds-results-view-calendar-week-label">
-                {formatCalendarWeekTitle(activeCalendarWeekStart)}
-                <span class="visually-hidden"> {formatCalendarWeekLabel(activeCalendarWeekStart)}</span>
-              </strong>
-              <button type="button" aria-label="Next week" disabled={activeCalendarWeekIndex >= calendarAvailableWeekStarts.length - 1} onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
-            </header>
-            <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}; --calendar-timeline-hours: ${calendarTimelineHours}`} data-testid="embeds-results-view-calendar-week">
-              {#if calendarWeekHasTimedEntries}
-              <div class="calendar-time-column" aria-hidden="true">
-                <span class="calendar-time-column-spacer"></span>
-                {#if dateOnlyRowCount > 0}<div style={`height: ${dateOnlyRowCount * 4}rem`}></div>{/if}
-                <div class="calendar-time-slots">
-                  {#each calendarHourLabels as hour}
-                    <span>{formatCalendarHour(hour)}</span>
-                  {/each}
-                </div>
-              </div>
-              {/if}
-              {#each calendarWeekDays as day}
-                <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
-                  <header class="calendar-day-header" title={formatCalendarDayNumber(day.dateOrdinal)}>
-                    {formatCalendarDayLabel(day.dateOrdinal)} {new Date(day.dateOrdinal * 86400000).getUTCDate()}
-                  </header>
-                  {#if dateOnlyRowCount > 0}
-                    <div class="calendar-date-only" style={`min-height: ${dateOnlyRowCount * 4}rem`}>
-                      {#each day.entries.filter((item) => item.dateOnly) as item}
-                        <button type="button" data-testid="embeds-results-view-calendar-date-only" onclick={() => openEntry(item.entry)}>
-                          <strong>{item.entry.title}</strong><span>{dateFromOrdinal(item.dateOrdinal)}</span>
-                        </button>
-                      {/each}
-                    </div>
-                  {/if}
-                  {#if calendarWeekHasTimedEntries}
-                  <div class="calendar-items">
-                    {#each day.entries.filter((item) => !item.dateOnly) as item}
-                      <button
-                        type="button"
-                        class="calendar-item"
-                        class:highlighted={item.entry.highlighted}
-                        class:selected={selectedRef === item.entry.ref}
-                        class:hovered={item.entry.ref === hoveredRef}
-                        data-testid="embeds-results-view-calendar-item"
-                        data-start-minutes={item.startMinutes}
-                        data-end-minutes={calendarEndMinutes(item)}
-                        data-entry-category={item.entry.category}
-                        data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
-                        style={calendarItemStyle(item)}
-                        aria-label={`${item.entry.title}, ${formatCalendarTime(item)}${calendarLocation(item.entry) ? `, ${calendarLocation(item.entry)}` : ""}`}
-                        title={formatCalendarTime(item)}
-                        onclick={() => openEntry(item.entry)}
-                        onpointerenter={() => (hoveredRef = item.entry.ref)}
-                        onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
-                        onfocus={() => (hoveredRef = item.entry.ref)}
-                        onblur={() => handleEntryPointerLeave(item.entry.ref)}
-                      >
-                        <span class="calendar-copy">
-                          <strong>{item.entry.title}</strong>
-                          {#if calendarLocation(item.entry)}
-                            <span class="calendar-location"><span class="icon" aria-hidden="true"></span>{calendarLocation(item.entry)}</span>
-                          {/if}
-                        </span>
-                      </button>
-                    {/each}
-                  </div>
-                  {/if}
-                </section>
-              {/each}
-            </div>
-          {:else}
-            <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
-          {/if}
+        <div id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
+          <ResultCalendarWeek entries={calendarEntries} {selectedRef} {hoveredRef}
+            onOpen={(ref) => { const entry = visibleEntries.find(item => item.ref === ref); if (entry) void openEntry(entry); }}
+            onHover={(ref) => { if (ref) hoveredRef = ref; else if (hoveredRef) handleEntryPointerLeave(hoveredRef); }} />
         </div>
       {:else}
         <div
@@ -1738,8 +1519,6 @@
   .results-view-admin-error button { margin-top: 8px; padding: 5px 12px; border: 1px solid var(--color-grey-50); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
   .results-view-admin-error strong, .results-view-admin-error span { display: block; }
 
-  .calendar-date-only button { display: flex; flex-direction: column; width: 100%; min-height: 3.5rem; margin-bottom: .5rem; padding: .4rem; border: 0; border-radius: .5rem; background: var(--color-grey-30); color: var(--color-font-primary); text-align: start; cursor: pointer; }
-  .calendar-date-only span { font-size: .75rem; color: var(--color-font-secondary); }
 
   .embeds-map-view {
     position: relative;
@@ -2150,178 +1929,6 @@
     background: var(--color-grey-20, #f3f3f3);
   }
 
-  .results-view-calendar {
-    display: grid;
-    /* The wide week scrolls inside this viewport; it must not size the toolbar track. */
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    gap: 8px;
-    height: 535px;
-    min-height: 535px;
-    max-height: 535px;
-    box-sizing: border-box;
-    min-width: 0;
-    overflow: auto;
-    padding: 14px 14px 24px;
-    background: var(--color-grey-20);
-  }
-
-  .results-view-calendar.date-only { height: auto; min-height: 0; }
-
-  .calendar-week-toolbar {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) 28px;
-    align-items: center;
-    gap: 20px;
-    justify-self: center;
-    width: min(100%, 260px);
-    min-height: 36px;
-    position: sticky;
-    left: 0;
-    z-index: 1;
-  }
-
-  .calendar-week-toolbar strong {
-    color: var(--color-font-tertiary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  .calendar-week-toolbar button {
-    display: inline-grid;
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    place-items: center;
-    border: 0;
-    border-radius: var(--radius-4);
-    background: transparent;
-    color: var(--color-font-tertiary);
-    padding: 0;
-    font: inherit;
-    font-size: var(--font-size-h3);
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .calendar-week-toolbar button:hover:not(:disabled) { background: var(--color-grey-10); }
-  .calendar-week-toolbar button:disabled { opacity: 0.35; cursor: default; }
-
-  .calendar-week {
-    --calendar-hour-height: 46px;
-    display: grid;
-    grid-template-columns: 44px repeat(7, minmax(0, 1fr));
-    gap: 0;
-    min-width: 620px;
-    border-radius: var(--radius-6);
-  }
-
-  .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-
-  .calendar-time-column,
-  .calendar-day {
-    display: grid;
-    grid-template-rows: var(--calendar-row-template);
-    min-height: 0;
-    min-width: 0;
-  }
-
-  .calendar-time-column {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-xxs);
-    font-weight: 500;
-  }
-
-  .calendar-time-slots {
-    position: relative;
-    display: grid;
-    grid-auto-rows: var(--calendar-hour-height);
-  }
-
-  .calendar-time-slots span {
-    align-self: start;
-    justify-self: end;
-    padding: 0 6px 0 0;
-    transform: translateY(-0.55em);
-  }
-
-  .calendar-day { gap: 0; padding: 0; border-radius: var(--radius-4); }
-  .calendar-day.today { background: var(--color-grey-25); }
-
-  .calendar-day-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 42px;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .calendar-items {
-    position: relative;
-    min-height: calc(var(--calendar-hour-height) * var(--calendar-timeline-hours));
-  }
-
-  .calendar-item {
-    position: absolute;
-    top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height));
-    left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px);
-    width: calc(100% / var(--calendar-item-columns) - 6px);
-    min-width: 0;
-    display: block;
-    box-sizing: border-box;
-    height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height));
-    min-height: 0;
-    overflow: hidden;
-    border: 0;
-    border-left: 3px solid var(--color-error);
-    border-radius: var(--radius-2, 4px);
-    background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20));
-    color: var(--color-font-primary);
-    padding: 4px;
-    text-align: left;
-    font: inherit;
-    box-shadow: none;
-    cursor: pointer;
-  }
-
-  .calendar-item.highlighted,
-  .calendar-item.hovered { border-color: var(--color-primary); }
-  .calendar-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-
-  .calendar-copy { display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden; }
-
-  .calendar-copy strong {
-    display: -webkit-box;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 500;
-    line-height: 1.25;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-  }
-
-  .calendar-location {
-    display: flex;
-    align-items: center;
-    margin-top: 4px;
-    overflow: hidden;
-    color: var(--color-font-tertiary);
-    font-size: var(--font-size-xxs);
-    line-height: 1.25;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .calendar-location .icon { flex: 0 0 12px; width: 12px; height: 14px; background: var(--color-error); mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; -webkit-mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; }
-
   .empty-state,
   .empty-map,
   .map-hydration-placeholder {
@@ -2381,23 +1988,11 @@
       height: 278px;
     }
 
-    .results-view-pane,
-    .results-view-calendar {
+    .results-view-pane {
       min-height: 535px;
     }
 
-    .results-view-calendar {
-      height: 535px;
-      max-height: 535px;
-    }
 
-    .calendar-week {
-      grid-template-columns: 42px repeat(7, minmax(88px, 1fr));
-      min-width: 658px;
-    }
 
-    .calendar-copy strong {
-      white-space: normal;
-    }
   }
 </style>

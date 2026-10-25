@@ -111,6 +111,7 @@ import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile, type UploadFil
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
+import { buildCalendarEventFile, sanitizeCalendarFilename } from "../../ui/src/utils/calendarDownload.js";
 import { handleServer, printServerHelp, updateCaddyAfterCliUpgrade } from "./server.js";
 import {
   buildCodeRunRequestsFromFlags,
@@ -6197,16 +6198,21 @@ async function handleChats(
       content: string;
     }> = [];
     const diagramEmbeds: Array<{ embedId: string; content: string }> = [];
+    const calendarEmbeds: Array<{ filename: string; content: string }> = [];
     const processedEmbedIds = new Set<string>();
 
     // Collect all embed IDs from messages
     const allEmbedIds: string[] = [];
     for (const msg of messages) {
       const segments = parseMessageSegments(msg.content);
-      for (const seg of segments) {
-        if (seg.type === "embed" && !processedEmbedIds.has(seg.value)) {
-          processedEmbedIds.add(seg.value);
-          allEmbedIds.push(seg.value);
+      const messageEmbedIds = [
+        ...(msg.embedIds ?? []),
+        ...segments.flatMap(seg => seg.type === "embed" ? [seg.value] : []),
+      ];
+      for (const embedId of messageEmbedIds) {
+        if (!processedEmbedIds.has(embedId)) {
+          processedEmbedIds.add(embedId);
+          allEmbedIds.push(embedId);
         }
       }
     }
@@ -6216,7 +6222,16 @@ async function handleChats(
     while (embedQueue.length > 0) {
       const eid = embedQueue.shift()!;
       try {
-        const embed = await client.getEmbed(eid);
+        const embed = await client.getEmbed(eid, { ...teamContext, chatId: chat.id });
+
+        if (embed.type === "calendar_event" || embed.type === "calendar-event") {
+          const file = buildCalendarEventFile(embed.embedId, embed.content);
+          if (file) {
+            const event = embed.content?.primary_event as Record<string, unknown> | undefined;
+            const title = typeof event?.title === "string" ? event.title : "calendar-event";
+            calendarEmbeds.push({ filename: `${sanitizeCalendarFilename(title)}-${embed.embedId.slice(0, 8)}.ics`, content: file });
+          }
+        }
 
         if ((embed.type === "diagram_html" || embed.type === "diagrams-html")
           && typeof embed.content?.html_source === "string" && embed.content.html_source) {
@@ -6308,8 +6323,10 @@ async function handleChats(
             }
           }
         }
-      } catch {
-        // Embed not in cache — skip
+      } catch (error) {
+        // A recent browser chat may require a targeted encrypted-embed fetch.
+        // Report failures so a partial archive is never silently complete.
+        process.stderr.write(`Could not export embed ${eid}: ${error instanceof Error ? error.message : String(error)}\n`);
       }
     }
 
@@ -6323,6 +6340,10 @@ async function handleChats(
       await mkdir(tmpDir, { recursive: true });
       await writeFile(join(tmpDir, `${filenameBase}.yml`), yamlContent);
       await writeFile(join(tmpDir, `${filenameBase}.md`), mdContent);
+      if (calendarEmbeds.length) {
+        await mkdir(join(tmpDir, "calendar"), { recursive: true });
+        for (const event of calendarEmbeds) await writeFile(join(tmpDir, "calendar", event.filename), event.content);
+      }
       if (codeEmbeds.length > 0) {
         for (const ce of codeEmbeds) {
           const fpath =
@@ -6358,7 +6379,7 @@ async function handleChats(
         // Clean up temp dir
         const { rm } = await import("node:fs/promises");
         await rm(tmpDir, { recursive: true, force: true });
-        process.stdout.write(`\x1b[32m\u2713\x1b[0m ${zipPath}\n`);
+        if (flags.json !== true) process.stdout.write(`\x1b[32m\u2713\x1b[0m ${zipPath}\n`);
       } catch {
         // zip not available — keep the directory as fallback
         process.stderr.write(
@@ -6376,6 +6397,14 @@ async function handleChats(
 
       await writeFile(join(chatDir, `${filenameBase}.md`), mdContent);
       written.push(`${filenameBase}.md`);
+
+      if (calendarEmbeds.length) {
+        await mkdir(join(chatDir, "calendar"), { recursive: true });
+        for (const event of calendarEmbeds) {
+          await writeFile(join(chatDir, "calendar", event.filename), event.content);
+          written.push(`calendar/${event.filename}`);
+        }
+      }
 
       if (codeEmbeds.length > 0) {
         for (const ce of codeEmbeds) {
@@ -6410,17 +6439,18 @@ async function handleChats(
         }
       }
 
-      // Print summary
-      const label = chat.title ? `"${chat.title}"` : chatHandle(chat);
-      process.stdout.write(
-        `\x1b[1mDownloaded chat ${label}\x1b[0m → ${chatDir}\n\n`,
-      );
-      for (const f of written) {
-        process.stdout.write(`  \x1b[32m\u2713\x1b[0m ${f}\n`);
+      if (flags.json !== true) {
+        const label = chat.title ? `"${chat.title}"` : chatHandle(chat);
+        process.stdout.write(
+          `\x1b[1mDownloaded chat ${label}\x1b[0m → ${chatDir}\n\n`,
+        );
+        for (const f of written) {
+          process.stdout.write(`  \x1b[32m\u2713\x1b[0m ${f}\n`);
+        }
+        process.stdout.write(
+          `\n\x1b[2m${written.length} file(s) written.\x1b[0m\n`,
+        );
       }
-      process.stdout.write(
-        `\n\x1b[2m${written.length} file(s) written.\x1b[0m\n`,
-      );
     }
 
     if (flags.json === true) {
@@ -6436,6 +6466,7 @@ async function handleChats(
       for (const te of transcriptEmbeds) {
         files.push(`transcripts/${te.filename}`);
       }
+      for (const event of calendarEmbeds) files.push(`calendar/${event.filename}`);
       printJson({
         chat_id: chat.id,
         title: chat.title,
@@ -6445,6 +6476,7 @@ async function handleChats(
         files,
         code_embeds: codeEmbeds.length,
         transcript_embeds: transcriptEmbeds.length,
+        calendar_embeds: calendarEmbeds.length,
       });
     }
     return;
@@ -14904,7 +14936,7 @@ Options for 'download':
   --output <path>  Target directory (default: current directory)
   --zip            Create a .zip archive instead of a folder
   Downloads: .yml (YAML export), .md (Markdown), code/ (code embeds),
-  transcripts/ (video transcripts). Files are saved into a folder named
+  transcripts/ (video transcripts), calendar/ (primary event .ics files). Files are saved into a folder named
   with the chat's date and title.
 
 Options for 'delete':

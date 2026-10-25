@@ -56,6 +56,7 @@ import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderV
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
 import { renderEventsSearch, renderEvent } from '../components/embeds/events/eventsEmbedText';
+import { renderCalendarEvent } from '../components/embeds/calendar/calendarEventEmbedText';
 import { renderFitnessResult, renderFitnessSearch } from '../components/embeds/fitness/fitnessEmbedText';
 import { renderMailSearch, renderEmail } from '../components/embeds/mail/mailEmbedText';
 import { renderHealthSearch, renderAppointment } from '../components/embeds/health/healthEmbedText';
@@ -296,6 +297,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'recording': renderRecording,
 	'mail-email': renderEmail,
 		'math-plot': renderMathPlot,
+		'calendar-event': renderCalendarEvent,
+		'calendar_event': renderCalendarEvent,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
 		'diagrams-html': renderDiagramText,

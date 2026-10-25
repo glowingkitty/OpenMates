@@ -2938,6 +2938,44 @@
       "text": "Spela"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Lägg till i kalendern"
+    },
+    "all_day": {
+      "text": "Hela dagen"
+    },
+    "primary": {
+      "text": "Huvudhändelse"
+    },
+    "context": {
+      "text": "Relaterad händelse"
+    },
+    "unavailable": {
+      "text": "Kalenderhändelsen är inte tillgänglig"
+    },
+    "export_failed": {
+      "text": "Det gick inte att exportera händelsen"
+    },
+    "source": {
+      "text": "Källa"
+    },
+    "week": {
+      "text": "Vecka"
+    },
+    "previous": {
+      "text": "Föregående vecka"
+    },
+    "next": {
+      "text": "Nästa vecka"
+    },
+    "end_unknown": {
+      "text": "Sluttid saknas"
+    },
+    "preparing": {
+      "text": "Förbereder händelse…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Stäng kamera"

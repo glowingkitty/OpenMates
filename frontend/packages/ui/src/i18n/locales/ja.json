@@ -2938,6 +2938,44 @@
       "text": "再生"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "カレンダーに追加"
+    },
+    "all_day": {
+      "text": "終日"
+    },
+    "primary": {
+      "text": "メインの予定"
+    },
+    "context": {
+      "text": "関連する予定"
+    },
+    "unavailable": {
+      "text": "予定を表示できません"
+    },
+    "export_failed": {
+      "text": "予定をエクスポートできませんでした"
+    },
+    "source": {
+      "text": "出典"
+    },
+    "week": {
+      "text": "週"
+    },
+    "previous": {
+      "text": "前の週"
+    },
+    "next": {
+      "text": "次の週"
+    },
+    "end_unknown": {
+      "text": "終了時刻は未指定"
+    },
+    "preparing": {
+      "text": "予定を準備中…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "カメラを閉じる"

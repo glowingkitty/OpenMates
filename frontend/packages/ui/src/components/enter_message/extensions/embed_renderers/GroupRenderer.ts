@@ -78,6 +78,8 @@ import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEm
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
 import DiagramHtmlEmbedPreview from "../../../embeds/diagrams/DiagramHtmlEmbedPreview.svelte";
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
+import CalendarEventEmbedPreview from "../../../embeds/calendar/CalendarEventEmbedPreview.svelte";
+import { renderCalendarEvent } from "../../../embeds/calendar/calendarEventEmbedText";
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
@@ -538,6 +540,11 @@ export class GroupRenderer implements EmbedRenderer {
           this.renderMindMapComponent(item, embedData, decodedContent, content),
       ],
       [
+        "calendar-event",
+        (item, embedData, decodedContent, content) =>
+          this.renderCalendarEventComponent(item, embedData, decodedContent, content),
+      ],
+      [
         "electronics-component",
         (item, embedData, decodedContent, content) =>
           this.renderElectronicsComponentComponent(
@@ -990,6 +997,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderDiagramHtmlItem(item, embedData, decodedContent);
       case "mindmaps-mindmap":
         return this.renderMindMapItem(item, embedData, decodedContent);
+      case "calendar-event":
+        return this.renderCalendarEventItem(decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "design-icon-result":
@@ -6958,8 +6967,40 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
-   * Render a Mind Maps embed using MindMapEmbedPreview.
+   * Mount a standalone calendar event using the shared preview shell.
    */
+  private async renderCalendarEventComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || decodedContent?.status || item.status || "processing") as "processing" | "finished" | "error" | "cancelled";
+    try {
+      const component = mount(CalendarEventEmbedPreview, {
+        target: content,
+        props: { id: embedId, content: decodedContent ?? {}, status,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent) },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Could not mount calendar event preview", error);
+      content.innerHTML = this.renderCalendarEventItem(decodedContent);
+    }
+  }
+
+  private renderCalendarEventItem(content: DecodedEmbedContent | null): string {
+    const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<div class="embed-text-content">${escape(renderCalendarEvent(content ?? {})).replace(/\n/g, "<br>")}</div>`;
+  }
+
+  /** Render a Mind Maps embed using MindMapEmbedPreview. */
   private async renderMindMapComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null = null,

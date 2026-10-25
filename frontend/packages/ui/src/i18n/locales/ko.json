@@ -2938,6 +2938,44 @@
       "text": "재생"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "캘린더에 추가"
+    },
+    "all_day": {
+      "text": "종일"
+    },
+    "primary": {
+      "text": "주요 일정"
+    },
+    "context": {
+      "text": "관련 일정"
+    },
+    "unavailable": {
+      "text": "일정을 사용할 수 없습니다"
+    },
+    "export_failed": {
+      "text": "일정을 내보낼 수 없습니다"
+    },
+    "source": {
+      "text": "출처"
+    },
+    "week": {
+      "text": "주"
+    },
+    "previous": {
+      "text": "이전 주"
+    },
+    "next": {
+      "text": "다음 주"
+    },
+    "end_unknown": {
+      "text": "종료 시간 미지정"
+    },
+    "preparing": {
+      "text": "일정 준비 중…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "카메라 닫기"

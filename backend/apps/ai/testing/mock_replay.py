@@ -750,6 +750,34 @@ async def _recreate_fixture_embeds(
                     logger.info(
                         f"[MOCK] Recreated {embed_type} embed: {old_embed_id} → {embed_data['embed_id']}"
                     )
+            elif embed_type == "calendar_event":
+                # Exercise the production encrypted JSON-content lifecycle.
+                embed_data = await embed_service.create_json_content_embed_placeholder(
+                    source_language="openmates_calendar_event",
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                )
+                if embed_data:
+                    updated = await embed_service.update_json_content_embed_content(
+                        source_language="openmates_calendar_event",
+                        embed_id=embed_data["embed_id"],
+                        source_json=json.dumps(embed_meta["document"]),
+                        chat_id=request_data.chat_id,
+                        user_id=request_data.user_id,
+                        user_id_hash=request_data.user_id_hash,
+                        user_vault_key_id=user_vault_key_id,
+                        status="finished",
+                        log_prefix=log_prefix,
+                    )
+                    if not updated:
+                        raise RuntimeError("Calendar fixture could not be finalized")
+                    new_block = f"```json\n{embed_data['embed_reference']}\n```"
+                    response = response[:match.start()] + new_block + response[match.end():]
             elif embed_type == "mail":
                 # Email fences create direct mail drafts, not a mail.email skill.
                 # Replay the same placeholder/finalization path as stream_consumer.

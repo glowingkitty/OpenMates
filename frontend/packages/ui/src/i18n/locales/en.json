@@ -3579,6 +3579,44 @@
       "text": "Play"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "Add to calendar"
+    },
+    "all_day": {
+      "text": "All day"
+    },
+    "primary": {
+      "text": "Primary event"
+    },
+    "context": {
+      "text": "Context event"
+    },
+    "unavailable": {
+      "text": "Calendar event unavailable"
+    },
+    "export_failed": {
+      "text": "Could not export the event"
+    },
+    "source": {
+      "text": "Source"
+    },
+    "week": {
+      "text": "Week"
+    },
+    "previous": {
+      "text": "Previous week"
+    },
+    "next": {
+      "text": "Next week"
+    },
+    "end_unknown": {
+      "text": "End time not specified"
+    },
+    "preparing": {
+      "text": "Preparing event…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "Close camera"

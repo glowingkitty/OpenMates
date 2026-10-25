@@ -93,6 +93,7 @@
     'image_result', 'web_result', 'news_result', 'video_result',
     'location', 'flight', 'stay', 'event', 'event_result', 'product', 'job',
     'health_result', 'recipe', 'price_calendar_result', 'listing',
+    'calendar_event', 'calendar-event',
   ]);
   const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
   const EMBED_DATA_RETRY_DELAYS_MS = [1_000, 2_000, 3_000];

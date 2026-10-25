@@ -2938,6 +2938,44 @@
       "text": "تشغيل"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "إضافة إلى التقويم"
+    },
+    "all_day": {
+      "text": "طوال اليوم"
+    },
+    "primary": {
+      "text": "الحدث الرئيسي"
+    },
+    "context": {
+      "text": "حدث ذو صلة"
+    },
+    "unavailable": {
+      "text": "حدث التقويم غير متاح"
+    },
+    "export_failed": {
+      "text": "تعذر تصدير الحدث"
+    },
+    "source": {
+      "text": "المصدر"
+    },
+    "week": {
+      "text": "الأسبوع"
+    },
+    "previous": {
+      "text": "الأسبوع السابق"
+    },
+    "next": {
+      "text": "الأسبوع التالي"
+    },
+    "end_unknown": {
+      "text": "وقت الانتهاء غير محدد"
+    },
+    "preparing": {
+      "text": "جارٍ إعداد الحدث…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "إغلاق الكاميرا"

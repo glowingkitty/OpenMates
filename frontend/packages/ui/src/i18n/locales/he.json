@@ -2938,6 +2938,44 @@
       "text": "הפעלה"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "הוספה ליומן"
+    },
+    "all_day": {
+      "text": "כל היום"
+    },
+    "primary": {
+      "text": "האירוע הראשי"
+    },
+    "context": {
+      "text": "אירוע קשור"
+    },
+    "unavailable": {
+      "text": "האירוע אינו זמין"
+    },
+    "export_failed": {
+      "text": "לא ניתן לייצא את האירוע"
+    },
+    "source": {
+      "text": "מקור"
+    },
+    "week": {
+      "text": "שבוע"
+    },
+    "previous": {
+      "text": "השבוע הקודם"
+    },
+    "next": {
+      "text": "השבוע הבא"
+    },
+    "end_unknown": {
+      "text": "שעת הסיום לא צוינה"
+    },
+    "preparing": {
+      "text": "מכין אירוע…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "סגור מצלמה"

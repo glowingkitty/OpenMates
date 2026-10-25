@@ -61,6 +61,8 @@ const DIRECT_TYPES = new Set([
   "diagrams-html",
   "mindmap",
   "mindmaps-mindmap",
+  "calendar_event",
+  "calendar-event",
   "events-event",
   "health-appointment",
   "shopping-product",
@@ -96,6 +98,8 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "diagrams-html": "diagram",
   "mindmap": "Mind Map",
   "mindmaps-mindmap": "Mind Map",
+  "calendar_event": "calendar event",
+  "calendar-event": "calendar event",
   "events-event": "event",
   "health-appointment": "appointment",
   "shopping-product": "product",
@@ -216,6 +220,13 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const effectiveStatus = app === 'business' && skill === 'search_trademarks' ? trademarkData(c).status ?? c.status : c.status;
   const status = stripAnsi(statusIcon(str(effectiveStatus)) || statusIcon("finished"));
   const lines = [`┌─ ${status} ${label}${title ? ` · ${trunc(title, 56)}` : ""}`];
+
+  if (resolvedType === "calendar_event" || resolvedType === "calendar-event") {
+    const event = calendarEventFromContent(c);
+    lines.push(`│  ${event ? calendarEventWhen(event) : "Calendar event unavailable"}`);
+    lines.push(`└─ openmates embeds show ${shortId}`);
+    return lines;
+  }
 
   if (app === 'business' && skill === 'search_trademarks') {
     lines.push(...trademarkLines(c).map(line => `│  ${line}`));
@@ -1515,6 +1526,14 @@ function renderByDirectType(
       break;
     }
 
+    case "calendar_event":
+    case "calendar-event": {
+      const event = calendarEventFromContent(c);
+      ln(event ? str(event.title) ?? "Calendar event" : "Calendar event unavailable");
+      if (event) ln(calendarEventWhen(event));
+      break;
+    }
+
     case "mindmap":
     case "mindmaps-mindmap": {
       const document = mindMapDocumentFromContent(c);
@@ -1733,6 +1752,26 @@ function renderDirectTypeFullscreen(
       break;
     }
 
+    case "calendar_event":
+    case "calendar-event": {
+      const event = calendarEventFromContent(c);
+      if (!event) {
+        writeEmbedLine(write, "Calendar event unavailable");
+        break;
+      }
+      writeEmbedLine(write, str(event.title) ?? "Calendar event");
+      writeEmbedLine(write, calendarEventWhen(event));
+      for (const field of ["timezone", "location", "description", "source_url"]) {
+        const value = str(event[field]);
+        if (value) writeEmbedLine(write, value);
+      }
+      const context = Array.isArray(c.context_events) ? c.context_events : [];
+      for (const other of context) {
+        if (isRecord(other)) writeEmbedLine(write, `Context: ${str(other.title) ?? "Event"} · ${calendarEventWhen(other)}`);
+      }
+      break;
+    }
+
     case "mindmap":
     case "mindmaps-mindmap": {
       const document = mindMapDocumentFromContent(c);
@@ -1867,6 +1906,25 @@ function mindMapOutline(document: CliMindMapDocument, maxNodes = 100): string {
     if (!visited.has(node.id)) visit(node.id, 0);
   }
   return lines.join("\n");
+}
+
+function calendarEventFromContent(content: Record<string, unknown>): Record<string, unknown> | null {
+  if (content.status === "error" || content.status === "cancelled" || content.status === "processing") return null;
+  const event = content.primary_event;
+  return isRecord(event) && str(event.title) && str(event.start) ? event : null;
+}
+
+function calendarEventWhen(event: Record<string, unknown>): string {
+  const start = str(event.start) ?? "";
+  let end = str(event.end);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+    if (end && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      const inclusiveEnd = new Date(`${end}T00:00:00Z`).getTime() - 86_400_000;
+      end = Number.isFinite(inclusiveEnd) ? new Date(inclusiveEnd).toISOString().slice(0, 10) : null;
+    }
+    return `${start}${end && end !== start ? ` – ${end}` : ""} · All day`;
+  }
+  return `${start}${end ? ` – ${end}` : ""}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

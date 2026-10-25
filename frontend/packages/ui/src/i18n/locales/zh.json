@@ -2938,6 +2938,44 @@
       "text": "播放"
     }
   },
+  "calendar_event": {
+    "add": {
+      "text": "添加到日历"
+    },
+    "all_day": {
+      "text": "全天"
+    },
+    "primary": {
+      "text": "主要活动"
+    },
+    "context": {
+      "text": "相关活动"
+    },
+    "unavailable": {
+      "text": "日历活动不可用"
+    },
+    "export_failed": {
+      "text": "无法导出活动"
+    },
+    "source": {
+      "text": "来源"
+    },
+    "week": {
+      "text": "周"
+    },
+    "previous": {
+      "text": "上一周"
+    },
+    "next": {
+      "text": "下一周"
+    },
+    "end_unknown": {
+      "text": "未指定结束时间"
+    },
+    "preparing": {
+      "text": "正在准备活动…"
+    }
+  },
   "cameraview": {
     "close": {
       "text": "关闭相机"
