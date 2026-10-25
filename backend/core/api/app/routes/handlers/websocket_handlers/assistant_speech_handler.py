@@ -633,7 +633,10 @@ async def resolve_registered_voice_segments(directus: Any, *, user_id: str, chat
             "source_version": version, "kind": "voice_prose_clause",
             "source_hash": row["source_hash"], "speakable_text": text,
             "voice_profile_key": row.get("voice_profile_key") or HISTORICAL_SPEECH_VOICE_PROFILE["key"],
-            "voice_profile_version": row.get("voice_profile_version") or HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+            # v3 is ephemeral Eleven call speech. A separate manual cache uses
+            # the same server-verified voice identity with its Mistral v2 preset.
+            "voice_profile_version": (2 if row.get("voice_profile_version") == 3 else
+                                      row.get("voice_profile_version") or HISTORICAL_SPEECH_VOICE_PROFILE["version"]),
             **{key: row[key] for key in ("live_mock_mode", "live_mock_group", "live_mock_required") if row.get(key)},
             "_verified_voice_source": _VERIFIED_VOICE_SOURCE})
     if not resolved or len(resolved) > MAX_VOICE_REPLAY_CLAUSES or (

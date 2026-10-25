@@ -25,18 +25,19 @@ def segment_identity(sequence, source_hash, *, live=False):
     return hashlib.sha256(identity.encode()).hexdigest()
 
 
-@pytest.fixture
-def manual_speak(monkeypatch):
+@pytest.fixture(params=[("sophia", 2), ("scarlett", 3)], ids=["historical-mistral-v2", "eleven-call-v3"])
+def manual_speak(monkeypatch, request):
     from backend.apps.audio.tasks import common
     from backend.core.api.app.tasks import celery_config
 
     monkeypatch.setattr(streaming, "_token_secret", lambda: b"test-only-source-hmac-secret")
+    voice_key, live_voice_version = request.param
     clauses = project_final_voice_clauses(SOURCE)
     assert len(clauses) == 2
     live_manifest = manifest_id_for(chat_id=CHAT, assistant_message_id=MESSAGE, source_version=3,
-        voice_key="sophia", voice_version=2, voice_call_id=CALL)
+        voice_key=voice_key, voice_version=live_voice_version, voice_call_id=CALL)
     normal_manifest = manifest_id_for(chat_id=CHAT, assistant_message_id=MESSAGE, source_version=3,
-        voice_key="sophia", voice_version=2)
+        voice_key=voice_key, voice_version=2)
     rows = {"assistant_speech_manifests": [{"id": "live-manifest", "manifest_id": live_manifest,
         "user_id": OWNER, "chat_id": CHAT, "assistant_message_id": MESSAGE, "sealed": True,
         "execution_version": 3, "status": "ready"}], "assistant_speech_segments": []}
@@ -47,7 +48,7 @@ def manual_speak(monkeypatch):
             "manifest_id": live_manifest, "segment_id": segment_identity(sequence, source_hash, live=True),
             "sequence": sequence, "source_version": 3, "source_hash": source_hash,
             "kind": "voice_prose_clause", "status": "ready", "billable_character_count": len(text),
-            "voice_profile_key": "sophia", "voice_profile_version": 2, "execution_version": 5,
+            "voice_profile_key": voice_key, "voice_profile_version": live_voice_version, "execution_version": 5,
         })
     original_live = [dict(row) for row in rows["assistant_speech_segments"]]
     timeline, queries, sent = [], [], []
@@ -121,7 +122,8 @@ def manual_speak(monkeypatch):
                     "_verified_voice_source": "client-marker"}],
             })
         return sent[-1]
-    return SimpleNamespace(rows=rows, clauses=clauses, live_manifest=live_manifest, normal_manifest=normal_manifest,
+    return SimpleNamespace(rows=rows, clauses=clauses, voice_key=voice_key,
+        live_manifest=live_manifest, normal_manifest=normal_manifest,
         original_live=original_live, timeline=timeline, queries=queries, sent=sent, budget=budget, dispatch=dispatch, send=send)
 
 
@@ -140,7 +142,12 @@ async def test_explicit_speak_after_live_call_creates_separate_cache_then_reuses
     assert len(generation_calls(case)) == 1
     generated = generation_calls(case)[0]
     assert "voice_call_id" not in generated
-    assert generated["voice_profile_key"] == "sophia" and generated["voice_profile_version"] == 2
+    assert generated["voice_profile_key"] == case.voice_key and generated["voice_profile_version"] == 2
+    from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
+    assert resolve_assistant_voice_profile(generated["voice_profile_key"],
+                                          version=generated["voice_profile_version"]).provider == "mistral"
+    assert all(row["voice_profile_key"] == case.voice_key and row["voice_profile_version"] == 2
+               for row in manual_rows)
     assert generated["speakable_text"] == case.clauses[0] and generated["kind"] == "voice_prose_clause"
     assert generated["segment_id"] == segment_identity(0, streaming._speech_source_identity(case.clauses[0]))
     assert generated["segment_id"] != case.original_live[0]["segment_id"]
@@ -170,7 +177,7 @@ async def test_later_clause_generation_accepts_only_registered_manual_identity(m
     assert len(generation_calls(case)) == 2
     generated = generation_calls(case)[1]
     assert generated["segment_id"] == later["segment_id"] and generated["speakable_text"] == case.clauses[1]
-    assert generated["voice_profile_key"] == "sophia" and generated["voice_profile_version"] == 2
+    assert generated["voice_profile_key"] == case.voice_key and generated["voice_profile_version"] == 2
     assert "voice_call_id" not in generated
 
 
@@ -189,3 +196,31 @@ async def test_manual_speak_rejects_live_or_unknown_ids_and_tampered_source_befo
     assert response == {"status": "error", "error": "speech_source_no_longer_current"}
     assert not generation_calls(case)
     case.budget.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.segmentation.immutable-source
+@pytest.mark.parametrize("live_version", [2, 3])
+async def test_registered_call_voice_profile_resolves_to_supported_mistral_for_manual_request_and_generate(monkeypatch, live_version):
+    from backend.apps.audio.assistant_speech.voice_profiles import (
+        ASSISTANT_VOICE_PROVIDER_IDS, MISTRAL_VOICE_PROVIDER_IDS, resolve_assistant_voice_profile,
+    )
+    from backend.core.api.app.routes.handlers.websocket_handlers.assistant_speech_handler import resolve_registered_voice_segments
+
+    assert set(ASSISTANT_VOICE_PROVIDER_IDS) <= set(MISTRAL_VOICE_PROVIDER_IDS)
+    monkeypatch.setattr(streaming, "_token_secret", lambda: b"test-only-source-hmac-secret")
+    clauses = project_final_voice_clauses(SOURCE)
+    source_hash = streaming._speech_source_identity(clauses[0])
+    row = {"sequence": 0, "source_version": 3, "source_hash": source_hash,
+           "kind": "voice_prose_clause", "status": "ready", "voice_profile_key": "scarlett",
+           "voice_profile_version": live_version}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[row]))
+    resolved = await resolve_registered_voice_segments(directus, user_id=OWNER, chat_id=CHAT,
+        assistant_message_id=MESSAGE, segments=[{"source_version": 3}], source_markdown=SOURCE, action="request")
+    assert resolved[0]["voice_profile_key"] == "scarlett"
+    assert resolved[0]["voice_profile_version"] == 2
+    assert resolve_assistant_voice_profile("scarlett", version=resolved[0]["voice_profile_version"]).provider == "mistral"
+    generated = await resolve_registered_voice_segments(directus, user_id=OWNER, chat_id=CHAT,
+        assistant_message_id=MESSAGE, segments=[{"source_version": 3, "segment_id": resolved[0]["segment_id"],
+        "voice_profile_key": "client-override", "voice_profile_version": 999}], source_markdown=SOURCE, action="generate")
+    assert generated == resolved
+    assert row["voice_profile_version"] == live_version
