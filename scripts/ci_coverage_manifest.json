@@ -946,6 +946,13 @@
       "specs": [
         "rust-core-browser-session.spec.ts"
       ]
+    },
+    "native_bounded_saved_read": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated account and real browser-authorized encrypted-vault Rust CLI pairing, private internal-network core API/CMS/cache/Vault, and exactly 65 genuinely encrypted owned messages. Exercises bounded/default, explicit full and existing machine history reads plus existing Project unlink checks. Requires an exact-source prebuilt Rust ELF; no AI worker, inference, provider credentials, marker-chat epoch, external network or shared account.",
+      "specs": [
+        "cli-native-bounded-saved-read.spec.ts"
+      ]
     }
   },
   "holds": {

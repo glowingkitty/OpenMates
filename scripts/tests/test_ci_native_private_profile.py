@@ -11,11 +11,12 @@ from scripts import ci_environment as runtime
 
 
 ROOT = Path(__file__).resolve().parents[2]
+BOUNDED_SPEC = "cli-native-bounded-saved-read.spec.ts"
 NATIVE_SPEC = "cli-rust-tui-proof.spec.ts"
 ESSENTIAL_SPEC = "cli-rust-core-essential.spec.ts"
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 PERFORMANCE_SPECS = ("cli-rust-cli-performance.spec.ts", "cli-rust-tui-performance.spec.ts")
-PRIVATE_SPECS = (NATIVE_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS)
+PRIVATE_SPECS = (NATIVE_SPEC, BOUNDED_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS)
 SOURCE_HASH = "a" * 40
 
 
@@ -81,7 +82,7 @@ def prepare_profile(
     return candidate, compose, json.loads(compose.read_text())
 
 
-@pytest.fixture(params=[NATIVE_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS])
+@pytest.fixture(params=[NATIVE_SPEC, BOUNDED_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS])
 def generated_profile(tmp_path, monkeypatch, request):
     return prepare_profile(tmp_path, monkeypatch, [request.param])
 
@@ -226,3 +227,17 @@ def test_split_performance_specs_are_core_e2e_without_extra_fixture_or_unknown_n
         assert name in runtime.PRIVATE_BACKEND_SPECS
         assert name.replace(".spec.ts", "-extra.spec.ts") not in runtime.PRIVATE_BACKEND_SPECS
     assert set(names).isdisjoint({"cli-rust-core-essential.spec.ts"})
+
+
+def test_bounded_read_does_not_enable_chat_epoch_or_ai():
+    import ast
+    tree = ast.parse((ROOT / "scripts/ci_run_tests.py").read_text())
+    marker_specs = next(node.value.args[0] for node in tree.body
+                        if isinstance(node, ast.Assign)
+                        and any(isinstance(target, ast.Name) and target.id == "MARKER_CHAT_EPOCH_SPECS"
+                                for target in node.targets))
+    coverage = json.loads((ROOT / "scripts/ci_coverage_manifest.json").read_text())
+    assert BOUNDED_SPEC not in ast.literal_eval(marker_specs)
+    for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
+        assert BOUNDED_SPEC not in coverage["groups"].get(group, {}).get("specs", [])
+    assert BOUNDED_SPEC in runtime.PRIVATE_BACKEND_SPECS

@@ -173,3 +173,17 @@ def test_rust_session_component_stays_account_free_and_browser_stays_e2e():
     # Neither target silently joins AI replay or marker-chat fixture groups.
     for name in ("ai_committed_fixtures", "workflow_core", "workflow_weather"):
         assert not {component, browser}.intersection(manifest["groups"].get(name, {}).get("specs", []))
+
+
+def test_native_bounded_read_has_exact_no_inference_classification():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import execution_mode
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    name = "cli-native-bounded-saved-read.spec.ts"
+    assert partition([name], manifest) == ([name], {})
+    assert execution_mode(name) == "e2e"
+    assert manifest["groups"]["native_bounded_saved_read"]["specs"] == [name]
+    for unknown in ("cli-native-bounded-saved-read-extra.spec.ts", "nested/" + name):
+        allowed, held = partition([unknown], manifest)
+        assert allowed == [] and unknown in held

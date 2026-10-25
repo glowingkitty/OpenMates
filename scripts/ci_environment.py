@@ -49,6 +49,7 @@ PRIVATE_BACKEND_SPECS = frozenset({
     "cli-rust-cli-performance.spec.ts",
     "cli-rust-tui-performance.spec.ts",
     "cli-rust-tui-proof.spec.ts",
+    "cli-native-bounded-saved-read.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "rust-core-browser-session.spec.ts",
 })
