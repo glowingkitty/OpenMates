@@ -13116,7 +13116,7 @@ training_policies.col_last_checked:
   verified_by_human: []
 training_policies.status_no_training:
   context: Status label — provider does not use API data for training
-  en: false
+  en: "No"
   de: Nein
   zh: 否
   es: Falso

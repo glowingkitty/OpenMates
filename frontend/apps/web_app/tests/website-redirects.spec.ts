@@ -54,7 +54,7 @@ test('broken website page links recover to the landing page without changing end
   noPrivateStartup();
 });
 
-// contract-test: direct surface=gui.web assertions=marketing-landing.public-content,marketing-landing.destinations
+// contract-test: direct surface=gui.web assertions=marketing-landing.public-content,marketing-landing.destinations,settings-ui.localization.visible-content-resolves
 test('existing public pages and endpoints keep their routes', async ({ page, request }) => {
   const noPrivateStartup = watchPrivateStartup(page);
   for (const route of ['/', '/news', '/blog', '/de/news', '/legal/privacy', '/robots.txt']) {
@@ -62,9 +62,28 @@ test('existing public pages and endpoints keep their routes', async ({ page, req
     expect(response.status(), route).toBe(200);
     expect(response.headers().location, route).toBeUndefined();
   }
-  await page.goto(site('/legal/privacy'), { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(site('/legal/privacy'));
-  await expect(page.locator('.legal-document article h1')).toBeVisible();
+  for (const [language, privacyTitle, termsTitle, metadataHeading] of [
+    ['en', 'Privacy Policy', 'Terms and Conditions', 'YouTube (video metadata)'],
+    ['de', 'Datenschutzerklärung', 'Allgemeine Geschäftsbedingungen', 'YouTube (Video-Metadaten)']
+  ] as const) {
+    for (const [document, title] of [['privacy', privacyTitle], ['terms', termsTitle]] as const) {
+      const route = `/legal/${document}?lang=${language}`;
+      const response = await request.get(site(route), { maxRedirects: 0 });
+      expect(response.status(), route).toBe(200);
+      expect(response.headers().location, route).toBeUndefined();
+      const navigation = await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      expect(navigation?.status(), route).toBe(200);
+      await expect(page).toHaveURL(site(route));
+      const article = page.getByRole('article');
+      await expect(article).toBeVisible();
+      await expect(article.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+      await expect(article).not.toContainText('[T:');
+      if (document === 'privacy') {
+        await expect(article.getByRole('heading', { name: metadataHeading, exact: true })).toBeVisible();
+        await expect(article).toContainText('YouTube Data API');
+      }
+    }
+  }
   noPrivateStartup();
 });
 
