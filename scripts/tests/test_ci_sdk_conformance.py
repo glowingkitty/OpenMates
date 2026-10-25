@@ -1249,3 +1249,107 @@ def test_window_admission_rejects_partial_forged_or_reordered_results(tmp_path, 
         report["releaseEligible"] = True
     with pytest.raises(sdk.Refused):
         sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+
+
+# Message-window failures reuse the owned driver and its existing bounded streams.
+def message_window_failure_report():
+    expected = {"capability": "session.message-window.v1", "language": "rust",
+                "vectors": ["window-latest", "window-before"], "fixtureSha256": "a" * 64}
+    report = {"capability": expected["capability"], "language": "rust", "status": "failed",
+              "fixtureSha256": expected["fixtureSha256"],
+              "results": [{"id": "window-latest", "status": "failed"}],
+              "diagnostic": {"vectorId": "window-latest", "phase": "window_assert",
+                             "errorCode": "assertion", "sourceCoordinate": "run_vector.window_assert"}}
+    return expected, report
+
+
+def fault_message_window_report(report, fault):
+    diagnostic = report["diagnostic"]
+    if fault == "extra":
+        diagnostic["message"] = "never-export-raw-error"
+    elif fault == "missing":
+        del diagnostic["sourceCoordinate"]
+    elif fault == "foreign_vector":
+        diagnostic["vectorId"] = "never-export-foreign-id"
+    elif fault == "nonfailed_vector":
+        diagnostic["vectorId"] = "window-before"
+    elif fault == "phase":
+        diagnostic["phase"] = "never-export-checkpoint"
+    elif fault == "error":
+        diagnostic["errorCode"] = "never-export-error-prose"
+    elif fault == "coordinate":
+        diagnostic["sourceCoordinate"] = "never-export-path"
+    elif fault == "mismatched_coordinate":
+        diagnostic["sourceCoordinate"] = "run_vector.peer_start"
+    elif fault == "oversize":
+        diagnostic["sourceCoordinate"] = "never-export-" * 1024
+    elif fault == "type":
+        diagnostic["sourceCoordinate"] = {"secret": "never-export-token"}
+    elif fault in {"fixture", "language", "status", "capability"}:
+        report[{"fixture": "fixtureSha256"}.get(fault, fault)] = {
+            "fixture": "b" * 64, "language": "npm", "status": "passed",
+            "capability": "session.saved-chat-read.v1"}[fault]
+
+
+@pytest.mark.parametrize("phase", sorted(sdk.MESSAGE_WINDOW_DIAGNOSTIC_PHASES))
+def test_message_window_exact_checkpoint_projects_closed_source_coordinate(phase):
+    expected, report = message_window_failure_report()
+    diagnostic = {**report["diagnostic"], "phase": phase, "sourceCoordinate": "run_vector." + phase}
+    assert sdk.project_vector_diagnostic(diagnostic, expected, ["window-latest"]) == diagnostic
+
+
+@pytest.mark.parametrize("fault", [None, "extra", "missing", "foreign_vector", "nonfailed_vector",
+    "phase", "error", "coordinate", "mismatched_coordinate", "oversize", "type", "fixture",
+    "language", "status", "capability", "duplicate"])
+def test_message_window_driver_nonzero_failure_remains_failed_and_projects_only_closed_fields(tmp_path, fault):
+    from scripts import ci_sdk_conformance_exec as executor
+    expected, report = message_window_failure_report()
+    fault_message_window_report(report, fault)
+    raw = json.dumps(report)
+    if fault == "duplicate":
+        raw = raw.replace('"sourceCoordinate": ', '"sourceCoordinate":"never-export-ambiguous", "sourceCoordinate": ', 1)
+    command = [sys.executable, "-c", "import sys;sys.stdout.write(sys.argv[1]);sys.exit(1)",
+               raw, "--capability", expected["capability"]]
+    driver = executor.Driver(tmp_path, {"programs": {}, "contracts": {}}, [expected], time.monotonic() + 5)
+    driver.commands = [command]
+    with pytest.raises(sdk.Refused, match="^driver_failed$"):
+        driver.run(command, cwd=tmp_path, capture_output=True, text=True, timeout=2)
+    assert driver.failure["terminatedReturncode"] == 1 and driver.launches[0]["status"] == "started"
+    if fault is None:
+        assert driver.failure["diagnostic"] == report["diagnostic"]
+        assert driver.failure["failedVectorIds"] == ["window-latest"]
+    else:
+        assert "diagnostic" not in driver.failure
+    assert "never-export" not in json.dumps(driver.failure)
+
+
+@pytest.mark.parametrize("fault", [None, "extra", "missing", "foreign_vector", "nonfailed_vector",
+    "phase", "error", "coordinate", "mismatched_coordinate", "oversize", "type"])
+def test_message_window_public_projection_revalidates_checkpoint_without_private_data(tmp_path, fault):
+    expected, report = message_window_failure_report()
+    fault_message_window_report(report, fault)
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    (private / "driver-failure.json").write_text(json.dumps({"code":"driver_failed",
+        "adapter":{"capability":expected["capability"],"language":"rust"},
+        "failedVectorIds":["window-latest"], "diagnostic":report["diagnostic"],
+        "private_extra":"never-export-private-payload"}))
+    actual = sdk.failure_diagnostics(private, tmp_path, "real-conformance", {}, [expected])
+    assert actual["rawUpload"] is False and actual["failedVectorIds"] == ["window-latest"]
+    if fault is None:
+        assert actual["diagnostic"] == report["diagnostic"]
+    else:
+        assert "diagnostic" not in actual
+    assert "never-export" not in json.dumps(actual)
+
+
+def test_message_window_diagnostic_stays_rust_conformance_only(tmp_path):
+    expected, report = message_window_failure_report()
+    for language in ("npm", "python"):
+        assert sdk.project_vector_diagnostic(report["diagnostic"], {**expected, "language":language}, ["window-latest"]) is None
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    (private / "driver-failure.json").write_text(json.dumps({"code":"driver_failed",
+        "adapter":{"capability":expected["capability"],"language":"rust"},
+        "failedVectorIds":["window-latest"], "diagnostic":report["diagnostic"]}))
+    assert "diagnostic" not in sdk.failure_diagnostics(private, tmp_path, "napi-build", {}, [expected])

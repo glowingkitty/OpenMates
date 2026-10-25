@@ -41,6 +41,9 @@ SAVED_READ_DIAGNOSTIC_PHASES = frozenset({"peer_start", "client_setup", "session
     "cache_verify", "peer_control", "peer_status", "close"})
 # Reuse the established closed error vocabulary. This grants no new messages.
 SAVED_READ_DIAGNOSTIC_CODES = VECTOR_DIAGNOSTIC_CODES
+MESSAGE_WINDOW_DIAGNOSTIC_CAPABILITY = "session.message-window.v1"
+# Symbolic source coordinates bind to exact fixed checkpoints in the pinned example.
+MESSAGE_WINDOW_DIAGNOSTIC_PHASES = frozenset({"peer_start", "client_setup", "session_import", "cursor_preflight", "cursor_assert", "cache_preload", "window_read", "window_assert", "cache_verify", "peer_control", "peer_status", "close"})
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
@@ -590,9 +593,13 @@ def project_vector_diagnostic(value, expected, failed_ids):
         phases, codes = VECTOR_DIAGNOSTIC_PHASES, VECTOR_DIAGNOSTIC_CODES
     elif capability == SAVED_READ_DIAGNOSTIC_CAPABILITY:
         phases, codes = SAVED_READ_DIAGNOSTIC_PHASES, SAVED_READ_DIAGNOSTIC_CODES
+    elif capability == MESSAGE_WINDOW_DIAGNOSTIC_CAPABILITY:
+        phases, codes = MESSAGE_WINDOW_DIAGNOSTIC_PHASES, VECTOR_DIAGNOSTIC_CODES
     else:
         return None
     keys = ("vectorId", "phase", "errorCode")
+    if capability == MESSAGE_WINDOW_DIAGNOSTIC_CAPABILITY:
+        keys += ("sourceCoordinate",)
     if (expected.get("language") != "rust" or not isinstance(value, dict)
             or set(value) != set(keys)
             or any(not isinstance(value[key], str) or len(value[key]) > 160 for key in keys)
@@ -600,6 +607,9 @@ def project_vector_diagnostic(value, expected, failed_ids):
             or value["phase"] not in phases
             or value["errorCode"] not in codes
             or len(json.dumps(value, separators=(",", ":")).encode()) > MAX_VECTOR_DIAGNOSTIC_BYTES):
+        return None
+    if (capability == MESSAGE_WINDOW_DIAGNOSTIC_CAPABILITY
+            and value["sourceCoordinate"] != "run_vector." + value["phase"]):
         return None
     return {key: value[key] for key in keys}
 
