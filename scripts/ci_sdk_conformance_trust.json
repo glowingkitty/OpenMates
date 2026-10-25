@@ -1611,7 +1611,7 @@
     "packages/openmates-python/openmates/session_client.py": "5561ea62b3ee139f940b3ecad5f709528221e23f11938dcb86b4ddee3d686493",
     "packages/openmates-rust/src/client/message_window.rs": "fb0e0961dae7a80016de15bf1521a9fa5144bdf0f1451bc3fc5f675ae10953bb",
     "packages/openmates-rust/src/client/saved_chat_read.rs": "eb3d172d865c6b8838bf1e061248be7f26586191645978781b212cc7dd5b7e0a",
-    "packages/openmates-rust/src/client.rs": "79896172b8e143f266093ba68b028a704cb66df2f8747d66dd9baafc46e2b684",
+    "packages/openmates-rust/src/client.rs": "63e06cf70b516a43307286077f9a5df0ff38012d04765a496a0f749564908b57",
     "packages/openmates-session-bindings/examples/session-saved-chat-read-conformance.rs": "d6110b850a3401a8d41c2bbc9124d9287138f6619c3f98264caac99cbec0504e",
     "packages/openmates-session-bindings/src/node.rs": "723d6bd9e099bde366a3c2a6e9bde50bf9da2ba1dd701fce8850a3a29f382fbb",
     "packages/openmates-session-bindings/src/python.rs": "05884cf3e53f7c62c37f8d784e5cf2ebabaca8a03c64485cabda05f45d8762ab",
