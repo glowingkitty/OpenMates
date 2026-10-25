@@ -47,7 +47,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
-    import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
+    import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { chatAllowsComposerGhostSuggestion, decryptComposerGhostSuggestion, type ComposerGhostSuggestion } from '../services/composerGhostSuggestion';
@@ -10259,20 +10259,35 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     /** Show a previously decrypted selection while the route resolves its canonical chat. */
     export function showRecentChatSelection(chatId: string): boolean {
-        if (typeof window === 'undefined' || !$authStore.isAuthenticated || $isLoggingOut
-            || $forcedLogoutInProgress || isSignupPath($userProfile.last_opened)
-            || activeChatStore.get() !== chatId || currentChat?.chat_id === chatId
-            || isPublicChat(chatId) || isExampleChat(chatId) || isAnonymousChatId(chatId)
-            || messageInputHasContent || showCodeFullscreen || showEmbedFullscreen || showWikiFullscreen
-            || currentMessages.some(message => ['sending', 'processing', 'streaming', 'waiting_for_upload', 'waiting_for_internet'].includes(message.status))) return false;
+        if (typeof window === 'undefined') { recordRecentReplayDiagnostic('surface-server'); return false; }
+        if (!$authStore.isAuthenticated) { recordRecentReplayDiagnostic('surface-unauthenticated'); return false; }
+        if ($isLoggingOut) { recordRecentReplayDiagnostic('surface-logging-out'); return false; }
+        if ($forcedLogoutInProgress) { recordRecentReplayDiagnostic('surface-forced-logout'); return false; }
+        if (isSignupPath($userProfile.last_opened)) { recordRecentReplayDiagnostic('surface-signup'); return false; }
+        if (activeChatStore.get() !== chatId) { recordRecentReplayDiagnostic('surface-store-target'); return false; }
+        if (currentChat?.chat_id === chatId) { recordRecentReplayDiagnostic('surface-already-current'); return false; }
+        if (isPublicChat(chatId)) { recordRecentReplayDiagnostic('surface-public'); return false; }
+        if (isExampleChat(chatId)) { recordRecentReplayDiagnostic('surface-example'); return false; }
+        if (isAnonymousChatId(chatId)) { recordRecentReplayDiagnostic('surface-anonymous'); return false; }
+        if (messageInputHasContent) { recordRecentReplayDiagnostic('surface-composer-content'); return false; }
+        if (showCodeFullscreen) { recordRecentReplayDiagnostic('surface-code-fullscreen'); return false; }
+        if (showEmbedFullscreen) { recordRecentReplayDiagnostic('surface-embed-fullscreen'); return false; }
+        if (showWikiFullscreen) { recordRecentReplayDiagnostic('surface-wiki-fullscreen'); return false; }
+        if (currentMessages.some(message => ['sending', 'processing', 'streaming', 'waiting_for_upload', 'waiting_for_internet'].includes(message.status))) { recordRecentReplayDiagnostic('surface-live-message'); return false; }
         const hash = new URLSearchParams(window.location.hash.slice(1));
-        if (hash.get('chat-id') !== chatId || hash.has('message-id') || hash.has('messageid')
-            || hash.has('embed-id') || hash.has('embed_id') || hash.has('scroll')) return false;
-        if (!chatKeyManager.getKeySync(chatId)) return false;
+        if (hash.get('chat-id') !== chatId) { recordRecentReplayDiagnostic('surface-hash-target'); return false; }
+        if (hash.has('message-id')) { recordRecentReplayDiagnostic('surface-hash-message'); return false; }
+        if (hash.has('messageid')) { recordRecentReplayDiagnostic('surface-hash-message-alias'); return false; }
+        if (hash.has('embed-id')) { recordRecentReplayDiagnostic('surface-hash-embed'); return false; }
+        if (hash.has('embed_id')) { recordRecentReplayDiagnostic('surface-hash-embed-alias'); return false; }
+        if (hash.has('scroll')) { recordRecentReplayDiagnostic('surface-hash-scroll'); return false; }
+        if (!chatKeyManager.getKeySync(chatId)) { recordRecentReplayDiagnostic('surface-key-absent'); return false; }
         const selected = getRecentChatSelection(chatId);
-        if (!selected || selected.chat.is_incognito || selected.chat.is_anonymous
-            || isPersistedDraftOnlyChat(selected.chat)
-            || !isChatInActiveTeamContext(selected.chat, get(activeTeamId))) return false;
+        if (!selected) { recordRecentReplayDiagnostic('surface-selection-absent'); return false; }
+        if (selected.chat.is_incognito) { recordRecentReplayDiagnostic('surface-incognito'); return false; }
+        if (selected.chat.is_anonymous) { recordRecentReplayDiagnostic('surface-anonymous-selection'); return false; }
+        if (isPersistedDraftOnlyChat(selected.chat)) { recordRecentReplayDiagnostic('surface-draft-only'); return false; }
+        if (!isChatInActiveTeamContext(selected.chat, get(activeTeamId))) { recordRecentReplayDiagnostic('surface-team-context'); return false; }
 
         // Retire any held read from the previous selection before changing the
         // surface. Its generation check must not be allowed to commit afterward.
@@ -10309,6 +10324,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 || !warmSelectionGuard?.canContinue || !chatHistoryRef) return;
             if (selected.chat.last_visible_message_id) chatHistoryRef.restoreScrollPosition(selected.chat.last_visible_message_id);
         });
+        recordRecentReplayDiagnostic('surface-published');
         return true;
     }
 

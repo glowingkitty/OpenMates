@@ -1376,7 +1376,7 @@ export class ChatKeyManager {
    * Used when locking hidden chats or removing a chat.
    */
   removeKey(chatId: string): void {
-    invalidateRecentChatWindow(chatId);
+    invalidateRecentChatWindow(chatId, 'key');
     // Clear cached CryptoKey for this chat key's fingerprint
     const key = this.keys.get(chatId);
     if (key) {

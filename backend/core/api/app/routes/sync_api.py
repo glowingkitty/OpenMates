@@ -3,7 +3,7 @@
 # Native/desktop sync endpoints for optional offline availability.
 #
 # Architecture:
-#   - Startup sync stays bounded to the 10 most recent parent chats.
+#   - Startup sync stays bounded to the 20 most recent parent chats.
 #   - This API hydrates older parent chats in small resumable chunks for clients
 #     that have explicit offline-storage capability.
 #   - Sub-chat content is excluded; sub-chats hydrate on demand when opened.
@@ -31,6 +31,9 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
+    STARTUP_FULL_PARENT_CHAT_LIMIT,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
     load_sync_sidecar_window,
     load_sync_sidecars_for_chats,
@@ -47,7 +50,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/sync", tags=["Sync"])
 
-OFFLINE_PREFETCH_START_OFFSET = 10
+# Previously published cursor minimum stays valid for older explicit clients.
+# The fresh default/clamp follows startup; compatibility acceptance is separate.
+OFFLINE_PREFETCH_LEGACY_MIN_CURSOR = 10
+OFFLINE_PREFETCH_START_OFFSET = STARTUP_FULL_PARENT_CHAT_LIMIT
 OFFLINE_PREFETCH_END_OFFSET = 99
 OFFLINE_PREFETCH_MAX_LIMIT = 5
 OFFLINE_PREFETCH_SCAN_MULTIPLIER = 3
@@ -58,7 +64,7 @@ class OfflinePrefetchRequest(BaseModel):
 
     cursor: int | None = Field(
         default=None,
-        ge=OFFLINE_PREFETCH_START_OFFSET,
+        ge=OFFLINE_PREFETCH_LEGACY_MIN_CURSOR,
         le=OFFLINE_PREFETCH_END_OFFSET + 1,
         description="Absolute parent-chat cursor. Defaults to the first chat after startup sync.",
     )

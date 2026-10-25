@@ -108,7 +108,7 @@ const mocks = vi.hoisted(() => {
     deleteSessionStorageDraft: vi.fn(),
     saveSessionStorageDraft: vi.fn(),
     chatMetadataCache: {
-      invalidateChat: vi.fn(),
+      invalidateChat: vi.fn(), invalidateDraftProjection: vi.fn(),
     },
     encryptWithMasterKey: vi.fn().mockResolvedValue("encrypted-data"),
     tipTapToCanonicalMarkdown: vi.fn().mockReturnValue(""),

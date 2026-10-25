@@ -91,7 +91,7 @@ specifications:
     version: 1
     status: approved
     path: architecture/sync
-    fingerprint: 3ddbd967acb751d867a8fd3c11dadb71ea19314dfc7ca9a585f454ad68ce5008
+    fingerprint: c51b43394d7b2fe811601df27976db12fdb113a49857bc6e4abf9f25df937ee8
     required_applies_to:
     - cli
     - sdks.rust
@@ -2144,7 +2144,7 @@ assertions:
     specification: architecture.sync@1
     specification_id: architecture.sync
     type: invariant
-    fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
+    fingerprint: b1d203ab76d3565d33a8a108c25106dd28be8f86e4c0a3b4d9c96c5431a17260
     required_applies_to:
     - cli
     - sdks.rust
@@ -2154,7 +2154,7 @@ assertions:
     specification: architecture.sync@1
     specification_id: architecture.sync
     type: privacy
-    fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
+    fingerprint: 60bfb43a24004131f18a518a8f1e1e4e19a6c886a23a7f7df046c2676c01de3d
     required_applies_to:
     - cli
     - sdks.rust
@@ -2184,7 +2184,7 @@ assertions:
     specification: architecture.sync@1
     specification_id: architecture.sync
     type: parity
-    fingerprint: 5b87e5d34a036bd2de9978dbccb78cf71ebcc02d4dde70ff650f2cddf69bb524
+    fingerprint: ec94c669694bd73479a2617bc649c6abb9dbae97fbfd517b58565635e730d96a
     required_applies_to:
     - cli
     - sdks.rust

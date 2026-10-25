@@ -181,7 +181,7 @@ const handleDraftUpdated = async (
         `[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}`,
       );
       // Invalidate metadata cache since draft content changed
-      chatMetadataCache.invalidateChat(chat_id);
+      chatMetadataCache.invalidateDraftProjection(chat_id);
       dbOperationSuccess = true;
     } else {
       const timestamp = last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
@@ -524,7 +524,7 @@ const handleDraftVersionsResponse = async (payload: {
           await chatDB.deleteChat(chat_id);
           const { chatListCache } = await import("../chatListCache");
           chatListCache.removeChat(chat_id);
-          chatMetadataCache.invalidateChat(chat_id);
+          chatMetadataCache.invalidateChat(chat_id, 'metadata-draft-websocket');
           const { chatSyncService } = await import("../chatSyncService");
           chatSyncService.dispatchEvent(new CustomEvent("chatDeleted", { detail: { chat_id } }));
           anyCleared = true;
@@ -541,7 +541,7 @@ const handleDraftVersionsResponse = async (payload: {
         chat.updated_at = Math.floor(Date.now() / 1000);
 
         await chatDB.updateChat(chat);
-        chatMetadataCache.invalidateChat(chat_id);
+        chatMetadataCache.invalidateDraftProjection(chat_id);
         anyCleared = true;
 
         console.info(

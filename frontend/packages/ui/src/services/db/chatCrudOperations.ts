@@ -117,7 +117,7 @@ async function deleteChatConditionally(
     const headsToDelete: string[] = [];
     const keysToDelete: string[] = [];
     tx.oncomplete = () => {
-      if (deleted) invalidateRecentChatWindow(chatId);
+      if (deleted) invalidateRecentChatWindow(chatId, 'delete');
       resolve({ deleted, deletedEmbedIds });
     };
     tx.onerror = () => reject(tx.error ?? new Error("Inferred chat deletion failed"));
@@ -1668,7 +1668,7 @@ export async function deleteChat(
 ): Promise<{ deletedEmbedIds: string[] }> {
   // The active chat component may be unmounted in another workspace. Fence any
   // in-flight message-window read before the first asynchronous deletion step.
-  invalidateRecentChatWindow(chat_id);
+  invalidateRecentChatWindow(chat_id, 'delete');
   await dbInstance.init();
   console.debug(`[ChatDatabase] Deleting chat ${chat_id} and its messages.`);
 
@@ -1703,7 +1703,7 @@ export async function deleteChat(
       [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME],
       "readwrite",
     ));
-  currentTransaction.addEventListener("complete", () => invalidateRecentChatWindow(chat_id));
+  currentTransaction.addEventListener("complete", () => invalidateRecentChatWindow(chat_id, 'delete'));
 
   const chatStore = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
   const messagesStore = currentTransaction.objectStore(MESSAGES_STORE_NAME);

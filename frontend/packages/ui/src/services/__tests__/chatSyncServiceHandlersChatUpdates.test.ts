@@ -43,7 +43,7 @@ const mocks = vi.hoisted(() => ({
     getUserProfile: vi.fn(),
   },
   chatMetadataCache: {
-    invalidateChat: vi.fn(),
+    invalidateChat: vi.fn(), invalidateDraftProjection: vi.fn(),
   },
   chatListCache: {
     upsertChat: vi.fn(),
@@ -374,7 +374,7 @@ describe("handleEncryptedChatMetadataImpl", () => {
     );
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.markDirty).toHaveBeenCalled();
-    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("chat-metadata-only");
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("chat-metadata-only", "metadata-sync-header");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         detail: expect.objectContaining({
@@ -774,6 +774,7 @@ describe("handleChatDraftUpdatedImpl", () => {
 
     expect(mocks.chatDB.saveChatDraftFields).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -809,6 +810,7 @@ describe("handleChatDraftUpdatedImpl", () => {
 
     expect(mocks.chatDB.saveChatDraftFields).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -831,6 +833,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
@@ -851,6 +854,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
@@ -874,7 +878,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith("remote-draft-only");
     expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
-    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only");
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only", "metadata-sync-draft");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatDeleted", detail: { chat_id: "remote-draft-only" } }),
     );

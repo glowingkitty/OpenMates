@@ -926,7 +926,7 @@
       
       if (eventTypesRequiringFreshData.includes(detail.type)) {
         console.debug(`[Chat] ${detail.type} event received, invalidating cache and fetching fresh data for chat:`, chat.chat_id);
-        chatMetadataCache.invalidateChat(chat.chat_id);
+        chatMetadataCache.invalidateChat(chat.chat_id, 'metadata-chat-row');
         
         // Fetch fresh chat data from database to ensure we have the latest state
         try {
@@ -1024,7 +1024,7 @@
       // encrypted_active_focus_id from IndexedDB rather than a stale cached value.
       // chatSyncService also invalidates before dispatching, but there can be a race
       // if updateDisplayInfo runs before the invalidation propagates across async boundaries.
-      chatMetadataCache.invalidateChat(chat.chat_id);
+      chatMetadataCache.invalidateChat(chat.chat_id, 'metadata-chat-row');
       // Fetch the updated chat (chatSyncService already wrote the new encrypted_active_focus_id)
       const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
       await updateDisplayInfo(freshChat ?? chat);

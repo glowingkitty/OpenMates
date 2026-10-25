@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { recordRecentReplayDiagnostic } from '@repo/ui/services/recentChatWindowCache';
   import { APPS_WORKSPACE_CHAT_HANDOFF_EVENT, APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT,
     takeAppsWorkspaceChatHandoff, deliverAppsWorkspaceChatHandoff, isAppsWorkspaceHandoffCurrent, recordAppsWorkspaceHandoffPhase } from '@repo/ui/services/appsWorkspaceChatHandoffService';
   import { createAppsWorkspaceHandoffNavigation } from '@repo/ui/services/appsWorkspaceHandoffNavigation.svelte';
@@ -944,8 +945,10 @@
 		autoplayVideo?: boolean,
 		teamId?: string | null
 	) {
+		recordRecentReplayDiagnostic('route-enter');
 		const legalSlug = /^legal-(privacy|terms|imprint)$/.exec(chatId)?.[1];
 		if (browser && legalSlug) {
+			recordRecentReplayDiagnostic('route-legal');
 			const language = new URLSearchParams(window.location.search).get('lang');
 			window.location.replace(getPublicLegalUrl(`/legal/${legalSlug}${language ? `?lang=${encodeURIComponent(language)}` : ''}`));
 			return;
@@ -966,6 +969,7 @@
 		);
 
 		if (browser && hasDifferentCurrentChatNavigationTarget(chatId)) {
+			recordRecentReplayDiagnostic('route-stale-target');
 			console.debug(`[+page.svelte] Skipping stale chat deep link for: ${chatId}`);
 			return;
 		}
@@ -989,6 +993,7 @@
 			console.debug(
 				`[+page.svelte] Chat ${chatId} is already active (not initial load), skipping deep link processing`
 			);
+			recordRecentReplayDiagnostic('route-already-active');
 			return;
 		}
 
@@ -1006,6 +1011,11 @@
 			&& !pendingDraftChat?.encrypted_draft_md && !pendingDraftChat?.encrypted_draft_preview) {
 			warmSelectionPending = !!activeChat && (activeChat.canContinueRecentChatSelection(chatId)
 				|| activeChat.showRecentChatSelection(chatId));
+			recordRecentReplayDiagnostic(!activeChat ? 'route-component-absent'
+				: warmSelectionPending ? 'route-replay-accepted' : 'route-replay-rejected');
+		} else {
+			recordRecentReplayDiagnostic(messageId || embedId || scrollToLatestResponse || autoplayVideo
+				? 'route-target-options' : pendingDraftChat?.encrypted_draft_md ? 'route-draft-md' : 'route-draft-preview');
 		}
 
 		// Check if this is an example chat (hardcoded with embeds)

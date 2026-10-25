@@ -43,6 +43,11 @@ sync and persistence policy also follows `specifications/architecture/sync/` and
   initialization, usable-chat time, essential core-flow responsiveness, CPU and RAM
   under matching full-application conditions. Do not assume minimal WASM overhead.
   Keep warm/renderer-only measurements separate.
+- Follow `architecture.sync` for bounded startup and on-demand sub-chat messages.
+  The approved startup parent-content budget is 20. Keep existing metadata,
+  pagination, pinned-chat and draft behavior; a client cache count is not an
+  authoritative account total. Real personal-dev benchmarks use ordinary bounded
+  windows and representative existing chats, without forcing a full-account sync.
 - Primary CLI distribution is `cargo install` of its crates.io application crate;
   publish the Rust SDK as a separate library crate. Use explicit versioned dev
   prereleases. GitHub prebuilt executable assets are outside this migration scope.

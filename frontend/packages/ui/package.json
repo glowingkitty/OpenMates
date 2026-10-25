@@ -37,6 +37,10 @@
       "types": "./src/services/chatNavigationReader.ts",
       "default": "./src/services/chatNavigationReader.ts"
     },
+    "./services/recentChatWindowCache": {
+      "types": "./src/services/recentChatWindowCache.ts",
+      "default": "./src/services/recentChatWindowCache.ts"
+    },
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {

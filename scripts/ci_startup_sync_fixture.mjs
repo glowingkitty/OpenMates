@@ -7,7 +7,8 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
-export const CHAT_COUNT = 22;
+export const CHAT_COUNT = 22; // Parent chats; the child never consumes a parent-content slot.
+export const CHILD_CHAT_COUNT = 1;
 export const RECENT_MESSAGE_COUNT = 6;
 const hash = value => createHash('sha256').update(value).digest('hex');
 
@@ -19,19 +20,21 @@ export async function buildStartupSyncFixture(source, userId, masterKey, now = M
   const chats = [];
   const messages = [];
 
-  for (let index = 0; index < CHAT_COUNT; index += 1) {
+  for (let index = 0; index < CHAT_COUNT + CHILD_CHAT_COUNT; index += 1) {
+    const isChild = index === CHAT_COUNT;
     const chatId = randomUUID();
     const chatKey = randomBytes(32);
-    const messageCount = index < 2 ? RECENT_MESSAGE_COUNT : 1;
-    const updatedAt = now - index * 60;
+    const messageCount = !isChild && index < 2 ? RECENT_MESSAGE_COUNT : 1;
+    const updatedAt = isChild ? now - 1 : now - index * 60;
     const createdAt = updatedAt - messageCount;
-    const label = String(index + 1).padStart(2, '0');
+    const label = isChild ? '01' : String(index + 1).padStart(2, '0');
 
     chats.push({
       id: chatId,
       hashed_user_id: ownerHash,
+      ...(isChild ? { parent_id: chats[0].id, is_sub_chat: true } : {}),
       encrypted_chat_key: await encryptBytesWithAesGcm(chatKey, masterKey),
-      encrypted_title: await encryptWithAesGcmCombined(`Startup sync fixture ${label}`, chatKey),
+      encrypted_title: await encryptWithAesGcmCombined(isChild ? `Startup sync child fixture ${label}` : `Startup sync fixture ${label}`, chatKey),
       // A legacy nullable counter must not abort metadata delta sync on reconnect.
       messages_v: index === CHAT_COUNT - 1 ? null : messageCount,
       title_v: 1,
@@ -52,7 +55,7 @@ export async function buildStartupSyncFixture(source, userId, masterKey, now = M
         role: 'user',
         encrypted_sender_name: await encryptWithAesGcmCombined('User', chatKey),
         encrypted_content: await encryptWithAesGcmCombined(
-          `Synthetic startup chat ${label}, message ${messageIndex + 1}.`, chatKey
+          `${isChild ? 'Synthetic startup child chat' : 'Synthetic startup chat'} ${label}, message ${messageIndex + 1}.`, chatKey
         ),
         created_at: createdAt + messageIndex + 1,
       });

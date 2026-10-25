@@ -1103,7 +1103,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			detail.type === 'post_processing_metadata' ||
 			detail.messagesUpdated === true;
 		if (shouldInvalidateMetadata) {
-			chatMetadataCache.invalidateChat(detail.chat_id);
+			chatMetadataCache.invalidateChat(detail.chat_id, 'metadata-chat-updated');
 		}
 		
 		// Invalidate last message cache if a new message was added
@@ -1684,7 +1684,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// The last message cache may contain stale status (e.g., 'processing' instead of 'synced')
 		// which causes isWaitingForTitle to remain true and show "Sending..." incorrectly
 		if (customEvent.detail?.chat_id) {
-			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
+			chatMetadataCache.invalidateChat(customEvent.detail.chat_id, 'metadata-local-list');
 			chatListCache.invalidateLastMessage(customEvent.detail.chat_id);
 		}
 		

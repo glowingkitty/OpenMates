@@ -88,7 +88,7 @@ const mocks = vi.hoisted(() => {
     },
     chatListCache: { getCache: vi.fn(), removeChat: vi.fn() },
     chatSyncService: { dispatchEvent: vi.fn() },
-    chatMetadataCache: { invalidateChat: vi.fn() },
+    chatMetadataCache: { invalidateChat: vi.fn(), invalidateDraftProjection: vi.fn() },
     decryptWithMasterKey: vi.fn(async () => 'Please read this document.'),
     draftEditorUIState: store,
     editor,
@@ -199,6 +199,7 @@ describe('draftWebsocket chat_draft_updated', () => {
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateDraftProjection).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle

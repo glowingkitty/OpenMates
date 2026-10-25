@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 async def send_available_metadata_jobs(*, manager: Any, directus_service: Any,
                                        user_id: str, user_id_hash: str,
-                                       device_fingerprint_hash: str) -> None:
+                                       device_fingerprint_hash: str,
+                                       inventory_request_id: str | None = None) -> None:
     try:
         result = await ChatRecoveryService(directus_service).execute("list_metadata_jobs", {
             "protocol_version": 1, "hashed_user_id": user_id_hash,
@@ -25,8 +26,13 @@ async def send_available_metadata_jobs(*, manager: Any, directus_service: Any,
         # Durable discovery outage must not prevent its ordinary chat traffic.
         logger.warning("Metadata discovery unavailable; durable jobs remain pending")
         return
+    # Never inherit correlation from stored data or a replacement connection.
+    # The original authenticated route supplies its own validated request ID.
+    payload = {key: value for key, value in result.items() if key != "inventory_request_id"}
+    if inventory_request_id is not None:
+        payload["inventory_request_id"] = inventory_request_id
     # Empty responses also settle a client's explicit reconnect discovery.
-    await manager.send_personal_message({"type": "metadata_jobs_available", "payload": result},
+    await manager.send_personal_message({"type": "metadata_jobs_available", "payload": payload},
                                         user_id, device_fingerprint_hash)
 
 

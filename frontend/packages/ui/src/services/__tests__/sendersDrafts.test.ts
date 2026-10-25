@@ -49,7 +49,7 @@ const mocks = vi.hoisted(() => {
     deleteOfflineChange: vi.fn().mockResolvedValue(undefined),
   };
   const notificationStore = { error: vi.fn() };
-  const chatMetadataCache = { invalidateChat: vi.fn() };
+  const chatMetadataCache = { invalidateChat: vi.fn(), invalidateDraftProjection: vi.fn() };
 
   const websocketStatus = {
     subscribe: vi.fn((subscriber: (state: WebSocketState) => void) => {

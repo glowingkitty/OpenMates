@@ -856,7 +856,7 @@ export async function evictStaleMessageWindowPages(
   if (pagesToDelete.length === 0) {
     return { deletedPageIds: [], deletedMessageIds: [] };
   }
-  invalidateRecentChatWindow(chat_id);
+  invalidateRecentChatWindow(chat_id, 'message');
 
   const deletingPageIds = new Set(pagesToDelete.map((page) => page.id));
   const retainedMessageIds = new Set<string>();
@@ -881,7 +881,7 @@ export async function evictStaleMessageWindowPages(
     }
   }
 
-  if (deletedMessageIds.length > 0) invalidateRecentChatWindow(chat_id);
+  if (deletedMessageIds.length > 0) invalidateRecentChatWindow(chat_id, 'message');
   return { deletedPageIds, deletedMessageIds };
 }
 
@@ -1517,7 +1517,7 @@ export async function saveMessage(
       await putEncryptedMessage(retryTransaction, true);
     },
   );
-  invalidateRecentChatWindow(message.chat_id);
+  invalidateRecentChatWindow(message.chat_id, 'message');
 }
 
 /**
@@ -1594,7 +1594,7 @@ export async function replaceMessageById(
       reject(getRequest.error);
     };
     transaction.oncomplete = () => {
-      if (replaced) invalidateRecentChatWindow(message.chat_id);
+      if (replaced) invalidateRecentChatWindow(message.chat_id, 'message');
       resolve(replaced);
     };
     transaction.onerror = () => {
@@ -1812,7 +1812,7 @@ export async function batchSaveMessages(
       console.debug(
         `[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${preparedMessages.length} messages`,
       );
-      for (const chatId of new Set(preparedMessages.map(({ message }) => message.chat_id))) invalidateRecentChatWindow(chatId);
+      for (const chatId of new Set(preparedMessages.map(({ message }) => message.chat_id))) invalidateRecentChatWindow(chatId, 'message');
       resolve();
     };
 
@@ -1922,7 +1922,7 @@ export async function updateMessageStatus(
       // Step 2: Patch only the status field. Encrypted fields are untouched.
       const patched: Message = { ...rawRecord, status: newStatus };
       updatedChatId = rawRecord.chat_id;
-      invalidateRecentChatWindow(updatedChatId);
+      invalidateRecentChatWindow(updatedChatId, 'message');
 
       // Step 3: Write the patched record back using the SAME transaction.
       // Queueing the put synchronously in the onsuccess callback keeps the
@@ -1947,7 +1947,7 @@ export async function updateMessageStatus(
     };
 
     tx.oncomplete = () => {
-      if (updatedChatId) invalidateRecentChatWindow(updatedChatId);
+      if (updatedChatId) invalidateRecentChatWindow(updatedChatId, 'message');
       console.debug(
         `[ChatDatabase] updateMessageStatus: ✅ status updated to "${newStatus}" for ${message_id}`,
       );
@@ -2046,8 +2046,8 @@ export async function updateMessageRawFields(
 
       updatedChatId = patched.chat_id;
       previousChatId = rawRecord?.chat_id ?? null;
-      invalidateRecentChatWindow(updatedChatId);
-      if (previousChatId && previousChatId !== updatedChatId) invalidateRecentChatWindow(previousChatId);
+      invalidateRecentChatWindow(updatedChatId, 'message');
+      if (previousChatId && previousChatId !== updatedChatId) invalidateRecentChatWindow(previousChatId, 'message');
 
       const putRequest = store.put(patched);
       putRequest.onerror = () => {
@@ -2066,8 +2066,8 @@ export async function updateMessageRawFields(
     };
 
     tx.oncomplete = () => {
-      if (updatedChatId) invalidateRecentChatWindow(updatedChatId);
-      if (previousChatId && previousChatId !== updatedChatId) invalidateRecentChatWindow(previousChatId);
+      if (updatedChatId) invalidateRecentChatWindow(updatedChatId, 'message');
+      if (previousChatId && previousChatId !== updatedChatId) invalidateRecentChatWindow(previousChatId, 'message');
       console.debug(
         `[ChatDatabase] updateMessageRawFields: ✅ fields updated for ${message_id}`,
       );
@@ -2137,10 +2137,10 @@ export async function applyQueuedMessageRevision(
       delete updated.pii_mappings;
       store.put(updated);
       applied = true;
-      invalidateRecentChatWindow(chatId);
+      invalidateRecentChatWindow(chatId, 'message');
     };
     request.onerror = () => reject(request.error);
-    tx.oncomplete = () => { if (applied) invalidateRecentChatWindow(chatId); resolve(applied); };
+    tx.oncomplete = () => { if (applied) invalidateRecentChatWindow(chatId, 'message'); resolve(applied); };
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error ?? new Error("Queued revision transaction aborted"));
   });
@@ -2171,7 +2171,7 @@ export async function deleteMessage(
     readRequest.onsuccess = () => {
       deletedChatId = (readRequest.result as Message | undefined)?.chat_id ?? null;
       // Fence an in-flight cold read before its old snapshot can be published.
-      if (deletedChatId) invalidateRecentChatWindow(deletedChatId);
+      if (deletedChatId) invalidateRecentChatWindow(deletedChatId, 'message');
       else invalidateRecentChatWindowForMessage(message_id);
       const deleteRequest = store.delete(message_id);
       deleteRequest.onsuccess = () => {
@@ -2184,7 +2184,7 @@ export async function deleteMessage(
     readRequest.onerror = () => reject(readRequest.error);
     currentTransaction.addEventListener("complete", () => {
       if (deleteQueued) {
-        if (deletedChatId) invalidateRecentChatWindow(deletedChatId);
+        if (deletedChatId) invalidateRecentChatWindow(deletedChatId, 'message');
         else invalidateRecentChatWindowForMessage(message_id);
       }
       if (!transaction) resolve();

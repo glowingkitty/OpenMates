@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus import DirectusService
 
-STARTUP_FULL_PARENT_CHAT_LIMIT = 10
+STARTUP_FULL_PARENT_CHAT_LIMIT = 20
 STARTUP_METADATA_PARENT_CHAT_LIMIT = 100
 STARTUP_SUB_CHAT_METADATA_LIMIT = 50
 # Keep Phase 2 below the Directus connection budget while avoiding serial N+1 latency.
@@ -658,6 +658,43 @@ async def _filter_tombstoned_chat_wrappers(
     ], tombstoned_chat_ids
 
 
+def _phase_inventory_request_id(websocket: WebSocket, payload: dict) -> str | None:
+    """Only the original opted-in query may bind a matching phase request."""
+    query = getattr(websocket, "query_params", {})
+    if "task_update_jobs_inventory_v1" not in {item.strip() for item in query.get("client_capabilities", "").split(",") if item.strip()}:
+        return None
+    request_id = query.get("inventory_request_id")
+    if not isinstance(request_id, str) or len(request_id) != 36 or payload.get("inventory_request_id") != request_id:
+        return None
+    try:
+        parsed = uuid.UUID(request_id)
+    except (ValueError, AttributeError):
+        return None
+    return request_id if parsed.version == 4 and str(parsed) == request_id else None
+
+
+class _OriginBoundSyncManager:
+    """Bind every phased-sync helper send to the original WebSocket object."""
+
+    def __init__(self, manager: ConnectionManager, websocket: WebSocket, request_id: str | None = None):
+        if websocket is None:
+            raise ValueError("Phased sync requires its originating WebSocket")
+        self._manager = manager
+        self._websocket = websocket
+        self._request_id = request_id
+
+    def __getattr__(self, name):
+        return getattr(self._manager, name)
+
+    async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+        if self._request_id is not None and isinstance(message.get("payload"), dict):
+            message = {**message, "payload": {**message["payload"], "inventory_request_id": self._request_id}}
+        return await self._manager.send_personal_message(
+            message, user_id, device_fingerprint_hash,
+            expected_websocket=self._websocket,
+        )
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -673,7 +710,7 @@ async def handle_phased_sync_request(
 
     Startup sync is intentionally bounded:
     - Phase 1a: shell metadata, suggestions, inspirations, and recent chat metadata
-    - Phase 1b: full content for the 10 most recent parent chats only
+    - Phase 1b: full content for the 20 most recent parent chats only
     - Phase 2: metadata-only for the 100 most recent chats
 
     Phase 3 is reserved for explicit/offline prefetch requests and is not part of
@@ -682,6 +719,10 @@ async def handle_phased_sync_request(
     The client sends version data so we can skip sending chats that are already up-to-date.
     Phase 1 ALWAYS sends suggestions - Phase 3 NEVER sends suggestions.
     """
+    # This request and all helper tasks retain the original socket through IO.
+    # Legacy producers are bound too, so an older request cannot inject stale
+    # canonical rows or a completion fence into an opted-in replacement.
+    manager = _OriginBoundSyncManager(manager, websocket, _phase_inventory_request_id(websocket, payload))
     _otel_span, _otel_token = None, None
     try:
         from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
@@ -730,7 +771,7 @@ async def handle_phased_sync_request(
             # Embeds can be shared across chats in different phases
             sent_embed_ids: set = set()
         
-            # Phase 1a: Metadata for last-opened + 10 most recent chats (instant)
+            # Phase 1a: Metadata for last-opened + selected recent parent chats (instant)
             # Returns list of chat IDs so Phase 1b can fetch their content
             phase1_chat_ids: List[str] = []
             if sync_phase == "phase1" or sync_phase == "all":
@@ -784,7 +825,7 @@ async def handle_phased_sync_request(
                     )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
-            # default web startup `all` sync, otherwise chats 11-100 would receive
+            # default web startup `all` sync, otherwise older metadata-only chats would receive
             # messages/embeds and violate the bounded startup contract.
             if sync_phase == "phase3":
                 await _handle_phase3_sync(
@@ -1027,7 +1068,7 @@ async def _handle_phase1_sync(
     context_epoch: Optional[int] = None,
 ) -> List[str]:
     """
-    Phase 1a: Metadata-only for last-opened + 10 most recent chats.
+    Phase 1a: Metadata-only for last-opened + selected recent parent chats.
 
     PERFORMANCE OVERHAUL: This phase sends ONLY chat metadata (no messages, no embeds).
     The client decrypts title/icon/category for just these 11 chats (~44 decrypts) and
@@ -1085,7 +1126,7 @@ async def _handle_phase1_sync(
             if raw_id and raw_id in scoped_recent_id_set and raw_id != "new" and not raw_id.startswith("demo-") and not raw_id.startswith("legal-"):
                 last_opened_id = raw_id
 
-        # --- Build ordered candidates. Phase 1b later narrows these to 10 parent chats. ---
+        # --- Build ordered candidates. Phase 1b later narrows these to the startup parent-content limit. ---
         phase1_chat_ids: List[str] = []
         if last_opened_id:
             phase1_chat_ids.append(last_opened_id)
@@ -1385,7 +1426,7 @@ async def _handle_phase1b_sync(
     archive_service: ChatMessageArchiveService | None = None,
 ):
     """
-    Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
+    Phase 1b: Messages + embeds for the selected Phase 1a parent chats (separate WS message).
 
     Sent immediately after Phase 1a so the client can render "continue where you left off"
     without waiting for message content. Messages are stored encrypted in IDB — no decryption

@@ -798,7 +798,7 @@ export async function handleChatDraftUpdatedImpl(
     );
 
     // Invalidate metadata cache since draft content changed
-    chatMetadataCache.invalidateChat(payload.chat_id);
+    chatMetadataCache.invalidateDraftProjection(payload.chat_id);
     chatListCache.upsertChat(updatedChat);
 
     // Dispatch event to notify UI components
@@ -880,7 +880,7 @@ export async function handleDraftDeletedImpl(
       if (shouldDeleteDraftOnlyChatOnReceipt(chat)) {
         await chatDB.deleteChat(payload.chat_id);
         chatListCache.removeChat(payload.chat_id);
-        chatMetadataCache.invalidateChat(payload.chat_id);
+        chatMetadataCache.invalidateChat(payload.chat_id, 'metadata-sync-draft');
         serviceInstance.dispatchEvent(
           new CustomEvent("chatDeleted", {
             detail: { chat_id: payload.chat_id },
@@ -910,7 +910,7 @@ export async function handleDraftDeletedImpl(
       );
 
       // Invalidate metadata cache and dispatch event
-      chatMetadataCache.invalidateChat(payload.chat_id);
+      chatMetadataCache.invalidateDraftProjection(payload.chat_id);
       serviceInstance.dispatchEvent(
         new CustomEvent("chatUpdated", {
           detail: { chat_id: payload.chat_id, type: "draft_deleted" },
@@ -2603,7 +2603,7 @@ export async function handleEncryptedChatMetadataImpl(
       // title/icon/category using the chat key — if the key just arrived for the
       // first time, stale null entries must be evicted).
       chatListCache.markDirty();
-      chatMetadataCache.invalidateChat(payload.chat_id);
+      chatMetadataCache.invalidateChat(payload.chat_id, 'metadata-sync-header');
 
       // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
       serviceInstance.dispatchEvent(

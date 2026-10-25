@@ -10,6 +10,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { buildStartupSyncFixture } from "../../../../scripts/ci_startup_sync_fixture.mjs";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 import {
@@ -544,6 +546,51 @@ describe("hashItemKey", () => {
       assert.notStrictEqual(h1, h2, "different ms → different hash");
     } finally {
       Date.now = originalNow;
+    }
+  });
+});
+
+// contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted,sync.startup.bounded-phases
+describe("real encrypted startup parent/child fixture", () => {
+  it("keeps 22 parents, adds one independently encrypted recent child and preserves nullable legacy metadata", async () => {
+    const masterKey = randomBytes(32);
+    const userId = "11111111-1111-4111-8111-111111111111";
+    const now = 1700000000;
+    const fixture = await buildStartupSyncFixture(fileURLToPath(new URL("../../../..", import.meta.url)), userId, masterKey, now);
+    assert.equal(fixture.chats.length, 23);
+    assert.equal(fixture.messages.length, 33);
+    assert.equal(new Set(fixture.chats.map(chat => chat.id)).size, 23);
+    assert.equal(new Set(fixture.messages.map(message => message.id)).size, 33);
+    const parents = fixture.chats.filter(chat => !chat.parent_id && !chat.is_sub_chat);
+    const children = fixture.chats.filter(chat => chat.parent_id && chat.is_sub_chat);
+    assert.equal(parents.length, 22);
+    assert.equal(children.length, 1);
+    assert.equal(parents.filter(chat => chat.messages_v === null).length, 1);
+    assert.equal(parents[21].messages_v, null);
+    assert.deepEqual(parents.slice(0, 2).map(chat => fixture.messages.filter(message => message.chat_id === chat.id).length), [6, 6]);
+    const child = children[0];
+    assert.equal(child.parent_id, parents[0].id);
+    assert.equal(child.updated_at, now - 1);
+    assert.ok(parents.slice(0, 20).every(chat => !chat.is_sub_chat));
+    const parentKey = await decryptBytesWithAesGcm(parents[0].encrypted_chat_key, masterKey);
+    const childKey = await decryptBytesWithAesGcm(child.encrypted_chat_key, masterKey);
+    assert.ok(parentKey && childKey);
+    assert.notDeepEqual(childKey, parentKey, "child uses an independent wrapped key");
+    assert.equal(await decryptWithAesGcmCombined(child.encrypted_title, childKey), "Startup sync child fixture 01");
+    const childMessages = fixture.messages.filter(message => message.chat_id === child.id);
+    assert.equal(childMessages.length, 1);
+    assert.equal(child.messages_v, 1);
+    assert.equal(await decryptWithAesGcmCombined(childMessages[0].encrypted_content, childKey), "Synthetic startup child chat 01, message 1.");
+    assert.equal(await decryptWithAesGcmCombined(childMessages[0].encrypted_content, parentKey), null);
+    for (const chat of fixture.chats) {
+      assert.equal(chat.hashed_user_id, createHash("sha256").update(userId).digest("hex"));
+      const key = await decryptBytesWithAesGcm(chat.encrypted_chat_key, masterKey);
+      assert.ok(key);
+      for (const message of fixture.messages.filter(message => message.chat_id === chat.id)) {
+        assert.equal(message.hashed_user_id, chat.hashed_user_id);
+        assert.ok(await decryptWithAesGcmCombined(message.encrypted_content, key));
+        assert.ok(!message.encrypted_content.includes("Synthetic startup"));
+      }
     }
   });
 });

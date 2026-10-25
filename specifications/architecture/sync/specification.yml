@@ -48,8 +48,8 @@ models:
   StartupLimits:
     phase1b_parent_chat_limit:
       type: integer
-      default: 10
-      constraints: {maximum: 10, parent_chats_only: true}
+      default: 20
+      constraints: {maximum: 20, parent_chats_only: true}
     phase2_metadata_chat_limit:
       type: integer
       default: 100
@@ -134,7 +134,7 @@ assertions:
     depends_on: [models.SyncStatusResponse, examples.startup_readiness]
   - id: sync.startup.bounded-phases
     type: invariant
-    must: Default phase=all startup sync is limited to Phase 1a shell metadata, Phase 1b content for at most 10 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories.
+    must: Default phase=all startup sync is limited to Phase 1a shell metadata, Phase 1b content for at most 20 parent chats, Phase 2 metadata for at most 100 recent chats, and app settings/memories. Sub-chat navigation metadata may accompany the parents; sub-chat messages load on demand.
     depends_on: [models.StartupLimits, examples.startup_payloads]
   - id: sync.phase2.metadata-only
     type: privacy

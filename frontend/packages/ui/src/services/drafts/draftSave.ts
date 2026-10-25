@@ -1518,7 +1518,7 @@ export const saveDraftDebounced = debounce(
       console.debug(
         `[DraftService] Invalidating cache for updated draft in chat: ${currentChatIdForOperation}`,
       );
-      chatMetadataCache.invalidateChat(currentChatIdForOperation);
+      chatMetadataCache.invalidateDraftProjection(currentChatIdForOperation);
 
       // Dispatch event for UI lists to update
       window.dispatchEvent(

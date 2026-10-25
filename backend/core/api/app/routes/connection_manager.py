@@ -429,8 +429,15 @@ class ConnectionManager:
                 self.remote_command_job_capability.pop(connection_key, None)
                 self.storage_archive_capability.pop(connection_key, None)
 
-    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
+    async def send_personal_message(
+        self, message: dict, user_id: str, device_fingerprint_hash: str,
+        *, expected_websocket: WebSocket | None = None,
+    ) -> bool:
+        # Snapshot once. A bound producer may write only its original live
+        # connection, never whatever replacement now occupies the same route.
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        if expected_websocket is not None and websocket is not expected_websocket:
+            return False
         if websocket:
             # Skip silently if the server-side socket has already transitioned
             # to DISCONNECTED (30s grace period remnant). Trying to send_json
@@ -444,6 +451,9 @@ class ConnectionManager:
                 return False
             try:
                 await websocket.send_json(message)
+                if (expected_websocket is not None
+                        and self.active_connections.get(user_id, {}).get(device_fingerprint_hash) is not websocket):
+                    return False
                 logger.debug(
                     f"Sent message to User {user_id}, Device {device_fingerprint_hash} "
                     f"(message_summary={_safe_message_summary(message)})"
@@ -464,7 +474,10 @@ class ConnectionManager:
                     )
                 else:
                     logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.", extra=_ws_error_metadata(e))
-                self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
+                # The awaited write may have raced with reconnect. Never let
+                # an old transport failure clean up the replacement connection.
+                if self.active_connections.get(user_id, {}).get(device_fingerprint_hash) is websocket:
+                    self.disconnect(websocket, reason=f"Send error: {type(e).__name__}")
                 return False
         else:
             logger.warning(f"Attempted to send personal message to {user_id}/{device_fingerprint_hash}, but no active WebSocket found (possibly in grace period or fully disconnected).")

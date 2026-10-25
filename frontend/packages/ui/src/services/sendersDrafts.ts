@@ -438,7 +438,7 @@ async function sendDeleteDraftUnlocked(
 		if (clearedDraftChat) {
 			// CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
 			// This prevents stale draft previews from appearing in the chat list
-			chatMetadataCache.invalidateChat(chat_id);
+			chatMetadataCache.invalidateDraftProjection(chat_id);
 			console.debug("[sendDeleteDraftImpl] Invalidated cache for chat:", chat_id);
 
 			serviceInstance.dispatchEvent(

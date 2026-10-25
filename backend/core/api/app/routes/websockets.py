@@ -97,6 +97,7 @@ from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
 )
 from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     begin_initial_recovery_discovery,
+    _bound_recovery_inventory_manager,
     handle_recovery_job_claim,
     handle_recovery_job_persist,
     handle_recovery_job_renew,
@@ -189,17 +190,21 @@ logger = logging.getLogger(__name__)
 _workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
 
-async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager) -> bool:
+async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager,
+                                            inventory_request_id: str | None = None) -> bool:
     """Send the startup frame, releasing registration if startup cannot continue."""
     sent = False
     reason = "Initial capability send failed"
     try:
-        await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
+        payload = {"capabilities": [
             "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
             "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
             "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
             "personal_project_routing_directory_v1",
-        ]}})
+        ]}
+        if inventory_request_id is not None:
+            payload["inventory_request_id"] = inventory_request_id
+        await websocket.send_json({"type": "server_capabilities", "payload": payload})
         sent = True
         return True
     except WebSocketDisconnect as exc:
@@ -537,15 +542,31 @@ def _reconcile_recovery_lifecycle_discovery(
         schedule()
 
 
+def _validated_inventory_request_id(value: object) -> str | None:
+    """Accept only canonical v4 IDs from this authenticated connection request."""
+    if not isinstance(value, str) or len(value) != 36:
+        return None
+    try:
+        parsed = uuid.UUID(value)
+    except (ValueError, AttributeError):
+        return None
+    return value if parsed.version == 4 and str(parsed) == value else None
+
+
 async def _discover_foreground_recovery(
     *, manager: ConnectionManager, cache_service: CacheService,
     directus_service: DirectusService, user_id: str, user_id_hash: str,
     device_fingerprint_hash: str, supports_typed_recovery_outputs: bool,
     user_otel_attrs: dict,
     request_id: str | None = None,
+    inventory_empty_ack: bool = False,
+    inventory_request_id: str | None = None,
 ) -> None:
+    manager = _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash, inventory_request_id)
     discovery = {"request_id": request_id} if request_id else {}
-    # Both v1 jobs and typed outputs require the authoritative recovery epoch.
+    if inventory_request_id is not None:
+        discovery["inventory_request_id"] = inventory_request_id
+    # Work offers require the authoritative epoch; opt-in absence is read-only.
     try:
         epoch = await ChatRecoveryCutoverController(
             cache_service, directus_service,
@@ -561,6 +582,21 @@ async def _discover_foreground_recovery(
     if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
         return
     if epoch < 1:
+        if inventory_empty_ack and inventory_request_id is not None and epoch == 0:
+            try:
+                await send_available_recovery_jobs(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    user_otel_attrs=user_otel_attrs, empty_only=True,
+                    **discovery,
+                )
+            except Exception:
+                # Missing schema/columns and read outages cannot imply absence.
+                # Preserve the disabled fence; without a jobs ACK the SDK falls back.
+                logger.exception("Paused recovery inventory read unavailable")
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
         await manager.send_personal_message(
             {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled", **discovery}},
             user_id, device_fingerprint_hash,
@@ -3032,6 +3068,12 @@ async def websocket_endpoint(
     queued_revision_request_times: list[float] = []
     queued_snapshot_request_times: list[float] = []
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
+    # Optional completeness evidence on the existing authenticated offer frame.
+    complete_task_inventory = "task_update_jobs_inventory_v1" in connection_capabilities
+    # Immutable per-original-request correlation, never read from manager routing
+    # after an await: a replacement socket must not inherit old proof responses.
+    inventory_request_id = (_validated_inventory_request_id(websocket.query_params.get("inventory_request_id"))
+                            if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
@@ -3090,7 +3132,10 @@ async def websocket_endpoint(
         ),
     )
 
-    if not await _send_initial_server_capabilities(websocket, manager):
+    recovery_inventory_manager = _bound_recovery_inventory_manager(
+        manager, user_id, device_fingerprint_hash, inventory_request_id, websocket,
+    )
+    if not await _send_initial_server_capabilities(websocket, manager, inventory_request_id):
         return
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -3160,7 +3205,7 @@ async def websocket_endpoint(
     phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
     initial_recovery_discovery_tasks = await begin_initial_recovery_discovery(
-        manager=manager, directus_service=directus_service,
+        manager=recovery_inventory_manager, directus_service=directus_service,
         user_id=user_id, user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
@@ -3168,6 +3213,7 @@ async def websocket_endpoint(
             cache_service, directus_service,
         ).get_epoch(authoritative=True),
         user_otel_attrs=user_otel_attrs,
+        inventory_request_id=inventory_request_id,
     )
 
     asyncio.create_task(
@@ -3184,6 +3230,7 @@ async def websocket_endpoint(
         asyncio.create_task(send_available_metadata_jobs(
             manager=manager, directus_service=directus_service, user_id=user_id,
             user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+            inventory_request_id=inventory_request_id,
         ))
 
     if supports_task_update_jobs:
@@ -3193,6 +3240,8 @@ async def websocket_endpoint(
                 cache_service=cache_service,
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash,
+                complete_inventory=complete_task_inventory,
+                inventory_request_id=inventory_request_id,
             )
         )
 
@@ -3253,12 +3302,14 @@ async def websocket_endpoint(
                 return
             foreground_recovery_discovery_task.cancel()
         foreground_recovery_discovery_task = asyncio.create_task(_discover_foreground_recovery(
-            manager=manager, cache_service=cache_service,
+            manager=recovery_inventory_manager, cache_service=cache_service,
             directus_service=directus_service, user_id=user_id,
             user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
             supports_typed_recovery_outputs=supports_typed_recovery_outputs,
             user_otel_attrs=user_otel_attrs,
             request_id=request_id,
+            inventory_empty_ack=complete_task_inventory,
+            inventory_request_id=inventory_request_id,
         ))
 
     disconnect_reason = "Server closed connection"
@@ -3528,6 +3579,11 @@ async def websocket_endpoint(
                     await send_available_metadata_jobs(
                         manager=manager, directus_service=directus_service, user_id=user_id,
                         user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+                        # Echo only the original request's nonce, and only when
+                        # the retry itself names that same discovery. Never echo
+                        # a caller-supplied foreign nonce or a manager lookup.
+                        inventory_request_id=(inventory_request_id
+                            if payload.get("inventory_request_id") == inventory_request_id else None),
                     )
                 else:
                     await handle_metadata_recovery(
