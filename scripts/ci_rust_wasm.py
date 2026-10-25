@@ -48,6 +48,8 @@ def validate_targets(targets):
     sdk.require(targets == [TARGET], "admission")
 
 
+# Pinned producer supports debug-name removal; executable/API features stay intact.
+# https://github.com/wasm-bindgen/wasm-bindgen/blob/0.2.129/crates/cli/src/wasm_bindgen.rs
 def commands():
     return [["rustup", "toolchain", "install", "1.98.1", "--profile", "minimal"],
             ["rustup", "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"],
@@ -56,7 +58,7 @@ def commands():
             ["cargo", "+1.98.1", "install", "wasm-bindgen-cli", "--version", "=" + BINDGEN_VERSION,
              "--locked", "--registry", "crates-io", "--root", ".ci-bindgen", "--target-dir", ".ci-bindgen-target", "--jobs", "2"],
             ["wasm-bindgen", "--version"],
-            ["wasm-bindgen", ".ci-packaging/input.wasm", "--target", "web", "--out-dir", ".ci-packaging/pkg", "--out-name", PACKAGE_NAME]]
+            ["wasm-bindgen", ".ci-packaging/input.wasm", "--target", "web", "--remove-name-section", "--out-dir", ".ci-packaging/pkg", "--out-name", PACKAGE_NAME]]
 
 
 def source_inputs_from_git(root, source):

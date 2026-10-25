@@ -293,6 +293,8 @@ class WasmRunTests(SyntheticPinTests):
                     observed.append((work, dict(env)))
                 def run(self, stage, command, **kwargs):
                     index = lane.STAGES.index(stage)
+                    if command != lane.commands()[index]:
+                        raise AssertionError("fixed producer command changed")
                     row = json.loads(json.dumps(sample["steps"][index]))
                     if stage in {"bindgen-version", "bindgen-package"}:
                         binary = self.work / ".ci-bindgen/bin/wasm-bindgen"
@@ -593,7 +595,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                 "args=sys.argv[1:]\n"
                 "if args==['--version']:\n"
                 " print('wasm-bindgen " + ("0.2.128" if variant == "version-mismatch" else lane.BINDGEN_VERSION) + "');sys.exit(0)\n"
-                "assert args[1:3]==['--target','web'] and args[-2:]==['--out-name','openmates_browser']\n"
+                "assert args==['.ci-packaging/input.wasm','--target','web','--remove-name-section','--out-dir','.ci-packaging/pkg','--out-name','openmates_browser']\n"
                 "raw=pathlib.Path(args[0]).read_bytes()\n"
                 "out=pathlib.Path(args[args.index('--out-dir')+1]);out.mkdir(exist_ok=True)\n"
                 "(out/'openmates_browser.js').write_text(\"export const inputSha='\"+hashlib.sha256(raw).hexdigest()+\"'; export default async function init() {}\")\n"
@@ -1272,6 +1274,84 @@ class OfficialRegistryPinTests(unittest.TestCase):
                                        "WASM_BINDGEN_CHECKSUM": SYNTHETIC_BINDGEN_PIN[1]}), self.assertRaises(lane.sdk.Refused):
                 lane.installed_bindgen_provenance(private, work)
 
+
+
+class WasmNameSectionTests(unittest.TestCase):
+    """Pure synthetic producer contract; never executes bindgen or a WASM module."""
+
+    def test_only_runtime_packaging_adds_pinned_metadata_flag(self):
+        expected = ["wasm-bindgen", ".ci-packaging/input.wasm", "--target", "web",
+                    "--remove-name-section", "--out-dir", ".ci-packaging/pkg", "--out-name", "openmates_browser"]
+        self.assertEqual(lane.commands()[5], expected)
+        self.assertEqual(lane.BINDGEN_VERSION, "0.2.129")
+        self.assertEqual(lane.commands()[2], ["cargo", "+1.98.1", "build", "--locked", "--release", "--manifest-path",
+                                             "packages/openmates-browser-bindings/Cargo.toml", "--target", "wasm32-unknown-unknown", "--lib"])
+        self.assertNotIn("--remove-name-section", sum(lane.commands()[:5], []))
+        self.assertEqual(lane.STAGE_SECONDS, (300, 300, 1800, 900, 30, 180))
+
+    def test_provenance_refuses_missing_flag_extra_flags_or_changed_input(self):
+        helper = WasmReceiptTests()
+        expected = lane.commands()[5]
+        for command in ([x for x in expected if x != "--remove-name-section"],
+                        expected + ["--keep-debug"], expected + ["--remove-producers-section"],
+                        ["wasm-bindgen", "/untrusted/input.wasm", *expected[2:]]):
+            values = helper.fixture()
+            values[1]["steps"][-1]["command"]["argvSha256"] = hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest()
+            self.assertFalse(helper.valid(values))
+
+    def test_mock_packaging_keeps_input_and_executable_sections_and_exports_without_runtime_claim(self):
+        # Valid minimal module: ()->(), exported run, body end. Optional debug
+        # names are separate metadata. This fixture characterizes expected bytes,
+        # not a locally executed optimizer or real bindgen transformation.
+        executable = bytes.fromhex("0061736d01000000010401600000030201000707010372756e00000a040102000b")
+        names = bytes.fromhex("0005046e616d65")
+        compiled = executable + names
+        helper = WasmReceiptTests()
+        _, receipt, _, _ = helper.fixture()
+        provenance = helper.fixture()[1]["package"]["toolProvenance"]
+        receipt["artifact"] = lane.wasm_metadata(compiled)
+        with TemporaryDirectory() as directory:
+            private = Path(directory)
+            work, output = private / "source", private / "export"
+            work.mkdir()
+            output.mkdir()
+            crate = work / lane.ROOTS[-1]
+            crate.mkdir(parents=True)
+            (crate / "Cargo.lock").write_text('version=4\n[[package]]\nname="wasm-bindgen"\nversion="0.2.129"\n')
+            artifact = private / "compiled.wasm"
+            artifact.write_bytes(compiled)
+            class MockProducer:
+                steps = []
+                deadline = time.monotonic() + 10
+                env = {"PATH": os.defpath}
+                def run(self, stage, command, **options):
+                    index = lane.STAGES.index(stage)
+                    if command != lane.commands()[index]:
+                        raise AssertionError("unexpected producer arguments")
+                    self.steps.append(receipt["steps"][index])
+                    log = private / (stage + ".log")
+                    log.write_text("wasm-bindgen 0.2.129\n")
+                    if stage == "bindgen-package":
+                        if (work / ".ci-packaging/input.wasm").read_bytes() != compiled:
+                            raise AssertionError("compiled input was changed before bindgen")
+                        package = work / ".ci-packaging/pkg"
+                        (package / lane.PACKAGE_FILES[0]).write_text("export default async function init() {}")
+                        (package / lane.PACKAGE_FILES[1]).write_bytes(executable)
+                        (package / lane.PACKAGE_FILES[2]).write_text("export function run(): void;")
+                    return log
+            runner = MockProducer()
+            with patch.object(lane, "detach_installed_bindgen"), patch.object(lane, "installed_bindgen_provenance", return_value=provenance):
+                lane.produce_browser_package(runner, private, work, artifact, output, receipt)
+            self.assertEqual(artifact.read_bytes(), compiled)
+            self.assertEqual((work / ".ci-packaging/input.wasm").read_bytes(), compiled)
+            runtime = (output / "package" / lane.PACKAGE_FILES[1]).read_bytes()
+            self.assertEqual(runtime, executable)
+            self.assertIn(b"run", runtime)
+            self.assertEqual(len(compiled)-len(runtime), len(names))
+            manifest = json.loads((output / "package-manifest.json").read_text())
+            self.assertEqual(manifest["inputWasmSha256"], hashlib.sha256(compiled).hexdigest())
+            self.assertFalse(manifest["browserRuntimeProof"])
+            self.assertFalse(receipt["conformanceProof"] or receipt["releaseProof"] or receipt["browserRuntimeProof"])
 
 if __name__ == "__main__":
     unittest.main()
