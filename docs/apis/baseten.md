@@ -5,6 +5,9 @@ Reviewed 2026-10-25. Baseten is an inference host; the logical model belongs to
 `deepseek-ai/DeepSeek-V4.1-Flash-1017` snapshot. OpenRouter fallback uses
 `deepseek/deepseek-v4.1-flash-20261017` and permits only its `baseten` endpoint.
 This restriction keeps the host-specific cache tariff valid after fallback.
+The current default is Together directly, with OpenRouter first in the fallback
+order and optional direct Baseten afterward. A Baseten key is not required for
+the primary route; this page documents the retained Baseten adapter.
 
 ## API and credentials
 
@@ -12,8 +15,8 @@ The documented [Chat Completions API](https://docs.baseten.co/reference/inferenc
 is `POST https://inference.baseten.co/v1/chat/completions`, authenticated with a
 Bearer API key. The shared transport owns HTTP, validation, bounded 429 retries,
 SSE parsing and sanitized failures; the AI adapter owns tools and usage mapping.
-There is no silent retry after a stream starts. Existing model routing tries
-OpenRouter when direct Baseten is unavailable, including when its key is absent.
+There is no silent retry after a stream starts. Default model routing tries
+OpenRouter when Together is unavailable, then optional direct Baseten.
 
 Set Vault `kv/data/providers/baseten`, field `api_key`, or
 `SECRET__BASETEN__API_KEY`. Vault takes precedence; `IMPORTED_TO_VAULT` is never
@@ -72,7 +75,4 @@ usage API for parent, child and grandchild; it makes no paid inference calls.
 A successful synthetic test does not establish a live provider cache hit. Report
 live readiness and hit evidence separately when credentials are available.
 
-As of the 2026-10-25 live Together validation, DeepSeek V4.1 Flash prefers
-Together directly, with OpenRouter as its first fallback. Direct Baseten remains
-an optional supported route; a Baseten key is not required for the primary route.
 See the cache Plan for the actual live counters and host-specific supplier rates.

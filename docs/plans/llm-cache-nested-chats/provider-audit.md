@@ -20,8 +20,8 @@ unknown counters never imply a cache hit. Provider caches are opportunistic.
 | Google native | Implicit caching on supported models | Existing cached-content count normalization checked |
 | Inception | Automatic prefix cache; final usage requested | Existing cached-input and reasoning counters retained |
 
-Corrections are covered by transport-shaped fixtures rather than calls to paid
-models. Nested tariff tests cover depth 0/1/2, continuations, cumulative replacement,
+Regression coverage uses transport-shaped fixtures; the linked live-validation
+report separately records real paid-provider requests. Nested tariff tests cover depth 0/1/2, continuations, cumulative replacement,
 per-attempt settlement and root reservation attribution. The isolated product
 proof checks encrypted ledger receipts, authenticated retrieval and replay without
 a second debit. Cache savings apply to children using the same tariff rules as
