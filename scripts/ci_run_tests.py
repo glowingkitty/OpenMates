@@ -2342,7 +2342,7 @@ def main():
         elif mode == "rust-wasm":
             reject_inherited_accounts()
             from ci_rust_wasm import run
-            run(ROOT, results)
+            run(ROOT, results, node=pinned_node(), verify_node=verify_pinned_node_runtime)
         elif mode == "sdk-lockfiles":
             reject_inherited_accounts()
             from ci_sdk_lockfiles import run

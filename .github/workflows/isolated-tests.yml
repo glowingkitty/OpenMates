@@ -189,7 +189,7 @@ jobs:
            inputs.preparation_key != '')
         run: python3 ../tooling/scripts/ci_preparation_transport.py validate
       - name: Create private Node supplier toolcache
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-wasm'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles'
         run: |
           # Hosted images chmod /opt recursively to 0777, including cached Node.
           # Use a fresh private supplier; keep the producer's world-write
@@ -198,11 +198,11 @@ jobs:
           echo "OPENMATES_CI_NODE_SUPPLIER_CACHE=$supplier_cache" >> "$GITHUB_ENV"
       - name: Download verified official Node supplier
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-wasm'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles'
         run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm') && 3 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-wasm'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles'
         env:
           OPENMATES_CI_EXPECTED_SOURCE: ${{ inputs.source_commit }}
         # RUNNER_* step env is overwritten by runner context injection. Set the
@@ -289,7 +289,7 @@ jobs:
           cache-dependency-path: subject/pnpm-lock.yaml
       - name: Restore pinned Node after package-manager cache setup
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm') && 1 || 360 }}
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles' && inputs.mode != 'rust-wasm'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-lockfiles'
         run: |
           env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
           dirname "$OPENMATES_CI_NODE" >> "$GITHUB_PATH"

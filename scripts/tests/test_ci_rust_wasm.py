@@ -33,6 +33,33 @@ WASM = b"\0asm\x01\0\0\0\0\x01\0"
 SYNTHETIC_BINDGEN_PIN = ("0.2.129", "dd4afd5b4ed89dd2daca833fd225acf0676450b28f3cc0849f835e9ada9745e8")
 
 
+def worker_proof_fixture():
+    # Synthetic validator fixture only, never actual worker execution evidence.
+    w = lane.worker
+    return {"schemaVersion": 1, "workerRuntimeProof": True, "context": "dedicated-worker",
+        "requiredTests": sorted("browser::browser_crypto_tests::" + name for name in w.REQUIRED_TESTS),
+        "passed": 8, "failed": 0, "ignored": 0, "filteredOut": 0, "testWasmSha256": "1" * 64,
+        "controllerSha256": lane.sdk.sha(lane.sdk.regular(Path(w.__file__).with_suffix(".mjs"))),
+        "runnerProvenance": {"package": "wasm-bindgen-cli", "version": "0.2.129", "registry": "crates.io",
+            "url": "https://crates.io/crates/wasm-bindgen-cli/0.2.129",
+            "crateSha256": "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c",
+            "publishedCargoLockSha256": "2" * 64, "binarySha256": "3" * 64,
+            "binaryIdentity": {"device": 1, "inode": 1, "bytes": 100, "mtimeNs": 1, "ctimeNs": 1, "mode": 0o100700, "uid": 1000, "links": 1}},
+        "playwright": {"version": w.PLAYWRIGHT_VERSION, "integrity": w.PLAYWRIGHT_INTEGRITY,
+            "browsersSha256": w.PLAYWRIGHT_BROWSERS_SHA256, "browserRevision": w.CHROMIUM_REVISION,
+            "browserVersion": w.CHROMIUM_VERSION, "browserBinarySha256": "4" * 64},
+        "cleanup": {"browserClosed": True, "serverStopped": True, "serverExitCode": None, "serverExitSignal": "SIGTERM"}}
+
+
+def worker_step_fixtures():
+    return [{"stage": stage, "status": "passed", "started": True, "returncode": 0, "terminatedReturncode": 0,
+        "elapsedSeconds": 1, "command": {"tool": "cargo" if index == 0 else "wasm-bindgen-test-runner" if index == 1 else "node",
+            "admission": "strict-owner-mode", "entryPackage": None,
+            "argvSha256": hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest(),
+            "executableSha256": "3" * 64, "executableBytes": 100, "executableKind": "elf"}}
+        for index, (stage, command) in enumerate(zip(lane.worker.STAGES, lane.worker.commands()))]
+
+
 class SyntheticPinTests(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -82,7 +109,7 @@ class WasmReceiptTests(unittest.TestCase):
                      "inventorySha256": hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
         provenance = {"package": "wasm-bindgen-cli", "version": lane.BINDGEN_VERSION, "registry": "crates.io",
                       "url": "https://crates.io/crates/wasm-bindgen-cli/" + lane.BINDGEN_VERSION,
-                      "crateSha256": "1" * 64, "publishedCargoLockSha256": "2" * 64, "binarySha256": "c" * 64,
+                      "crateSha256": "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c", "publishedCargoLockSha256": "2" * 64, "binarySha256": "c" * 64,
                       "binaryIdentity": {"device": 1, "inode": 1, "bytes": 100, "mtimeNs": 1, "ctimeNs": 1, "mode": 0o100700, "uid": 1000, "links": 1}}
         manifest = {"schemaVersion": 1, "status": "passed", "source_commit": job["source"], "source_tree": "e" * 40,
                     "harness_commit": "f" * 40, "run_id": "123", "inputs": inputs, "inputSetSha256": receipt["inputSetSha256"],
@@ -91,6 +118,8 @@ class WasmReceiptTests(unittest.TestCase):
                     "toolSha256": provenance["binarySha256"], "toolProvenance": provenance, "inventory": inventory,
                     "browserRuntimeProof": False, "requestedMode": "rust-wasm", "requestedTargets": ["rust-wasm"]}
         manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
+        receipt["workerProof"] = worker_proof_fixture()
+        receipt["steps"].extend(worker_step_fixtures())
         receipt["package"] = {"manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
                               "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}
         return report, receipt, job, {"expected_inputs": inputs, "expected_tree": "e" * 40, "artifact": WASM,
@@ -110,6 +139,39 @@ class WasmReceiptTests(unittest.TestCase):
         self.assertEqual(lane.commands()[1], ["rustup", "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"])
         self.assertTrue(self.valid(self.fixture()))
 
+    def test_worker_runner_provenance_is_same_install_and_exact_executed_binary(self):
+        valid = self.fixture()
+        self.assertNotEqual(valid[1]["workerProof"]["runnerProvenance"]["binarySha256"],
+                            valid[1]["package"]["toolProvenance"]["binarySha256"])
+        self.assertTrue(self.valid(valid))
+        for key, value in (("binarySha256", "9" * 64), ("publishedCargoLockSha256", "8" * 64)):
+            values = self.fixture()
+            values[1]["workerProof"]["runnerProvenance"][key] = value
+            self.assertFalse(self.valid(values), "worker " + key)
+        values = self.fixture()
+        values[1]["workerProof"]["runnerProvenance"]["binaryIdentity"]["bytes"] += 1
+        self.assertFalse(self.valid(values), "worker binary byte size")
+        for key, value in (("executableSha256", "9" * 64), ("executableBytes", 101)):
+            values = self.fixture()
+            values[1]["steps"][7]["command"][key] = value
+            self.assertFalse(self.valid(values), "executed runner " + key)
+        values = self.fixture()
+        provenance = values[1]["package"]["toolProvenance"]
+        provenance["publishedCargoLockSha256"] = "8" * 64
+        manifest = json.loads(values[3]["package_manifest"])
+        manifest["toolProvenance"] = provenance
+        values[3]["package_manifest"] = json.dumps(manifest, sort_keys=True).encode()
+        values[1]["package"]["manifestSha256"] = hashlib.sha256(values[3]["package_manifest"]).hexdigest()
+        self.assertFalse(self.valid(values), "well-formed different production published lock")
+        values = self.fixture()
+        provenance = values[1]["package"]["toolProvenance"]
+        provenance["crateSha256"] = "7" * 64
+        manifest = json.loads(values[3]["package_manifest"])
+        manifest["toolProvenance"] = provenance
+        values[3]["package_manifest"] = json.dumps(manifest, sort_keys=True).encode()
+        values[1]["package"]["manifestSha256"] = hashlib.sha256(values[3]["package_manifest"]).hexdigest()
+        self.assertFalse(self.valid(values), "well-formed different production shared crate")
+
     def test_receipt_source_identity_and_proof_forgery(self):
         for key, value in (("source_commit", "0" * 40), ("source_tree", "0" * 40), ("harness_commit", "0" * 40),
                            ("run_id", "124"), ("sourceHeld", False), ("cleanupVerified", False), ("compilationProof", False),
@@ -126,7 +188,7 @@ class WasmReceiptTests(unittest.TestCase):
             values = self.fixture()
             values[1]["artifact"][key] = value
             self.assertFalse(self.valid(values), key)
-        for key, value in (("argvSha256", "0" * 64), ("tool", "node"), ("admission", "unchecked"), ("executableSha256", "bad")):
+        for key, value in (("argvSha256", "0" * 64), ("tool", "unreviewed-tool"), ("admission", "unchecked"), ("executableSha256", "bad")):
             values = self.fixture()
             values[1]["steps"][-1]["command"][key] = value
             self.assertFalse(self.valid(values), key)
@@ -234,13 +296,18 @@ class WasmReceiptTests(unittest.TestCase):
             values[2][key] = "unexpected"
             self.assertFalse(self.valid(values), key)
 
-    def test_workflow_no_node_browser_services_and_ast(self):
+    def test_workflow_scoped_attested_node_without_workspace_browser_services_and_ast(self):
         import yaml
         workflow = yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())
         steps = next(iter(workflow["jobs"].values()))["steps"]
+        allowed = {"Create private Node supplier toolcache", "Download verified official Node supplier",
+                   "Stage attested runner Node before candidate code or dependencies", "Restore pinned Node after package-manager cache setup"}
+        self.assertEqual(allowed, {step.get("name") for step in steps if step.get("name") in allowed})
         for step in steps:
             description = step.get("name", "") + " " + step.get("uses", "")
-            if any(word in description for word in ("Node", "setup-node", "pnpm/action", "Install workspace dependencies")) and "cleanup" not in step.get("run", ""):
+            if step.get("name") in allowed:
+                self.assertNotIn("inputs.mode != 'rust-wasm'", step.get("if", ""))
+            elif any(word in description for word in ("Node", "setup-node", "pnpm/action", "Install workspace dependencies")) and "cleanup" not in step.get("run", ""):
                 self.assertIn("inputs.mode != 'rust-wasm'", step.get("if", ""), description)
         clock = next(step for step in steps if step.get("name") == "Start bounded Rust WASM compilation clock")
         self.assertIn("started + 2700", clock["run"])
@@ -365,8 +432,16 @@ class WasmRunTests(SyntheticPinTests):
                         raise OSError("fixture receipt refusal")
                     return original_json_write(path, value)
                 stack.enter_context(patch.object(lane.sdk, "write", side_effect=write_json))
+            def fake_worker(runner, *_args):
+                # Inert orchestration fixture; real worker execution is a separate CI requirement.
+                if scenario == "worker":
+                    raise lane.sdk.Refused("worker")
+                runner.steps.extend(worker_step_fixtures())
+                return worker_proof_fixture()
+            stack.enter_context(patch.object(lane.worker, "execute", side_effect=fake_worker))
             results = []
-            receipt = lane.run(subject, results, environ=ambient, browser_e2e=browser_e2e)
+            receipt = lane.run(subject, results, environ=ambient, browser_e2e=browser_e2e,
+                node="/synthetic/attested/node", verify_node=lambda: None)
             self.assertEqual(ambient, unchanged_ambient)
             receipt_path = subject / "test-results/ci-rust-wasm.json"
             saved = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
@@ -379,6 +454,17 @@ class WasmRunTests(SyntheticPinTests):
             # Remove mocks before TemporaryDirectory performs its own cleanup.
             stack.close()
             return receipt, saved, results, outputs, observed, original_held, private_dirs
+
+    def test_worker_failure_never_credits_full_gate_or_retains_package_output(self):
+        receipt, saved, results, outputs, _, held, private = self.execute("worker")
+        self.assertEqual(receipt["status"], "failed")
+        self.assertEqual(receipt["code"], "worker")
+        self.assertIsNone(receipt["workerProof"])
+        self.assertFalse(receipt["compilationProof"] or receipt["packagingProof"] or receipt["browserRuntimeProof"])
+        self.assertEqual(outputs, b"")
+        self.assertEqual(results[0]["exit_code"], 1)
+        self.assertTrue(held and receipt["cleanupVerified"])
+        self.assertEqual(private, [])
 
     def test_success_isolated_compilation_preserves_four_source_locks(self):
         receipt, saved, results, wasm, observed, original_held, private_dirs = self.execute()
@@ -639,9 +725,12 @@ class BrowserPackagingTests(SyntheticPinTests):
             files = {path.name: path.read_bytes() for path in (exported / "package").iterdir()}
             self.assertIn(hashlib.sha256(WASM).hexdigest().encode(), files[lane.PACKAGE_FILES[0]])
             self.assertEqual(files[lane.PACKAGE_FILES[1]], WASM)
-            self.assertTrue(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40,
+            # Packaging alone no longer credits the worker execution gate.
+            self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40,
                 expected_inputs=kwargs["expected_inputs"], expected_tree="e" * 40, artifact=WASM,
                 package_manifest=manifest, package_files=files))
+            self.assertTrue(retrieval.valid_browser_package(manifest, files, receipt, job, "f" * 40,
+                kwargs["expected_inputs"], "e" * 40))
             self.assertEqual(installed, [lane.commands()[3]])
             self.assertIn("--locked", installed[0])
             self.assertEqual(json.loads(manifest)["toolProvenance"]["version"], "0.2.129")
@@ -692,6 +781,8 @@ class BrowserPackagingTests(SyntheticPinTests):
             report["runtime_profile"] = job["mode"] = "e2e"
             job["specs"] = json.dumps([target])
             receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            receipt["workerProof"] = None
+            receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
             manifest = json.loads(kwargs["package_manifest"])
             manifest.update(requestedMode="e2e", requestedTargets=[target])
             kwargs["package_manifest"] = json.dumps(manifest).encode()
@@ -705,6 +796,8 @@ class BrowserPackagingTests(SyntheticPinTests):
         for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC):
             _, receipt, _, kwargs = WasmReceiptTests().fixture()
             receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
+            receipt["workerProof"] = None
+            receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
             manifest = json.loads(kwargs["package_manifest"])
             manifest.update(requestedMode="e2e", requestedTargets=[target])
             raw = json.dumps(manifest).encode()

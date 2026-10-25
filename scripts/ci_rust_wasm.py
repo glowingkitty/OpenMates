@@ -1,4 +1,4 @@
-"""Fixed Rust/WASM compilation gate; no browser runtime or SDK conformance proof."""
+"""Fixed Rust/WASM package and real DedicatedWorker gate; no application/SDK proof."""
 from __future__ import annotations
 
 from contextlib import ExitStack
@@ -19,9 +19,11 @@ import tomllib
 
 try:
     from scripts import ci_sdk_conformance as sdk
+    from scripts import ci_wasm_worker as worker
     from scripts.ci_sdk_lockfiles import ROOTS, LOCKS, owned, snapshot, validate_manifests
 except ModuleNotFoundError:
     import ci_sdk_conformance as sdk
+    import ci_wasm_worker as worker
     from ci_sdk_lockfiles import ROOTS, LOCKS, owned, snapshot, validate_manifests
 
 TARGET = "rust-wasm"
@@ -40,9 +42,10 @@ PACKAGE_NAME = "openmates_browser"
 PACKAGE_FILES = (PACKAGE_NAME + ".js", PACKAGE_NAME + "_bg.wasm", PACKAGE_NAME + ".d.ts", PACKAGE_NAME + "_bg.wasm.d.ts")
 STAGES = ("rust-toolchain", "wasm-target", "wasm-build", "bindgen-install", "bindgen-version", "bindgen-package")
 STAGE_SECONDS = (300, 300, 1800, 900, 30, 180)
+ALL_STAGES = (*STAGES, *worker.STAGES)
 DIAGNOSTIC_LIMIT = 128 * 1024
 DIAGNOSTIC_ARTIFACT = "isolated-rust-wasm-private-diagnostics"
-FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "toolchain", "compile", "packaging", "outputs", "cleanup", "unclassified"})
+FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "toolchain", "compile", "packaging", "outputs", "cleanup", "worker", "unclassified"})
 
 
 def browser_e2e_targets(targets):
@@ -138,12 +141,13 @@ def copy_compiled_wasm(artifact, destination):
     return metadata
 
 
-def detach_installed_bindgen(work, deadline, diagnostic=None):
+def detach_installed_bindgen(work, deadline, diagnostic=None, *, binary_name="wasm-bindgen"):
     """Detach only the closed Cargo install/build hardlink set, before execution.
 
     Unknown links are never adopted. The provenance reader below still requires
     nlink==1; this preparation cannot make an arbitrary hardlink admissible.
     """
+    sdk.require(binary_name in {"wasm-bindgen", "wasm-bindgen-test-runner"}, "packaging")
     def note(substage, **values):
         # Observation never authorizes a guard or replaces a filesystem failure.
         try:
@@ -162,7 +166,7 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
 
     note("detach-work")
     sdk.require(work.is_absolute() and work.resolve() == work, "packaging")
-    binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    binary = work / ".ci-bindgen/bin" / binary_name
     note("detach-stat")
     original = binary.lstat()
     note("detach-link-guard", detachOriginalLinks=min(original.st_nlink, 65536),
@@ -199,13 +203,13 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
 
     current()
     with ExitStack() as candidate_handles:
-        candidates = [work / ".ci-bindgen-target/release/wasm-bindgen"]
+        candidates = [work / ".ci-bindgen-target/release" / binary_name]
         note("detach-scan-open")
         with os.scandir(directories[-1]) as entries:
             for index, entry in enumerate(entries):
                 note("detach-scan-bound", detachEntriesSeen=min(index + 1, 4097))
                 sdk.require(index < 4096, "packaging")
-                if re.fullmatch(r"wasm_bindgen-[0-9a-f]{16}", entry.name):
+                if re.fullmatch(binary_name.replace("-", "_") + r"-[0-9a-f]{16}", entry.name):
                     candidates.append(Path(entry.path))
                     note("detach-alias-bound", detachAliasCount=min(len(candidates), 3))
                     sdk.require(len(candidates) <= 2, "packaging")
@@ -281,7 +285,7 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
         # cannot conceal source mutation or an unexpected surviving link.
         note("detach-source-open")
         source_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-        temporary = binary.with_name(".wasm-bindgen-detached")
+        temporary = binary.with_name("." + binary_name + "-detached")
         copied = None
         directory_fd = None
         try:
@@ -452,7 +456,8 @@ def closed_provenance_diagnostic(state, error):
     return {**state, "exceptionClass": classes.get(type(error), "other"), "code": code}
 
 
-def installed_bindgen_provenance(private, work, diagnostic=None):
+def installed_bindgen_provenance(private, work, diagnostic=None, *, binary_name="wasm-bindgen"):
+    sdk.require(binary_name in {"wasm-bindgen", "wasm-bindgen-test-runner"}, "packaging")
     diagnostic = new_provenance_diagnostic() if diagnostic is None else diagnostic
     name = "wasm-bindgen-cli-" + BINDGEN_VERSION
     diagnostic["substage"] = "source-discovery"
@@ -494,7 +499,7 @@ def installed_bindgen_provenance(private, work, diagnostic=None):
                        for row in locked.get("package", []))
     diagnostic["publishedLockRootMatches"] = root_matches
     sdk.require(root_matches, "packaging")
-    binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    binary = work / ".ci-bindgen/bin" / binary_name
     diagnostic["substage"] = "binary-stat"
     identity = binary.lstat()
     diagnostic.update(binaryBytes=min(max(identity.st_size, 0), 64 * 1024**2 + 1),
@@ -576,7 +581,7 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
 
 def retain_failure_diagnostic(private, output, receipt, stage):
     """Keep only the failed stage's bounded tail; account/provider env is absent."""
-    sdk.require(stage in STAGES, "compile")
+    sdk.require(stage in ALL_STAGES, "compile")
     log = private / (stage + ".log")
     sdk.require(log.resolve() == log, "outputs")
     with os.fdopen(os.open(log, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
@@ -618,12 +623,14 @@ class WasmCommands(sdk.Commands):
                     diagnostic["beforeVersionMinimumFreeBytes"] = self.minimum_free
                 except Exception:
                     pass
-            if self.steps and stage in STAGES:
-                self.steps[-1]["command"]["tool"] = ("cargo" if stage in {"wasm-build", "bindgen-install"} else
+            if self.steps and stage in ALL_STAGES:
+                self.steps[-1]["command"]["tool"] = ("cargo" if stage in {"wasm-build", "bindgen-install", "worker-test-build"} else
+                    "node" if stage in {"worker-chromium-install", "worker-dedicated-tests"} else
+                    "wasm-bindgen-test-runner" if stage == "worker-runner-version" else
                     "wasm-bindgen" if stage.startswith("bindgen-") else "rustup")
 
 
-def run(root, results, *, environ=None, browser_e2e=False):
+def run(root, results, *, environ=None, browser_e2e=False, node=None, verify_node=None):
     ambient = os.environ if environ is None else environ
     output = root / "test-results"
     artifact_dir = output / TARGET
@@ -631,7 +638,7 @@ def run(root, results, *, environ=None, browser_e2e=False):
                "requestedMode": ambient.get("CI_TEST_MODE", TARGET),
                "requestedTargets": None, "status": "failed", "code": "admission",
                "compilationProof": False, "packagingProof": False, "browserRuntimeProof": False, "conformanceProof": False,
-               "releaseProof": False, "publication": False, "services": {}, "cleanupVerified": False, "sourceHeld": False}
+               "releaseProof": False, "publication": False, "services": {}, "cleanupVerified": False, "sourceHeld": False, "workerProof": None}
     runner = private = before = source = tree = None
     phase = "admission"
     try:
@@ -645,6 +652,10 @@ def run(root, results, *, environ=None, browser_e2e=False):
                         and not ambient.get("CI_CASE_TITLE") and not ambient.get("CI_CAPACITY_CONFIGURATION"), "admission")
         else:
             validate_targets(receipt["requestedTargets"])
+            sdk.require(type(node) is str and Path(node).is_absolute() and callable(verify_node), "identity")
+            verify_node()
+            # Hold controller bytes before any candidate Cargo execution.
+            controller_bytes = sdk.regular(Path(worker.__file__).with_suffix(".mjs"), 256*1024)
             sdk.require(receipt["requestedMode"] == TARGET
                         and not any(ambient.get(key) for key in ("CI_CASE_TITLE", "CI_PREPARATION_KEY", "CI_PREPARED_RUN_ID",
                                     "CI_RUNTIME_SEED", "CI_CAPACITY_CONFIGURATION")), "admission")
@@ -710,6 +721,10 @@ def run(root, results, *, environ=None, browser_e2e=False):
         receipt["artifact"] = metadata
         phase = "packaging"
         receipt["package"] = produce_browser_package(runner, private, work, artifact, artifact_dir, receipt)
+        if not browser_e2e:
+            phase = "worker"
+            receipt["workerProof"] = worker.execute(runner, private, work, node, verify_node, before,
+                detach_installed_bindgen, installed_bindgen_provenance, controller_bytes)
         sdk.require(all(sdk.sha(sdk.regular(work / name)) == digest for name, digest in before.items()), "source")
         receipt.update(status="passed", code=None)
     except Exception as error:

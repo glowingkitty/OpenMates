@@ -249,9 +249,9 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
 def valid_rust_wasm_diagnostic(descriptor, identity_bytes, tail, job, harness, expected_tree):
     """Validate the optional private tail without exposing its text in receipts."""
     try:
-        from scripts.ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, STAGES
+        from scripts.ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, ALL_STAGES as STAGES
     except ModuleNotFoundError:
-        from ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, STAGES
+        from ci_rust_wasm import DIAGNOSTIC_ARTIFACT, DIAGNOSTIC_LIMIT, ALL_STAGES as STAGES
     if (not isinstance(descriptor, dict)
             or set(descriptor) != {"artifactName", "identity", "identitySha256", "publicRawUpload"}
             or descriptor.get("artifactName") != DIAGNOSTIC_ARTIFACT or descriptor.get("publicRawUpload") is not False
@@ -362,8 +362,10 @@ def valid_browser_package(manifest_bytes, files, receipt, job, harness, expected
             or not identity["mode"] & 0o111 or identity["mode"] & 0o002):
         return False
     steps = receipt.get("steps", [])
-    if len(steps) != 6 or any(row.get("command", {}).get("executableSha256") != provenance["binarySha256"]
-                              or row["command"].get("executableBytes") != identity["bytes"] for row in steps[-2:]):
+    if (len(steps) not in {6, 10} or (len(steps) == 10 and (job.get("mode") != "rust-wasm"
+            or [row.get("stage") for row in steps[6:]] != ["worker-test-build", "worker-runner-version", "worker-chromium-install", "worker-dedicated-tests"]))
+            or any(row.get("command", {}).get("executableSha256") != provenance["binarySha256"]
+                   or row["command"].get("executableBytes") != identity["bytes"] for row in steps[4:6])):
         return False
     rows, total = [], 0
     for name in sorted(files):
@@ -403,6 +405,10 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
         from scripts.ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, commands, wasm_metadata
     except ModuleNotFoundError:
         from ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, commands, wasm_metadata
+    try:
+        from scripts import ci_wasm_worker as worker
+    except ModuleNotFoundError:
+        import ci_wasm_worker as worker
     browser_e2e = _browser_package_job(job)
     expected_mode = "e2e" if browser_e2e else "rust-wasm"
     expected_targets = json.loads(job["specs"]) if browser_e2e else ["rust-wasm"]
@@ -410,7 +416,7 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
     keys = {"schemaVersion", "runtime_profile", "status", "code", "compilationProof", "browserRuntimeProof",
             "conformanceProof", "releaseProof", "publication", "services", "cleanupVerified", "sourceHeld", "packagingProof", "package",
             "source_commit", "source_tree", "harness_commit", "run_id", "inputs", "inputSetSha256", "locks", "artifact", "steps",
-            "requestedMode", "requestedTargets"}
+            "requestedMode", "requestedTargets", "workerProof"}
     if (not isinstance(receipt, dict) or set(receipt) != keys or job.get("mode") != expected_mode or json.loads(job["specs"]) != expected_targets
             or receipt.get("requestedMode") != expected_mode or receipt.get("requestedTargets") != expected_targets
             or any(job.get(key) for key in (("capacity_configuration", "case_title") if browser_e2e else
@@ -434,26 +440,43 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
             return False
     except (ValueError, RuntimeError, TypeError):
         return False
-    steps = receipt.get("steps")
-    if (not isinstance(steps, list) or len(steps) != len(STAGES) or not all(isinstance(row, dict) for row in steps)
-            or [row.get("stage") for row in steps] != list(STAGES)):
+    proof = receipt.get("workerProof")
+    if (browser_e2e and proof is not None) or (not browser_e2e and not worker.valid_proof(proof)):
         return False
-    for index, (row, argv) in enumerate(zip(steps, commands())):
+    stages = STAGES if browser_e2e else (*STAGES, *worker.STAGES)
+    seconds = STAGE_SECONDS if browser_e2e else (*STAGE_SECONDS, *worker.SECONDS)
+    argv_rows = commands() if browser_e2e else [*commands(), *worker.commands()]
+    steps = receipt.get("steps")
+    if (not isinstance(steps, list) or len(steps) != len(stages) or not all(isinstance(row, dict) for row in steps)
+            or [row.get("stage") for row in steps] != list(stages)):
+        return False
+    for index, (row, argv) in enumerate(zip(steps, argv_rows)):
         command = row.get("command")
         if (set(row) != {"stage", "status", "started", "returncode", "terminatedReturncode", "elapsedSeconds", "command"}
                 or row.get("status") != "passed" or row.get("started") is not True
                 or type(row.get("returncode")) is not int or row["returncode"] != 0
                 or type(row.get("terminatedReturncode")) is not int or row["terminatedReturncode"] != 0
                 or type(row.get("elapsedSeconds")) not in (int, float) or not math.isfinite(row["elapsedSeconds"])
-                or not 0 <= row["elapsedSeconds"] <= STAGE_SECONDS[index] + 6
+                or not 0 <= row["elapsedSeconds"] <= seconds[index] + 6
                 or not isinstance(command, dict)
                 or set(command) != {"tool", "argvSha256", "executableSha256", "executableBytes", "executableKind", "admission", "entryPackage"}
-                or command.get("tool") != ("cargo" if index in {2, 3} else "wasm-bindgen" if index in {4, 5} else "rustup")
+                or command.get("tool") != ("cargo" if index in {2, 3, 6} else "wasm-bindgen" if index in {4, 5} else "wasm-bindgen-test-runner" if index == 7 else "node" if index in {8, 9} else "rustup")
                 or command.get("admission") != "strict-owner-mode" or command.get("entryPackage") is not None
                 or command.get("argvSha256") != hashlib.sha256(json.dumps(argv, separators=(",", ":")).encode()).hexdigest()
                 or not isinstance(command.get("executableSha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", command["executableSha256"])
                 or type(command.get("executableBytes")) is not int or not 0 < command["executableBytes"] <= 256 * 1024**2
                 or command.get("executableKind") not in {"elf", "script", "regular"}):
+            return False
+    if not browser_e2e:
+        runner = proof["runnerProvenance"]
+        executed = steps[7]["command"]
+        package = receipt.get("package")
+        producer = package.get("toolProvenance") if type(package) is dict else None
+        shared = ("package", "version", "registry", "url", "crateSha256", "publishedCargoLockSha256")
+        if (runner["binarySha256"] != executed["executableSha256"]
+                or runner["binaryIdentity"]["bytes"] != executed["executableBytes"]
+                or type(producer) is not dict
+                or any(type(producer.get(key)) is not str or producer[key] != runner[key] for key in shared)):
             return False
     return valid_browser_package(package_manifest, package_files, receipt, job, harness, expected_inputs, expected_tree)
 
@@ -928,6 +951,12 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                 "directory": browser_package_prefix + "/package", "manifestSha256": wasm_receipt["package"]["manifestSha256"],
                 "inventorySha256": wasm_receipt["package"]["inventorySha256"], "source_commit": job["source"],
                 "browserRuntimeProof": False}
+        if browser_package_verified and job.get("mode") == "rust-wasm":
+            proof = wasm_receipt["workerProof"]
+            result["dedicated_worker_tests"] = {"status": "verified", "workerRuntimeProof": True,
+                "browserRuntimeProof": False, "context": "dedicated-worker", "passed": proof["passed"],
+                "requiredTests": proof["requiredTests"], "testWasmSha256": proof["testWasmSha256"],
+                "controllerSha256": proof["controllerSha256"], "playwright": proof["playwright"]}
         if private_diagnostics is not None:
             result["private_diagnostics"] = private_diagnostics
         attach_cleanup(result, job, extracted)
