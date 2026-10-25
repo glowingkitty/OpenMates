@@ -25,7 +25,7 @@
     "tests/sdk-conformance/fixtures/session-recovery.json": "0941814d7f578d22dd49721986ad3899722600fc9c761386d3004afa4871e339",
     "tests/sdk-conformance/fixtures/session-work.json": "b180cccef9643b91a13cd74030d2ac66246d57cc28bb252a3d9a1787fa2ce421",
     "tests/sdk-conformance/fixtures/task-order.json": "db00afbabe39b267782fba06aef10f4a1bf632bd3cf8e3747035c643ba11af6f",
-    "tests/sdk-conformance/fixtures/session-saved-chat-read.json": "e1d318a08e0d33b6385842f0f60c32c28ef4f561ee3fb4df9474b345c9bb1b10",
+    "tests/sdk-conformance/fixtures/session-saved-chat-read.json": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
     "tests/sdk-conformance/schemas/session-saved-chat-read.schema.json": "b5507dfd9e34ff1ad99b7099854012efce5b961a410644376fc6feea25194823"
   },
   "gaps": [
@@ -1340,7 +1340,7 @@
       "capability": "session.saved-chat-read.v1",
       "language": "rust",
       "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
-      "fixtureSha256": "e1d318a08e0d33b6385842f0f60c32c28ef4f561ee3fb4df9474b345c9bb1b10",
+      "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
       "vectors": [
         "after-live-cursor-two-pages",
         "around-missing-target-stays-empty",
@@ -1402,7 +1402,7 @@
       "capability": "session.saved-chat-read.v1",
       "language": "npm",
       "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
-      "fixtureSha256": "e1d318a08e0d33b6385842f0f60c32c28ef4f561ee3fb4df9474b345c9bb1b10",
+      "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
       "vectors": [
         "after-live-cursor-two-pages",
         "around-missing-target-stays-empty",
@@ -1464,7 +1464,7 @@
       "capability": "session.saved-chat-read.v1",
       "language": "python",
       "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
-      "fixtureSha256": "e1d318a08e0d33b6385842f0f60c32c28ef4f561ee3fb4df9474b345c9bb1b10",
+      "fixtureSha256": "8e352ba93f5d014d196cbf6c7c91baf4e2c094fdc6063d7504d39f574d247bb5",
       "vectors": [
         "after-live-cursor-two-pages",
         "around-missing-target-stays-empty",
@@ -1619,7 +1619,7 @@
     "tests/sdk-conformance/runners/session-saved-chat-read.mjs": "571805c32dda7c66dc69bfcfc8e60b3f49c711ffc00376ae5acb2761ed4698ac",
     "tests/sdk-conformance/runners/session-saved-chat-read.py": "79ec226802967d808b4f790e7877dc5bca4001cca0a302e9ba0fdec4f7a110a4",
     "tests/sdk-conformance/saved_chat_read_server.py": "2a2ffe71e549569855c69a9936643406f7982777cb8d187528417b575840ece8",
-    "tests/sdk-conformance/test_saved_chat_read_peer.py": "ba171e18d5958053081c09c5df6fc396a6762230febb07c02f97d59a8f2bd356",
+    "tests/sdk-conformance/test_saved_chat_read_peer.py": "e2d26f9584792b57acdd17dcf4be0a1ab46b574aae0f94516c770944b2498d11",
     "packages/openmates-rust/src/client/saved_chat_read_metadata.rs": "8e5cf5d42f5f7a2122e6afe12478c953e2fd49c7e8ff93e27f034eb1cd09bcf3"
   },
   "proposedRecoveryFixtureCorrection": {
