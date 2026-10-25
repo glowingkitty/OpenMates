@@ -1,6 +1,8 @@
 """Fixed Rust/WASM compilation gate; no browser runtime or SDK conformance proof."""
 from __future__ import annotations
 
+from contextlib import ExitStack
+
 import json
 import math
 import os
@@ -187,112 +189,147 @@ def detach_installed_bindgen(work, deadline, diagnostic=None):
                         and (now.st_dev, now.st_ino, now.st_mode, now.st_uid, now.st_gid) == expected, "packaging")
 
     current()
-    aliases = [work / ".ci-bindgen-target/release/wasm-bindgen"]
-    note("detach-scan-open")
-    with os.scandir(directories[-1]) as entries:
-        for index, entry in enumerate(entries):
-            note("detach-scan-bound", detachEntriesSeen=min(index + 1, 4097))
-            sdk.require(index < 4096, "packaging")
-            if re.fullmatch(r"wasm_bindgen-[0-9a-f]{16}", entry.name):
-                aliases.append(Path(entry.path))
-                note("detach-alias-bound", detachAliasCount=min(len(aliases), 3))
-                sdk.require(len(aliases) <= 2, "packaging")
-    note("detach-link-count", detachAliasCount=min(len(aliases), 3))
-    sdk.require(original.st_nlink == len(aliases) + 1, "packaging")
-    for index, alias in enumerate(aliases):
-        note("detach-alias-identity", detachAliasIndex=index)
-        sdk.require(observed("detachAliasPathMatches", alias.resolve() == alias)
-                    and observed("detachAliasIdentityMatches", sdk.file_identity(alias.lstat()) == sdk.file_identity(original)), "packaging")
-    # Keep the source descriptor open through publication, so path replacement
-    # cannot conceal source mutation or an unexpected surviving link.
-    note("detach-source-open")
-    source_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    temporary = binary.with_name(".wasm-bindgen-detached")
-    copied = None
-    directory_fd = None
-    try:
-        note("detach-source-identity")
-        sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
-        note("detach-source-read")
-        data = sdk.regular(binary)
-        digest = sdk.sha(data)
+    with ExitStack() as candidate_handles:
+        candidates = [work / ".ci-bindgen-target/release/wasm-bindgen"]
+        note("detach-scan-open")
+        with os.scandir(directories[-1]) as entries:
+            for index, entry in enumerate(entries):
+                note("detach-scan-bound", detachEntriesSeen=min(index + 1, 4097))
+                sdk.require(index < 4096, "packaging")
+                if re.fullmatch(r"wasm_bindgen-[0-9a-f]{16}", entry.name):
+                    candidates.append(Path(entry.path))
+                    note("detach-alias-bound", detachAliasCount=min(len(candidates), 3))
+                    sdk.require(len(candidates) <= 2, "packaging")
+        aliases = []
+        candidate_records = []
+        for index, candidate in enumerate(candidates):
+            note("detach-alias-identity", detachAliasIndex=index)
+            sdk.require(observed("detachAliasPathMatches", candidate.resolve() == candidate), "packaging")
+            candidate_fd = os.open(candidate, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            candidate_handles.callback(os.close, candidate_fd)
+            candidate_stat = os.fstat(candidate_fd)
+            sdk.require(stat.S_ISREG(candidate_stat.st_mode) and candidate_stat.st_uid == os.getuid()
+                        and not candidate_stat.st_mode & 0o022 and candidate_stat.st_mode & 0o111
+                        and 0 < candidate_stat.st_size <= 64 * 1024**2
+                        and sdk.file_identity(candidate_stat) == sdk.file_identity(candidate.lstat()), "packaging")
+            same_inode = (candidate_stat.st_dev, candidate_stat.st_ino) == (original.st_dev, original.st_ino)
+            observed("detachAliasIdentityMatches", sdk.file_identity(candidate_stat) == sdk.file_identity(original))
+            if same_inode:
+                sdk.require(sdk.file_identity(candidate_stat) == sdk.file_identity(original), "packaging")
+                aliases.append(candidate)
+            else:
+                # A separate safe Cargo executable is not an alias; never modify it.
+                sdk.require(candidate_stat.st_nlink == 1, "packaging")
+            candidate_records.append((candidate, candidate_fd, candidate_stat, same_inode))
+
+        def candidates_current(remaining=None):
+            for candidate, candidate_fd, captured, same_inode in candidate_records:
+                expected = remaining if same_inode and remaining is not None else captured
+                sdk.require(candidate.resolve() == candidate
+                            and sdk.file_identity(os.fstat(candidate_fd)) == sdk.file_identity(expected)
+                            and sdk.file_identity(candidate.lstat()) == sdk.file_identity(expected), "packaging")
+
         current()
-        note("detach-source-identity")
-        sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
-        note("detach-directory-open")
-        directory_fd = os.open(binary.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        note("detach-directory-identity")
-        sdk.require((os.fstat(directory_fd).st_dev, os.fstat(directory_fd).st_ino) == directory_ids[2][:2], "packaging")
-        note("detach-copy-open")
-        fd = os.open(temporary.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                     0o700, dir_fd=directory_fd)
-        copied = os.fstat(fd)
-        note("detach-copy-write")
-        with os.fdopen(fd, "wb") as stream:
-            os.fchmod(stream.fileno(), 0o700)
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-            copied = os.fstat(stream.fileno())
-        note("detach-copy-identity")
-        sdk.require(stat.S_ISREG(copied.st_mode) and copied.st_uid == os.getuid()
-                    and copied.st_mode & 0o777 == 0o700 and copied.st_nlink == 1
-                    and (copied.st_dev, copied.st_ino) != (original.st_dev, original.st_ino)
-                    and copied.st_size == original.st_size, "packaging")
-        note("detach-copy-read")
-        sdk.require(sdk.sha(sdk.regular(temporary)) == digest
-                    and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
-        current()
-        note("detach-prepublish-identity")
-        sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
-                    and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        candidates_current()
+        note("detach-link-count", detachAliasCount=min(len(aliases), 3))
+        sdk.require(original.st_nlink == len(aliases) + 1, "packaging")
         for index, alias in enumerate(aliases):
-            note("detach-prepublish-alias", detachAliasIndex=index)
-            sdk.require(alias.resolve() == alias
-                        and sdk.file_identity(alias.lstat()) == sdk.file_identity(original)
-                        and sdk.sha(sdk.regular(alias)) == digest, "packaging")
-        current()
-        note("detach-prepublish-identity")
-        sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
-                    and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original)
-                    and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
-        for index, alias in enumerate(aliases):
-            note("detach-prepublish-alias", detachAliasIndex=index)
-            sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
-        note("detach-publish")
-        os.replace(temporary.name, binary.name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
-        note("detach-publish-fsync")
-        os.fsync(directory_fd)
-        current()
-        note("detach-installed")
-        installed = binary.lstat()
-        sdk.require((installed.st_dev, installed.st_ino, installed.st_size, installed.st_mode,
-                     installed.st_uid, installed.st_gid, installed.st_nlink, installed.st_mtime_ns)
-                    == (copied.st_dev, copied.st_ino, copied.st_size, copied.st_mode,
-                        copied.st_uid, copied.st_gid, 1, copied.st_mtime_ns)
-                    and sdk.sha(sdk.regular(binary)) == digest, "packaging")
-        note("detach-remaining")
-        remaining = os.fstat(source_fd)
-        sdk.require((remaining.st_dev, remaining.st_ino, remaining.st_size, remaining.st_mode,
-                     remaining.st_uid, remaining.st_gid, remaining.st_nlink, remaining.st_mtime_ns)
-                    == (original.st_dev, original.st_ino, original.st_size, original.st_mode,
-                        original.st_uid, original.st_gid, original.st_nlink - 1, original.st_mtime_ns)
-                    and remaining.st_ctime_ns >= original.st_ctime_ns, "packaging")
-        for index, alias in enumerate(aliases):
-            note("detach-final-alias", detachAliasIndex=index)
-            sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(remaining)
-                        and sdk.sha(sdk.regular(alias)) == digest, "packaging")
-    finally:
-        os.close(source_fd)
-        if directory_fd is not None:
-            try:
-                pending = os.stat(temporary.name, dir_fd=directory_fd, follow_symlinks=False)
-                if copied is not None and (pending.st_dev, pending.st_ino) == (copied.st_dev, copied.st_ino):
-                    os.unlink(temporary.name, dir_fd=directory_fd)
-            except FileNotFoundError:
-                pass
-            finally:
-                os.close(directory_fd)
+            note("detach-alias-identity", detachAliasIndex=index)
+            sdk.require(observed("detachAliasPathMatches", alias.resolve() == alias)
+                        and observed("detachAliasIdentityMatches", sdk.file_identity(alias.lstat()) == sdk.file_identity(original)), "packaging")
+        # Keep the source descriptor open through publication, so path replacement
+        # cannot conceal source mutation or an unexpected surviving link.
+        note("detach-source-open")
+        source_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        temporary = binary.with_name(".wasm-bindgen-detached")
+        copied = None
+        directory_fd = None
+        try:
+            note("detach-source-identity")
+            sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+            note("detach-source-read")
+            data = sdk.regular(binary)
+            digest = sdk.sha(data)
+            current()
+            note("detach-source-identity")
+            sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+            note("detach-directory-open")
+            directory_fd = os.open(binary.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            note("detach-directory-identity")
+            sdk.require((os.fstat(directory_fd).st_dev, os.fstat(directory_fd).st_ino) == directory_ids[2][:2], "packaging")
+            note("detach-copy-open")
+            fd = os.open(temporary.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o700, dir_fd=directory_fd)
+            copied = os.fstat(fd)
+            note("detach-copy-write")
+            with os.fdopen(fd, "wb") as stream:
+                os.fchmod(stream.fileno(), 0o700)
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+                copied = os.fstat(stream.fileno())
+            note("detach-copy-identity")
+            sdk.require(stat.S_ISREG(copied.st_mode) and copied.st_uid == os.getuid()
+                        and copied.st_mode & 0o777 == 0o700 and copied.st_nlink == 1
+                        and (copied.st_dev, copied.st_ino) != (original.st_dev, original.st_ino)
+                        and copied.st_size == original.st_size, "packaging")
+            note("detach-copy-read")
+            sdk.require(sdk.sha(sdk.regular(temporary)) == digest
+                        and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
+            current()
+            candidates_current()
+            note("detach-prepublish-identity")
+            sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
+                        and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+            for index, alias in enumerate(aliases):
+                note("detach-prepublish-alias", detachAliasIndex=index)
+                sdk.require(alias.resolve() == alias
+                            and sdk.file_identity(alias.lstat()) == sdk.file_identity(original)
+                            and sdk.sha(sdk.regular(alias)) == digest, "packaging")
+            current()
+            candidates_current()
+            note("detach-prepublish-identity")
+            sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
+                        and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original)
+                        and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
+            for index, alias in enumerate(aliases):
+                note("detach-prepublish-alias", detachAliasIndex=index)
+                sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
+            note("detach-publish")
+            os.replace(temporary.name, binary.name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+            note("detach-publish-fsync")
+            os.fsync(directory_fd)
+            current()
+            note("detach-installed")
+            installed = binary.lstat()
+            sdk.require((installed.st_dev, installed.st_ino, installed.st_size, installed.st_mode,
+                         installed.st_uid, installed.st_gid, installed.st_nlink, installed.st_mtime_ns)
+                        == (copied.st_dev, copied.st_ino, copied.st_size, copied.st_mode,
+                            copied.st_uid, copied.st_gid, 1, copied.st_mtime_ns)
+                        and sdk.sha(sdk.regular(binary)) == digest, "packaging")
+            note("detach-remaining")
+            remaining = os.fstat(source_fd)
+            sdk.require((remaining.st_dev, remaining.st_ino, remaining.st_size, remaining.st_mode,
+                         remaining.st_uid, remaining.st_gid, remaining.st_nlink, remaining.st_mtime_ns)
+                        == (original.st_dev, original.st_ino, original.st_size, original.st_mode,
+                            original.st_uid, original.st_gid, original.st_nlink - 1, original.st_mtime_ns)
+                        and remaining.st_ctime_ns >= original.st_ctime_ns, "packaging")
+            candidates_current(remaining)
+            for index, alias in enumerate(aliases):
+                note("detach-final-alias", detachAliasIndex=index)
+                sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(remaining)
+                            and sdk.sha(sdk.regular(alias)) == digest, "packaging")
+        finally:
+            os.close(source_fd)
+            if directory_fd is not None:
+                try:
+                    pending = os.stat(temporary.name, dir_fd=directory_fd, follow_symlinks=False)
+                    if copied is not None and (pending.st_dev, pending.st_ino) == (copied.st_dev, copied.st_ino):
+                        os.unlink(temporary.name, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+                finally:
+                    os.close(directory_fd)
 
 
 def locked_bindgen_version(work):

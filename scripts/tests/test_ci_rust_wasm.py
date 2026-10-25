@@ -1492,3 +1492,86 @@ class BindgenDetachmentDiagnosticTests(unittest.TestCase):
             with self.assertRaises(lane.sdk.Refused) as caught:
                 lane.detach_installed_bindgen(work, time.monotonic() + 10, BrokenObserver())
             self.assertEqual(caught.exception.args, ("packaging",))
+
+
+class BindgenCandidateClassificationTests(BindgenDetachmentTests):
+    """Synthetic owned files only; production provenance still requires nlink1."""
+
+    def mixed_fixture(self, root, independent_role):
+        private, work, binary, release = self.fixture(root)
+        deps = release.parent / "deps/wasm_bindgen-0123456789abcdef"
+        if independent_role == "deps":
+            deps.write_bytes(binary.read_bytes())
+            deps.chmod(0o700)
+            independent = deps
+        else:
+            os.link(binary, deps)
+            release.unlink()
+            release.write_bytes(binary.read_bytes())
+            release.chmod(0o700)
+            independent = release
+        return private, work, binary, release, deps, independent
+
+    def test_either_safe_separate_cargo_output_is_untouched_and_actual_alias_set_accounts_for_links(self):
+        for role in ("release", "deps"):
+            with self.subTest(role=role), TemporaryDirectory() as directory:
+                private, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), role)
+                original = lane.sdk.file_identity(binary.lstat())
+                separate_identity = lane.sdk.file_identity(independent.lstat())
+                raw = binary.read_bytes()
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.installed_bindgen_provenance(private, work)
+                lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(binary.stat().st_nlink, 1)
+                self.assertNotEqual(lane.sdk.file_identity(binary.lstat()), original)
+                self.assertEqual(lane.sdk.file_identity(independent.lstat()), separate_identity)
+                for path in (binary, release, deps):
+                    self.assertEqual(path.read_bytes(), raw)
+                proof = lane.installed_bindgen_provenance(private, work)
+                self.assertEqual(proof["binaryIdentity"]["links"], 1)
+                self.assertEqual(proof["binarySha256"], hashlib.sha256(raw).hexdigest())
+
+    def test_unaccounted_actual_link_is_never_covered_by_safe_name_candidate(self):
+        for role in ("release", "deps"):
+            with self.subTest(role=role), TemporaryDirectory() as directory:
+                _, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), role)
+                os.link(binary, Path(directory) / "external-unknown")
+                original = lane.sdk.file_identity(binary.lstat())
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(lane.sdk.file_identity(binary.lstat()), original)
+                self.assertEqual(binary.stat().st_nlink, 3)
+
+    def test_separate_candidate_faults_and_midcopy_mutations_refuse_before_publish(self):
+        for fault in ("symlink", "unsafe-mode", "non-executable", "external-hardlink", "empty", "content-mutation", "replacement"):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                _, work, binary, release, deps, independent = self.mixed_fixture(Path(directory), "deps")
+                if fault == "symlink":
+                    independent.unlink()
+                    independent.symlink_to(binary)
+                elif fault == "unsafe-mode":
+                    independent.chmod(0o722)
+                elif fault == "non-executable":
+                    independent.chmod(0o600)
+                elif fault == "external-hardlink":
+                    os.link(independent, Path(directory) / "unrelated-link")
+                elif fault == "empty":
+                    independent.write_bytes(b"")
+                original = lane.sdk.file_identity(binary.lstat())
+                real_regular = lane.sdk.regular
+                mutated = False
+                def mutate(path, *args, **kwargs):
+                    nonlocal mutated
+                    result = real_regular(path, *args, **kwargs)
+                    if path == binary and not mutated and fault in ("content-mutation", "replacement"):
+                        mutated = True
+                        if fault == "replacement":
+                            independent.unlink()
+                        independent.write_bytes(b"changed separate candidate")
+                        independent.chmod(0o700)
+                    return result
+                with patch.object(lane.sdk, "regular", side_effect=mutate), self.assertRaises((lane.sdk.Refused, OSError)):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(lane.sdk.file_identity(binary.lstat()), original)
+                self.assertEqual(binary.stat().st_nlink, 2)
+                self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
