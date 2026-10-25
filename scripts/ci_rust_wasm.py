@@ -115,26 +115,58 @@ def closed_module_dependencies(javascript):
     return True
 
 
-def package_modules(files, inputs):
+def _package_note(diagnostic, substage, **values):
+    # Observation never authorizes a guard or replaces its original exception.
+    try:
+        if diagnostic is not None:
+            diagnostic.update(substage=substage, **values)
+    except Exception:
+        pass
+
+
+def package_import_headers(name):
+    # Official 0.2.129 generate_esm_cjs_imports emits a namespace import when
+    # attempt_direct_import maps a bare externref signature straight into WASM.
+    # There is exactly one closed external module/function, so its index is 1.
+    return (("import { settlePrimitive } from './" + name + "';\n").encode(),
+            ('import * as import1 from "./' + name + '"\n').encode())
+
+
+def package_modules(files, inputs, diagnostic=None):
     """Bind the sole module to reviewed source, exact bytes and its ESM import."""
-    if not package_names(files) or not isinstance(inputs, dict):
+    names_match = package_names(files)
+    _package_note(diagnostic, "package-names", packageNamesMatch=names_match)
+    if not names_match or not isinstance(inputs, dict):
         return False
     snippets = set(files) - set(PACKAGE_FILES)
     source = inputs.get(SNIPPET_SOURCE)
-    if source is not None and (source != SNIPPET_SOURCE_SHA256 or len(snippets) != 1):
-        return False
-    if snippets and source != SNIPPET_SOURCE_SHA256:
+    source_match = not ((source is not None and (source != SNIPPET_SOURCE_SHA256 or len(snippets) != 1))
+                        or snippets and source != SNIPPET_SOURCE_SHA256)
+    _package_note(diagnostic, "package-source", packageSourceMatch=bool(source_match), packageSnippetCount=min(len(snippets), 2))
+    if not source_match:
         return False
     javascript = files[PACKAGE_FILES[0]]
+    _package_note(diagnostic, "package-main-format")
     if not isinstance(javascript, bytes):
         return False
     if snippets:
         name = next(iter(snippets))
-        header = ("import { settlePrimitive } from './" + name + "';\n").encode()
-        if files[name] != SNIPPET_BYTES or javascript.count(header) != 1:
+        body_match = files[name] == SNIPPET_BYTES
+        _package_note(diagnostic, "package-body", packageSnippetBodyMatch=body_match)
+        if not body_match:
             return False
-        javascript = javascript.replace(header, b"", 1)
-    return closed_module_dependencies(javascript)
+        headers = package_import_headers(name)
+        counts = [javascript.count(header) for header in headers]
+        singleton = sum(counts) == 1
+        _package_note(diagnostic, "package-import-header", packageNamedImportCount=min(counts[0], 2),
+                      packageDirectImportCount=min(counts[1], 2), packageImportSingleton=singleton)
+        if not singleton:
+            return False
+        javascript = javascript.replace(headers[counts.index(1)], b"", 1)
+    closed = closed_module_dependencies(javascript)
+    _package_note(diagnostic, "package-dependencies", packageDependenciesClosed=closed)
+    return closed
+
 
 
 STAGES = ("rust-toolchain", "wasm-target", "wasm-build", "bindgen-install", "bindgen-version", "bindgen-package")
@@ -480,48 +512,72 @@ def locked_bindgen_version(work):
     return BINDGEN_VERSION
 
 
-def package_inventory(folder, inputs=None):
+def package_inventory(folder, inputs=None, diagnostic=None):
     """Bounded closed tree; preserve the existing recursive inventory schema."""
     directories, names = [], set()
 
     def scan(directory, allowed, limit):
+        _package_note(diagnostic, "package-directory-stat", packageDirectoryIndex=min(len(directories), 2))
         before = directory.lstat()
-        sdk.require(directory.resolve() == directory and stat.S_ISDIR(before.st_mode)
+        canonical = directory.resolve() == directory
+        _package_note(diagnostic, "package-directory-policy", packageDirectoryCanonical=canonical,
+                      packageDirectoryRegular=stat.S_ISDIR(before.st_mode),
+                      packageDirectoryOwner=before.st_uid == os.getuid(),
+                      packageDirectoryModeSafe=not bool(before.st_mode & 0o022))
+        sdk.require(canonical and stat.S_ISDIR(before.st_mode)
                     and before.st_uid == os.getuid() and not before.st_mode & 0o022, "outputs")
         directories.append((directory, sdk.file_identity(before)))
         entries = []
         with os.scandir(directory) as listing:
             for entry in listing:
-                sdk.require(len(entries) < limit and allowed(entry.name), "outputs")
+                _package_note(diagnostic, "package-entry-count", packageEntriesSeen=min(len(entries) + 1, 6))
+                sdk.require(len(entries) < limit, "outputs")
+                matches = bool(allowed(entry.name))
+                _package_note(diagnostic, "package-entry-name", packageEntryNameMatches=matches)
+                sdk.require(matches, "outputs")
                 entries.append(Path(entry.path))
         return entries
 
     for path in scan(folder, lambda name: name in {*PACKAGE_FILES, "snippets"}, 5):
         if path.name == "snippets":
             crates = scan(path, lambda name: re.fullmatch(r"openmates-browser-bindings-[0-9a-f]{16}", name), 1)
+            _package_note(diagnostic, "package-crate-count")
             sdk.require(len(crates) == 1, "outputs")
             children = scan(crates[0], lambda name: name == "inline0.js", 1)
+            _package_note(diagnostic, "package-inline-count")
             sdk.require(len(children) == 1, "outputs")
             names.add(children[0].relative_to(folder).as_posix())
         else:
             names.add(path.name)
-    sdk.require(package_names(names), "outputs")
+    matches = package_names(names)
+    _package_note(diagnostic, "package-names", packageNamesMatch=matches)
+    sdk.require(matches, "outputs")
     rows, total, files = [], 0, {}
-    for name in sorted(names):
+    for index, name in enumerate(sorted(names)):
         path = folder / name
+        _package_note(diagnostic, "package-file-stat", packageFileIndex=min(index, 4))
+        info = path.lstat()
+        _package_note(diagnostic, "package-file-read", packageFileRegular=stat.S_ISREG(info.st_mode),
+                      packageFileOwner=info.st_uid == os.getuid(), packageFileModeSafe=not bool(info.st_mode & 0o022),
+                      packageFileSingleLink=info.st_nlink == 1, packageFileBytes=min(max(info.st_size, 0), 64 * 1024**2 + 1),
+                      packageFileIsSnippet=bool(re.fullmatch(SNIPPET_PATH, name)))
         raw = sdk.regular(path)
         info = path.lstat()
+        _package_note(diagnostic, "package-file-policy")
         sdk.require(info.st_nlink == 1 and not info.st_mode & 0o022 and raw, "outputs")
+        _package_note(diagnostic, "package-file-format")
         if name.endswith(".wasm"):
             sdk.require(raw[:8] == b"\0asm\x01\0\0\0", "outputs")
         else:
             raw.decode("utf-8", errors="strict")
         total += len(raw)
+        _package_note(diagnostic, "package-byte-bound")
         sdk.require(total <= 128 * 1024**2, "outputs")
         rows.append({"path": name, "sha256": sdk.sha(raw), "rawBytes": len(raw)})
         files[name] = raw
-    sdk.require(package_modules(files, {} if inputs is None else inputs), "outputs")
+    sdk.require(package_modules(files, {} if inputs is None else inputs, diagnostic), "outputs")
     for directory, identity in directories:
+        _package_note(diagnostic, "package-directory-stable")
         sdk.require(directory.resolve() == directory and sdk.file_identity(directory.lstat()) == identity, "outputs")
     return {"files": rows, "rawBytes": total,
             "inventorySha256": sdk.sha(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode())}
@@ -533,8 +589,13 @@ PROVENANCE_SUBSTAGES = frozenset({
     "manifest-read", "manifest-identity", "registry-pin", "archive-read", "checksum-validation",
     "published-lock-read", "published-lock-root", "binary-stat", "binary-read", "binary-identity",
     "binary-detach", "before-version", "version-output", "package-output",
+    "package-directory-stat", "package-directory-policy", "package-entry-count", "package-entry-name",
+    "package-crate-count", "package-inline-count", "package-names", "package-file-stat", "package-file-read",
+    "package-file-policy", "package-file-format", "package-byte-bound", "package-source", "package-main-format",
+    "package-body", "package-import-header", "package-dependencies", "package-directory-stable",
+    "package-export-read", "package-export-write", "package-manifest-write",
 })
-PROVENANCE_CODES = frozenset({"packaging", "unsafe_file", "changed_file", "deadline", "artifact_reserve",
+PROVENANCE_CODES = frozenset({"outputs", "packaging", "unsafe_file", "changed_file", "deadline", "artifact_reserve",
                              "stage_deadline", "child_failed", "diagnostic_bound", "unclassified"})
 PROVENANCE_BOOLEANS = (
     "manifestNameMatches", "manifestVersionMatches", "pinVersionMatches", "checksumWellFormed", "checksumMatches",
@@ -551,9 +612,18 @@ DETACH_COUNTS = {"detachOriginalLinks": 65536, "detachDirectoryIndex": 5,
                  "detachEntriesSeen": 4097, "detachAliasCount": 3, "detachAliasIndex": 1}
 
 
+PACKAGE_BOOLEANS = ("packageDirectoryCanonical", "packageDirectoryRegular", "packageDirectoryOwner", "packageDirectoryModeSafe",
+                    "packageEntryNameMatches", "packageFileRegular", "packageFileOwner", "packageFileModeSafe",
+                    "packageFileSingleLink", "packageFileIsSnippet", "packageNamesMatch", "packageSourceMatch",
+                    "packageSnippetBodyMatch", "packageImportSingleton", "packageDependenciesClosed")
+PACKAGE_COUNTS = {"packageDirectoryIndex": 2, "packageEntriesSeen": 6, "packageFileIndex": 4,
+                  "packageFileBytes": 64 * 1024**2 + 1, "packageSnippetCount": 2,
+                  "packageNamedImportCount": 2, "packageDirectImportCount": 2}
+
+
 def new_provenance_diagnostic():
     return {"substage": "locked-version", "sourceCount": None, "archiveCount": None,
-            **{key: None for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS, *DETACH_COUNTS)}, "binaryBytes": None,
+            **{key: None for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS, *DETACH_COUNTS, *PACKAGE_BOOLEANS, *PACKAGE_COUNTS)}, "binaryBytes": None,
             "beforeVersionFreeBytes": None, "beforeVersionMinimumFreeBytes": None, "minimumReserveBytes": None}
 
 
@@ -561,14 +631,14 @@ def closed_provenance_diagnostic(state, error):
     """A closed diagnostic only; never stringify exceptions, paths or private data."""
     sdk.require(type(state) is dict and set(state) == set(new_provenance_diagnostic()), "packaging")
     sdk.require(type(state["substage"]) is str and state["substage"] in PROVENANCE_SUBSTAGES, "packaging")
-    for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS):
+    for key in (*PROVENANCE_BOOLEANS, *DETACH_BOOLEANS, *PACKAGE_BOOLEANS):
         sdk.require(state[key] is None or type(state[key]) is bool, "packaging")
     for key, limit in (("sourceCount", 2), ("archiveCount", 2), ("binaryBytes", 64 * 1024**2 + 1),
                        ("beforeVersionFreeBytes", 2**63 - 1), ("beforeVersionMinimumFreeBytes", 2**63 - 1),
                        ("minimumReserveBytes", 2**63 - 1)):
         value = state[key]
         sdk.require(value is None or type(value) is int and 0 <= value <= limit, "packaging")
-    for key, limit in DETACH_COUNTS.items():
+    for key, limit in {**DETACH_COUNTS, **PACKAGE_COUNTS}.items():
         value = state[key]
         sdk.require(value is None or type(value) is int and 0 <= value <= limit, "packaging")
     classes = {sdk.Refused: "Refused", FileNotFoundError: "FileNotFoundError", PermissionError: "PermissionError",
@@ -674,19 +744,21 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
         runner.run("bindgen-package", commands()[5], seconds=STAGE_SECONDS[5])
         sdk.require(all(row["command"]["executableSha256"] == provenance["binarySha256"] for row in runner.steps[-2:]), "packaging")
         sdk.require(installed_bindgen_provenance(private, work) == provenance, "packaging")
-        inventory = package_inventory(generated, receipt["inputs"])
+        inventory = package_inventory(generated, receipt["inputs"], diagnostic)
         exported = artifact_dir / "package"
         exported.mkdir(mode=0o700)
         for row in inventory["files"]:
+            _package_note(diagnostic, "package-export-read")
             data = sdk.regular(generated / row["path"])
             sdk.require(sdk.sha(data) == row["sha256"] and len(data) == row["rawBytes"], "outputs")
+            _package_note(diagnostic, "package-export-write")
             destination = exported / row["path"]
             destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             with destination.open("xb") as stream:
                 os.fchmod(stream.fileno(), 0o600)
                 stream.write(data)
-        sdk.require(package_inventory(exported, receipt["inputs"]) == inventory
-                    and package_inventory(generated, receipt["inputs"]) == inventory, "outputs")
+        sdk.require(package_inventory(exported, receipt["inputs"], diagnostic) == inventory
+                    and package_inventory(generated, receipt["inputs"], diagnostic) == inventory, "outputs")
         manifest = {"schemaVersion": 1, "status": "passed", "source_commit": receipt["source_commit"],
                     "source_tree": receipt["source_tree"], "harness_commit": receipt["harness_commit"], "run_id": receipt["run_id"],
                     "inputs": receipt["inputs"], "inputSetSha256": receipt["inputSetSha256"], "locks": receipt["locks"],
@@ -694,6 +766,7 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
                     "wasmBindgenVersion": BINDGEN_VERSION, "toolSha256": provenance["binarySha256"],
                     "toolProvenance": provenance, "inventory": inventory, "browserRuntimeProof": False,
                     "requestedMode": receipt["requestedMode"], "requestedTargets": receipt["requestedTargets"]}
+        _package_note(diagnostic, "package-manifest-write")
         sdk.write(artifact_dir / "package-manifest.json", manifest)
         return {"manifestSha256": sdk.sha(sdk.regular(artifact_dir / "package-manifest.json")),
                 "inventorySha256": inventory["inventorySha256"], "toolProvenance": provenance}

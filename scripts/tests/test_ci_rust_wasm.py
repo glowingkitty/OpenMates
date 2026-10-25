@@ -676,7 +676,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             artifact.write_bytes(WASM)
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             receipt["artifact"] = lane.wasm_metadata(WASM)
-            if variant == "snippet":
+            if variant in {"snippet", "direct-snippet"}:
                 receipt["inputs"][lane.SNIPPET_SOURCE] = lane.SNIPPET_SOURCE_SHA256
                 receipt["inputSetSha256"] = hashlib.sha256(json.dumps(receipt["inputs"], sort_keys=True).encode()).hexdigest()
             if variant == "changed-input":
@@ -693,12 +693,12 @@ class BrowserPackagingTests(SyntheticPinTests):
                 "(out/'openmates_browser_bg.wasm').write_bytes(raw)\n" +
                 ("" if variant == "missing-types" else "(out/'openmates_browser.d.ts').write_text('export default function init(): Promise<void>;')\n") +
                 ("(out/'undeclared-helper.js').write_text('extra')\n" if variant == "extra-helper" else ""))
-            if variant == "snippet":
+            if variant in {"snippet", "direct-snippet"}:
                 name = "snippets/openmates-browser-bindings-0123456789abcdef/inline0.js"
                 script += ("snippet=out/" + repr(name) + ";snippet.parent.mkdir(parents=True)\n"
                            "snippet.write_bytes(" + repr(lane.SNIPPET_BYTES) + ")\n"
                            "main=out/'openmates_browser.js';main.write_bytes(" +
-                           repr(("import { settlePrimitive } from './" + name + "';\n").encode()) + "+main.read_bytes())\n")
+                           repr(lane.package_import_headers(name)[int(variant == "direct-snippet")]) + "+main.read_bytes())\n")
             installed = []
             class ProducerRunner(lane.WasmCommands):
                 def run(self, stage, command, **options):
@@ -724,7 +724,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                     return result
             runner = ProducerRunner(work, logs, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 10)
             runner.steps = receipt["steps"][:3]
-            if variant not in {"valid", "snippet", "cargo-hardlink", "cargo-hardlink-deps"}:
+            if variant not in {"valid", "snippet", "direct-snippet", "cargo-hardlink", "cargo-hardlink-deps"}:
                 with self.assertRaises(lane.sdk.Refused):
                     lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
                 if variant == "lock-mismatch":
@@ -751,6 +751,7 @@ class BrowserPackagingTests(SyntheticPinTests):
 
     def test_real_producer_exports_reviewed_generated_snippet(self):
         self.actual_producer("snippet")
+        self.actual_producer("direct-snippet")
 
     def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(self):
         self.actual_producer()
@@ -2294,3 +2295,143 @@ class ModuleDependencyTokenizerTests(unittest.TestCase):
         # Repeated overlapping trivia scans are bounded by a linear budget.
         text = "from /*" + "from /*" * 1000 + "*/ local;"
         self.assertFalse(lane.closed_module_dependencies(text.encode()))
+
+
+class DirectSnippetHeaderTests(unittest.TestCase):
+    def setUp(self):
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
+
+    def files(self):
+        helper = GeneratedSnippetTests()
+        files = helper.files()
+        path = "./" + helper.name
+        files[lane.PACKAGE_FILES[0]] = (
+            '/* @ts-self-types="./openmates_browser.d.ts" */\n'
+            + lane.package_import_headers(helper.name)[1].decode()
+            + "\nfunction __wbg_get_imports() {\n    const import0 = { __proto__: null };\n"
+            + '    return { __proto__: null, "./openmates_browser_bg.js": import0, "'
+            + path
+            + '": import1 };\n}\n'
+            + "export default function init() { return new URL('openmates_browser_bg.wasm', import.meta.url); }\n"
+        ).encode()
+        return files
+
+    def test_pinned_generator_namespace_form_preserves_all_source_inventory_and_result_proof(
+        self,
+    ):
+        helper = GeneratedSnippetTests()
+        files, inputs = self.files(), helper.inputs()
+        self.assertTrue(lane.package_modules(files, inputs))
+        with TemporaryDirectory() as temp:
+            folder = Path(temp) / "package"
+            helper.write(folder, files)
+            inventory = lane.package_inventory(folder, inputs)
+            self.assertEqual(len(inventory["files"]), 5)
+        values = ModuleDependencyTokenizerTests().reseal(files, inputs)
+        self.assertTrue(WasmReceiptTests().valid(values))
+
+    def test_only_one_exact_official_named_or_direct_header_is_admitted(self):
+        helper = GeneratedSnippetTests()
+        headers = lane.package_import_headers(helper.name)
+        for bad in (
+            headers[1].replace(b"import1", b"import2"),
+            headers[1].replace(b"import1", b"import0"),
+            headers[1].replace(b'"', b"'"),
+            headers[1].replace(b"\n", b";\n"),
+            headers[1] + headers[1],
+            headers[0] + headers[1],
+            headers[1].replace(b"\n", b"\r"),
+            headers[1].replace(b"0123456789abcdef", b"fedcba9876543210"),
+        ):
+            with self.subTest(header=bad):
+                files = self.files()
+                files[lane.PACKAGE_FILES[0]] = files[lane.PACKAGE_FILES[0]].replace(
+                    headers[1], bad, 1
+                )
+                self.assertFalse(lane.package_modules(files, helper.inputs()))
+
+    def test_all_v2_dependency_attacks_remain_rejected_with_direct_header(self):
+        helper = GeneratedSnippetTests()
+        for attack in DEPENDENCY_ATTACKS:
+            with self.subTest(attack=attack):
+                files = self.files()
+                files[lane.PACKAGE_FILES[0]] += attack.encode()
+                self.assertFalse(lane.package_modules(files, helper.inputs()))
+                values = ModuleDependencyTokenizerTests().reseal(files, helper.inputs())
+                self.assertFalse(WasmReceiptTests().valid(values))
+
+    def test_closed_diagnostic_identifies_first_guard_without_exposing_source_or_paths(
+        self,
+    ):
+        helper = GeneratedSnippetTests()
+        for fault, stage, predicate in (
+            ("body", "package-body", "packageSnippetBodyMatch"),
+            ("header", "package-import-header", "packageImportSingleton"),
+            ("source", "package-source", "packageSourceMatch"),
+            ("dependency", "package-dependencies", "packageDependenciesClosed"),
+            ("mode", "package-file-policy", "packageFileModeSafe"),
+            ("directory-mode", "package-directory-policy", "packageDirectoryModeSafe"),
+            ("path", "package-entry-name", "packageEntryNameMatches"),
+            ("hardlink", "package-file-policy", "packageFileSingleLink"),
+        ):
+            with self.subTest(fault=fault), TemporaryDirectory() as temp:
+                folder = Path(temp) / "package"
+                files, inputs = self.files(), helper.inputs()
+                if fault == "body":
+                    files[helper.name] += b"PRIVATE_RAW_SOURCE"
+                if fault == "header":
+                    files[lane.PACKAGE_FILES[0]] = files[lane.PACKAGE_FILES[0]].replace(
+                        b"import1", b"other"
+                    )
+                if fault == "source":
+                    inputs[lane.SNIPPET_SOURCE] = "0" * 64
+                if fault == "dependency":
+                    files[lane.PACKAGE_FILES[0]] += b"import('./PRIVATE_PATH.js')"
+                helper.write(folder, files)
+                if fault == "mode":
+                    (folder / helper.name).chmod(0o620)
+                if fault == "directory-mode":
+                    folder.chmod(0o720)
+                if fault == "path":
+                    (folder / "PRIVATE_PATH").write_bytes(b"PRIVATE_RAW_SOURCE")
+                if fault == "hardlink":
+                    os.link(folder / helper.name, Path(temp) / "PRIVATE_PATH")
+                state = lane.new_provenance_diagnostic()
+                with self.assertRaises(lane.sdk.Refused) as caught:
+                    lane.package_inventory(folder, inputs, state)
+                report = lane.closed_provenance_diagnostic(state, caught.exception)
+                self.assertEqual(report["substage"], stage)
+                self.assertEqual(report["code"], "outputs")
+                self.assertIs(report[predicate], False)
+                raw = json.dumps(report)
+                for forbidden in (
+                    "PRIVATE_PATH",
+                    "PRIVATE_RAW_SOURCE",
+                    "settlePrimitive",
+                    str(folder),
+                ):
+                    self.assertNotIn(forbidden, raw)
+
+    def test_diagnostic_success_records_exact_import_counts_and_strict_closed_types(
+        self,
+    ):
+        helper = GeneratedSnippetTests()
+        for index in (0, 1):
+            files = helper.files() if index == 0 else self.files()
+            state = lane.new_provenance_diagnostic()
+            self.assertTrue(lane.package_modules(files, helper.inputs(), state))
+            self.assertEqual(state["packageNamedImportCount"], 1 - index)
+            self.assertEqual(state["packageDirectImportCount"], index)
+            self.assertIs(state["packageImportSingleton"], True)
+        for name in lane.PACKAGE_BOOLEANS:
+            state = lane.new_provenance_diagnostic()
+            state[name] = "PRIVATE_VALUE"
+            with self.assertRaises(lane.sdk.Refused):
+                lane.closed_provenance_diagnostic(state, RuntimeError())
+        for name, limit in lane.PACKAGE_COUNTS.items():
+            for value in (True, -1, limit + 1, "PRIVATE_VALUE"):
+                state = lane.new_provenance_diagnostic()
+                state[name] = value
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.closed_provenance_diagnostic(state, RuntimeError())
