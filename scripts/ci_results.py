@@ -319,9 +319,9 @@ def fetch_rust_wasm_diagnostic(github, job, root, artifacts, descriptor, harness
 def valid_browser_package(manifest_bytes, files, receipt, job, harness, expected_inputs, expected_tree):
     """Independently validate the generated package and public tool provenance."""
     try:
-        from scripts.ci_rust_wasm import BINDGEN_VERSION, PACKAGE_FILES
+        from scripts.ci_rust_wasm import BINDGEN_VERSION, package_names, package_modules
     except ModuleNotFoundError:
-        from ci_rust_wasm import BINDGEN_VERSION, PACKAGE_FILES
+        from ci_rust_wasm import BINDGEN_VERSION, package_names, package_modules
     if not isinstance(manifest_bytes, bytes) or len(manifest_bytes) > 2 * 1024**2 or not isinstance(files, dict):
         return False
     try:
@@ -343,7 +343,7 @@ def valid_browser_package(manifest_bytes, files, receipt, job, harness, expected
             or manifest.get("requestedMode") != job.get("mode") or manifest.get("requestedTargets") != json.loads(job["specs"])
             or not isinstance(package, dict) or set(package) != {"manifestSha256", "inventorySha256", "toolProvenance"}
             or package.get("manifestSha256") != hashlib.sha256(manifest_bytes).hexdigest()
-            or not set(PACKAGE_FILES[:3]) <= set(files) <= set(PACKAGE_FILES)):
+            or not package_names(files) or not package_modules(files, expected_inputs)):
         return False
     provenance = manifest.get("toolProvenance")
     provenance_keys = {"package", "version", "registry", "url", "crateSha256", "publishedCargoLockSha256", "binarySha256", "binaryIdentity"}
@@ -858,23 +858,40 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
         if ((job["state"] == "success" and job.get("mode") == "rust-wasm")
                 or (browser_package_job and (job["state"] == "success" or e2e_wasm_receipt.get("status") == "passed"))):
             try:
-                from scripts.ci_rust_wasm import WASM_NAME, PACKAGE_FILES, BINDGEN_VERSION, source_inputs_from_git
+                from scripts.ci_rust_wasm import WASM_NAME, BINDGEN_VERSION, source_inputs_from_git, package_inventory
             except ModuleNotFoundError:
-                from ci_rust_wasm import WASM_NAME, PACKAGE_FILES, BINDGEN_VERSION, source_inputs_from_git
+                from ci_rust_wasm import WASM_NAME, BINDGEN_VERSION, source_inputs_from_git, package_inventory
             receipts = list(extracted.rglob("ci-rust-wasm.json"))
             wasm_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
             roots = [path for path in extracted.rglob("rust-wasm") if path.is_dir()]
             wasm, manifest_bytes, generated_files = b"", b"", {}
             if len(roots) == 1:
-                inventory = {path.relative_to(roots[0]).as_posix(): path for path in roots[0].rglob("*") if path.is_file()}
-                allowed = {WASM_NAME, "package-manifest.json", *("package/" + name for name in PACKAGE_FILES)}
-                required = {WASM_NAME, "package-manifest.json", *("package/" + name for name in PACKAGE_FILES[:3])}
-                if required <= set(inventory) <= allowed:
+                try:
+                    from scripts.ci_sdk_conformance import regular as sdk_regular_package_file
+                except ModuleNotFoundError:
+                    from ci_sdk_conformance import regular as sdk_regular_package_file
+                package_root = roots[0] / "package"
+                package_listing = package_inventory(package_root, wasm_receipt.get("inputs", {}))
+                allowed = {WASM_NAME, "package-manifest.json", *("package/" + row["path"] for row in package_listing["files"])}
+                expected_directories = {package_root}
+                for row in package_listing["files"]:
+                    current = (package_root / row["path"]).parent
+                    while current != package_root:
+                        expected_directories.add(current)
+                        current = current.parent
+                inventory = {}
+                for path in roots[0].rglob("*"):
+                    if path in expected_directories:
+                        continue
+                    data = sdk_regular_package_file(path)
+                    inventory[path.relative_to(roots[0]).as_posix()] = data
+                if set(inventory) == allowed:
                     browser_package_prefix = roots[0].relative_to(extracted).as_posix()
-                    wasm = inventory[WASM_NAME].read_bytes()
-                    manifest_bytes = inventory["package-manifest.json"].read_bytes()
-                    generated_files = {name.removeprefix("package/"): path.read_bytes() for name, path in inventory.items()
+                    wasm = inventory[WASM_NAME]
+                    manifest_bytes = inventory["package-manifest.json"]
+                    generated_files = {name.removeprefix("package/"): data for name, data in inventory.items()
                                        if name.startswith("package/")}
+
             expected_tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"], cwd=root, text=True, timeout=15).strip()
             import tomllib
             browser_lock = subprocess.check_output(["git", "show", job["source"] + ":packages/openmates-browser-bindings/Cargo.lock"], cwd=root, timeout=15)

@@ -40,6 +40,103 @@ BINDGEN_VERSION = "0.2.129"
 BINDGEN_CRATE_PIN = ("0.2.129", "5fd044ed178958a277eeaf21f3d384287b0f4428d38c019141df01da9c03168c")
 PACKAGE_NAME = "openmates_browser"
 PACKAGE_FILES = (PACKAGE_NAME + ".js", PACKAGE_NAME + "_bg.wasm", PACKAGE_NAME + ".d.ts", PACKAGE_NAME + "_bg.wasm.d.ts")
+# wasm-bindgen 0.2.129 writes inline_js verbatim under a crate identifier.
+# Official producer: cli-support/src/lib.rs (inline_js_module_name, Output::emit),
+# macro-support/src/hash.rs (unique_crate_identifier). The suffix is only a name.
+SNIPPET_PATH = r"snippets/openmates-browser-bindings-[0-9a-f]{16}/inline0\.js"
+SNIPPET_SOURCE = "packages/openmates-browser-bindings/src/browser_crypto.rs"
+SNIPPET_SOURCE_SHA256 = "735598f81f8e4272f432cb1cedcd64f5f63bb651599282d172d0a7dbebc6d928"
+SNIPPET_BYTES = (b"\nexport function settlePrimitive(operation, settle) {\n"
+                 b"  return operation.then(value => { settle(value, true); }, () => { settle(undefined, false); });\n}\n")
+
+
+def package_names(names):
+    """Closed legacy files plus at most one reviewed production inline module."""
+    if not isinstance(names, (set, dict)) or any(type(name) is not str for name in names):
+        return False
+    extras = set(names) - set(PACKAGE_FILES)
+    return (set(PACKAGE_FILES[:3]) <= set(names) and len(extras) <= 1
+            and all(re.fullmatch(SNIPPET_PATH, name) for name in extras))
+
+
+# Explicit ECMAScript WhiteSpace and LineTerminator sets (including BOM).
+MODULE_SPACE = "\t\v\f \u00a0\ufeff\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000\n\r\u2028\u2029"
+MODULE_LINES = "\n\r\u2028\u2029"
+
+
+def closed_module_dependencies(javascript):
+    """Conservative dependency-edge tokenizer, never a JS syntax/runtime proof.
+
+    Scan raw text, including strings/comments/regex/templates: discarding those
+    regions could hide an executable token. Every dynamic/static import has the
+    literal reserved token import; every external export has FromClause, whose
+    literal from token is followed by ECMAScript trivia and a StringLiteral.
+    Reject harmless lookalikes rather than attempt general JS lexical parsing.
+    """
+    if not isinstance(javascript, bytes) or not 0 < len(javascript) <= 64 * 1024**2:
+        return False
+    try:
+        text = javascript.decode("utf-8", errors="strict")
+    except UnicodeError:
+        return False
+    # Escaped contextual/reserved words are outside the reviewed glue grammar.
+    # This intentionally also refuses harmless Unicode escapes inside literals.
+    if "\\u" in text:
+        return False
+    spent, budget = 0, len(text) * 8 + 128
+    for token in re.finditer(r"(?<![A-Za-z0-9_$])(?:import|from)(?![A-Za-z0-9_$])", text):
+        if token.group() == "import":
+            end = token.start() + len("import.meta.url")
+            if (not text.startswith("import.meta.url", token.start())
+                    or end < len(text) and (text[end].isalnum() or text[end] in "_$\\.")):
+                return False
+            continue
+        cursor = token.end()
+        while cursor < len(text):
+            before = cursor
+            if text[cursor] in MODULE_SPACE:
+                cursor += 1
+            elif text.startswith("/*", cursor):
+                end = text.find("*/", cursor + 2)
+                if end < 0:
+                    return False
+                cursor = end + 2
+            elif text.startswith("//", cursor):
+                cursor += 2
+                while cursor < len(text) and text[cursor] not in MODULE_LINES:
+                    cursor += 1
+            else:
+                break
+            spent += cursor - before
+            if spent > budget:
+                return False
+        if cursor < len(text) and text[cursor] in "'\"":
+            return False
+    return True
+
+
+def package_modules(files, inputs):
+    """Bind the sole module to reviewed source, exact bytes and its ESM import."""
+    if not package_names(files) or not isinstance(inputs, dict):
+        return False
+    snippets = set(files) - set(PACKAGE_FILES)
+    source = inputs.get(SNIPPET_SOURCE)
+    if source is not None and (source != SNIPPET_SOURCE_SHA256 or len(snippets) != 1):
+        return False
+    if snippets and source != SNIPPET_SOURCE_SHA256:
+        return False
+    javascript = files[PACKAGE_FILES[0]]
+    if not isinstance(javascript, bytes):
+        return False
+    if snippets:
+        name = next(iter(snippets))
+        header = ("import { settlePrimitive } from './" + name + "';\n").encode()
+        if files[name] != SNIPPET_BYTES or javascript.count(header) != 1:
+            return False
+        javascript = javascript.replace(header, b"", 1)
+    return closed_module_dependencies(javascript)
+
+
 STAGES = ("rust-toolchain", "wasm-target", "wasm-build", "bindgen-install", "bindgen-version", "bindgen-package")
 STAGE_SECONDS = (300, 300, 1800, 900, 30, 180)
 ALL_STAGES = (*STAGES, *worker.STAGES)
@@ -383,16 +480,38 @@ def locked_bindgen_version(work):
     return BINDGEN_VERSION
 
 
-def package_inventory(folder):
-    """Same content inventory schema as build_rust_browser.py; no helper modules."""
-    sdk.require(folder.resolve() == folder and folder.is_dir(), "outputs")
-    names = {path.name for path in folder.iterdir()}
-    sdk.require(set(PACKAGE_FILES[:3]) <= names <= set(PACKAGE_FILES), "outputs")
-    rows, total = [], 0
+def package_inventory(folder, inputs=None):
+    """Bounded closed tree; preserve the existing recursive inventory schema."""
+    directories, names = [], set()
+
+    def scan(directory, allowed, limit):
+        before = directory.lstat()
+        sdk.require(directory.resolve() == directory and stat.S_ISDIR(before.st_mode)
+                    and before.st_uid == os.getuid() and not before.st_mode & 0o022, "outputs")
+        directories.append((directory, sdk.file_identity(before)))
+        entries = []
+        with os.scandir(directory) as listing:
+            for entry in listing:
+                sdk.require(len(entries) < limit and allowed(entry.name), "outputs")
+                entries.append(Path(entry.path))
+        return entries
+
+    for path in scan(folder, lambda name: name in {*PACKAGE_FILES, "snippets"}, 5):
+        if path.name == "snippets":
+            crates = scan(path, lambda name: re.fullmatch(r"openmates-browser-bindings-[0-9a-f]{16}", name), 1)
+            sdk.require(len(crates) == 1, "outputs")
+            children = scan(crates[0], lambda name: name == "inline0.js", 1)
+            sdk.require(len(children) == 1, "outputs")
+            names.add(children[0].relative_to(folder).as_posix())
+        else:
+            names.add(path.name)
+    sdk.require(package_names(names), "outputs")
+    rows, total, files = [], 0, {}
     for name in sorted(names):
         path = folder / name
         raw = sdk.regular(path)
-        sdk.require(path.stat().st_nlink == 1 and raw, "outputs")
+        info = path.lstat()
+        sdk.require(info.st_nlink == 1 and not info.st_mode & 0o022 and raw, "outputs")
         if name.endswith(".wasm"):
             sdk.require(raw[:8] == b"\0asm\x01\0\0\0", "outputs")
         else:
@@ -400,6 +519,10 @@ def package_inventory(folder):
         total += len(raw)
         sdk.require(total <= 128 * 1024**2, "outputs")
         rows.append({"path": name, "sha256": sdk.sha(raw), "rawBytes": len(raw)})
+        files[name] = raw
+    sdk.require(package_modules(files, {} if inputs is None else inputs), "outputs")
+    for directory, identity in directories:
+        sdk.require(directory.resolve() == directory and sdk.file_identity(directory.lstat()) == identity, "outputs")
     return {"files": rows, "rawBytes": total,
             "inventorySha256": sdk.sha(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode())}
 
@@ -551,16 +674,19 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
         runner.run("bindgen-package", commands()[5], seconds=STAGE_SECONDS[5])
         sdk.require(all(row["command"]["executableSha256"] == provenance["binarySha256"] for row in runner.steps[-2:]), "packaging")
         sdk.require(installed_bindgen_provenance(private, work) == provenance, "packaging")
-        inventory = package_inventory(generated)
+        inventory = package_inventory(generated, receipt["inputs"])
         exported = artifact_dir / "package"
         exported.mkdir(mode=0o700)
         for row in inventory["files"]:
             data = sdk.regular(generated / row["path"])
             sdk.require(sdk.sha(data) == row["sha256"] and len(data) == row["rawBytes"], "outputs")
-            with (exported / row["path"]).open("xb") as stream:
+            destination = exported / row["path"]
+            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            with destination.open("xb") as stream:
                 os.fchmod(stream.fileno(), 0o600)
                 stream.write(data)
-        sdk.require(package_inventory(exported) == inventory and package_inventory(generated) == inventory, "outputs")
+        sdk.require(package_inventory(exported, receipt["inputs"]) == inventory
+                    and package_inventory(generated, receipt["inputs"]) == inventory, "outputs")
         manifest = {"schemaVersion": 1, "status": "passed", "source_commit": receipt["source_commit"],
                     "source_tree": receipt["source_tree"], "harness_commit": receipt["harness_commit"], "run_id": receipt["run_id"],
                     "inputs": receipt["inputs"], "inputSetSha256": receipt["inputSetSha256"], "locks": receipt["locks"],
@@ -786,7 +912,8 @@ def prepare_browser_e2e_package(root, *, environ=None):
                 and snapshot(root, expected) == expected, "source")
     folder = root / "test-results" / TARGET
     manifest_bytes = sdk.regular(folder / "package-manifest.json")
-    generated = {path.name: sdk.regular(path) for path in (folder / "package").iterdir()}
+    inventory = package_inventory(folder / "package", expected)
+    generated = {row["path"]: sdk.regular(folder / "package" / row["path"]) for row in inventory["files"]}
     sdk.require(wasm_metadata(sdk.regular(folder / WASM_NAME, 128 * 1024**2)) == receipt["artifact"], "outputs")
     try:
         from scripts.ci_results import valid_browser_package

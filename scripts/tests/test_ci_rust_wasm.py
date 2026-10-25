@@ -63,6 +63,8 @@ def worker_step_fixtures():
 class SyntheticPinTests(unittest.TestCase):
     def setUp(self):
         super().setUp()
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
         pin = patch.object(lane, "BINDGEN_CRATE_PIN", SYNTHETIC_BINDGEN_PIN)
         pin.start()
         self.addCleanup(pin.stop)
@@ -674,6 +676,9 @@ class BrowserPackagingTests(SyntheticPinTests):
             artifact.write_bytes(WASM)
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             receipt["artifact"] = lane.wasm_metadata(WASM)
+            if variant == "snippet":
+                receipt["inputs"][lane.SNIPPET_SOURCE] = lane.SNIPPET_SOURCE_SHA256
+                receipt["inputSetSha256"] = hashlib.sha256(json.dumps(receipt["inputs"], sort_keys=True).encode()).hexdigest()
             if variant == "changed-input":
                 artifact.write_bytes(WASM + b"changed")
             script = ("#!" + sys.executable + "\n" +
@@ -688,6 +693,12 @@ class BrowserPackagingTests(SyntheticPinTests):
                 "(out/'openmates_browser_bg.wasm').write_bytes(raw)\n" +
                 ("" if variant == "missing-types" else "(out/'openmates_browser.d.ts').write_text('export default function init(): Promise<void>;')\n") +
                 ("(out/'undeclared-helper.js').write_text('extra')\n" if variant == "extra-helper" else ""))
+            if variant == "snippet":
+                name = "snippets/openmates-browser-bindings-0123456789abcdef/inline0.js"
+                script += ("snippet=out/" + repr(name) + ";snippet.parent.mkdir(parents=True)\n"
+                           "snippet.write_bytes(" + repr(lane.SNIPPET_BYTES) + ")\n"
+                           "main=out/'openmates_browser.js';main.write_bytes(" +
+                           repr(("import { settlePrimitive } from './" + name + "';\n").encode()) + "+main.read_bytes())\n")
             installed = []
             class ProducerRunner(lane.WasmCommands):
                 def run(self, stage, command, **options):
@@ -713,7 +724,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                     return result
             runner = ProducerRunner(work, logs, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 10)
             runner.steps = receipt["steps"][:3]
-            if variant not in {"valid", "cargo-hardlink", "cargo-hardlink-deps"}:
+            if variant not in {"valid", "snippet", "cargo-hardlink", "cargo-hardlink-deps"}:
                 with self.assertRaises(lane.sdk.Refused):
                     lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
                 if variant == "lock-mismatch":
@@ -722,7 +733,8 @@ class BrowserPackagingTests(SyntheticPinTests):
             package = lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
             receipt["package"], receipt["steps"] = package, runner.steps
             manifest = (exported / "package-manifest.json").read_bytes()
-            files = {path.name: path.read_bytes() for path in (exported / "package").iterdir()}
+            files = {path.relative_to(exported / "package").as_posix(): path.read_bytes()
+                     for path in (exported / "package").rglob("*") if path.is_file()}
             self.assertIn(hashlib.sha256(WASM).hexdigest().encode(), files[lane.PACKAGE_FILES[0]])
             self.assertEqual(files[lane.PACKAGE_FILES[1]], WASM)
             # Packaging alone no longer credits the worker execution gate.
@@ -736,6 +748,9 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertEqual(json.loads(manifest)["toolProvenance"]["version"], "0.2.129")
             self.assertFalse(json.loads(manifest)["browserRuntimeProof"])
             self.assertEqual((exported / "package-manifest.json").stat().st_mode & 0o777, 0o600)
+
+    def test_real_producer_exports_reviewed_generated_snippet(self):
+        self.actual_producer("snippet")
 
     def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(self):
         self.actual_producer()
@@ -809,6 +824,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                 (folder / "package-manifest.json").write_bytes(raw)
                 (folder / lane.WASM_NAME).write_bytes(WASM)
                 for name, data in kwargs["package_files"].items():
+                    (folder / "package" / name).parent.mkdir(parents=True, exist_ok=True)
                     (folder / "package" / name).write_bytes(data)
                 env = {"CI_TEST_MODE": "e2e", "CI_SPECS_JSON": json.dumps([target]), "BUILD_COMMIT_SHA": "d" * 40,
                        "CI_CANDIDATE_TREE": "e" * 40, "GITHUB_RUN_ID": "123", "CI_HARNESS_COMMIT": "f" * 40,
@@ -1387,6 +1403,10 @@ class OfficialRegistryPinTests(unittest.TestCase):
 
 
 class WasmNameSectionTests(unittest.TestCase):
+    def setUp(self):
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
+
     """Pure synthetic producer contract; never executes bindgen or a WASM module."""
 
     def test_only_runtime_packaging_adds_pinned_metadata_flag(self):
@@ -1888,3 +1908,389 @@ class BindgenCandidatePresenceTests(BindgenDetachmentTests):
                     lane.detach_installed_bindgen(work, time.monotonic() + 10)
                 self.assertEqual(original, lane.sdk.file_identity(binary.lstat()))
                 self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
+
+
+class GeneratedSnippetTests(unittest.TestCase):
+    """Generated-shape fixtures; no Rust compiler, network or product execution."""
+
+    name = "snippets/openmates-browser-bindings-0123456789abcdef/inline0.js"
+
+    def setUp(self):
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
+
+    def files(self):
+        return {
+            lane.PACKAGE_FILES[0]: (
+                "import { settlePrimitive } from './" + self.name + "';\n"
+            ).encode()
+            + b"export default function init() { return new URL('openmates_browser_bg.wasm', import.meta.url); }",
+            lane.PACKAGE_FILES[1]: WASM,
+            lane.PACKAGE_FILES[2]: b"export function run(): void;",
+            lane.PACKAGE_FILES[3]: b"export const memory: WebAssembly.Memory;",
+            self.name: lane.SNIPPET_BYTES,
+        }
+
+    def write(self, folder, files):
+        folder.mkdir(mode=0o700)
+        for name, data in files.items():
+            target = folder / name
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            target.write_bytes(data)
+
+    def inputs(self):
+        return {lane.SNIPPET_SOURCE: lane.SNIPPET_SOURCE_SHA256}
+
+    def test_exact_bytes_path_source_and_inventory(self):
+        self.assertEqual(len(lane.SNIPPET_BYTES), 153)
+        self.assertEqual(
+            lane.sdk.sha(lane.SNIPPET_BYTES),
+            "05f5807b51b771eedfa18890a178a48327f22b86affbbe9ec629a7089c9b8cd6",
+        )
+        with TemporaryDirectory() as temp:
+            folder = Path(temp) / "package"
+            self.write(folder, self.files())
+            inventory = lane.package_inventory(folder, self.inputs())
+            self.assertEqual(
+                [row["path"] for row in inventory["files"]], sorted(self.files())
+            )
+            self.assertEqual(
+                inventory["rawBytes"], sum(map(len, self.files().values()))
+            )
+
+    def test_closed_path_schema_and_singleton(self):
+        for bad in (
+            "../inline0.js",
+            "/inline0.js",
+            "snippets/other-0123456789abcdef/inline0.js",
+            "snippets/openmates-browser-bindings-0123456789abcdeF/inline0.js",
+            "snippets/openmates-browser-bindings-0123456789abcdef/inline1.js",
+            "snippets/openmates-browser-bindings-0123456789abcdef/../inline0.js",
+            "snippets/openmates-browser-bindings-0123456789abcdef/deeper/inline0.js",
+            "snippets/openmates-browser-bindings-0123456789abcdef%2finline0.js",
+        ):
+            with self.subTest(bad=bad):
+                files = self.files()
+                files[bad] = files.pop(self.name)
+                self.assertFalse(lane.package_names(files))
+        files = self.files()
+        files[self.name.replace("0123456789abcdef", "fedcba9876543210")] = (
+            lane.SNIPPET_BYTES
+        )
+        self.assertFalse(lane.package_names(files))
+
+    def test_resealed_wrong_content_imports_and_source_refused(self):
+        for fault in (
+            "body",
+            "source",
+            "absent-source",
+            "missing-snippet",
+            "wrong-path",
+            "duplicate-import",
+            "remote",
+            "dynamic",
+            "reexport",
+            "extra-local",
+        ):
+            with self.subTest(fault=fault):
+                files, inputs = self.files(), self.inputs()
+                if fault == "body":
+                    files[self.name] += b"export const surprise = 1;"
+                elif fault == "source":
+                    inputs[lane.SNIPPET_SOURCE] = "0" * 64
+                elif fault == "absent-source":
+                    inputs = {}
+                elif fault == "missing-snippet":
+                    del files[self.name]
+                elif fault == "wrong-path":
+                    files[lane.PACKAGE_FILES[0]] = files[lane.PACKAGE_FILES[0]].replace(
+                        b"0123456789abcdef", b"fedcba9876543210"
+                    )
+                elif fault == "duplicate-import":
+                    files[lane.PACKAGE_FILES[0]] *= 2
+                else:
+                    additions = {
+                        "remote": b"import x from 'https://example.invalid/x.js';",
+                        "dynamic": b"import('https://example.invalid/x.js')",
+                        "reexport": b"export { x } from './x.js';",
+                        "extra-local": b"import x from './helper.js';",
+                    }
+                    files[lane.PACKAGE_FILES[0]] += additions[fault]
+                self.assertFalse(lane.package_modules(files, inputs))
+                report, receipt, job, kwargs = WasmReceiptTests().fixture()
+                kwargs["expected_inputs"].update(inputs)
+                manifest = json.loads(kwargs["package_manifest"])
+                manifest["inputs"] = kwargs["expected_inputs"]
+                rows = [
+                    {"path": name, "sha256": lane.sdk.sha(data), "rawBytes": len(data)}
+                    for name, data in sorted(files.items())
+                ]
+                inventory = {
+                    "files": rows,
+                    "rawBytes": sum(map(len, files.values())),
+                    "inventorySha256": lane.sdk.sha(
+                        json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+                    ),
+                }
+                manifest["inventory"] = inventory
+                raw = json.dumps(manifest, sort_keys=True).encode()
+                receipt["package"].update(
+                    manifestSha256=lane.sdk.sha(raw),
+                    inventorySha256=inventory["inventorySha256"],
+                )
+                self.assertFalse(
+                    retrieval.valid_browser_package(
+                        raw,
+                        files,
+                        receipt,
+                        job,
+                        "f" * 40,
+                        kwargs["expected_inputs"],
+                        "e" * 40,
+                    )
+                )
+
+    def test_directory_file_links_modes_and_extra_entries_refused(self):
+        for fault in (
+            "file-symlink",
+            "directory-symlink",
+            "hardlink",
+            "writable-file",
+            "writable-dir",
+            "extra-dir",
+            "extra-file",
+            "empty-snippets",
+        ):
+            with self.subTest(fault=fault), TemporaryDirectory() as temp:
+                root = Path(temp)
+                folder = root / "package"
+                self.write(folder, self.files())
+                target = folder / self.name
+                if fault == "file-symlink":
+                    data = target.read_bytes()
+                    target.unlink()
+                    outside = root / "outside.js"
+                    outside.write_bytes(data)
+                    target.symlink_to(outside)
+                elif fault == "directory-symlink":
+                    parent = target.parent
+                    outside = root / "outside"
+                    parent.rename(outside)
+                    parent.symlink_to(outside, target_is_directory=True)
+                elif fault == "hardlink":
+                    os.link(target, root / "linked.js")
+                elif fault == "writable-file":
+                    target.chmod(0o620)
+                elif fault == "writable-dir":
+                    target.parent.chmod(0o720)
+                elif fault == "extra-dir":
+                    (folder / "extra").mkdir()
+                elif fault == "extra-file":
+                    (target.parent / "inline1.js").write_bytes(b"extra")
+                elif fault == "empty-snippets":
+                    target.unlink()
+                    target.parent.rmdir()
+                with self.assertRaises((lane.sdk.Refused, OSError)):
+                    lane.package_inventory(folder, self.inputs())
+
+    def test_missing_required_source_snippet_and_legacy_flat_are_distinct(self):
+        files = {
+            name: data
+            for name, data in self.files().items()
+            if name in lane.PACKAGE_FILES
+        }
+        files[lane.PACKAGE_FILES[0]] = b"export default function init() {}"
+        self.assertTrue(lane.package_modules(files, {}))
+        self.assertFalse(lane.package_modules(files, self.inputs()))
+
+    def test_workflow_exports_only_closed_snippet_shape(self):
+        import yaml
+
+        steps = next(
+            iter(
+                yaml.safe_load(
+                    (ROOT / ".github/workflows/isolated-tests.yml").read_text()
+                )["jobs"].values()
+            )
+        )["steps"]
+        paths = next(
+            step
+            for step in steps
+            if step.get("with", {}).get("name") == "isolated-test-results"
+        )["with"]["path"].splitlines()
+        self.assertIn(
+            "subject/test-results/rust-wasm/package/snippets/openmates-browser-bindings-????????????????/inline0.js",
+            paths,
+        )
+        self.assertNotIn("subject/test-results/rust-wasm/**", paths)
+
+    def test_generated_snippet_handoff_and_managed_retrieval(self):
+        original = WasmReceiptTests.fixture
+
+        def generated(_self):
+            report, receipt, job, kwargs = original(_self)
+            inputs = kwargs["expected_inputs"]
+            inputs.update(self.inputs())
+            receipt["inputSetSha256"] = lane.sdk.sha(
+                json.dumps(inputs, sort_keys=True).encode()
+            )
+            files = self.files()
+            rows = [
+                {"path": name, "sha256": lane.sdk.sha(data), "rawBytes": len(data)}
+                for name, data in sorted(files.items())
+            ]
+            inventory = {
+                "files": rows,
+                "rawBytes": sum(map(len, files.values())),
+                "inventorySha256": lane.sdk.sha(
+                    json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+                ),
+            }
+            manifest = json.loads(kwargs["package_manifest"])
+            manifest.update(
+                inputs=inputs,
+                inputSetSha256=receipt["inputSetSha256"],
+                inventory=inventory,
+            )
+            raw = json.dumps(manifest, sort_keys=True).encode()
+            receipt["package"].update(
+                manifestSha256=lane.sdk.sha(raw),
+                inventorySha256=inventory["inventorySha256"],
+            )
+            kwargs.update(package_manifest=raw, package_files=files)
+            return report, receipt, job, kwargs
+
+        with patch.object(WasmReceiptTests, "fixture", generated):
+            BrowserPackagingTests().test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes()
+            BrowserPackagingTests().test_managed_result_retrieves_only_attested_real_package_inventory()
+
+
+DEPENDENCY_ATTACKS = [
+    "export { x } from /*comment*/ './other.js';",
+    "export /* ; */ { x } from './other.js';",
+    "export {\n other\n} from './other.js';",
+    "export *\nfrom './other.js';",
+    "export * as other from /*comment*/ './other.js';",
+    "export /* a */ { /* b */ x /* c */ } /* d */ from /* e */ './other.js';",
+    "export * from // comment\n'./other.js';",
+    "export * from // comment\r'./other.js';",
+    "export * from // comment\u2028'./other.js';",
+    "export * from // comment\u2029'./other.js';",
+    "const rx = /from//\u2028'./other.js'/;",
+    "const rx = /from//\u2029'./other.js'/;",
+    "import/* comment */('./other.js');",
+    "import\n('./other.js');",
+    "import(`./${'other'}.js`);",
+    "const value = `${import('./other.js')}`;",
+    "const value = `${`${import('./other.js')}`}`;",
+    "import('./\\u006fther.js');",
+    "imp\\u006frt('./other.js');",
+    "export {x} fr\\u006fm './other.js';",
+    "export * from /* unterminated",
+    "import.meta.resolve('./other.js');",
+    "import.meta.urlSuffix;",
+    "export { x } from\ufeff'./other.js';",
+]
+
+
+class ModuleDependencyTokenizerTests(unittest.TestCase):
+    def setUp(self):
+        previous = os.umask(0o077)
+        self.addCleanup(os.umask, previous)
+
+    def reseal(self, files, inputs):
+        report, receipt, job, kwargs = WasmReceiptTests().fixture()
+        kwargs["expected_inputs"].update(inputs)
+        receipt["inputSetSha256"] = lane.sdk.sha(
+            json.dumps(kwargs["expected_inputs"], sort_keys=True).encode()
+        )
+        rows = [
+            {"path": name, "sha256": lane.sdk.sha(data), "rawBytes": len(data)}
+            for name, data in sorted(files.items())
+        ]
+        inventory = {
+            "files": rows,
+            "rawBytes": sum(map(len, files.values())),
+            "inventorySha256": lane.sdk.sha(
+                json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+            ),
+        }
+        manifest = json.loads(kwargs["package_manifest"])
+        manifest.update(
+            inputs=kwargs["expected_inputs"],
+            inputSetSha256=receipt["inputSetSha256"],
+            inventory=inventory,
+        )
+        raw = json.dumps(manifest, sort_keys=True).encode()
+        receipt["package"].update(
+            manifestSha256=lane.sdk.sha(raw),
+            inventorySha256=inventory["inventorySha256"],
+        )
+        kwargs.update(package_manifest=raw, package_files=files)
+        return report, receipt, job, kwargs
+
+    def test_resealed_dependencies_refused_in_producer_inventory_and_independent_results(
+        self,
+    ):
+        helper = GeneratedSnippetTests()
+        for attack in DEPENDENCY_ATTACKS:
+            for legacy in (False, True):
+                with self.subTest(attack=attack, legacy=legacy):
+                    files, inputs = helper.files(), helper.inputs()
+                    if legacy:
+                        del files[helper.name]
+                        inputs = {}
+                        files[lane.PACKAGE_FILES[0]] = (
+                            b"export default function init() {}"
+                        )
+                    files[lane.PACKAGE_FILES[0]] += b"\n" + attack.encode()
+                    self.assertFalse(lane.package_modules(files, inputs))
+                    with TemporaryDirectory() as temp:
+                        folder = Path(temp) / "package"
+                        helper.write(folder, files)
+                        with self.assertRaises(lane.sdk.Refused):
+                            lane.package_inventory(folder, inputs)
+                    values = self.reseal(files, inputs)
+                    self.assertFalse(WasmReceiptTests().valid(values))
+
+    def test_every_ecmascript_whitespace_codepoint_is_trivia(self):
+        for space in lane.MODULE_SPACE:
+            with self.subTest(codepoint=hex(ord(space))):
+                self.assertFalse(
+                    lane.closed_module_dependencies(
+                        ("export * from" + space + "'./other.js';").encode()
+                    )
+                )
+        for newline in lane.MODULE_LINES:
+            self.assertFalse(
+                lane.closed_module_dependencies(
+                    ("export * from//ignored" + newline + "'./other.js';").encode()
+                )
+            )
+
+    def test_generated_local_exports_and_import_meta_url_are_preserved(self):
+        valid = b"export class Client {} export function init() { return new URL('core.wasm', import.meta.url); } export { init as localInit };"
+        valid += b"const values = Array.from([]); throw new Error('Cannot invoke closure from previous WASM instance');"
+        self.assertTrue(lane.closed_module_dependencies(valid))
+        self.assertTrue(
+            lane.closed_module_dependencies(
+                b"// restored from source\nexport const value = 'from previous instance';"
+            )
+        )
+        # This guard proves dependency closure, not general JS syntax validity.
+        self.assertTrue(lane.closed_module_dependencies(b"export {"))
+
+    def test_conservative_literal_lookalikes_and_unterminated_trivia_fail_closed(self):
+        for text in (
+            "const s = \"import('./text')\";",
+            "// import in harmless comment",
+            "const s = \"from './text'\";",
+            "const r = /from './text'/;",
+            "const s = `from './text'`;",
+            "from /* missing",
+            "const s='\\u0061';",
+        ):
+            self.assertFalse(lane.closed_module_dependencies(text.encode()), text)
+        # Repeated overlapping trivia scans are bounded by a linear budget.
+        text = "from /*" + "from /*" * 1000 + "*/ local;"
+        self.assertFalse(lane.closed_module_dependencies(text.encode()))
