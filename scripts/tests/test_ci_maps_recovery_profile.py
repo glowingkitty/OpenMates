@@ -108,6 +108,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     ({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}, True),
 ])
 @pytest.mark.parametrize("spec_name", [
+    "stop-new-chat-draft.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "rust-core-browser-session.spec.ts",
     "maps-discovery-chat.spec.ts",
@@ -252,6 +253,7 @@ def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("specs", [
+    ["stop-new-chat-draft.spec.ts"],
     ["skill-web-search.spec.ts", "connection-resilience.spec.ts"],
     ["cli-rust-core-essential.spec.ts"],
     ["cli-rust-core-essential.spec.ts", "connection-resilience.spec.ts"],
