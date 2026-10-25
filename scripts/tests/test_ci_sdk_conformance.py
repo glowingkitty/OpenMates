@@ -153,7 +153,7 @@ def test_workflow_and_runner_do_not_enable_stack_or_publication():
     # mode uses 3.13. Neither a missing mode nor a broader branch is admitted.
     assert python_setup[0]["with"]["python-version"] == (
         "${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || "
-        "inputs.mode == 'rust-wasm') && '3.12' || '3.13' }}")
+        "inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev') && '3.12' || '3.13' }}")
     assert "inputs.mode != 'sdk-conformance'" in workflow
     assert "CI_SDK_DEADLINE_MONOTONIC={started + 2700}" in workflow
     clocks = [(index, step) for index, step in enumerate(steps)
@@ -1367,11 +1367,12 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "2188b15ff7d3ee2690bafc18dd82a175f8c3e1a1c7ac890dab7b3106ae4cfcbd"
+    assert sdk.sha(live_bytes) == "036118443e4ae84c808bb4d0e3163f6dfa97222c72a0b87a3c1eaf70bef48f6d"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
+    trust = restore_before_cache_settlement_registration(trust)
     assert {k: len(trust[k]) for k in approval["afterCounts"]} == {'programs': 263, 'contracts': 67, 'plan': 87, 'gaps': 174}
-    assert approval["approvedCurrentSha256"] == sdk.sha(live_bytes)
+    assert approval["approvedCurrentSha256"] == sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode())
     assert trust["gaps"] and approval["releaseEligible"] is False
     assert {k: v for k, v in trust.items() if k not in ("programs", "contracts", "plan", "gaps")} == approval["unrelatedMetadata"]
 
@@ -1465,6 +1466,7 @@ def test_current_mechanical_compile_fix_preserves_exact_prior246_authority():
 
 
 def restore_before_cookie_registration(trust, approval):
+    trust = restore_before_cache_settlement_registration(trust)
     witness = approval["priorCompileFix246Witness"]
     prior = copy.deepcopy(trust)
     for bucket in ("programs", "contracts"):
@@ -1488,3 +1490,31 @@ def restore_before_cookie_registration(trust, approval):
     assert witness["trustSha256"] == "0918a67a01e2a5f7570f227fedca8c13d657eba9094e4871944035eb7b0fbd90"
     assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == witness["trustSha256"]
     return prior
+
+
+def restore_before_cache_settlement_registration(trust):
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-source-delta.json", "68c1a85b9c676b9c66c80a0d67ccd7f953f665834071e4a87c7db37305f67ad5")
+    restored = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert restored[bucket][path] == change["after"]
+            if change["before"] is None:
+                del restored[bucket][path]
+            else:
+                restored[bucket][path] = change["before"]
+    assert restored["gaps"][-3:] == delta["gapAdded"]
+    del restored["gaps"][-3:]
+    assert sdk.sha((json.dumps(restored, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return restored
+
+
+def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-source-delta.json", "68c1a85b9c676b9c66c80a0d67ccd7f953f665834071e4a87c7db37305f67ad5")
+    live = sdk.load_trust()
+    assert {k: len(live[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
+    prior = restore_before_cache_settlement_registration(live)
+    assert live["plan"] == prior["plan"] and len(prior["plan"]) == 87
+    assert live["gaps"][:174] == prior["gaps"] and len(live["gaps"]) == 177
+    assert {k: v for k,v in live.items() if k not in ("programs","contracts","gaps")} == {k: v for k,v in prior.items() if k not in ("programs","contracts","gaps")}
+    assert delta["releaseEligible"] is False
+    assert all("openmates-tui-native" not in item["path"] for item in delta["reviewedSources"])

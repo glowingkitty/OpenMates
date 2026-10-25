@@ -1,0 +1,325 @@
+{
+  "afterCounts": {
+    "contracts": 69,
+    "gaps": 177,
+    "plan": 87,
+    "programs": 270
+  },
+  "afterSha256": "036118443e4ae84c808bb4d0e3163f6dfa97222c72a0b87a3c1eaf70bef48f6d",
+  "beforeCounts": {
+    "contracts": 67,
+    "gaps": 174,
+    "plan": 87,
+    "programs": 263
+  },
+  "beforeSha256": "2188b15ff7d3ee2690bafc18dd82a175f8c3e1a1c7ac890dab7b3106ae4cfcbd",
+  "gapAdded": [
+    "session.cache-preferred-settlement.v1 [rust] partial: Private source implementation and fake-native facade wrapper checks are not compiled direct-Rust/NAPI/PyO3 execution or three-SDK behavior proof. Genuine cross-SDK saved-state CAS/ACK races, cancellation/owner/key/Team/expiry/denial revocation at all stages and final foreign output, canonical/offline fallback, opaque-resource lifecycle and comparative performance remain unverified. Cache count or cached rows never grant canonical history, export, recovery, freshness or mutation authority. Publication remains blocked.",
+    "session.cache-preferred-settlement.v1 [npm] partial: Private source implementation and fake-native facade wrapper checks are not compiled direct-Rust/NAPI/PyO3 execution or three-SDK behavior proof. Genuine cross-SDK saved-state CAS/ACK races, cancellation/owner/key/Team/expiry/denial revocation at all stages and final foreign output, canonical/offline fallback, opaque-resource lifecycle and comparative performance remain unverified. Cache count or cached rows never grant canonical history, export, recovery, freshness or mutation authority. Publication remains blocked.",
+    "session.cache-preferred-settlement.v1 [python] partial: Private source implementation and fake-native facade wrapper checks are not compiled direct-Rust/NAPI/PyO3 execution or three-SDK behavior proof. Genuine cross-SDK saved-state CAS/ACK races, cancellation/owner/key/Team/expiry/denial revocation at all stages and final foreign output, canonical/offline fallback, opaque-resource lifecycle and comparative performance remain unverified. Cache count or cached rows never grant canonical history, export, recovery, freshness or mutation authority. Publication remains blocked."
+  ],
+  "metadataUnchanged": true,
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "e0901e5900e72946da6beb61c1c0baaeff13ffb14f2a2af904a772ff48416097",
+        "before": "daeb4619309d27e90c5c2f83345175884f2b4b3f40160b1dc618c849111c9010"
+      },
+      "tests/sdk-conformance/fixtures/session-cache-settlement-wrappers.json": {
+        "after": "cfc7634d7b4a0494f468c08af524b0f5e0d82de4e9dcfd66c7d121ce4fba11c6",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/session-cache-settlement.schema.json": {
+        "after": "208958ab2b8d2e859568359931f9b8b59ac3f976b4d169148a384d2c239f1770",
+        "before": null
+      }
+    },
+    "programs": {
+      "frontend/packages/openmates-cli/src/sdkEssential.ts": {
+        "after": "7344b70cdc5fe110d851d376145b35c4512600f9b6d73f0e6f779ec7af6a5880",
+        "before": null
+      },
+      "frontend/packages/openmates-cli/src/sdkSession.ts": {
+        "after": "3fe1440135cca3486d06a566f7f372bb8c0f3125297b09a6f004856f8c45641d",
+        "before": "cb3ca15bbdffc1e475704970b64d1214703214e67cbe716f3affc6f486ca861d"
+      },
+      "packages/openmates-python/openmates/essential_session.py": {
+        "after": "15ddd6cbec741f65a5d9b9f2577b8f794d31d6a0d5329380e05fc2c10ae29415",
+        "before": null
+      },
+      "packages/openmates-python/openmates/session_client.py": {
+        "after": "4e0631356ecace1201bf937916bcf45b9dadb33c6be1f35c5ff6da96634e4c39",
+        "before": "3cc455cafba3baa372cde0036e4933cee216114b330491d92718141f6ade3ade"
+      },
+      "packages/openmates-rust/src/client.rs": {
+        "after": "6c12b509d5c0762de24d47d3a56ee7faf92d2204d158d40bbf239d900013b094",
+        "before": "7a00eec8137384b77f5e0fbabc8311517d4b773f89da08f814a772c4591316a2"
+      },
+      "packages/openmates-rust/src/client/cache_settlement.rs": {
+        "after": "c38d2817b74c33184f875f9d8aae79a6d4c15ca2045d6db94af4d9b5401b83da",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/cached_view.rs": {
+        "after": "cd978df08a4e6aac35489a8ce3002c867b22086496ba4d791a3031c7bc2d6850",
+        "before": "1c1943ddb7fbf7129b7998f6fa1d5aa219fae7f458f39a8ede97606aab79802c"
+      },
+      "packages/openmates-rust/src/client/cached_view_tests.rs": {
+        "after": "493188098ee2a681df26f62c8b75f78ab103bd132bb4eb9a44e5246b402aae39",
+        "before": "717aa915dbefdc12e67218c308bae27cc6aa389965b6746f7c7d3eee001bc43e"
+      },
+      "packages/openmates-rust/src/client/credentials.rs": {
+        "after": "85d3d8f818a0e486fad72ee07ded87d3d6b9e11c9e1e39f5f7e6edf9c68add4f",
+        "before": "1d695d3b260a0555b25647b3c7d18ecb2b71d3de9f8c4d22f1575fa1f824b11a"
+      },
+      "packages/openmates-rust/src/client/monitor.rs": {
+        "after": "ab45b63655dc664dc9afdfb062c4b53c158cfa2359b1eb994a9bbdecada5c2b5",
+        "before": "89b7afa31e62cd4e57a4432e4766497fcd86f821d8f1c25f47480bb7b37e6bd0"
+      },
+      "packages/openmates-rust/src/client/monitor_live_tests.rs": {
+        "after": "637dbedb945f2e7985e311480dd1bd529ee37cf4b8e8f3e6dd83790b2fc7301f",
+        "before": "99c3313207b9dba8ab80581931142f195f74b32557c2441a0f5eacc6caf9a12c"
+      },
+      "packages/openmates-rust/src/client/plaintext.rs": {
+        "after": "9cfaf17a98fb6f478461756e4c3be7606818f333dc083acd838d1e3a77398cee",
+        "before": "c6fff3dd35b1bc38095f28d3fd3b2edf943bb511e6a303b779fe73d7e8d36ac6"
+      },
+      "packages/openmates-rust/src/client/plaintext_tests.rs": {
+        "after": "9baa313b421f797e31feba222325c806005cac06d0fd0dc81149fa5d0c054d5f",
+        "before": "2a18efcf678e434c44de954686333bd8ccd19a6c5157b99880aa1bb9ebebb56c"
+      },
+      "packages/openmates-rust/src/client/sync.rs": {
+        "after": "98ef12982e9d158357c0c406707ab20176c4461a81c4369f46dbb3502df0405c",
+        "before": "72eade9a367b71d60fc7082ab43fdb85026ab6947b66faac03f1ba0cf9879b1a"
+      },
+      "packages/openmates-rust/src/client/sync_capability.rs": {
+        "after": "2653e408d82f98ea8498950bb3338a3bc5876de9bc5e2a6ba7043b0a1cfdc59d",
+        "before": "ba4ea3ddffbf916f715beeabd9aa2b9600501a49b58bf41d5b0a5b001d77d2ec"
+      },
+      "packages/openmates-rust/src/client/sync_windows.rs": {
+        "after": "b979a1d416b939447de11353a7437417c3a24fe86050befd8178023e8b789fdb",
+        "before": "e1cb25fc68d3fde0421f2fb81ae7e48f076cfc7894b367cfd38824d8b9120c47"
+      },
+      "packages/openmates-session-bindings/src/node.rs": {
+        "after": "586baa60e1d006ad1a49ed41e8379f12441f2484828d0ecce1342529b293e4f9",
+        "before": "06224e96e8d707f3b8d1b5c7802d558cc76a8b3a8c1d91f8de232619e1fd0dfe"
+      },
+      "packages/openmates-session-bindings/src/python.rs": {
+        "after": "ae7ff8b82cabc12cc6d22b1b32dd607ba83129db746b85b78de44c559570353a",
+        "before": "5a789d57ed3bcef94baaf5286308293ee657821278b7a782769c06201258c01c"
+      },
+      "packages/openmates-session-bindings/src/session.rs": {
+        "after": "13023a4318624adbf444e865a0b12fed222b56809bf1227ddb195a5ed8744e61",
+        "before": "178a996ae30f5a083f9d80d9366c8b366a574396c7b86926bb4aa02380e91096"
+      },
+      "packages/openmates-session-bindings/src/session_cache_settlement.rs": {
+        "after": "77f3a0a35f34bf3f27d2f82907eab7e2da2d311d6ca17fcfd550be284c89d5e6",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/session_cache_settlement_tests.rs": {
+        "after": "3cd09acbde3cab44d28a023adb79aa46ddc9718ad1246487a427a182fa23d64c",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/session_essential.rs": {
+        "after": "cba832970ce8a41d566de4cfe806ebc2419741eb837e4149722e24237f878e23",
+        "before": "edb3535546c7242eb0d88d25bbcd28ff485dcbc0c82fb9fb4c7d195c068dcc57"
+      },
+      "tests/sdk-conformance/test_session_cache_settlement_wrappers.cjs": {
+        "after": "129ba8c97d7449d51bec998e556a2e4ccead6f3099b810c919d224cf53fab9b6",
+        "before": null
+      },
+      "tests/sdk-conformance/test_session_cache_settlement_wrappers.py": {
+        "after": "c34b0745a1cacbb6fcb267a2ada5a48739de90b56aba77599c4dabc723d66789",
+        "before": null
+      }
+    }
+  },
+  "planUnchanged": true,
+  "private": true,
+  "releaseEligible": false,
+  "review": "Root source CLEAR coreV3 ba8ece and bridgeV4 9dc93c9f; exact facades V3 reviewed closure. No compile/native execution acceptance.",
+  "reviewedSources": [
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/cache_settlement.rs",
+      "sha256": "c38d2817b74c33184f875f9d8aae79a6d4c15ca2045d6db94af4d9b5401b83da",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/cached_view.rs",
+      "sha256": "cd978df08a4e6aac35489a8ce3002c867b22086496ba4d791a3031c7bc2d6850",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/cached_view_tests.rs",
+      "sha256": "493188098ee2a681df26f62c8b75f78ab103bd132bb4eb9a44e5246b402aae39",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/credentials.rs",
+      "sha256": "85d3d8f818a0e486fad72ee07ded87d3d6b9e11c9e1e39f5f7e6edf9c68add4f",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/monitor.rs",
+      "sha256": "ab45b63655dc664dc9afdfb062c4b53c158cfa2359b1eb994a9bbdecada5c2b5",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/monitor_live_tests.rs",
+      "sha256": "637dbedb945f2e7985e311480dd1bd529ee37cf4b8e8f3e6dd83790b2fc7301f",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/plaintext.rs",
+      "sha256": "9cfaf17a98fb6f478461756e4c3be7606818f333dc083acd838d1e3a77398cee",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/plaintext_tests.rs",
+      "sha256": "9baa313b421f797e31feba222325c806005cac06d0fd0dc81149fa5d0c054d5f",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/sync.rs",
+      "sha256": "98ef12982e9d158357c0c406707ab20176c4461a81c4369f46dbb3502df0405c",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/sync_capability.rs",
+      "sha256": "2653e408d82f98ea8498950bb3338a3bc5876de9bc5e2a6ba7043b0a1cfdc59d",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client/sync_windows.rs",
+      "sha256": "b979a1d416b939447de11353a7437417c3a24fe86050befd8178023e8b789fdb",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-rust/src/client.rs",
+      "sha256": "6c12b509d5c0762de24d47d3a56ee7faf92d2204d158d40bbf239d900013b094",
+      "sourceManifest": "target/private-staging/tui-cache-preferred-settlement-v3-20261025/manifest.json",
+      "sourcePatchSha256": "ba8ecef76f8d8dac211417be8411d7082f110ccb2bb19b9ad272b50054ee68a9"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/node.rs",
+      "sha256": "586baa60e1d006ad1a49ed41e8379f12441f2484828d0ecce1342529b293e4f9",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/python.rs",
+      "sha256": "ae7ff8b82cabc12cc6d22b1b32dd607ba83129db746b85b78de44c559570353a",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/session.rs",
+      "sha256": "13023a4318624adbf444e865a0b12fed222b56809bf1227ddb195a5ed8744e61",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/session_cache_settlement.rs",
+      "sha256": "77f3a0a35f34bf3f27d2f82907eab7e2da2d311d6ca17fcfd550be284c89d5e6",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/session_cache_settlement_tests.rs",
+      "sha256": "3cd09acbde3cab44d28a023adb79aa46ddc9718ad1246487a427a182fa23d64c",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-session-bindings/src/session_essential.rs",
+      "sha256": "cba832970ce8a41d566de4cfe806ebc2419741eb837e4149722e24237f878e23",
+      "sourceManifest": "target/private-staging/sdk-cache-settlement-registration-20261025/implementation-v4/manifest.json",
+      "sourcePatchSha256": "9dc93c9f950edd3d4e26e4f6df0267f5ba22be2808272d26b30e6b859c0f27c8"
+    },
+    {
+      "bucket": "programs",
+      "path": "frontend/packages/openmates-cli/src/sdkSession.ts",
+      "sha256": "3fe1440135cca3486d06a566f7f372bb8c0f3125297b09a6f004856f8c45641d",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "programs",
+      "path": "frontend/packages/openmates-cli/src/sdkEssential.ts",
+      "sha256": "7344b70cdc5fe110d851d376145b35c4512600f9b6d73f0e6f779ec7af6a5880",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-python/openmates/session_client.py",
+      "sha256": "4e0631356ecace1201bf937916bcf45b9dadb33c6be1f35c5ff6da96634e4c39",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "programs",
+      "path": "packages/openmates-python/openmates/essential_session.py",
+      "sha256": "15ddd6cbec741f65a5d9b9f2577b8f794d31d6a0d5329380e05fc2c10ae29415",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/fixtures/session-cache-settlement-wrappers.json",
+      "sha256": "cfc7634d7b4a0494f468c08af524b0f5e0d82de4e9dcfd66c7d121ce4fba11c6",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "contracts",
+      "path": "tests/sdk-conformance/schemas/session-cache-settlement.schema.json",
+      "sha256": "208958ab2b8d2e859568359931f9b8b59ac3f976b4d169148a384d2c239f1770",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/test_session_cache_settlement_wrappers.py",
+      "sha256": "c34b0745a1cacbb6fcb267a2ada5a48739de90b56aba77599c4dabc723d66789",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    },
+    {
+      "bucket": "programs",
+      "path": "tests/sdk-conformance/test_session_cache_settlement_wrappers.cjs",
+      "sha256": "129ba8c97d7449d51bec998e556a2e4ccead6f3099b810c919d224cf53fab9b6",
+      "sourceManifest": "target/private-staging/sdk-cache-facades-v3-20261025/manifest.json",
+      "sourcePatchSha256": "73c533a6b76ca48c0ad7ab76b28a15bea9d2403b58b40ca411b1ba1339191c13"
+    }
+  ],
+  "schemaVersion": 1
+}
