@@ -127,6 +127,122 @@ def copy_compiled_wasm(artifact, destination):
     return metadata
 
 
+def detach_installed_bindgen(work, deadline):
+    """Detach only the closed Cargo install/build hardlink set, before execution.
+
+    Unknown links are never adopted. The provenance reader below still requires
+    nlink==1; this preparation cannot make an arbitrary hardlink admissible.
+    """
+    sdk.require(work.is_absolute() and work.resolve() == work, "packaging")
+    binary = work / ".ci-bindgen/bin/wasm-bindgen"
+    original = binary.lstat()
+    if original.st_nlink == 1:
+        return
+    sdk.require(original.st_nlink in {2, 3} and stat.S_ISREG(original.st_mode)
+                and original.st_uid == os.getuid() and not original.st_mode & 0o022
+                and original.st_mode & 0o111 and 0 < original.st_size <= 64 * 1024**2, "packaging")
+    directories = [work, work / ".ci-bindgen", binary.parent,
+                   work / ".ci-bindgen-target", work / ".ci-bindgen-target/release",
+                   work / ".ci-bindgen-target/release/deps"]
+    directory_ids = []
+    for directory in directories:
+        before = directory.lstat()
+        sdk.require(directory.resolve() == directory and stat.S_ISDIR(before.st_mode)
+                    and before.st_uid == os.getuid() and not before.st_mode & 0o022, "packaging")
+        directory_ids.append((before.st_dev, before.st_ino, before.st_mode, before.st_uid, before.st_gid))
+
+    def current():
+        sdk.require(time.monotonic() < deadline, "deadline")
+        for directory, expected in zip(directories, directory_ids):
+            now = directory.lstat()
+            sdk.require(directory.resolve() == directory
+                        and (now.st_dev, now.st_ino, now.st_mode, now.st_uid, now.st_gid) == expected, "packaging")
+
+    current()
+    aliases = [work / ".ci-bindgen-target/release/wasm-bindgen"]
+    with os.scandir(directories[-1]) as entries:
+        for index, entry in enumerate(entries):
+            sdk.require(index < 4096, "packaging")
+            if re.fullmatch(r"wasm_bindgen-[0-9a-f]{16}", entry.name):
+                aliases.append(Path(entry.path))
+                sdk.require(len(aliases) <= 2, "packaging")
+    sdk.require(original.st_nlink == len(aliases) + 1, "packaging")
+    for alias in aliases:
+        sdk.require(alias.resolve() == alias
+                    and sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
+    # Keep the source descriptor open through publication, so path replacement
+    # cannot conceal source mutation or an unexpected surviving link.
+    source_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    temporary = binary.with_name(".wasm-bindgen-detached")
+    copied = None
+    directory_fd = None
+    try:
+        sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        data = sdk.regular(binary)
+        digest = sdk.sha(data)
+        current()
+        sdk.require(sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        directory_fd = os.open(binary.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        sdk.require((os.fstat(directory_fd).st_dev, os.fstat(directory_fd).st_ino) == directory_ids[2][:2], "packaging")
+        fd = os.open(temporary.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o700, dir_fd=directory_fd)
+        copied = os.fstat(fd)
+        with os.fdopen(fd, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o700)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            copied = os.fstat(stream.fileno())
+        sdk.require(stat.S_ISREG(copied.st_mode) and copied.st_uid == os.getuid()
+                    and copied.st_mode & 0o777 == 0o700 and copied.st_nlink == 1
+                    and (copied.st_dev, copied.st_ino) != (original.st_dev, original.st_ino)
+                    and copied.st_size == original.st_size, "packaging")
+        sdk.require(sdk.sha(sdk.regular(temporary)) == digest
+                    and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
+        current()
+        sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
+                    and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original), "packaging")
+        for alias in aliases:
+            sdk.require(alias.resolve() == alias
+                        and sdk.file_identity(alias.lstat()) == sdk.file_identity(original)
+                        and sdk.sha(sdk.regular(alias)) == digest, "packaging")
+        current()
+        sdk.require(sdk.file_identity(binary.lstat()) == sdk.file_identity(original)
+                    and sdk.file_identity(os.fstat(source_fd)) == sdk.file_identity(original)
+                    and sdk.file_identity(temporary.lstat()) == sdk.file_identity(copied), "packaging")
+        for alias in aliases:
+            sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(original), "packaging")
+        os.replace(temporary.name, binary.name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+        os.fsync(directory_fd)
+        current()
+        installed = binary.lstat()
+        sdk.require((installed.st_dev, installed.st_ino, installed.st_size, installed.st_mode,
+                     installed.st_uid, installed.st_gid, installed.st_nlink, installed.st_mtime_ns)
+                    == (copied.st_dev, copied.st_ino, copied.st_size, copied.st_mode,
+                        copied.st_uid, copied.st_gid, 1, copied.st_mtime_ns)
+                    and sdk.sha(sdk.regular(binary)) == digest, "packaging")
+        remaining = os.fstat(source_fd)
+        sdk.require((remaining.st_dev, remaining.st_ino, remaining.st_size, remaining.st_mode,
+                     remaining.st_uid, remaining.st_gid, remaining.st_nlink, remaining.st_mtime_ns)
+                    == (original.st_dev, original.st_ino, original.st_size, original.st_mode,
+                        original.st_uid, original.st_gid, original.st_nlink - 1, original.st_mtime_ns)
+                    and remaining.st_ctime_ns >= original.st_ctime_ns, "packaging")
+        for alias in aliases:
+            sdk.require(sdk.file_identity(alias.lstat()) == sdk.file_identity(remaining)
+                        and sdk.sha(sdk.regular(alias)) == digest, "packaging")
+    finally:
+        os.close(source_fd)
+        if directory_fd is not None:
+            try:
+                pending = os.stat(temporary.name, dir_fd=directory_fd, follow_symlinks=False)
+                if copied is not None and (pending.st_dev, pending.st_ino) == (copied.st_dev, copied.st_ino):
+                    os.unlink(temporary.name, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            finally:
+                os.close(directory_fd)
+
+
 def locked_bindgen_version(work):
     lock = tomllib.loads(sdk.regular(work / ROOTS[-1] / "Cargo.lock").decode())
     versions = {row.get("version") for row in lock.get("package", []) if row.get("name") == "wasm-bindgen"}
@@ -159,7 +275,7 @@ PROVENANCE_SUBSTAGES = frozenset({
     "locked-version", "install", "source-discovery", "archive-discovery", "unique-count",
     "manifest-read", "manifest-identity", "registry-pin", "archive-read", "checksum-validation",
     "published-lock-read", "published-lock-root", "binary-stat", "binary-read", "binary-identity",
-    "before-version", "version-output", "package-output",
+    "binary-detach", "before-version", "version-output", "package-output",
 })
 PROVENANCE_CODES = frozenset({"packaging", "unsafe_file", "changed_file", "deadline", "artifact_reserve",
                              "stage_deadline", "child_failed", "diagnostic_bound", "unclassified"})
@@ -272,6 +388,8 @@ def produce_browser_package(runner, private, work, artifact, artifact_dir, recei
         locked_bindgen_version(work)
         diagnostic["substage"] = "install"
         runner.run("bindgen-install", commands()[3], seconds=STAGE_SECONDS[3])
+        diagnostic["substage"] = "binary-detach"
+        detach_installed_bindgen(work, runner.deadline)
         provenance = installed_bindgen_provenance(private, work, diagnostic)
         runner.env["PATH"] = str(work / ".ci-bindgen/bin") + os.pathsep + runner.env["PATH"]
         diagnostic["substage"] = "before-version"

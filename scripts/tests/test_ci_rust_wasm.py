@@ -289,6 +289,7 @@ class WasmRunTests(SyntheticPinTests):
             class FakeCommands:
                 def __init__(self, work, private, env, deadline):
                     self.work, self.private, self.env, self.steps = work, private, env, []
+                    self.deadline = deadline
                     observed.append((work, dict(env)))
                 def run(self, stage, command, **kwargs):
                     index = lane.STAGES.index(stage)
@@ -605,6 +606,16 @@ class BrowserPackagingTests(SyntheticPinTests):
                     if stage == "bindgen-install":
                         installed.append(command)
                         install_bindgen_fixture(private, work, script.encode())
+                        if variant in {"cargo-hardlink", "cargo-hardlink-deps"}:
+                            binary = work / ".ci-bindgen/bin/wasm-bindgen"
+                            release = work / ".ci-bindgen-target/release"
+                            (release / "deps").mkdir(parents=True)
+                            for folder in (binary.parent, binary.parent.parent, release,
+                                           release.parent, release / "deps"):
+                                folder.chmod(0o700)
+                            os.link(binary, release / "wasm-bindgen")
+                            if variant == "cargo-hardlink-deps":
+                                os.link(binary, release / "deps/wasm_bindgen-0123456789abcdef")
                         self.steps.append(json.loads(json.dumps(receipt["steps"][3])))
                         return logs / "bindgen-install.log"
                     result = super().run(stage, command, **options)
@@ -614,7 +625,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                     return result
             runner = ProducerRunner(work, logs, {"PATH": os.defpath, "HOME": str(private)}, time.monotonic() + 10)
             runner.steps = receipt["steps"][:3]
-            if variant != "valid":
+            if variant not in {"valid", "cargo-hardlink", "cargo-hardlink-deps"}:
                 with self.assertRaises(lane.sdk.Refused):
                     lane.produce_browser_package(runner, private, work, artifact, exported, receipt)
                 if variant == "lock-mismatch":
@@ -637,6 +648,11 @@ class BrowserPackagingTests(SyntheticPinTests):
 
     def test_real_producer_entry_executes_inert_tool_and_consumes_actual_input_bytes(self):
         self.actual_producer()
+
+    def test_real_producer_detaches_known_cargo_links_before_existing_provenance(self):
+        for variant in ("cargo-hardlink", "cargo-hardlink-deps"):
+            with self.subTest(variant=variant):
+                self.actual_producer(variant)
 
     def test_producer_refuses_lock_version_tool_version_and_unexpected_generated_content(self):
         for variant in ("lock-mismatch", "version-mismatch", "missing-types", "extra-helper", "tool-lock-tamper", "changed-input"):
@@ -1259,3 +1275,134 @@ class OfficialRegistryPinTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BindgenDetachmentTests(SyntheticPinTests):
+    """Owned inert files only; no Cargo, network, product or installed tools."""
+
+    def fixture(self, root, deps=False):
+        private, work = root / "private", root / "work"
+        private.mkdir(mode=0o700)
+        work.mkdir(mode=0o700)
+        binary = install_bindgen_fixture(private, work)
+        release = work / ".ci-bindgen-target/release"
+        (release / "deps").mkdir(parents=True)
+        for folder in (binary.parent, binary.parent.parent, release,
+                       release.parent, release / "deps"):
+            folder.chmod(0o700)
+        target = release / "wasm-bindgen"
+        os.link(binary, target)
+        if deps:
+            os.link(binary, release / "deps/wasm_bindgen-0123456789abcdef")
+        return private, work, binary, target
+
+    def test_known_two_and_three_links_get_fresh_private_inode_and_pass_original_guard(self):
+        for deps in (False, True):
+            with self.subTest(deps=deps), TemporaryDirectory() as directory:
+                private, work, binary, target = self.fixture(Path(directory), deps)
+                original = binary.lstat()
+                raw = binary.read_bytes()
+                # The original guard continues to reject exactly this hardlink.
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.installed_bindgen_provenance(private, work)
+                lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                fresh = binary.lstat()
+                self.assertNotEqual((fresh.st_dev, fresh.st_ino), (original.st_dev, original.st_ino))
+                self.assertEqual(fresh.st_nlink, 1)
+                self.assertEqual(fresh.st_mode & 0o777, 0o700)
+                self.assertEqual(binary.read_bytes(), raw)
+                self.assertEqual(target.read_bytes(), raw)
+                self.assertEqual(target.stat().st_nlink, original.st_nlink - 1)
+                self.assertFalse(binary.with_name(".wasm-bindgen-detached").exists())
+                proof = lane.installed_bindgen_provenance(private, work)
+                self.assertEqual(proof["binarySha256"], hashlib.sha256(raw).hexdigest())
+                self.assertEqual(proof["binaryIdentity"]["links"], 1)
+
+    def test_independent_install_is_not_rewritten(self):
+        with TemporaryDirectory() as directory:
+            private, work, binary, target = self.fixture(Path(directory))
+            target.unlink()
+            before = lane.sdk.file_identity(binary.lstat())
+            lane.detach_installed_bindgen(work, time.monotonic() + 10)
+            self.assertEqual(before, lane.sdk.file_identity(binary.lstat()))
+
+    def test_unknown_links_symlinks_modes_and_preexisting_temp_refuse_before_publish(self):
+        for fault in ("extra-external", "missing-target", "target-symlink", "parent-symlink",
+                      "unsafe-mode", "temporary-file", "temporary-symlink", "extra-deps"):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, work, binary, target = self.fixture(root)
+                temporary = binary.with_name(".wasm-bindgen-detached")
+                if fault == "extra-external":
+                    os.link(binary, root / "unknown-link")
+                elif fault == "missing-target":
+                    os.link(binary, root / "unknown-link")
+                    target.unlink()
+                elif fault == "target-symlink":
+                    os.link(binary, root / "unknown-link")
+                    target.unlink()
+                    target.symlink_to(root / "unknown-link")
+                elif fault == "parent-symlink":
+                    release = target.parent
+                    release.rename(root / "moved-release")
+                    release.symlink_to(root / "moved-release", target_is_directory=True)
+                elif fault == "unsafe-mode":
+                    binary.chmod(0o722)
+                elif fault == "temporary-file":
+                    temporary.write_bytes(b"held unrelated file")
+                elif fault == "temporary-symlink":
+                    temporary.symlink_to(target)
+                elif fault == "extra-deps":
+                    os.link(binary, target.parent / "deps/wasm_bindgen-0123456789abcdef")
+                    os.link(binary, target.parent / "deps/wasm_bindgen-fedcba9876543210")
+                before = lane.sdk.file_identity(binary.lstat())
+                with self.assertRaises((lane.sdk.Refused, OSError)):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
+                self.assertEqual(before, lane.sdk.file_identity(binary.lstat()))
+                if fault == "temporary-file":
+                    self.assertEqual(temporary.read_bytes(), b"held unrelated file")
+                if fault == "temporary-symlink":
+                    self.assertTrue(temporary.is_symlink())
+
+    def test_source_or_destination_mutation_and_deadline_never_publish(self):
+        for fault in ("source-mutation", "destination-replacement", "deadline", "fsync-error"):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, work, binary, target = self.fixture(root)
+                original_inode = binary.stat().st_ino
+                original_regular = lane.sdk.regular
+                temporary = binary.with_name(".wasm-bindgen-detached")
+                def reading(path, *args):
+                    raw = original_regular(path, *args)
+                    if fault == "source-mutation" and path == target:
+                        target.write_bytes(b"changed source")
+                    if fault == "destination-replacement" and path == temporary:
+                        replacement = temporary.with_name("replacement")
+                        replacement.write_bytes(raw)
+                        replacement.chmod(0o700)
+                        os.replace(replacement, temporary)
+                    return raw
+                with ExitStack() as stack:
+                    stack.enter_context(patch.object(lane.sdk, "regular", side_effect=reading))
+                    if fault == "fsync-error":
+                        stack.enter_context(patch.object(lane.os, "fsync", side_effect=OSError("PRIVATE")))
+                    with self.assertRaises((lane.sdk.Refused, OSError)):
+                        lane.detach_installed_bindgen(work, time.monotonic() - 1 if fault == "deadline" else time.monotonic() + 10)
+                self.assertEqual(binary.stat().st_ino, original_inode)
+
+    def test_unexpected_alias_and_copy_limit_refuse(self):
+        for fault in ("wrong-deps-inode", "oversize", "too-many-deps"):
+            with self.subTest(fault=fault), TemporaryDirectory() as directory:
+                root = Path(directory)
+                _, work, binary, target = self.fixture(root)
+                if fault == "wrong-deps-inode":
+                    os.link(binary, root / "unknown-link")
+                    (target.parent / "deps/wasm_bindgen-0123456789abcdef").write_bytes(b"different")
+                elif fault == "oversize":
+                    with binary.open("r+b") as stream:
+                        stream.truncate(64 * 1024**2 + 1)
+                else:
+                    for number in range(4097):
+                        (target.parent / "deps" / str(number)).touch()
+                with self.assertRaises(lane.sdk.Refused):
+                    lane.detach_installed_bindgen(work, time.monotonic() + 10)
