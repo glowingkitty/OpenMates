@@ -2204,7 +2204,7 @@
     "packages/openmates-session-bindings/src/node.rs": "0ba45a8beca3c6bd77544d5f2d88c9aab252fdacc780b59f6d30547b6ebbcb17",
     "packages/openmates-session-bindings/src/python.rs": "01f7c910a3f187692676d7486e4a94b5dfdb5559eafae78f921c5d6de1671c64",
     "packages/openmates-session-bindings/src/session.rs": "429bd7d15fca2aa29f53c2b841d91249acc00b37a9a90fdede65b59a5ea26acb",
-    "packages/openmates-session-bindings/src/session_drafts.rs": "056e70b50dcea166a0ee0165e73ad1b8ea639250d8173ca510a6e811b56468a4",
+    "packages/openmates-session-bindings/src/session_drafts.rs": "e56f60b7155ff71bc38968840baa10d86cf57922d806682721de3dae4b9ae5d9",
     "packages/openmates-session-bindings/src/session_essential.rs": "edb3535546c7242eb0d88d25bbcd28ff485dcbc0c82fb9fb4c7d195c068dcc57",
     "packages/openmates-session-bindings/src/session_saved_read.rs": "56c2d39b80e2d7dc47895ff59e210b685f3bc8f37ea1ac009854f42aa5226fa5",
     "scripts/build_sdk_native.py": "7b6d9d7139be4680019b69a941102df2b882225508ca0296c7a4270626741c28",
