@@ -1546,7 +1546,7 @@
     "scripts/generate_rust_sdk_apps.py": "5c8225a1f0d8b970fd6af3c137dfb96d7d19a9e3fe488837ad354a828042fd7d",
     "scripts/generate_sdk_app_skills.py": "b026fc3d0b10ac278c2213f91700882b0cf8fd265f200821bb9b006d924182ce",
     "scripts/sdk_rust_inventory.py": "41976e61c896974b2a28a06c30e9efc48a1c246298d9c1947ab5ee0702b0701c",
-    "tests/sdk-conformance/essential_session_server.py": "bf7b1d285e9ee750df0d57ecdfa05e922a1a2ee80a7f28601474cb7e104c654f",
+    "tests/sdk-conformance/essential_session_server.py": "58e043e9125718b5837cd8ad23b6b674674a56d26ce38b4382df734559821cbd",
     "tests/sdk-conformance/generate_session_auth.py": "a929a921538f00bfbece06e6235a73527045890510be4b57a00bee2dc7e98644",
     "tests/sdk-conformance/inventory.py": "cc45743acff5e562f31342fc484f902b4cfdb6794b59600eb9b5142b383b2afe",
     "tests/sdk-conformance/message_window_server.py": "619d16259fb239ed276ad5e876ad169eb10c66eca658aa888ec69372f0820d12",
