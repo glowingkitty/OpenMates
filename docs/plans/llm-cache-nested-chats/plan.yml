@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: llm-cache-nested-chats
 title: Direct Baseten and correct provider caching throughout nested chats
-status: verified
+status: implementing
 goal: >-
   We need to add the 4.1 Flash model from DeepSeek and support for Baseten when
   an API key is available. Caching has to work, including OpenRouter cache-hit
@@ -57,3 +57,15 @@ verification:
     baseten_credential_configured: false
     inference_requests: 0
     limitation: Live Baseten cache-hit measurement requires a configured API key; a deterministic accounting test is not evidence of a provider cache hit.
+
+live_validation:
+  requested_by_user: '2026-10-25; direct Baseten deferred until its key is configured'
+  report: docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+  provider_paths_with_real_cache_hits: 11
+  replay_or_mock_usage: false
+  direct_provider_attempts: 25
+  app_routing: Existing automatic routing; no model/provider overrides or account model-default changes.
+  parent_child_billing: Passed; seven independently repriced receipts total 281 credits, wallet 1000 to 719, root orchestration 215 spent and zero reserved.
+  grandchild: Blocked; the child did not receive start_sub_chats; persisted depths are 0 and 1 only.
+  child_followup: Failed; CLI timed out waiting for AI response; no extra debit.
+  next_decision: Confirm whether to expand this cache verification into fixes for descendant tool availability and direct child continuation.
