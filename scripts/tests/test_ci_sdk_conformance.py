@@ -448,7 +448,7 @@ def test_claimed_passes_without_actual_driver_launches_refused(tmp_path):
 
 
 def test_real_reviewed_contract_preserves_54_by_615_and_adds_exact_three_window_adapters():
-    trust = sdk.load_trust()
+    trust = immutable_trust_test_fixture("sdk-conformance-trust-window-7edfe1b.json", "22e16b9aeaf520466b0b7281c7dab47e99b088dc6fc1b30df2b705b967dbe383")
     assert len(trust["gaps"]) == 159
     assert len(trust["plan"]) == 57
     assert sum(len(row["vectors"]) for row in trust["plan"]) == 687
@@ -481,7 +481,7 @@ def test_real_reviewed_contract_preserves_54_by_615_and_adds_exact_three_window_
 
 
 def test_reviewed_window_pins_preserve_every_unrelated_program_and_contract():
-    trust = sdk.load_trust()
+    trust = immutable_trust_test_fixture("sdk-conformance-trust-window-7edfe1b.json", "22e16b9aeaf520466b0b7281c7dab47e99b088dc6fc1b30df2b705b967dbe383")
     programs = copy.deepcopy(trust["programs"])
     added = [
         "packages/openmates-session-bindings/examples/session-message-window-conformance.rs",
@@ -1353,3 +1353,69 @@ def test_message_window_diagnostic_stays_rust_conformance_only(tmp_path):
         "adapter":{"capability":expected["capability"],"language":"rust"},
         "failedVectorIds":["window-latest"], "diagnostic":report["diagnostic"]}))
     assert "diagnostic" not in sdk.failure_diagnostics(private, tmp_path, "napi-build", {}, [expected])
+
+
+def immutable_trust_test_fixture(name, expected_sha256):
+    # Historical inputs are test data only. Runtime load_trust/verify_programs
+    # continue reading the protected live manifest beside their module.
+    raw = (Path(__file__).with_name("fixtures") / name).read_bytes()
+    assert sdk.sha(raw) == expected_sha256
+    return json.loads(raw)
+
+
+def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "0bca28f0341c5b227eca0c3db02c14ead2accbce0d52b8fc794d059091670fb2")
+    live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
+    live_bytes = live_path.read_bytes()
+    assert sdk.sha(live_bytes) == "078292cbdf749ac0d7f5b23e898dcd01931fb45947eaaaa2b1273cf76bafa43a"
+    trust = sdk.load_trust()
+    assert trust == json.loads(live_bytes)
+    assert {k: len(trust[k]) for k in approval["afterCounts"]} == {"programs": 229, "contracts": 60, "plan": 84, "gaps": 171}
+    assert approval["approvedCurrentSha256"] == sdk.sha(live_bytes)
+    assert trust["gaps"] and approval["releaseEligible"] is False
+    assert {k: v for k, v in trust.items() if k not in ("programs", "contracts", "plan", "gaps")} == approval["unrelatedMetadata"]
+
+
+def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "0bca28f0341c5b227eca0c3db02c14ead2accbce0d52b8fc794d059091670fb2")
+    trust = sdk.load_trust()
+    for bucket in ("programs", "contracts"):
+        restored = copy.deepcopy(trust[bucket])
+        added = updated = 0
+        for path, change in approval["pinDeltas"][bucket].items():
+            assert restored[path] == change["after"]
+            if change["before"] is None:
+                del restored[path]
+                added += 1
+            else:
+                restored[path] = change["before"]
+                updated += 1
+        assert (added, updated) == {"programs": (28, 25), "contracts": (10, 2)}[bucket]
+        assert len(restored) == approval["beforeCounts"][bucket]
+        assert sdk.sha(json.dumps(restored, sort_keys=True).encode()) == approval["baseDictionaryDigests"][bucket]
+    delta = approval["expectations"]
+    plans = copy.deepcopy(trust["plan"])
+    for added in delta["planAdded"]:
+        assert plans.count(added) == 1
+        assert added["capability"] == "sdk.embeds.version-content"
+        assert len(added["vectors"]) == len(set(added["vectors"])) == 102
+        plans.remove(added)
+    for change in delta["planChanged"]:
+        assert change["after"]["capability"] == "session.password-totp-rotation.v1"
+        assert len(change["before"]["vectors"]) == 6 and len(change["after"]["vectors"]) == 14
+        index = plans.index(change["after"])
+        plans[index] = change["before"]
+    assert len(delta["planAdded"]) == len(delta["planChanged"]) == 3
+    assert len(plans) == 81
+    assert sdk.sha(json.dumps(plans, sort_keys=True).encode()) == approval["baseDictionaryDigests"]["plan"]
+    gaps = copy.deepcopy(trust["gaps"])
+    for added in delta["gapAdded"]:
+        assert gaps.count(added) == 1 and added.startswith("sdk.embeds.version-content [")
+        gaps.remove(added)
+    for change in delta["gapChanged"]:
+        assert change["after"].startswith("session.password-totp-rotation.v1 [")
+        index = gaps.index(change["after"])
+        gaps[index] = change["before"]
+    assert len(delta["gapAdded"]) == len(delta["gapChanged"]) == 3
+    assert len(gaps) == 168
+    assert sdk.sha(json.dumps(gaps, sort_keys=True).encode()) == approval["baseDictionaryDigests"]["gaps"]

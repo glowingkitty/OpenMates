@@ -1,0 +1,793 @@
+{
+  "afterCounts": {
+    "contracts": 60,
+    "gaps": 171,
+    "plan": 84,
+    "programs": 229
+  },
+  "approvedCurrentSha256": "078292cbdf749ac0d7f5b23e898dcd01931fb45947eaaaa2b1273cf76bafa43a",
+  "baseDictionaryDigests": {
+    "contracts": "5e9c104e9d4d4d87b04d848219c76ff40f232d7cb16ae45ec2e83bea943a2efe",
+    "gaps": "a21143e1f341d642cb99499985932c3458ce0dfe4b83126b50424f7404410612",
+    "plan": "66326ea664bd32e1f33671919a4f1bcbee171a4554bb27d8855a15bea4cc818d",
+    "programs": "e6adec5e9ce19e37d38f83b1efd3e8f7ee2436b548b60a9f34a4cef0bc734b42"
+  },
+  "beforeCounts": {
+    "contracts": 50,
+    "gaps": 168,
+    "plan": 81,
+    "programs": 201
+  },
+  "canonicalBaseSha256": "ffc5fb47c1904edaadf6181a582d8d9185e1ef8c5b5f54c1b908040da72e0c9a",
+  "expectations": {
+    "gapAdded": [
+      "sdk.embeds.version-content [rust] partial: Matching native Rust/NAPI/PyO3 artifacts compile and102actualvectors all3SDKs; Native8caseCLI compiled proof and isolated backend/account authorization; Cookie historical-key/short-ID/Project/Team version-content scopes; Existing SDK route is legacy chain only; bounded-v1/409fallback not forwarded; no opportunistic snapshot POST; Full legacy flags/versionnumeric/error/body and non-regular/symlink path behavior; 16MiB plaintext/patch,64MiB selected ciphertext/input,10000row limits fail closed; legacy larger-work/edge equivalence not proved; Matched CPU/E2E latency/requestbytes/RSS and Linux/Mac acceptance; performance runner/actual execution unfinished; No new durable/cache/freshness/ACK authority; all original release blockers retained",
+      "sdk.embeds.version-content [npm] partial: Matching native Rust/NAPI/PyO3 artifacts compile and102actualvectors all3SDKs; Native8caseCLI compiled proof and isolated backend/account authorization; Cookie historical-key/short-ID/Project/Team version-content scopes; Existing SDK route is legacy chain only; bounded-v1/409fallback not forwarded; no opportunistic snapshot POST; Full legacy flags/versionnumeric/error/body and non-regular/symlink path behavior; 16MiB plaintext/patch,64MiB selected ciphertext/input,10000row limits fail closed; legacy larger-work/edge equivalence not proved; Matched CPU/E2E latency/requestbytes/RSS and Linux/Mac acceptance; performance runner/actual execution unfinished; No new durable/cache/freshness/ACK authority; all original release blockers retained",
+      "sdk.embeds.version-content [python] partial: Matching native Rust/NAPI/PyO3 artifacts compile and102actualvectors all3SDKs; Native8caseCLI compiled proof and isolated backend/account authorization; Cookie historical-key/short-ID/Project/Team version-content scopes; Existing SDK route is legacy chain only; bounded-v1/409fallback not forwarded; no opportunistic snapshot POST; Full legacy flags/versionnumeric/error/body and non-regular/symlink path behavior; 16MiB plaintext/patch,64MiB selected ciphertext/input,10000row limits fail closed; legacy larger-work/edge equivalence not proved; Matched CPU/E2E latency/requestbytes/RSS and Linux/Mac acceptance; performance runner/actual execution unfinished; No new durable/cache/freshness/ACK authority; all original release blockers retained"
+    ],
+    "gapChanged": [
+      {
+        "after": "session.password-totp-rotation.v1 [rust] partial: Fourteen synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance.; Server stay_logged_in preference options are source-authored only. Compiled three-adapter execution is unrun. Fresh browser admission stays memory_only regardless of preference; checked durable local key policy and native/browser persistence proof remain separate required work. No release or browser activation follows these pure checks.",
+        "before": "session.password-totp-rotation.v1 [rust] partial: Six synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance."
+      },
+      {
+        "after": "session.password-totp-rotation.v1 [npm] partial: Fourteen synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance.; Server stay_logged_in preference options are source-authored only. Compiled three-adapter execution is unrun. Fresh browser admission stays memory_only regardless of preference; checked durable local key policy and native/browser persistence proof remain separate required work. No release or browser activation follows these pure checks.",
+        "before": "session.password-totp-rotation.v1 [npm] partial: Six synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance."
+      },
+      {
+        "after": "session.password-totp-rotation.v1 [python] partial: Fourteen synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance.; Server stay_logged_in preference options are source-authored only. Compiled three-adapter execution is unrun. Fresh browser admission stays memory_only regardless of preference; checked durable local key policy and native/browser persistence proof remain separate required work. No release or browser activation follows these pure checks.",
+        "before": "session.password-totp-rotation.v1 [python] partial: Six synthetic transcript vectors are specified; real three-adapter execution of the owner-assertion addition remains required. Live-backend auth/expiry/replay enforcement, browser ambient-cookie and WS consistency, complete recovery/stream and account-operation parity remain separate acceptance."
+      }
+    ],
+    "planAdded": [
+      {
+        "capability": "sdk.embeds.version-content",
+        "fixture": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
+        "fixtureSha256": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+        "language": "rust",
+        "vectors": [
+          "bad-context",
+          "bad-count",
+          "bounded-start",
+          "crypto-tamper",
+          "empty-snapshot",
+          "future-row",
+          "gap",
+          "http-401",
+          "http-403",
+          "http-404",
+          "http-409",
+          "http-429",
+          "http-503",
+          "later-snapshot",
+          "marker-before-hunk-line",
+          "missing-initial",
+          "missing-patch",
+          "no-final-lf",
+          "patch-unicode",
+          "resource-grant-not-account-key",
+          "restore-lf",
+          "server-content-empty",
+          "server-content-text",
+          "snapshot",
+          "strict-bad-header",
+          "strict-bad-new-path",
+          "strict-bad-old-path",
+          "strict-context-00eof",
+          "strict-context-00tail",
+          "strict-context-01eof",
+          "strict-context-01tail",
+          "strict-context-10eof",
+          "strict-context-10tail",
+          "strict-context-11eof",
+          "strict-context-11tail",
+          "strict-context-no-lf-tail",
+          "strict-cr-patch",
+          "strict-duplicate-marker",
+          "strict-empty-add-line-no-lf",
+          "strict-empty-add-no-lf",
+          "strict-empty-no-lf-source",
+          "strict-empty-remove-lf-mismatch",
+          "strict-empty-remove-no-lf",
+          "strict-interior-add",
+          "strict-interior-output",
+          "strict-marker-at-start",
+          "strict-marker-before-next-hunk",
+          "strict-marker-outside-hunk",
+          "strict-multihunk-eof",
+          "strict-multihunk-invalid-interior",
+          "strict-multihunk-marked-source",
+          "strict-multihunk-unmarked-source-no-lf",
+          "strict-nul-patch",
+          "strict-overlap",
+          "strict-replace-0010",
+          "strict-replace-0011",
+          "strict-replace-0100",
+          "strict-replace-0101",
+          "strict-replace-0110",
+          "strict-replace-0111",
+          "strict-replace-1010",
+          "strict-replace-1011",
+          "strict-replace-1100",
+          "strict-replace-1101",
+          "strict-replace-1110",
+          "strict-replace-1111",
+          "strict-separator-cr-final-hunk",
+          "strict-separator-cr-final-timestamp",
+          "strict-separator-cr-internal-hunk",
+          "strict-separator-cr-internal-timestamp",
+          "strict-separator-lf-final-hunk",
+          "strict-separator-lf-final-timestamp",
+          "strict-separator-lf-internal-hunk",
+          "strict-separator-lf-internal-timestamp",
+          "strict-separator-ls-body-allowed",
+          "strict-separator-ls-final-hunk",
+          "strict-separator-ls-final-timestamp",
+          "strict-separator-ls-internal-hunk",
+          "strict-separator-ls-internal-timestamp",
+          "strict-separator-ls-path-allowed",
+          "strict-separator-normal-final-lf",
+          "strict-separator-ps-body-allowed",
+          "strict-separator-ps-final-hunk",
+          "strict-separator-ps-final-timestamp",
+          "strict-separator-ps-internal-hunk",
+          "strict-separator-ps-internal-timestamp",
+          "strict-separator-ps-path-allowed",
+          "strict-tab-header",
+          "strict-trailing-empty-context",
+          "strict-trailing-empty-no-lf",
+          "strict-unconsumed-no-lf-source",
+          "strict-unicode-both-no-lf",
+          "strict-unsafe-coordinate",
+          "strict-zero-coordinate",
+          "unsorted",
+          "valid-wrapper-key-length-31",
+          "valid-wrapper-key-length-33",
+          "wrong-key",
+          "wrong-key-hash",
+          "wrong-shown-id",
+          "wrong-target-id",
+          "wrong-target-version"
+        ]
+      },
+      {
+        "capability": "sdk.embeds.version-content",
+        "fixture": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
+        "fixtureSha256": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+        "language": "npm",
+        "vectors": [
+          "bad-context",
+          "bad-count",
+          "bounded-start",
+          "crypto-tamper",
+          "empty-snapshot",
+          "future-row",
+          "gap",
+          "http-401",
+          "http-403",
+          "http-404",
+          "http-409",
+          "http-429",
+          "http-503",
+          "later-snapshot",
+          "marker-before-hunk-line",
+          "missing-initial",
+          "missing-patch",
+          "no-final-lf",
+          "patch-unicode",
+          "resource-grant-not-account-key",
+          "restore-lf",
+          "server-content-empty",
+          "server-content-text",
+          "snapshot",
+          "strict-bad-header",
+          "strict-bad-new-path",
+          "strict-bad-old-path",
+          "strict-context-00eof",
+          "strict-context-00tail",
+          "strict-context-01eof",
+          "strict-context-01tail",
+          "strict-context-10eof",
+          "strict-context-10tail",
+          "strict-context-11eof",
+          "strict-context-11tail",
+          "strict-context-no-lf-tail",
+          "strict-cr-patch",
+          "strict-duplicate-marker",
+          "strict-empty-add-line-no-lf",
+          "strict-empty-add-no-lf",
+          "strict-empty-no-lf-source",
+          "strict-empty-remove-lf-mismatch",
+          "strict-empty-remove-no-lf",
+          "strict-interior-add",
+          "strict-interior-output",
+          "strict-marker-at-start",
+          "strict-marker-before-next-hunk",
+          "strict-marker-outside-hunk",
+          "strict-multihunk-eof",
+          "strict-multihunk-invalid-interior",
+          "strict-multihunk-marked-source",
+          "strict-multihunk-unmarked-source-no-lf",
+          "strict-nul-patch",
+          "strict-overlap",
+          "strict-replace-0010",
+          "strict-replace-0011",
+          "strict-replace-0100",
+          "strict-replace-0101",
+          "strict-replace-0110",
+          "strict-replace-0111",
+          "strict-replace-1010",
+          "strict-replace-1011",
+          "strict-replace-1100",
+          "strict-replace-1101",
+          "strict-replace-1110",
+          "strict-replace-1111",
+          "strict-separator-cr-final-hunk",
+          "strict-separator-cr-final-timestamp",
+          "strict-separator-cr-internal-hunk",
+          "strict-separator-cr-internal-timestamp",
+          "strict-separator-lf-final-hunk",
+          "strict-separator-lf-final-timestamp",
+          "strict-separator-lf-internal-hunk",
+          "strict-separator-lf-internal-timestamp",
+          "strict-separator-ls-body-allowed",
+          "strict-separator-ls-final-hunk",
+          "strict-separator-ls-final-timestamp",
+          "strict-separator-ls-internal-hunk",
+          "strict-separator-ls-internal-timestamp",
+          "strict-separator-ls-path-allowed",
+          "strict-separator-normal-final-lf",
+          "strict-separator-ps-body-allowed",
+          "strict-separator-ps-final-hunk",
+          "strict-separator-ps-final-timestamp",
+          "strict-separator-ps-internal-hunk",
+          "strict-separator-ps-internal-timestamp",
+          "strict-separator-ps-path-allowed",
+          "strict-tab-header",
+          "strict-trailing-empty-context",
+          "strict-trailing-empty-no-lf",
+          "strict-unconsumed-no-lf-source",
+          "strict-unicode-both-no-lf",
+          "strict-unsafe-coordinate",
+          "strict-zero-coordinate",
+          "unsorted",
+          "valid-wrapper-key-length-31",
+          "valid-wrapper-key-length-33",
+          "wrong-key",
+          "wrong-key-hash",
+          "wrong-shown-id",
+          "wrong-target-id",
+          "wrong-target-version"
+        ]
+      },
+      {
+        "capability": "sdk.embeds.version-content",
+        "fixture": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
+        "fixtureSha256": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+        "language": "python",
+        "vectors": [
+          "bad-context",
+          "bad-count",
+          "bounded-start",
+          "crypto-tamper",
+          "empty-snapshot",
+          "future-row",
+          "gap",
+          "http-401",
+          "http-403",
+          "http-404",
+          "http-409",
+          "http-429",
+          "http-503",
+          "later-snapshot",
+          "marker-before-hunk-line",
+          "missing-initial",
+          "missing-patch",
+          "no-final-lf",
+          "patch-unicode",
+          "resource-grant-not-account-key",
+          "restore-lf",
+          "server-content-empty",
+          "server-content-text",
+          "snapshot",
+          "strict-bad-header",
+          "strict-bad-new-path",
+          "strict-bad-old-path",
+          "strict-context-00eof",
+          "strict-context-00tail",
+          "strict-context-01eof",
+          "strict-context-01tail",
+          "strict-context-10eof",
+          "strict-context-10tail",
+          "strict-context-11eof",
+          "strict-context-11tail",
+          "strict-context-no-lf-tail",
+          "strict-cr-patch",
+          "strict-duplicate-marker",
+          "strict-empty-add-line-no-lf",
+          "strict-empty-add-no-lf",
+          "strict-empty-no-lf-source",
+          "strict-empty-remove-lf-mismatch",
+          "strict-empty-remove-no-lf",
+          "strict-interior-add",
+          "strict-interior-output",
+          "strict-marker-at-start",
+          "strict-marker-before-next-hunk",
+          "strict-marker-outside-hunk",
+          "strict-multihunk-eof",
+          "strict-multihunk-invalid-interior",
+          "strict-multihunk-marked-source",
+          "strict-multihunk-unmarked-source-no-lf",
+          "strict-nul-patch",
+          "strict-overlap",
+          "strict-replace-0010",
+          "strict-replace-0011",
+          "strict-replace-0100",
+          "strict-replace-0101",
+          "strict-replace-0110",
+          "strict-replace-0111",
+          "strict-replace-1010",
+          "strict-replace-1011",
+          "strict-replace-1100",
+          "strict-replace-1101",
+          "strict-replace-1110",
+          "strict-replace-1111",
+          "strict-separator-cr-final-hunk",
+          "strict-separator-cr-final-timestamp",
+          "strict-separator-cr-internal-hunk",
+          "strict-separator-cr-internal-timestamp",
+          "strict-separator-lf-final-hunk",
+          "strict-separator-lf-final-timestamp",
+          "strict-separator-lf-internal-hunk",
+          "strict-separator-lf-internal-timestamp",
+          "strict-separator-ls-body-allowed",
+          "strict-separator-ls-final-hunk",
+          "strict-separator-ls-final-timestamp",
+          "strict-separator-ls-internal-hunk",
+          "strict-separator-ls-internal-timestamp",
+          "strict-separator-ls-path-allowed",
+          "strict-separator-normal-final-lf",
+          "strict-separator-ps-body-allowed",
+          "strict-separator-ps-final-hunk",
+          "strict-separator-ps-final-timestamp",
+          "strict-separator-ps-internal-hunk",
+          "strict-separator-ps-internal-timestamp",
+          "strict-separator-ps-path-allowed",
+          "strict-tab-header",
+          "strict-trailing-empty-context",
+          "strict-trailing-empty-no-lf",
+          "strict-unconsumed-no-lf-source",
+          "strict-unicode-both-no-lf",
+          "strict-unsafe-coordinate",
+          "strict-zero-coordinate",
+          "unsorted",
+          "valid-wrapper-key-length-31",
+          "valid-wrapper-key-length-33",
+          "wrong-key",
+          "wrong-key-hash",
+          "wrong-shown-id",
+          "wrong-target-id",
+          "wrong-target-version"
+        ]
+      }
+    ],
+    "planChanged": [
+      {
+        "after": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "e6259136f92bc256d31293aea49250e8bfa266cf25d9693eb8b9b6ab81288af0",
+          "language": "rust",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false-v1-success",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true-v1-success",
+            "password-v2-totp-challenge-and-retry",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false-v1-success",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true-v1-success",
+            "rotation-headers-survive-invalid-body"
+          ]
+        },
+        "before": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "c085e3b1253271cce0a14af57abc6e50795cabc059341a7b236151f07a144e63",
+          "language": "rust",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-totp-challenge-and-retry",
+            "rotation-headers-survive-invalid-body"
+          ]
+        }
+      },
+      {
+        "after": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "e6259136f92bc256d31293aea49250e8bfa266cf25d9693eb8b9b6ab81288af0",
+          "language": "npm",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false-v1-success",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true-v1-success",
+            "password-v2-totp-challenge-and-retry",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false-v1-success",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true-v1-success",
+            "rotation-headers-survive-invalid-body"
+          ]
+        },
+        "before": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "c085e3b1253271cce0a14af57abc6e50795cabc059341a7b236151f07a144e63",
+          "language": "npm",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-totp-challenge-and-retry",
+            "rotation-headers-survive-invalid-body"
+          ]
+        }
+      },
+      {
+        "after": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "e6259136f92bc256d31293aea49250e8bfa266cf25d9693eb8b9b6ab81288af0",
+          "language": "python",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-false-v1-success",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true",
+            "password-v2-serialized-cookie-rotation-stay-logged-in-true-v1-success",
+            "password-v2-totp-challenge-and-retry",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-false-v1-success",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true",
+            "password-v2-totp-challenge-and-retry-stay-logged-in-true-v1-success",
+            "rotation-headers-survive-invalid-body"
+          ]
+        },
+        "before": {
+          "capability": "session.password-totp-rotation.v1",
+          "fixture": "tests/sdk-conformance/fixtures/session-auth.json",
+          "fixtureSha256": "c085e3b1253271cce0a14af57abc6e50795cabc059341a7b236151f07a144e63",
+          "language": "python",
+          "vectors": [
+            "closed-owner-mismatch-revokes-current-credentials",
+            "logout-clears-session-on-remote-failure",
+            "owner-assertion-refuses-switched-cookie-before-logout",
+            "password-v2-serialized-cookie-rotation",
+            "password-v2-totp-challenge-and-retry",
+            "rotation-headers-survive-invalid-body"
+          ]
+        }
+      }
+    ],
+    "releaseEligible": false,
+    "retainedUnchangedGaps": 165,
+    "retainedUnchangedPlans": 78
+  },
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "b032bcc8a59d503a8c78adb99087b775b6bc34fba31a6e00df034006d0b5604a",
+        "before": "e23f983ec58f54a26f1bbace8737c4ce045d8f79067e1b98e8d1965918261c52"
+      },
+      "packages/openmates-rust/tests/fixtures/native-workspace-server-fields.json": {
+        "after": "27fcc8db9980f623ac4fe726bfc0bbb957891b0374dbcdcb0dba15a5569939bb",
+        "before": null
+      },
+      "packages/openmates-rust/tests/fixtures/sdk-embed-version-content.json": {
+        "after": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+        "before": null
+      },
+      "packages/openmates-rust/tests/fixtures/workspace-opaque-capability.json": {
+        "after": "8f94b0dbb839738f993e14a63998e2c402340611ed754fc6a337aa507e5dab77",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/native-workspace-server-fields.json": {
+        "after": "27fcc8db9980f623ac4fe726bfc0bbb957891b0374dbcdcb0dba15a5569939bb",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/sdk-embed-version-content.json": {
+        "after": "6f798513498497f0f7978e6afa2b504aa0e12a75ba40af5eff6e5cf2c91a1e7c",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/sdk-embed-version-performance-cases.json": {
+        "after": "c7326bca66aca4382e1d4de56e85e68e168df88c90ae827e256619a817d8595e",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/session-auth.json": {
+        "after": "e6259136f92bc256d31293aea49250e8bfa266cf25d9693eb8b9b6ab81288af0",
+        "before": "c085e3b1253271cce0a14af57abc6e50795cabc059341a7b236151f07a144e63"
+      },
+      "tests/sdk-conformance/fixtures/workspace-opaque-capability.json": {
+        "after": "8f94b0dbb839738f993e14a63998e2c402340611ed754fc6a337aa507e5dab77",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/native-workspace-server-fields.schema.json": {
+        "after": "e59472f7258828de093c1bd30e3d9593de7d4000f3085e7a564483b191d50f50",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/sdk-embed-version-content.schema.json": {
+        "after": "c414b8a5c4868f2de05d63e8e27b048293e3a6b30b7fd13d1b37020b19caf07b",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/workspace-opaque-capability.schema.json": {
+        "after": "f9630ed6bf8597a0b950f448059c11d163672c6d0773ecbb08a12087fb605b95",
+        "before": null
+      }
+    },
+    "programs": {
+      "frontend/packages/openmates-cli/src/sdk.ts": {
+        "after": "415625748e646f20422b4bb682ab6334e113b87bdc717ffcc03946cd14939aa1",
+        "before": null
+      },
+      "frontend/packages/openmates-cli/src/sdkEmbedVersion.ts": {
+        "after": "b93593854d4e728af83910b824b52802c3410740cb678934edaf79225ee979f9",
+        "before": null
+      },
+      "frontend/packages/openmates-cli/src/sdkSession.ts": {
+        "after": "9ccbb1fd24c2df83835df9b94fef63054b6247fc1e16d09f7ccba2f85bb11784",
+        "before": "cc643c0049ece764edaec39fdc9d66551787538e21b3025c8fde2671c21099f9"
+      },
+      "packages/openmates-browser-bindings/src/browser.rs": {
+        "after": "50fc97850b61d4c94a7be35c949bfd7fa027bd32504d1da3f8ceec9d4db65ed8",
+        "before": "ac3a636b9fe784db9cf9092f5ba1a3de26bc8e657c478ec5da675efa33cda358"
+      },
+      "packages/openmates-python/openmates/embed_version.py": {
+        "after": "d324cc0dc9425e424990c4cac21e53d89f2e0fb2da8a3e44ea96d8e16675d235",
+        "before": null
+      },
+      "packages/openmates-python/openmates/sdk.py": {
+        "after": "b70467ca2d8fda8cbacbf176e99a24dda57956add9a324b1191b3c479d159553",
+        "before": null
+      },
+      "packages/openmates-python/openmates/session_client.py": {
+        "after": "7a23c1bd730c5f643dec1f21236590a6b67489b9bf973594e8ed83018101e2e2",
+        "before": "59ae5cb3eaa602f3a8bff244329113826826a60ddb00d2c2ec14fd3475bc38a6"
+      },
+      "packages/openmates-rust/examples/sdk-embed-version-content-conformance.rs": {
+        "after": "4232680e87c3c9c7db4f19cfe749aa07d4aec8c0d7ee8668248fc18061ecd70d",
+        "before": null
+      },
+      "packages/openmates-rust/src/client.rs": {
+        "after": "8569ababfa007b39b29352cfa6c9004a9c1a0430facfd7b3c9adbbc0e6d06d95",
+        "before": "691f6b1229a4bc27d0373b89ec85980d0226998455b8387d6286dde75f6ec478"
+      },
+      "packages/openmates-rust/src/client/apps.rs": {
+        "after": "7d34bb7f5dde8b553d5a318822b28222e1d2fb12dd90e1531a17174cad8168cd",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/apps_opaque_tests.rs": {
+        "after": "355e2ef45a5c1eb75c9894e811c17d0af7907f074710bdec6f32f885d283d395",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/auth.rs": {
+        "after": "709a52f4efcfe444f50b92a91d22f9382fddb56093531dc656802678f7d16179",
+        "before": "d7a54591b0aa415ea11bea7355bd28c73cabb7332117c88c631290711da3e89b"
+      },
+      "packages/openmates-rust/src/client/browser.rs": {
+        "after": "daf8064d4072790026d3201d951c202733bc3d76945ddc220c33fbbacf4ed78b",
+        "before": "eb87f5de288c61af0d1c0c5ec4c46c0dac36243dc43e0b31146c0157e5aa831f"
+      },
+      "packages/openmates-rust/src/client/cached_view.rs": {
+        "after": "1c1943ddb7fbf7129b7998f6fa1d5aa219fae7f458f39a8ede97606aab79802c",
+        "before": "b21340728b218f15ea606b3bb4fa832391b6d6ff9547962b46513dc2f2b097d0"
+      },
+      "packages/openmates-rust/src/client/completion_recovery.rs": {
+        "after": "952238e9982e95e3413155c6a21034ec963fddf1ef09c0719c4733da55510f2c",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/completion_recovery/opaque_tests.rs": {
+        "after": "03fb1cd773dec6d4fe1ccf19e913f9f8544690320041aaf922f3e27faa3ea406",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/local_cached_read.rs": {
+        "after": "8ed5a3496c642e25a882c88110def91d1ca5ceae4c666659f1b2ac212d65c60c",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/message_window.rs": {
+        "after": "a2d6e720316d0d70f0ffb0edf79ef048cd06e78ede108e0e7bedd5ad021357b6",
+        "before": "f294828bf2feec36d2b3d83a68a1d35ef2e33c8c3341d24e1490ef825d40968d"
+      },
+      "packages/openmates-rust/src/client/message_window_tests.rs": {
+        "after": "47f96bb55a4ad170855a4d48257173106b845a131581faa3d8eb7054784a57ea",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/patch.rs": {
+        "after": "1153ba1f6a87803e3297df2af02d5032bc5cceacb55694ffd1f361cd51ad5f33",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/persistence.rs": {
+        "after": "eec20411b6d9441edd8ec612cfffe7b18539df5b7236c693ff4ac5a117c6bf87",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/persistence_opaque_tests.rs": {
+        "after": "13ae00d15c8b175d4119cf609315129e5e13d91a2742770cb2a68597767a4add",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/plaintext.rs": {
+        "after": "c6fff3dd35b1bc38095f28d3fd3b2edf943bb511e6a303b779fe73d7e8d36ac6",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/plaintext_tests.rs": {
+        "after": "2a18efcf678e434c44de954686333bd8ccd19a6c5157b99880aa1bb9ebebb56c",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/saved_chat_read.rs": {
+        "after": "5b0e16ab229ac93eddc47952e84227a0867f4fccb6ab99b4a662832e1c784939",
+        "before": "1a551eff65844f68e70024fbf6ef644611b3bbf439514099c864b05d58488ce2"
+      },
+      "packages/openmates-rust/src/client/saved_chat_read_metadata.rs": {
+        "after": "58fc6fcca7d742744a6af237710c712370019e0701f4a3841162abd8c7fc34e1",
+        "before": "8e5cf5d42f5f7a2122e6afe12478c953e2fd49c7e8ff93e27f034eb1cd09bcf3"
+      },
+      "packages/openmates-rust/src/client/send.rs": {
+        "after": "dde3444de7a246605ea7cc2763d20765da019406330bfe5ddff66368e04adb6d",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/sync.rs": {
+        "after": "72eade9a367b71d60fc7082ab43fdb85026ab6947b66faac03f1ba0cf9879b1a",
+        "before": "7e3436baa8a08cee8819efd1f3a4153141601b5742a0e71de463aaa4d8a3764b"
+      },
+      "packages/openmates-rust/src/client/sync_capability.rs": {
+        "after": "ba4ea3ddffbf916f715beeabd9aa2b9600501a49b58bf41d5b0a5b001d77d2ec",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/sync_capability_tests.rs": {
+        "after": "dcf79748e52cdebdd1900f2b9c613febf0dd3d873135e3a297b19d6e584a0fa7",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/sync_windows.rs": {
+        "after": "e1cb25fc68d3fde0421f2fb81ae7e48f076cfc7894b367cfd38824d8b9120c47",
+        "before": "697d3fbec80c5a824247cceb497c5002ea592458edff2e8dfdb62391f8c6cac2"
+      },
+      "packages/openmates-rust/src/client/workspaces.rs": {
+        "after": "3c595427e83c1ea8fb163298309ef1b2e9874fb581d4b4711f613806041a6ddc",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/workspaces_opaque_tests.rs": {
+        "after": "55ddff6df7ad4e64129b5b6cf475dfad9c40930b96d04fba51fe22dc2bd24331",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/workspaces_server_field_tests.rs": {
+        "after": "0619e293b1f19c9d29ee16e9376c3b732cbb671b28ce2c881d6b4a34bc97d043",
+        "before": null
+      },
+      "packages/openmates-rust/src/lib.rs": {
+        "after": "c158b19093e9d527b2200d6b8a05163647bfe3e78781048fa53544293e63e5a3",
+        "before": "9338155e330d76ae942a299c4011b3fd100aa79729973e5fa0793370524e51d4"
+      },
+      "packages/openmates-rust/src/sdk_embeds.rs": {
+        "after": "7d3816eaba1b55f5fff9e485e943fe5b919b1461ff4544ebae8203fb6c1f2e00",
+        "before": "e3ef73576278386eebaaad7b2c9bbfa43ee2fd70c41c61b538caed8683366892"
+      },
+      "packages/openmates-session-bindings/examples/session-auth-conformance.rs": {
+        "after": "1a1e18799e6e2110715e4a5c629ae3a8c08cade6eb4c7f51badca52abf29d2f7",
+        "before": "e213798bef625d37b41ba724563eb69556a7d8e3cd0efe65c9caf7a34a8ae358"
+      },
+      "packages/openmates-session-bindings/src/embed_version.rs": {
+        "after": "21053ba6f18e536f3c2eb91058512f661cc724d06ad012d1ab3cc6c50e4f550e",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/lib.rs": {
+        "after": "069c766aa457f970b5fdf93a32339c8d3fbc93819b657a7890fdd0fe37c04226",
+        "before": "a6e2bc3fb7fd18afb3383e07c2935652bc6ff5bf034876622b828ee7500988f3"
+      },
+      "packages/openmates-session-bindings/src/node.rs": {
+        "after": "cfb2e3d53080d7d748e16dd16a62857e0fda23a4eabc3d74ad27233cdf06758c",
+        "before": "0ba45a8beca3c6bd77544d5f2d88c9aab252fdacc780b59f6d30547b6ebbcb17"
+      },
+      "packages/openmates-session-bindings/src/python.rs": {
+        "after": "112d295099e8faa4181390c44137f5979968f33cf013b49530d48e31973b9f3f",
+        "before": "01f7c910a3f187692676d7486e4a94b5dfdb5559eafae78f921c5d6de1671c64"
+      },
+      "packages/openmates-session-bindings/src/session.rs": {
+        "after": "2255537a5f6a651ec43537210209971ff67728b0c7c723a3014f3bd29c4e06bc",
+        "before": "429bd7d15fca2aa29f53c2b841d91249acc00b37a9a90fdede65b59a5ea26acb"
+      },
+      "scripts/check_sdk_conformance.py": {
+        "after": "0450a363a1b0d58efb44e21209e88a1f695f1a0621a8e0acc31b69027200e19e",
+        "before": "866cdc384677fd8d1288fa861fcfaab1fb74e8f08d448594aa3828904b156cf8"
+      },
+      "scripts/tests/test_sdk_conformance_gate.py": {
+        "after": "036a489d468e3f5ba653262620a8302f14f3fba5eeafb06d71d91e243a1cda6c",
+        "before": "75f063a257333197b3ce179f42ad0a9a425e1866a1a6fe9160425e0907bd353e"
+      },
+      "scripts/tests/test_sdk_version_content_gate.py": {
+        "after": "ad1260b7db75ccbd1a4ba7012213d8ae2028e0984d2c823f5a0d814f88ca1908",
+        "before": null
+      },
+      "tests/sdk-conformance/api_key_embed_version_peer.py": {
+        "after": "f122c45326a1d6f075ece3d4a46406313aab18304727d78207441c2f1149382d",
+        "before": null
+      },
+      "tests/sdk-conformance/generate_session_auth.py": {
+        "after": "13c81b784b349340108cdd069224f6f73e3282785713a820bbd55b0dfe21da40",
+        "before": "27d8fb6696ef26cca0472485d9a8fad494429558ae43962bd95914784b7682fc"
+      },
+      "tests/sdk-conformance/runners/sdk-embed-version-content.mjs": {
+        "after": "58e1d992a9099e0acfdd2fd37998c7894df4e25cbd16e537e2ea42e008ebc2bf",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/sdk-embed-version-content.py": {
+        "after": "12ff054ed438f4bc4f26a52574f412c88e806fa879201956726d7074426bffb8",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-auth.mjs": {
+        "after": "a976bd6615f819ea62d998ac0cc1bea2dca684de1b9e278346976389d12e2f59",
+        "before": "e8d488ce307939a1ce3ab29c1c7fada8571466fd89b9d8cd44b6c2fe76feb959"
+      },
+      "tests/sdk-conformance/runners/session-auth.py": {
+        "after": "7b0b9833168567ec1182253bf274c8f89743cd3252973ce12f94c8e776447b55",
+        "before": "b77939bd21980e89eff8107a59b0d4aa865051d580ccbaffded6cae40d8037be"
+      },
+      "tests/sdk-conformance/test_embed_version_content_peer.py": {
+        "after": "14ba4af74d095d461675c2b9c28ca7011518e78f10011ab20073e044bd643437",
+        "before": null
+      },
+      "tests/sdk-conformance/test_session_auth.py": {
+        "after": "24d703a9ac4537d545ca206586e77aae260e38cbfefe15baa2e12a26f1ef37a9",
+        "before": "3c7d5856c25e55d1141cfafd466bfba9630d4d57d66a36b8ad3910a98e4964ff"
+      }
+    }
+  },
+  "releaseEligible": false,
+  "reviewedIncrementalLeaves": [
+    {
+      "leaf": "PersistenceV2 72c6 sourceCLEAR/applied",
+      "receipt": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/private-staging/persistence-opaque-capability-v2-applied-20261025/receipt.json",
+      "receiptSha256": "2131eec156a34239290848f056a9a5e38eaebe1512f469f99fb92f88e99fc301"
+    },
+    {
+      "leaf": "RecoveryV2 b5e8 sourceCLEAR/applied",
+      "receipt": "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-d1c4/frontend/packages/openmates-tui-native/target/private-staging/opaque-completion-recovery-v2-applied-20261025/receipt.json",
+      "receiptSha256": "3f973f5ed187d9d64450328fa53b27674aa7e6eb745094ec4c7a06427ff22d1a"
+    }
+  ],
+  "unrelatedMetadata": {
+    "approvedFixtureCorrection": {
+      "programs": {
+        "tests/sdk-conformance/essential_session_server.py": "f2c0515c7248b4d70f80593ac1b3aea236bdaa27d97230054c1085b121992bf0",
+        "tests/sdk-conformance/test_essential_session_server.py": "e186f43fb6febea7696dc468ca32b972398a2f690f9662710df7a238e302eb2a"
+      },
+      "review": "root independently CLEAR ac4628a5",
+      "sdkCompilerChanges": false
+    },
+    "proposedRecoveryFixtureCorrection": {
+      "baseSource": "fbaff6293a42ac41916951bba030b05fafced6e6",
+      "programs": {
+        "tests/sdk-conformance/recovery_server.py": "5b6355ef2970619df7014fb6d4e8817b91efa52a0c6386982b6a7c5be6bcf743",
+        "tests/sdk-conformance/test_recovery_server.py": "b65606083a8967b8abe1148469bf581fc7e6c32e7637cfb08ca3febebc3029ad"
+      },
+      "scope": "canonical required nullable category/model_name in sealed main payload; no SDK changes"
+    },
+    "reviewedSource": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
+    "schemaVersion": 1
+  }
+}
