@@ -1364,20 +1364,20 @@ def immutable_trust_test_fixture(name, expected_sha256):
 
 
 def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "0bca28f0341c5b227eca0c3db02c14ead2accbce0d52b8fc794d059091670fb2")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "3d4f5cca620bbb893b9b8b6d8c774ae51375d0755333d06e5e91b20394309814")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "078292cbdf749ac0d7f5b23e898dcd01931fb45947eaaaa2b1273cf76bafa43a"
+    assert sdk.sha(live_bytes) == "14e1b8915bb01579168943b7f68bc757c79f04c16cf6b9b9df0f4595a897559a"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
-    assert {k: len(trust[k]) for k in approval["afterCounts"]} == {"programs": 229, "contracts": 60, "plan": 84, "gaps": 171}
+    assert {k: len(trust[k]) for k in approval["afterCounts"]} == {"programs": 246, "contracts": 63, "plan": 84, "gaps": 171}
     assert approval["approvedCurrentSha256"] == sdk.sha(live_bytes)
     assert trust["gaps"] and approval["releaseEligible"] is False
     assert {k: v for k, v in trust.items() if k not in ("programs", "contracts", "plan", "gaps")} == approval["unrelatedMetadata"]
 
 
 def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
-    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "0bca28f0341c5b227eca0c3db02c14ead2accbce0d52b8fc794d059091670fb2")
+    approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "3d4f5cca620bbb893b9b8b6d8c774ae51375d0755333d06e5e91b20394309814")
     trust = sdk.load_trust()
     for bucket in ("programs", "contracts"):
         restored = copy.deepcopy(trust[bucket])
@@ -1390,7 +1390,7 @@ def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
             else:
                 restored[path] = change["before"]
                 updated += 1
-        assert (added, updated) == {"programs": (28, 25), "contracts": (10, 2)}[bucket]
+        assert (added, updated) == {"programs": (45, 29), "contracts": (13, 2)}[bucket]
         assert len(restored) == approval["beforeCounts"][bucket]
         assert sdk.sha(json.dumps(restored, sort_keys=True).encode()) == approval["baseDictionaryDigests"][bucket]
     delta = approval["expectations"]
@@ -1413,9 +1413,31 @@ def test_current_reviewed_aggregate_preserves_exact_old_pins_and_expectations():
         assert gaps.count(added) == 1 and added.startswith("sdk.embeds.version-content [")
         gaps.remove(added)
     for change in delta["gapChanged"]:
-        assert change["after"].startswith("session.password-totp-rotation.v1 [")
+        assert change["after"].startswith(("session.password-totp-rotation.v1 [", "sdk.session-client ["))
         index = gaps.index(change["after"])
         gaps[index] = change["before"]
-    assert len(delta["gapAdded"]) == len(delta["gapChanged"]) == 3
+    assert len(delta["gapAdded"]) == 3 and len(delta["gapChanged"]) == 6
+    assert sum(c["after"].startswith("session.password-totp-rotation.v1 [") for c in delta["gapChanged"]) == 3
+    assert sum(c["after"].startswith("sdk.session-client [") for c in delta["gapChanged"]) == 3
     assert len(gaps) == 168
     assert sdk.sha(json.dumps(gaps, sort_keys=True).encode()) == approval["baseDictionaryDigests"]["gaps"]
+
+    # Restore the immediately prior published229 snapshot independently of the
+    # older201 baseline. This preserves its readable exact review witness.
+    witness = approval["priorApproved229Witness"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in witness["wavePinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    assert witness["planUnchanged"] is True
+    for change in witness["gapChanged"]:
+        index = prior["gaps"].index(change["after"])
+        prior["gaps"][index] = change["before"]
+    assert {k: len(prior[k]) for k in witness["counts"]} == {"programs": 229, "contracts": 60, "plan": 84, "gaps": 171}
+    assert witness["trustSha256"] == "078292cbdf749ac0d7f5b23e898dcd01931fb45947eaaaa2b1273cf76bafa43a"
+    for bucket in ("programs", "contracts", "plan", "gaps"):
+        assert sdk.sha(json.dumps(prior[bucket], sort_keys=True).encode()) == witness["dictionaryDigests"][bucket]
