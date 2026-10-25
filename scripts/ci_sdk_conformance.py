@@ -35,6 +35,12 @@ VECTOR_DIAGNOSTIC_PHASES = frozenset({"open", "next", "stage", "durable_save", "
 VECTOR_DIAGNOSTIC_CODES = frozenset({"cancelled", "conflict", "forbidden", "expired", "authentication",
                                     "invalid", "protocol", "offline", "unavailable", "assertion",
                                     "timeout", "peer_protocol", "unclassified", "crypto", "storage_io"})
+SAVED_READ_DIAGNOSTIC_CAPABILITY = "session.saved-chat-read.v1"
+SAVED_READ_DIAGNOSTIC_PHASES = frozenset({"peer_start", "client_setup", "session_import", "cursor_preflight",
+    "cursor_assert", "cache_preload", "bounded_read", "bounded_assert", "exact_read", "exact_assert",
+    "cache_verify", "peer_control", "peer_status", "close"})
+# Reuse the established closed error vocabulary. This grants no new messages.
+SAVED_READ_DIAGNOSTIC_CODES = VECTOR_DIAGNOSTIC_CODES
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
@@ -578,15 +584,21 @@ def rust_unit_diagnostics(data, root, inputs, stage):
 
 
 def project_vector_diagnostic(value, expected, failed_ids):
-    """Accept only the reviewed Rust monitor's closed, actually failed vector."""
+    """Accept capability-specific Rust closed diagnostics for an actually failed vector."""
+    capability = expected.get("capability")
+    if capability == VECTOR_DIAGNOSTIC_CAPABILITY:
+        phases, codes = VECTOR_DIAGNOSTIC_PHASES, VECTOR_DIAGNOSTIC_CODES
+    elif capability == SAVED_READ_DIAGNOSTIC_CAPABILITY:
+        phases, codes = SAVED_READ_DIAGNOSTIC_PHASES, SAVED_READ_DIAGNOSTIC_CODES
+    else:
+        return None
     keys = ("vectorId", "phase", "errorCode")
-    if (expected.get("capability") != VECTOR_DIAGNOSTIC_CAPABILITY
-            or expected.get("language") != "rust" or not isinstance(value, dict)
+    if (expected.get("language") != "rust" or not isinstance(value, dict)
             or set(value) != set(keys)
             or any(not isinstance(value[key], str) or len(value[key]) > 160 for key in keys)
             or value["vectorId"] not in expected["vectors"] or value["vectorId"] not in failed_ids
-            or value["phase"] not in VECTOR_DIAGNOSTIC_PHASES
-            or value["errorCode"] not in VECTOR_DIAGNOSTIC_CODES
+            or value["phase"] not in phases
+            or value["errorCode"] not in codes
             or len(json.dumps(value, separators=(",", ":")).encode()) > MAX_VECTOR_DIAGNOSTIC_BYTES):
         return None
     return {key: value[key] for key in keys}
