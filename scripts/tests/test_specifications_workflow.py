@@ -623,3 +623,80 @@ def test_rust_surface_metadata_is_accepted_and_unknown_surface_is_rejected(tmp_p
     errors = module.check_test_file(test_path, registry, changed=True)
     assert len(errors) == 1
     assert "unknown surface sdks.unknown" in errors[0]
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("current_version", [2, 12])
+def test_registry_keeps_historical_successor_pointer_when_active_version_advances(tmp_path, current_version):
+    module = load_module()
+    specifications_root = tmp_path / "specifications"
+    history = write_bundle(specifications_root / "history", specification_id="feature.old", assertion_id="shared.assertion")
+    active = write_bundle(specifications_root / "active", specification_id="feature.current", assertion_id="shared.assertion")
+    old_path = history / "specification.yml"
+    old = yaml.safe_load(old_path.read_text())
+    old.update(status="superseded", superseded_by="feature.current@1")
+    old_path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = current_version
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    fingerprint = module.validate_bundle(history).fingerprint
+    registry = module.build_registry(specifications_root)
+    assert registry["specifications"]["feature.old"]["superseded_by"] == "feature.current@1"
+    assert registry["assertions"]["shared.assertion"]["specification"] == f"feature.current@{current_version}"
+    assert module.validate_bundle(history).fingerprint == fingerprint
+    assert module.check_approval(tmp_path / "empty-approvals.json", "session", "feature.current", module.validate_bundle(active).fingerprint)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("reference", ["feature.current@3", "feature.current@0", "feature.current@01", "feature.current", "feature.unknown@1"])
+def test_registry_rejects_invalid_or_future_historical_successor(tmp_path, reference):
+    module = load_module()
+    root = tmp_path / "specifications"
+    history = write_bundle(root / "history", specification_id="feature.old", assertion_id="historical.assertion")
+    active = write_bundle(root / "active", specification_id="feature.current", assertion_id="current.assertion")
+    path = history / "specification.yml"
+    old = yaml.safe_load(path.read_text())
+    old.update(status="superseded", superseded_by=reference)
+    path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = 2
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    with pytest.raises(module.SpecificationError, match="invalid superseded_by"):
+        module.build_registry(root)
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("change", ["retired_target", "changed_assertion"])
+def test_historical_successor_resolution_preserves_active_owner_and_migration_guards(tmp_path, change):
+    module = load_module()
+    root = tmp_path / "specifications"
+    history = write_bundle(root / "history", specification_id="feature.old", assertion_id="shared.assertion")
+    active = write_bundle(root / "active", specification_id="feature.current", assertion_id="shared.assertion")
+    path = history / "specification.yml"
+    old = yaml.safe_load(path.read_text())
+    old.update(status="superseded", superseded_by="feature.current@1")
+    path.write_text(yaml.safe_dump(old, sort_keys=False))
+    active_path = active / "specification.yml"
+    current = yaml.safe_load(active_path.read_text())
+    current["version"] = 2
+    if change == "retired_target":
+        current["status"] = "superseded"
+    else:
+        current["assertions"][0]["must"] = "A changed requirement cannot silently migrate."
+    active_path.write_text(yaml.safe_dump(current, sort_keys=False))
+    examples_path = active / "examples.yml"
+    examples = yaml.safe_load(examples_path.read_text())
+    examples["specification"] = f"feature.current@{current['version']}"
+    examples_path.write_text(yaml.safe_dump(examples, sort_keys=False))
+    with pytest.raises(module.SpecificationError, match="active Specification|duplicate assertion id"):
+        module.build_registry(root)

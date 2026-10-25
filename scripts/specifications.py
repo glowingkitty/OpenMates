@@ -300,16 +300,22 @@ def build_registry(specifications_root: Path) -> dict[str, Any]:
     specifications: dict[str, Any] = {}
     assertions: dict[str, Any] = {}
     bundles = discover_bundles(specifications_root)
-    by_versioned_id = {bundle.versioned_id: bundle for bundle in bundles}
+    by_id = {bundle.specification_id: bundle for bundle in bundles}
+    resolved_successors: dict[str, str] = {}
     for bundle in bundles:
         if bundle.specification_id in specifications:
             raise SpecificationError(f"duplicate Specification id: {bundle.specification_id}")
         successor = bundle.specification.get("superseded_by")
         if successor is not None:
-            if bundle.status != "superseded" or not isinstance(successor, str) or successor not in by_versioned_id:
+            # A tombstone retains the version that originally replaced it.
+            # Later active versions must not invalidate that immutable history.
+            reference = re.fullmatch(r"(.+)@([1-9][0-9]*)", successor) if isinstance(successor, str) else None
+            target = by_id.get(reference.group(1)) if reference else None
+            if bundle.status != "superseded" or target is None or int(reference.group(2)) > target.version:
                 raise SpecificationError(f"invalid superseded_by for {bundle.versioned_id}: {successor}")
-            if by_versioned_id[successor].status == "superseded":
+            if target.status == "superseded":
                 raise SpecificationError(f"superseded_by must name an active Specification: {successor}")
+            resolved_successors[bundle.specification_id] = target.versioned_id
         specifications[bundle.specification_id] = {
             "version": bundle.version,
             "status": bundle.status,
@@ -331,7 +337,7 @@ def build_registry(specifications_root: Path) -> dict[str, Any]:
                 existing = assertions[assertion_id]
                 if (
                     bundle.status != "superseded"
-                    or bundle.specification.get("superseded_by") != existing["specification"]
+                    or resolved_successors.get(bundle.specification_id) != existing["specification"]
                     or assertion_id in migrated_ids
                     or active_contracts.get(assertion_id)
                     != (assertion["type"], " ".join(assertion["must"].split()))
