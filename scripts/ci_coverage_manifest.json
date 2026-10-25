@@ -954,6 +954,13 @@
       "specs": [
         "cli-native-bounded-saved-read.spec.ts"
       ]
+    },
+    "native_os_keyring": {
+      "execution": "e2e",
+      "enabling_work": "Exact-source Rust ELF, two fresh isolated browser-authorized accounts, private internal core stack, signed packaged GNOME Secret Service on private D-Bus/XDG/control paths. Actual default native CLI cross-process persistence/fail-closed/restart/logout with recorded terminals; no AI, marker epoch, shared account or external provider.",
+      "specs": [
+        "cli-rust-native-keyring.spec.ts"
+      ]
     }
   },
   "holds": {

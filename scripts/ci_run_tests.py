@@ -1376,6 +1376,12 @@ def run_e2e(
                 raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
+    from ci_native_keyring import SPEC as NATIVE_KEYRING_SPEC
+    if NATIVE_KEYRING_SPEC in specs:
+        if specs != [NATIVE_KEYRING_SPEC] or artifact or component or visual_smoke or case_title:
+            raise ValueError("Native keyring requires its exact unfiltered E2E selector")
+        from ci_native_keyring import prepare as prepare_native_keyring
+        prepare_native_keyring(specs, ROOT)
     browser_package_env = {}
     if specs == [RUST_BROWSER_SPEC]:
         from ci_rust_wasm import prepare_browser_e2e_package

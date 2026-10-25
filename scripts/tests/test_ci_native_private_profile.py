@@ -15,8 +15,9 @@ BOUNDED_SPEC = "cli-native-bounded-saved-read.spec.ts"
 NATIVE_SPEC = "cli-rust-tui-proof.spec.ts"
 ESSENTIAL_SPEC = "cli-rust-core-essential.spec.ts"
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
+KEYRING_SPEC = "cli-rust-native-keyring.spec.ts"
 PERFORMANCE_SPECS = ("cli-rust-cli-performance.spec.ts", "cli-rust-tui-performance.spec.ts")
-PRIVATE_SPECS = (NATIVE_SPEC, BOUNDED_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, *PERFORMANCE_SPECS)
+PRIVATE_SPECS = (NATIVE_SPEC, BOUNDED_SPEC, ESSENTIAL_SPEC, BROWSER_SPEC, KEYRING_SPEC, *PERFORMANCE_SPECS)
 SOURCE_HASH = "a" * 40
 
 
@@ -82,7 +83,7 @@ def prepare_profile(
     return candidate, compose, json.loads(compose.read_text())
 
 
-@pytest.fixture(params=[NATIVE_SPEC, BOUNDED_SPEC, *PERFORMANCE_SPECS])
+@pytest.fixture(params=[NATIVE_SPEC, BOUNDED_SPEC, KEYRING_SPEC, *PERFORMANCE_SPECS])
 def generated_profile(tmp_path, monkeypatch, request):
     return prepare_profile(tmp_path, monkeypatch, [request.param])
 
@@ -242,3 +243,9 @@ def test_bounded_read_does_not_enable_chat_epoch_or_ai():
     for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider"):
         assert BOUNDED_SPEC not in coverage["groups"].get(group, {}).get("specs", [])
     assert BOUNDED_SPEC in runtime.PRIVATE_BACKEND_SPECS
+
+
+def test_native_keyring_prefix_and_nested_names_do_not_select_private_profile(tmp_path, monkeypatch):
+    for name in ("cli-rust-native-keyring-extra.spec.ts", "nested/" + KEYRING_SPEC):
+        _, _, profile = prepare_profile(tmp_path / str(len(name)), monkeypatch, [name])
+        assert profile.get("networks", {}).get("default", {}).get("internal") is not True
