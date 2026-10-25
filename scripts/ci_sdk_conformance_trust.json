@@ -8,7 +8,7 @@
     "sdkCompilerChanges": false
   },
   "contracts": {
-    "config/sdk-capabilities.json": "627fca58d6f1a857e133ba11ce33b0b434cc8f7eb7bc47290a1968805a6433c5",
+    "config/sdk-capabilities.json": "39e0258872507ce3b504a072003725d895200aa06fba403c4c3f2f2aed8ea7f6",
     "config/sdk-capabilities.schema.json": "ff232cfd259ef34e49323ae3e1ff9b8b2af3f5d5fee6fe7acd47876a2bc8959c",
     "tests/sdk-conformance/fixtures/core.json": "47ad13330236a519d269f1a931a954daf9aa16ddb2418a9d66899d362f7e44e7",
     "tests/sdk-conformance/fixtures/privacy.json": "ed47d4c8aa9f7b1272514a0fec861aa0224f6f8e74e35e7cdec1b7ca33055968",
