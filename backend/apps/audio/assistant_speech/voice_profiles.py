@@ -102,6 +102,15 @@ _MISTRAL_PROFILES = {
 
 def resolve_assistant_voice_profile(key: str, *, version: int) -> ResolvedAssistantVoiceProfile:
     """Resolve an exact configured profile or fail before provider dispatch."""
+    if version == 3:
+        legacy = _VOICE_PROFILES.get(key)
+        if legacy is None:
+            raise ValueError("Assistant voice profile is unavailable.")
+        return ResolvedAssistantVoiceProfile(
+            key=key, version=3, provider="elevenlabs", model=ELEVEN_V4_TURBO_SPEECH_MODEL,
+            output_format=DEFAULT_OUTPUT_FORMAT, voice_settings=DEFAULT_VOICE_SETTINGS,
+            _elevenlabs_voice_id=legacy._elevenlabs_voice_id,
+        )
     profile = (_MISTRAL_PROFILES if version == 2 else _VOICE_PROFILES).get(key)
     if profile is None or profile.version != version:
         raise ValueError("Assistant voice profile is unavailable.")

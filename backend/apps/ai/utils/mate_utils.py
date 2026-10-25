@@ -57,6 +57,16 @@ class MateConfig(BaseModel):
     default_system_prompt: str = Field(..., description="English default system prompt. From the markdown body.")
     learning_mode_system_prompt: str = Field(..., description="English Learning Mode system prompt variant from frontmatter.")
 
+    # Delivery-only variants compose with the canonical domain/teaching prompts.
+    # Required fields also invalidate old cached Mate bundles, triggering the
+    # existing disk reload rather than silently retaining text-chat delivery.
+    voice_system_prompt: str = Field(
+        ..., min_length=1, description="Voice delivery instructions for the default domain prompt.",
+    )
+    voice_learning_mode_system_prompt: str = Field(
+        ..., min_length=1, description="Voice delivery instructions for domain plus Learning Mode prompts.",
+    )
+
     # Reserved fields — parsed but not yet enforced downstream.
     # When a frontmatter value is omitted or set to "inherit", these become None
     # (meaning: no restriction, inherit platform default).
@@ -85,6 +95,24 @@ class MateConfig(BaseModel):
     voice_profile: "MateVoiceProfile" = Field(
         ..., description="Fixed versioned provider-neutral voice profile for assistant response speech."
     )
+
+
+def select_mate_system_prompt(mate: MateConfig, *, voice_mode: bool, learning_mode: bool) -> str:
+    """Select delivery while preserving canonical domain and teaching policy.
+
+    Text chat keeps its existing prompt exactly. Voice Learning Mode includes
+    the domain source as well as the teaching restrictions, so delivery changes
+    cannot discard medical boundaries, documentation requirements or expertise.
+    """
+    if not voice_mode:
+        return mate.learning_mode_system_prompt if learning_mode else mate.default_system_prompt
+    if learning_mode:
+        return "\n\n".join((
+            mate.default_system_prompt,
+            mate.learning_mode_system_prompt,
+            mate.voice_learning_mode_system_prompt,
+        ))
+    return "\n\n".join((mate.default_system_prompt, mate.voice_system_prompt))
 
 
 class MateVoiceProfile(BaseModel):
@@ -194,6 +222,8 @@ def _build_mate_from_file(file_path: Path) -> MateConfig:
         "description": frontmatter.get("description"),
         "default_system_prompt": body,
         "learning_mode_system_prompt": frontmatter.get("learning_mode_system_prompt"),
+        "voice_system_prompt": frontmatter.get("voice_system_prompt"),
+        "voice_learning_mode_system_prompt": frontmatter.get("voice_learning_mode_system_prompt"),
         "tools": tools,
         "model": model,
         "focus_modes": focus_modes,

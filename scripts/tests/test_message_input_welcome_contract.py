@@ -39,9 +39,10 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert re.sub(r"\s+", "", inert.group(1)) == (
         "showWelcome&&messageInputFocused&&!hasQueuedFollowUpActions"
         "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
+        "&&!(showWelcome&&hideWelcomeForKeyboard&&voiceCallLaunchEligible)"
     ), (
         "Ordinary focus must disable only welcome content, keeping chat history scrollable "
-        "and queued controls, voice consent, and bound-call controls reachable"
+        "and queued controls, voice consent, focused call launch and bound-call controls reachable"
     )
     assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
         "Ordinary focus must hide new-chat welcome content without affecting established chats"
@@ -55,8 +56,9 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert "display:none;" not in welcome
     for region in ("daily-inspiration-area", "center-content", "guest-interest-tags-overlay", "top-buttons"):
         assert f".{region}.welcome-hiding" in source
-    assert 'class:welcome-hiding={hideWelcomeForKeyboard}' in source
-    assert 'inert={hideWelcomeForKeyboard}' in source
+    assert 'const hideWelcomeContent = $derived(hideWelcomeForKeyboard || (showWelcome && showVoiceCallBarHere));' in source
+    assert 'class:welcome-hiding={hideWelcomeContent}' in source
+    assert 'inert={hideWelcomeContent}' in source
 
 
 # contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell

@@ -52,6 +52,9 @@ def validate_assistant_speech_sealed_segments(payload: Mapping[str, object]) -> 
     call_id = payload.get("voice_call_id")
     source_version = payload.get("source_version")
     segments = payload.get("segments")
+    track = payload.get("turn_track_id")
+    if "turn_track_id" in payload and (not isinstance(track, str) or not (_HEX_64.fullmatch(track) or _uuid_identity(track))):
+        raise ValueError("invalid_turn_track_identity")
     if (not isinstance(call_id, str) or not _HEX_32.fullmatch(call_id)
             or not _integer(source_version, 1) or not isinstance(segments, list) or len(segments) > 1024
             or ("error" in payload and payload["error"] != LIVE_HANDOFF_ERROR)):
@@ -104,9 +107,9 @@ def validate_assistant_speech_audio_event(
     if not isinstance(payload, dict):
         raise ValueError("invalid_payload")
     phase = payload.get("phase")
-    if phase not in ("start", "chunk", "end", "error"):
+    if phase not in ("start", "chunk", "end", "error", "alignment"):
         raise ValueError("invalid_phase")
-    required = _COMMON_FIELDS | ({"audio_data"} if phase == "chunk" else set())
+    required = _COMMON_FIELDS | ({"audio_data"} if phase == "chunk" else {"clause_timings"} if phase == "alignment" else set())
     if set(payload) != required:
         raise ValueError("invalid_payload_fields")
     if payload["chat_id"] != chat_id or payload["message_id"] != message_id:
@@ -122,7 +125,8 @@ def validate_assistant_speech_audio_event(
     if not _integer(sequence, -1, 65535):
         raise ValueError("invalid_sequence")
     if not (kind == "waiting_confirmation" and sequence == -1
-            or kind == "voice_prose_clause" and sequence >= 0):
+            or kind == "voice_prose_clause" and sequence >= 0
+            or kind == "voice_prose_turn" and sequence == 0):
         raise ValueError("invalid_audio_kind_sequence")
     if not all(_integer(payload[field], 1) for field in ("source_version", "execution_version")):
         raise ValueError("invalid_version")
@@ -131,6 +135,23 @@ def validate_assistant_speech_audio_event(
     index_limit = MAX_AUDIO_CHUNKS - 1 if phase == "chunk" else MAX_AUDIO_CHUNKS
     if not _integer(payload["chunk_index"], 0, index_limit) or phase == "start" and payload["chunk_index"] != 0:
         raise ValueError("invalid_chunk_index")
+    if phase == "alignment":
+        rows = payload["clause_timings"]
+        if kind != "voice_prose_turn" or not isinstance(rows, list) or len(rows) > 1024:
+            raise ValueError("invalid_clause_alignment")
+        previous_sequence, previous_end = -1, 0
+        seen = set()
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {"segment_id", "sequence", "start_ms", "end_ms"}:
+                raise ValueError("invalid_clause_alignment")
+            identity = row["segment_id"]
+            if (not isinstance(identity, str) or not (_HEX_64.fullmatch(identity) or _uuid_identity(identity))
+                    or identity in seen or not _integer(row["sequence"], previous_sequence + 1, 65535)
+                    or not _integer(row["start_ms"], previous_end, 600000)
+                    or not _integer(row["end_ms"], row["start_ms"] + 1, 600000)):
+                raise ValueError("invalid_clause_alignment")
+            previous_sequence, previous_end = row["sequence"], row["end_ms"]
+            seen.add(identity)
     if phase == "chunk":
         encoded = payload["audio_data"]
         if not isinstance(encoded, str) or not 1 <= len(encoded) <= MAX_AUDIO_BASE64_LENGTH:

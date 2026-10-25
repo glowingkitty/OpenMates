@@ -33,11 +33,13 @@
 
   interface Props {
     controller?: AssistantSpeechPlaybackController;
+    callOwnsAudio?: boolean;
     onHeightChange?: (height: number) => void;
   }
 
   let {
     controller = assistantSpeechController,
+    callOwnsAudio = false,
     onHeightChange = (_height: number) => {},
   }: Props = $props();
 
@@ -70,8 +72,9 @@
     !isFailed && ['waiting_for_segment', 'waiting_for_more'].includes($player.status),
   );
   let canPause = $derived(isPlaying || isLoading);
+  // Calls retain this controller and its audio; only call controls present it.
   let isVisible = $derived(
-    $player.responseId !== null && !['idle', 'stopped'].includes($player.status),
+    !callOwnsAudio && $player.responseId !== null && !['idle', 'stopped'].includes($player.status),
   );
   let activeIndex = $derived($player.regions.findIndex((region) => region.active));
   let activeRegion = $derived(activeIndex >= 0 ? $player.regions[activeIndex] : null);

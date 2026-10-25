@@ -1704,11 +1704,14 @@ export async function sendNewMessageImpl(
 	if (usesPersonalRecovery) {
 		try {
 			voiceDiagnostics.enter('predecessor');
+			voiceDiagnostics.enter('predecessor_wait');
 			predecessorVersion = await awaitPersonalChatPredecessor(personalTurn);
+			voiceDiagnostics.enter('journal_read');
 			retainedJournal = !!(await readPendingMessageJournal(
 				message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD,
 			));
 			if (!retainedJournal && personalTurn.predecessor === null && (chat?.messages_v ?? 0) > 1) {
+				voiceDiagnostics.enter('reply_discovery');
 				const { recoverCompletedRepliesBeforeSend } = await import('./chatSyncServiceHandlersRecovery');
 				predecessorVersion = await recoverCompletedRepliesBeforeSend(serviceInstance, message.chat_id);
 				chat = await chatDB.getChat(message.chat_id) ?? chat;

@@ -10141,50 +10141,49 @@ providers.audio_generation.heading:
   - en
 providers.audio_generation.description:
   context: Description of audio generation and speech providers
-  en: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  de: Diese Anbieter werden nur verwendet, wenn du einen Skill zur Audioerzeugung oder Text-zu-Sprache aufrufst. Wenn du die
-    Skills zur Audioerzeugung nie verwendest, werden keine deiner Daten mit diesen Anbietern geteilt.
-  zh: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  es: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  fr: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  pt: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  ru: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  ja: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  ko: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  it: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  tr: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  vi: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  id: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  pl: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  nl: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  ar: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  hi: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  th: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  cs: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  sv: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  he: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio
-    generation skills, none of your data is shared with them.
-  verified_by_human:
-  - en
+  en: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  de: Diese Anbieter werden für Skills zur Audioerzeugung oder Text-zu-Sprache sowie für gesprochene Assistentenantworten
+    während Sprachanrufen verwendet. Wenn du keine dieser Funktionen nutzt, werden keine deiner Daten mit ihnen geteilt.
+  zh: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  es: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  fr: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  pt: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  ru: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  ja: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  ko: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  it: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  tr: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  vi: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  id: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  pl: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  nl: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  ar: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  hi: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  th: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  cs: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  sv: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  he: These providers are used for audio generation or text-to-speech skills and for spoken assistant replies during voice
+    calls. If you use none of these features, none of your data is shared with them.
+  verified_by_human: []
 providers.audio_generation.elevenlabs.heading:
   context: Heading for ElevenLabs audio generation provider entry
   en: ElevenLabs (sound effects and text-to-speech)
@@ -10215,89 +10214,152 @@ providers.audio_generation.elevenlabs.description:
   en: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   de: ElevenLabs ermöglicht Soundeffekte mit audio.generate und Text-zu-Sprache mit audio.speak. ElevenLabs erhält deine Soundeffekt-Prompts
     oder den gewünschten Sprachtext, die gewählte OpenMates-Stimmvoreinstellung, Akzent, Stil, Geschwindigkeit, Ausgabeformat,
     Dauer und Erzeugungseinstellungen nur, wenn du diese Skills aufrufst. Der Text für audio.speak wird zunächst von der Groq-Sicherheitsprüfung
     geprüft; abgelehnte Anfragen werden nicht an ElevenLabs gesendet und es werden keine Credits für die Erzeugung berechnet.
+    Während Sprachanrufen erhält ElevenLabs v4 Turbo außerdem vorlesbaren Assistententext und kuratierte Stimmeinstellungen
+    zur Spracherzeugung. Mikrofon-Audio geht zur Transkription an Mistral, nicht an ElevenLabs. Erzeugtes Anrufaudio wird
+    vorübergehend gestreamt und nicht als OpenMates-Audiodatei gespeichert. ElevenLabs kann API-Anfragedaten gemäß seinen
+    eigenen Richtlinien aufbewahren.
   zh: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   es: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   fr: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   pt: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   ru: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   ja: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   ko: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   it: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   tr: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   vi: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   id: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   pl: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   nl: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   ar: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   hi: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   th: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   cs: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   sv: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
   he: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect
     prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation
     settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests
-    are not sent to ElevenLabs and are not charged generation credits.
-  verified_by_human:
-  - en
+    are not sent to ElevenLabs and are not charged generation credits. During voice calls, ElevenLabs v4 Turbo also receives
+    speakable assistant reply text and curated voice settings to generate speech. Microphone audio goes to Mistral for transcription,
+    not ElevenLabs. Generated call audio is streamed transiently and is not saved as an OpenMates audio asset. ElevenLabs
+    may retain API request data under its own policies.
+  verified_by_human: []
 providers.music_generation.heading:
   context: Subheading for music generation providers
   en: Music generation (only when you use a music skill)
@@ -13239,19 +13301,22 @@ quick_answers.voice_calls.answer:
     boundaries
   en: During a voice call, microphone audio travels over TLS through OpenMates to Mistral Voxtral for realtime transcription.
     Raw microphone audio does not receive personal-data placeholder substitution. Completed user transcripts and submitted
-    text enter the normal OpenMates encrypted chat pipeline, including eligible text privacy protections, automatic AI
-    routing, skills and permissions. Mistral receives speakable assistant text and voice settings to generate speech.
-    User and rich assistant messages and generated speech assets are encrypted before durable synchronization or storage.
-    OpenMates does not durably retain plaintext call audio or transcripts, and voice calls do not save a microphone recording.
-    Mistral and the AI providers selected by normal routing may retain API request data under their own policies.
+    text enter the normal OpenMates encrypted chat pipeline, including eligible text privacy protections, automatic AI routing,
+    skills and permissions. ElevenLabs v4 Turbo receives speakable assistant reply text and curated voice settings to generate
+    spoken replies; it does not receive microphone audio on this path. User and rich assistant messages are encrypted before
+    durable synchronization or storage. Generated call audio is streamed transiently and is not saved as an OpenMates audio
+    asset; voice calls do not save a microphone recording. OpenMates does not durably retain plaintext call audio or transcripts.
+    Mistral, ElevenLabs and the AI providers selected by normal routing may retain API request data under their own policies.
   de: Während eines Sprachanrufs wird Mikrofon-Audio über TLS durch OpenMates an Mistral Voxtral zur Echtzeit-Transkription
     übertragen. Bei rohem Mikrofon-Audio erfolgt keine Ersetzung personenbezogener Daten durch Platzhalter. Abgeschlossene
     Nutzertranskripte und gesendeter Text durchlaufen die normale verschlüsselte Chat-Verarbeitung von OpenMates, einschließlich
-    geeigneter Text-Datenschutzfunktionen, automatischer KI-Auswahl, Skills und Berechtigungen. Mistral erhält vorlesbaren
-    Assistententext und Stimmeinstellungen zur Spracherzeugung. Nutzer- und vollständige Assistentennachrichten sowie
-    erzeugte Sprachausgabe werden vor der dauerhaften Synchronisierung oder Speicherung verschlüsselt. OpenMates speichert
-    Anrufaudio und Transkripte nicht dauerhaft im Klartext; Sprachanrufe speichern keine Mikrofonaufnahme. Mistral und
-    die durch die normale KI-Auswahl bestimmten Anbieter können API-Anfragedaten gemäß ihren eigenen Richtlinien aufbewahren.
+    geeigneter Text-Datenschutzfunktionen, automatischer KI-Auswahl, Skills und Berechtigungen. ElevenLabs v4 Turbo erhält
+    vorlesbaren Assistententext und kuratierte Stimmeinstellungen zur Erzeugung gesprochener Antworten; Mikrofon-Audio erhält
+    ElevenLabs auf diesem Verarbeitungspfad nicht. Nutzer- und vollständige Assistentennachrichten werden vor der dauerhaften
+    Synchronisierung oder Speicherung verschlüsselt. Erzeugtes Anrufaudio wird vorübergehend gestreamt und nicht als OpenMates-Audiodatei
+    gespeichert; Sprachanrufe speichern keine Mikrofonaufnahme. OpenMates speichert Anrufaudio und Transkripte nicht dauerhaft
+    im Klartext. Mistral, ElevenLabs und die durch die normale KI-Auswahl bestimmten Anbieter können API-Anfragedaten gemäß
+    ihren eigenen Richtlinien aufbewahren.
   verified_by_human: []
 data_categories.content_v2:
   context: Privacy policy data category covering user content and the applicable encryption boundary
@@ -13347,16 +13412,16 @@ providers.ai_models.mistral_v2.heading:
   verified_by_human: []
 providers.ai_models.mistral_v2.description:
   context: Mistral disclosure for selected chat models, transcription, voice calls and assistant-message speech
-  en: Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak,
-    enable spoken responses or make a voice call. It processes eligible chat messages when normal routing selects a Mistral
+  en: Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak, or
+    enable spoken responses outside voice calls. It processes eligible chat messages when normal routing selects a Mistral
     model and processes realtime or uploaded voice audio for transcription, including microphone audio during voice calls.
     Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution.
-    Completed call transcripts enter the ordinary encrypted chat pipeline with its applicable text privacy protections;
-    call answers use the normal AI routing and skills. Mistral states that ordinary API inputs and outputs may be retained
-    for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data
-    retention for this path.
+    Completed call transcripts enter the ordinary encrypted chat pipeline with its applicable text privacy protections; call
+    answers use the normal AI routing and skills. Mistral states that ordinary API inputs and outputs may be retained for
+    30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention
+    for this path.
   de: Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen,
-    wenn du Vorlesen auswählst, gesprochene Antworten aktivierst oder einen Sprachanruf führst. Mistral verarbeitet geeignete
+    wenn du Vorlesen auswählst oder außerhalb von Sprachanrufen gesprochene Antworten aktivierst. Mistral verarbeitet geeignete
     Chatnachrichten, wenn die normale KI-Auswahl ein Mistral-Modell bestimmt, sowie Echtzeit- oder hochgeladenes Sprachaudio
     zur Transkription, einschließlich Mikrofon-Audio während Sprachanrufen. Sprachaudio kann personenbezogene oder sensible
     Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Abgeschlossene Anruftranskripte

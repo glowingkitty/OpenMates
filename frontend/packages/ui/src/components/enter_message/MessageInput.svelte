@@ -2913,7 +2913,11 @@
             const activeElement = document.activeElement;
             const editorDomIsFocused = !!editorDom &&
                 (activeElement === editorDom || (activeElement instanceof Node && editorDom.contains(activeElement)));
-            if (editor && !editor.isDestroyed && !editorDomIsFocused &&
+            // External composer controls retain the same focus session when
+            // reached by keyboard as when reached by pointerdown.
+            const composerControlIsFocused = activeElement instanceof Element &&
+                !!activeElement.closest('[data-composer-focus-control]');
+            if (editor && !editor.isDestroyed && !editorDomIsFocused && !composerControlIsFocused &&
                 !(activeElement instanceof Node && messageInputWrapper?.contains(activeElement)) && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
@@ -4472,6 +4476,13 @@
         if (!editor || editor.isDestroyed || queuedEdit) return;
         syncTextOnlyDomToEditorBeforeDraftSave(editor);
         return flushSaveDraft(editor, chatId);
+    }
+
+    /** Draft ownership includes atomic mentions and embeds without exposing their content. */
+    export function hasMeaningfulDraftForChat(chatId: string): boolean {
+        return !!editor && !editor.isDestroyed && editor.view.dom.isConnected && !queuedEdit &&
+            !!chatId && currentChatId === chatId &&
+            inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
     }
 
     export async function prepareVoiceCallDraft(capturedChatId: string): Promise<boolean> {

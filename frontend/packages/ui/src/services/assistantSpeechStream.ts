@@ -5,14 +5,19 @@ export interface AssistantSpeechAudioEvent {
   voice_call_id: string;
   segment_id: string;
   sequence: number;
-  kind: "voice_prose_clause" | "waiting_confirmation";
+  kind: "voice_prose_clause" | "waiting_confirmation" | "voice_prose_turn";
   source_version: number;
   execution_version: number;
   attempt_id: string;
-  phase: "start" | "chunk" | "end" | "error";
+  phase: "start" | "chunk" | "end" | "error" | "alignment";
+  clause_timings?: AssistantSpeechClauseTiming[];
   chunk_index: number;
   audio_data?: string;
   mime_type: "audio/mpeg";
+}
+
+export interface AssistantSpeechClauseTiming {
+  segment_id: string; sequence: number; start_ms: number; end_ms: number;
 }
 
 export interface AssistantSpeechStreamSource {
@@ -27,6 +32,22 @@ export const MAX_SPEECH_STREAM_PENDING_BYTES = 512 * 1024;
 export const MAX_SPEECH_STREAM_CHUNK_BYTES = 128 * 1024;
 export const MAX_SPEECH_STREAM_RETAINED_BYTES = 16 * 1024 * 1024;
 const STREAM_IDLE_MS = 15_000;
+export const MAX_TURN_STREAM_BYTES = 16 * 1024 * 1024;
+const MAX_TURN_LIFETIME_MS = 600_000;
+
+export function validClauseTimings(value: unknown): value is AssistantSpeechClauseTiming[] {
+  if (!Array.isArray(value) || value.length > 1024) return false;
+  let previousSequence = -1, previousEnd = 0;
+  const ids = new Set<string>();
+  return value.every(row => {
+    if (!row || Object.keys(row).sort().join(",") !== "end_ms,segment_id,sequence,start_ms"
+      || typeof row.segment_id !== "string" || !/^(?:[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(row.segment_id)
+      || ids.has(row.segment_id) || !Number.isSafeInteger(row.sequence) || row.sequence <= previousSequence || row.sequence > 65535
+      || !Number.isSafeInteger(row.start_ms) || !Number.isSafeInteger(row.end_ms) || row.start_ms < previousEnd
+      || row.end_ms <= row.start_ms || row.end_ms > MAX_TURN_LIFETIME_MS) return false;
+    previousSequence = row.sequence; previousEnd = row.end_ms; ids.add(row.segment_id); return true;
+  });
+}
 
 export function supportsAssistantSpeechStream(): boolean {
   return typeof MediaSource !== "undefined" && typeof MediaSource.isTypeSupported === "function"
@@ -38,15 +59,17 @@ export function isAssistantSpeechAudioEvent(value: unknown): value is AssistantS
   const event = value as Partial<AssistantSpeechAudioEvent>;
   return [event.chat_id, event.message_id, event.voice_call_id, event.segment_id].every(
     (id) => typeof id === "string" && id.length > 0 && id.length <= 128,
-  ) && ["voice_prose_clause", "waiting_confirmation"].includes(event.kind ?? "") && event.mime_type === "audio/mpeg"
+  ) && ["voice_prose_clause", "waiting_confirmation", "voice_prose_turn"].includes(event.kind ?? "") && event.mime_type === "audio/mpeg"
     && typeof event.attempt_id === "string"
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.attempt_id)
     && Number.isSafeInteger(event.sequence)
-    && (event.kind === "waiting_confirmation" ? event.sequence === -1 : event.sequence! >= 0 && event.sequence! <= 65_535)
+    && (event.kind === "waiting_confirmation" ? event.sequence === -1 : event.kind === "voice_prose_turn" ? event.sequence === 0 : event.sequence! >= 0 && event.sequence! <= 65_535)
     && Number.isSafeInteger(event.source_version) && event.source_version! >= 1
     && Number.isSafeInteger(event.execution_version) && event.execution_version! >= 1
     && Number.isSafeInteger(event.chunk_index) && event.chunk_index! >= 0
-    && ["start", "chunk", "end", "error"].includes(event.phase ?? "")
+    && event.chunk_index! <= (event.phase === "chunk" ? 4095 : 4096)
+    && ["start", "chunk", "end", "error", "alignment"].includes(event.phase ?? "")
+    && (event.phase === "alignment" ? event.kind === "voice_prose_turn" && validClauseTimings(event.clause_timings) : event.clause_timings === undefined)
     && (event.phase === "chunk" ? typeof event.audio_data === "string"
       && event.audio_data.length > 0 && event.audio_data.length <= Math.ceil(MAX_SPEECH_STREAM_CHUNK_BYTES / 3) * 4
       : event.audio_data === undefined);
@@ -69,10 +92,14 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
   private disposed = false;
   private failed = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private lifetimeTimer: ReturnType<typeof setTimeout> | undefined;
+  private turn = false;
 
   get active(): boolean { return !this.disposed; }
 
-  constructor(private readonly onFailure: () => void) {
+  constructor(private readonly onFailure: () => void, turn = false) {
+    this.turn = turn;
+    if (turn) this.lifetimeTimer = setTimeout(() => this.fail(), MAX_TURN_LIFETIME_MS);
     const media = this.media!;
     this.url = URL.createObjectURL(media);
     media.addEventListener("sourceopen", () => {
@@ -93,6 +120,7 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
     if (this.providerEnded || event.phase === "error") { this.fail(); return; }
     if (event.phase === "start") { if (event.chunk_index !== 0 || this.nextIndex !== 0) this.fail(); return; }
     if (event.chunk_index !== this.nextIndex) { this.fail(); return; }
+    if (event.phase === "alignment") return;
     if (event.phase === "end") {
       this.providerEnded = true;
       if (!this.nextIndex) { this.fail(); return; }
@@ -111,7 +139,7 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
       const raw = atob(encoded);
       if (!raw.length || raw.length > MAX_SPEECH_STREAM_CHUNK_BYTES
         || this.pendingBytes + raw.length > MAX_SPEECH_STREAM_PENDING_BYTES
-        || this.totalBytes + raw.length > MAX_SPEECH_STREAM_BYTES
+        || this.totalBytes + raw.length > (this.turn ? MAX_TURN_STREAM_BYTES : MAX_SPEECH_STREAM_BYTES)
         || AssistantSpeechStream.retainedBytes + raw.length > MAX_SPEECH_STREAM_RETAINED_BYTES) { this.fail(); return; }
       this.chunks.push(Uint8Array.from(raw, (character) => character.charCodeAt(0)));
       this.pendingBytes += raw.length;
@@ -133,6 +161,7 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
     if (this.disposed) return;
     this.disposed = true;
     clearTimeout(this.timer);
+    clearTimeout(this.lifetimeTimer);
     this.chunks = [];
     this.pendingBytes = 0;
     AssistantSpeechStream.retainedBytes -= this.totalBytes;

@@ -86,14 +86,19 @@ quick_answers:
     recording and transcript as encrypted account content, but Mistral and
     Google or Inception may retain API request data under their own policies.
   voice_calls: >
-    During a Gemini voice call, microphone audio, submitted text, and the
-    permitted chat context travel over TLS through OpenMates to Google Gemini
-    Live. Raw call audio and its transcripts do not receive the placeholder
-    substitution used for eligible typed chat inference. User and assistant
-    transcripts are encrypted in the browser before durable synchronization.
-    OpenMates does not durably retain plaintext call audio or transcripts and
-    phase-one calls do not save an audio recording. Google may retain API
-    request data under its own policies.
+    During a voice call, microphone audio travels over TLS through OpenMates to
+    Mistral Voxtral for realtime transcription. Raw microphone audio does not
+    receive personal-data placeholder substitution. Completed user transcripts and
+    submitted text enter the normal OpenMates encrypted chat pipeline, including
+    eligible text privacy protections, automatic AI routing, skills and
+    permissions. ElevenLabs v4 Turbo receives speakable assistant reply text and
+    curated voice settings to generate spoken replies; it does not receive
+    microphone audio on this path. User and rich assistant messages are encrypted
+    before durable synchronization or storage. Generated call audio is streamed
+    transiently and is not saved as an OpenMates audio asset; voice calls do not
+    save a microphone recording. OpenMates does not durably retain plaintext call
+    audio or transcripts. Mistral, ElevenLabs and the AI providers selected by
+    normal routing may retain API request data under their own policies.
   model_training: >
     OpenMates does not use private chats to train OpenMates-owned AI models. For
     third-party providers, training use depends on the provider. Most audited
@@ -610,9 +615,9 @@ provider_groups:
   # =====================================================================
   audio_generation:
     description: >
-      These providers are only used when you invoke an audio generation or
-      text-to-speech skill. If you never use the audio generation skills, none
-      of your data is shared with them.
+      These providers are used for audio generation or text-to-speech skills
+      and for spoken assistant replies during voice calls. If you use none of
+      these features, none of your data is shared with them.
     providers:
       elevenlabs:
         privacy_policy: https://elevenlabs.io/privacy-policy  # verified 2026-08-09
@@ -620,9 +625,12 @@ provider_groups:
         used_for:
           - short non-speech sound-effect generation via the audio.generate skill
           - explicit user-invoked text-to-speech via the audio.speak skill
+          - assistant speech generation during voice calls via ElevenLabs v4 Turbo
         data_shared:
           - Sound-effect generation prompts and generation settings
           - Requested speech text, voice preset, accent, style, speed, and output settings when audio.speak passes the required safeguard
+          - Speakable assistant reply text and curated voice settings during voice calls; microphone audio is sent to Mistral for transcription, not ElevenLabs
+          - Generated call audio is streamed transiently and is not saved as an OpenMates audio asset; ElevenLabs may retain API request data under its own policies
           - Note: audio.speak text is checked by the Groq safeguard before ElevenLabs is called; rejected requests are not sent to ElevenLabs and are not charged generation credits
 
   # =====================================================================

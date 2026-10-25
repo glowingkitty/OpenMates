@@ -1344,16 +1344,36 @@ export async function handleRecoveryJobsAvailableImpl(
         },
       );
 
+      // A local optimistic counter and a concurrent system append can each race
+      // this completion. Retry only the version CAS, retaining its sealed lease
+      // and ciphertext, under this browser session/socket/foreground authority.
+      const recoveryConnection = webSocketService.getConnectionForSend();
+      const originalChat = { ...chat };
+      let persistBaseChat = originalChat;
       let persistedResult: Record<string, unknown>;
-      let persistBaseChat = chat;
-      try {
-        persistedResult = await persistRecoveredMessage(chat.messages_v);
-      } catch (error) {
-        if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict") throw error;
-        const refreshedChat = await refreshRecoveryChatVersion(chat);
-        if (!refreshedChat) throw error;
-        persistBaseChat = refreshedChat;
-        persistedResult = await persistRecoveredMessage(refreshedChat.messages_v);
+      const assertPersistenceAuthority = () => {
+        assertRecoverySession(generation);
+        if (webSocketService.getConnectionForSend() !== recoveryConnection) {
+          throw new RecoverySessionEndedError("Recovery connection changed.");
+        }
+        if (!canRunRecovery()) throw new RecoveryForegroundDeferredError("Recovery paused until foreground discovery.");
+      };
+      for (let attempt = 0; ; attempt += 1) {
+        assertPersistenceAuthority();
+        try {
+          persistedResult = await persistRecoveredMessage(persistBaseChat.messages_v);
+          assertPersistenceAuthority();
+          break;
+        } catch (error) {
+          assertPersistenceAuthority();
+          if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict" || attempt >= 3) throw error;
+          const refreshedChat = await refreshRecoveryChatVersion(persistBaseChat);
+          assertPersistenceAuthority();
+          if (!refreshedChat || refreshedChat.chat_id !== originalChat.chat_id ||
+              !Number.isSafeInteger(refreshedChat.messages_v) || refreshedChat.messages_v < 0) throw error;
+          // Only the authoritative counter may replace captured owner/scope.
+          persistBaseChat = { ...originalChat, messages_v: refreshedChat.messages_v };
+        }
       }
       if (
         persistedResult.state !== "TERMINAL" ||

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 vi.mock('../../config/api', () => ({ getApiUrl: () => 'https://first-party.invalid' }));
+// Consent behavior uses URL data only; Vite component specs exercise real module linkage.
+vi.mock('../../config/links', () => ({ externalLinks: { legal: { privacyPolicy: '/legal/privacy' } } }));
 vi.mock('../../i18n/translations', async () => { const { readable } = await import('svelte/store'); return { text: readable((key: string) => key) }; });
 import { notificationStore } from '../../stores/notificationStore';
 import { ensureVoiceCallPrivacyAcknowledgement } from '../voiceCallPrivacy';
-const absent = { version: 2, acknowledged: false, acknowledged_at: null };
-const saved = { version: 2, acknowledged: true, acknowledged_at: 1700000000 };
+const absent = { version: 3, acknowledged: false, acknowledged_at: null };
+const saved = { version: 3, acknowledged: true, acknowledged_at: 1700000000 };
 const response = (value: unknown, ok = true) => ({ ok, json: async () => value });
 const notice = () => get(notificationStore).notifications.find(item => item.dedupeKey === 'voice-call-privacy' && !item.isExiting)!;
 const opened = async () => { await vi.waitFor(() => expect(notice()).toBeDefined()); return notice(); };
@@ -31,7 +33,7 @@ describe('first-call server-profile acknowledgement through shared notifications
     const pending = ensureVoiceCallPrivacyAcknowledgement(new AbortController().signal, gesture);
     const current = await opened();
     expect(current).toMatchObject({ type: 'info', title: 'voicecall.privacy_title', message: 'voicecall.privacy_description', duration: 0,
-      keepOnAction: true, messageLink: { href: 'https://legal.mistral.ai/terms/privacy-policy', label: 'voicecall.privacy_terms' } });
+      keepOnAction: true, messageLink: { href: '/legal/privacy', label: 'voicecall.privacy_terms' } });
     expect(fetcher).toHaveBeenCalledOnce(); expect(gesture).not.toHaveBeenCalled();
     current.onSecondaryAction!(); expect(await pending).toBe(false);
     expect(fetcher.mock.calls.some(call => call[1].method === 'POST')).toBe(false);
@@ -45,7 +47,7 @@ describe('first-call server-profile acknowledgement through shared notifications
     const pending = ensureVoiceCallPrivacyAcknowledgement(new AbortController().signal, gesture).then(value => { resumed = value; return value; });
     const current = await opened(); const saving = current.onAction!();
     expect(gesture).toHaveBeenCalledOnce();
-    expect(fetcher.mock.calls[1]).toEqual(['https://first-party.invalid/v1/settings/voice-processing-ack', expect.objectContaining({ method: 'POST', credentials: 'include', body: '{"version":2}' })]);
+    expect(fetcher.mock.calls[1]).toEqual(['https://first-party.invalid/v1/settings/voice-processing-ack', expect.objectContaining({ method: 'POST', credentials: 'include', body: '{"version":3}' })]);
     expect(notice()).toMatchObject({ isProcessing: true, actionsDisabled: true }); expect(resumed).toBe(false);
     await current.onAction!(); expect(fetcher).toHaveBeenCalledTimes(2);
     complete(response(saved)); await saving; expect(await pending).toBe(true);
@@ -101,7 +103,7 @@ describe('first-call server-profile acknowledgement through shared notifications
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning
   it('rejects unavailable or malformed server acknowledgement instead of a local bypass', async () => {
-    for (const value of [response({}, false), response({ ...saved, version: 1 }), response({ ...saved, acknowledged_at: null })]) {
+    for (const value of [response({}, false), response({ ...saved, version: 1 }), response({ ...saved, version: 2 }), response({ ...saved, acknowledged_at: null })]) {
       fetcher.mockResolvedValueOnce(value);
       await expect(ensureVoiceCallPrivacyAcknowledgement(new AbortController().signal, () => {})).rejects.toThrow();
     }

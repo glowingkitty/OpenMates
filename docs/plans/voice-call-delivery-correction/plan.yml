@@ -1,0 +1,35 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: voice-call-delivery-correction
+title: Correct call presentation and implement realtime v4 Turbo speech
+goal: "A regular audio call only shows the audio call UI. We always must use the real-time model for voice calling. Improve processing speed for all messages before splitting the processing flow. Load separate main and mate instructions optimized for voice calling."
+authorization: The user explicitly requested these corrections. Existing approved call ownership, spoken-rich-response and shared-pipeline assertions cover the UI and instruction repairs.
+task: TASK-6049
+specification_refs:
+  - id: feature.video-call
+    version: 12
+  - id: feature.assistant-response-speech
+    version: 10
+scope:
+  - Hide ordinary message playback controls and independent Speak actions while a call owns audio; restore independent Speak after hangup.
+  - Preserve the existing reserved draft identity and Project context when starting from meaningful mention-only content; draft existence is distinct from whether its text can be sent.
+  - Select explicit voice main and mate delivery instructions while preserving domain safety, Learning Mode, ethics, privacy, rich results and permissions.
+  - Use the user-selected Eleven v4 Turbo incremental text/audio WebSocket for call speech, retaining Voxtral transcription and Mistral ordinary message Speak. Feed approved prose while the LLM is still writing; one continuous native audio track preserves semantic clause and actual-heard evidence.
+  - Keep the selected provider disclosed before capture or paid connection, invalidate obsolete Mistral-only call consent, and preserve existing provider-specific cumulative billing.
+  - Preserve encrypted assistant persistence when a concurrent call-end entry changes the saved-chat revision; retry only the bounded authorized compare-and-swap, with no inference replay.
+  - Investigate shared setup, independent reads and connection reuse without omitting preprocessing decisions or changing automatic model/thinking routing.
+decisions:
+  - Keep one shared audio player and the complete shared pre/main/post pipeline; presentation, prompt selection and call speech transport differ by call mode.
+  - User explicitly selected Eleven v4 Turbo for call output on 2026-10-25; no separate Mistral realtime preview access is available.
+  - Do not implement the previously suggested voice-only preprocessing shortcut or speculative paid processing in this correction.
+  - Keep manual Speak generation and encrypted caching independent; do not store generated call audio.
+required_checks:
+  - Focused prompt selection and per-mate completeness checks, preserving ordinary and Learning Mode instructions.
+  - Focused frontend checks and isolated component preview for hidden call-owned playback state and focused-draft handset launch on phone, desktop and RTL.
+  - Isolated voice-call browser regression proving call controls only, genuine native audio progression and independent Speak restoration after hangup.
+  - Verify the documented v4 provider with a bounded real incremental-input probe; audio must arrive before the second input is supplied and normal drain must complete.
+  - Prove continuous-turn playback, interruption with conservative actual-heard evidence, stale-event rejection, no call audio storage and independent Mistral Speak after hangup.
+  - Regress consecutive completion version conflicts, finite exhaustion and session/socket/foreground revocation in the actual recovery handler, and verify durable encrypted call history in the full browser suite.
+  - Recheck processing disclosure version and provider/model-specific billing without changing ordinary routing.
+  - Validate this Plan and publish only scoped, verified changes through the managed session helper.

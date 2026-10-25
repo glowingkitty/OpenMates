@@ -1,9 +1,9 @@
 schema_version: 1
 id: feature.video-call
-version: 11
+version: 12
 status: approved
 title: Chat-bound Voice And Video Calls
-summary: Voxtral speech connects authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
+summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
   Live calling implementation is removed.
 scope:
@@ -25,7 +25,7 @@ scope:
     chat embeds alongside natural speech.'
   - 'Phase 3: user camera/screen visual input and generated-video skill output that plays during the call and remains
     in chat.'
-  - Voxtral STT and TTS use shared provider boundaries; ordinary chat routing and skill authority remain unchanged.
+  - Voxtral STT and Eleven v4 Turbo TTS use shared provider boundaries; ordinary chat routing and skill authority remain unchanged.
   - Future encrypted whole-call recordings and replay retain their existing draft requirements, but recording delivery
     is deferred beyond phase 1 and requires its own implementation scope.
   excludes:
@@ -113,10 +113,12 @@ models:
 assertions:
 - id: video-call.chat.launch-and-provider
   type: behavior
-  must: The web and supported Apple call controls retain their existing layout and personal-chat binding. Starting discloses
-    Mistral speech processing and ordinary routed-model processing, admits authenticated owner-scoped calls with enough
-    credits, and exposes connection progress accessibly. The call uses Voxtral realtime STT and Voxtral TTS; Google remains
-    eligible as an ordinary chat reasoning provider.
+  must: >-
+    The web and supported Apple call controls retain their existing layout and personal-chat binding.
+    Starting discloses Mistral transcription, ElevenLabs speech generation and ordinary routed-model
+    processing, admits authenticated owner-scoped calls with enough credits, and exposes connection progress
+    accessibly. The call uses Voxtral realtime STT and Eleven v4 Turbo TTS; Google remains eligible as an
+    ordinary chat reasoning provider.
   depends_on:
   - examples.launch
 - id: video-call.chat.fixed-binding
@@ -229,12 +231,15 @@ assertions:
   - examples.privacy
 - id: video-call.privacy.first-call-warning
   type: behavior
-  must: Before microphone capture or a paid speech connection, show an accessible Mistral speech and routed-model processing
-    notice and obtain explicit Continue. Confirm a version-2 acknowledgement in the current user profile. A previous
-    Google-only acknowledgement does not satisfy this notice. Cancel, logout, failed reads or failed writes leave the
-    call unopened. The saved current-version acknowledgement applies across that account's devices; other accounts cannot
-    read or reuse it. First-party authenticated GET/POST and server call admission enforce it without developer-key access.
-    Do not promise zero provider retention or assume the routed model is Mistral.
+  must: >-
+    Before microphone capture or a paid speech connection, show an accessible notice identifying Mistral
+    transcription, ElevenLabs speech generation and ordinary routed-model processing, and obtain explicit
+    Continue. Confirm a version-3 acknowledgement in the current user profile; previous Google-only or
+    version-2 Mistral-only acknowledgements do not satisfy this notice. Cancel, logout, failed reads or
+    failed writes leave the call unopened. The saved current-version acknowledgement applies across that
+    account's devices; other accounts cannot read or reuse it. First-party authenticated GET/POST and server
+    call admission enforce it without developer-key access. Do not promise zero provider retention or assume
+    the routed model is either speech provider.
   depends_on:
   - examples.first_call_privacy
 - id: video-call.chat.transcripts
@@ -324,12 +329,18 @@ assertions:
   - examples.migration_disconnect_settlement
 - id: video-call.usage.provider-metering
   type: invariant
-  must: Call transcription is charged for received microphone audio using the published realtime transcription started-minute
-    policy. Ordinary chat reasoning, skills and successful TTS generation use their existing rates and idempotent settlement,
-    without a second connected-time fee or Gemini Live token ledger. Synthetic endpoint padding is not microphone usage.
-    Call information explains these distinct usage components. The strip omits credit totals; its duration reflects activity,
-    not a price guarantee. Muting and healthy idle detection stop microphone upload while already generated audio may
-    finish.
+  must: >-
+    Call transcription is charged for received microphone audio using the published realtime transcription
+    started-minute policy. Successful completed Eleven v4 Turbo call synthesis settles exact submitted
+    characters once, charging only the increase in ceil(cumulative message characters * 0.04), with
+    provider/model attribution and zero-credit increments recorded as settled. Per-append credit headroom is
+    checked before paid work; failed or interrupted synthesis, cached playback and duplicate settlement add
+    no charge. Ordinary chat reasoning and skills retain existing rates and idempotent settlement, without a
+    second connected-time fee or Gemini Live token ledger. Manual Mistral Speak remains separate at 0.013
+    credits per exact character with cumulative rounding and cached replay. Synthetic endpoint padding is
+    not microphone usage. Call information explains these distinct usage components. The strip omits credit
+    totals; its duration reflects activity, not a price guarantee. Muting and healthy idle detection stop
+    microphone upload while already generated audio may finish.
   depends_on:
   - examples.migration_distinct_usage
 - id: video-call.video.input-and-output
@@ -375,10 +386,12 @@ assertions:
   - examples.call_video_default
 - id: video-call.provider.boundary
   type: invariant
-  must: Voxtral speech adapters expose bounded normalized events and explicit capabilities. The old Gemini Live calling
-    adapter, its route logic, broker-only answer pipeline and call-specific Google disclosures are removed; there is
-    no legacy Gemini Live fallback. General Google chat models and unrelated Google-backed app skills remain eligible
-    through ordinary routing.
+  must: >-
+    Voxtral transcription and Eleven v4 Turbo speech adapters expose bounded normalized events and explicit
+    capabilities. The old Gemini Live calling adapter, its route logic, broker-only answer pipeline and
+    call-specific Google disclosures are removed; there is no legacy Gemini Live fallback or automatic paid
+    synthesis reconnect/retry. General Google chat models and unrelated Google-backed app skills remain
+    eligible through ordinary routing.
   depends_on:
   - examples.providers
 - id: video-call.chat.metadata-generation
@@ -407,10 +420,22 @@ assertions:
   - examples.interruption_intent
 - id: video-call.audio.spoken-rich-response
   type: behavior
-  must: The same canonical main response supplies rich chat output and speech. Speak natural prose and useful link labels
-    in stable short clauses while normal embed containers and image groups render in their original order. Do not read
-    raw URLs, serialized embed metadata, markup or repetitive generic visual announcements. Begin useful speech before
-    the entire reply or postprocessing completes, with one ordered player and bounded buffering.
+  must: >-
+    The same canonical main response supplies rich chat output and speech. Speak natural prose and useful
+    link labels in stable short semantic clauses while normal embed containers and image groups render in
+    their original order. Do not read raw URLs, serialized embed metadata, markup or repetitive generic
+    visual announcements. Append approved immutable prose incrementally to Eleven v4 Turbo and play returned
+    chunks as they become available, without requiring final response or speech-input completion or waiting
+    for postprocessing. Ongoing long responses can overlap text generation, incremental speech input and
+    useful audible playback. One bounded, continuous ordered audio track per assistant turn is distinct from
+    its immutable semantic clauses and never becomes a stored call-audio history or replay asset. Preserve
+    the full shared pre/main/post decisions, routing, permissions, ethics, Learning Mode, skills and rich
+    UI. Input completion, provider completion and audible playback completion are distinct. A clause counts
+    as heard only after native playback crosses validated conservative timing, or all sealed semantic
+    members count as heard after successful provider completion and native playback end. Unknown partial
+    timing records an explicit empty heard boundary; interruption, cancellation, failure, stale events or
+    incomplete membership never mark the whole answer heard. Cancel pending speech promptly and reject late
+    audio without paid automatic retry.
   depends_on:
   - examples.spoken_rich_response
 - id: video-call.audio.localized-waiting
@@ -482,3 +507,10 @@ examples:
   - call_activity
   - call_strip
   - call_events
+
+notes:
+  version_12_scope_authorization: >-
+    Direct user instruction on 2026-10-25 authorizes Eleven v4 Turbo call speech and
+    incremental text input while retaining Voxtral transcription and shared processing.
+    This records behavior authorization; it does not assert that a new exact-fingerprint
+    review was separately presented or acknowledged.

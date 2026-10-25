@@ -5,8 +5,8 @@ title:
   verified_by_human: []
 provider:
   context: Speech provider and ordinary AI routing disclosure
-  en: Voxtral speech · normal AI routing
-  de: Voxtral-Sprache · normale KI-Auswahl
+  en: Mistral transcription · ElevenLabs voice · normal AI routing
+  de: Mistral-Transkription · ElevenLabs-Stimme · normale KI-Auswahl
   verified_by_human: []
 start:
   context: Chat header button that starts a voice call
@@ -212,9 +212,28 @@ close_chat:
   de: Chat schließen
   verified_by_human: []
 start_hint:
-  context: Accessible description of starting a call before the strip replaces the launch button
-  en: Voice calls use Voxtral speech with normal OpenMates AI routing and usage-based billing.
-  de: Sprachanrufe nutzen Voxtral für Sprache, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung.
+  context: Accessible call launch description with separate transcription, speech output, ordinary AI routing and billing
+  en: "Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing."
+  de: "Sprachanrufe nutzen Mistral zur Transkription, ElevenLabs v4 Turbo für die Stimme, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung."
+  zh: "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"
+  es: "Las llamadas usan transcripción de Mistral, voz de ElevenLabs v4 Turbo, enrutamiento de IA habitual de OpenMates y facturación por uso."
+  fr: "Les appels utilisent la transcription Mistral, la voix ElevenLabs v4 Turbo, le routage IA habituel d’OpenMates et une facturation à l’usage."
+  pt: "As chamadas usam transcrição Mistral, voz ElevenLabs v4 Turbo, encaminhamento de IA habitual do OpenMates e cobrança por utilização."
+  ru: "Звонки используют расшифровку Mistral, голос ElevenLabs v4 Turbo, обычную маршрутизацию ИИ OpenMates и оплату по использованию."
+  ja: "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"
+  ko: "음성 통화는 Mistral 전사, ElevenLabs v4 Turbo 음성, 일반 OpenMates AI 라우팅 및 사용량 기반 청구를 사용합니다."
+  it: "Le chiamate usano trascrizione Mistral, voce ElevenLabs v4 Turbo, normale instradamento IA di OpenMates e fatturazione a consumo."
+  tr: "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."
+  vi: "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."
+  id: "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."
+  pl: "Połączenia używają transkrypcji Mistral, głosu ElevenLabs v4 Turbo, zwykłego routingu AI OpenMates i rozliczeń według użycia."
+  nl: "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."
+  ar: "تستخدم المكالمات نسخ Mistral وصوت ElevenLabs v4 Turbo وتوجيه الذكاء الاصطناعي المعتاد في OpenMates والفوترة حسب الاستخدام."
+  hi: "वॉइस कॉल में Mistral ट्रांसक्रिप्शन, ElevenLabs v4 Turbo की आवाज़, OpenMates की सामान्य AI रूटिंग और उपयोग आधारित बिलिंग होती है।"
+  th: "การโทรใช้การถอดเสียง Mistral เสียง ElevenLabs v4 Turbo การเลือกเส้นทาง AI ตามปกติของ OpenMates และคิดค่าบริการตามการใช้งาน"
+  cs: "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."
+  sv: "Samtal använder Mistral-transkribering, ElevenLabs v4 Turbo-röst, OpenMates vanliga AI-routning och användningsbaserad debitering."
+  he: "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."
   verified_by_human: []
 retry:
   context: Retry a failed voice call from its visible error notice
@@ -227,17 +246,52 @@ privacy_title:
   de: Vor deinem ersten Sprachanruf
   verified_by_human: []
 privacy_description:
-  context: Voice processing disclosure shown before microphone capture; ordinary AI providers remain selected by normal
-    routing
-  en: Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses
-    the normal OpenMates AI routing, skills and rich chat messages.
-  de: Mistral verarbeitet dein Mikrofon-Audio zur Transkription und Assistententext zur Sprachausgabe. Dein Gespräch nutzt
-    die normale KI-Auswahl, Skills und vielseitigen Chatnachrichten von OpenMates.
+  context: "Version 3 call processing disclosure before microphone capture: Mistral transcription, ElevenLabs assistant voice and normal AI reasoning"
+  en: "Mistral transcribes your microphone audio; ElevenLabs v4 Turbo generates assistant voice from reply text and voice settings. Your conversation uses normal OpenMates AI routing and skills. Providers may retain request data under their policies."
+  de: "Mistral transkribiert dein Mikrofon-Audio; ElevenLabs v4 Turbo erzeugt die Assistentenstimme aus Antworttext und Stimmeinstellungen. Dein Gespräch nutzt die normale KI-Auswahl und Skills von OpenMates. Anbieter können Anfragedaten gemäß ihren Richtlinien aufbewahren."
+  zh: "Mistral 转录你的麦克风音频；ElevenLabs v4 Turbo 根据回复文本和语音设置生成助手语音。对话使用 OpenMates 的常规 AI 路由和技能。提供商可能根据各自政策保留请求数据。"
+  es: "Mistral transcribe el audio de tu micrófono; ElevenLabs v4 Turbo genera la voz del asistente a partir del texto de respuesta y los ajustes de voz. La conversación usa el enrutamiento de IA y las habilidades habituales de OpenMates. Los proveedores pueden conservar datos de las solicitudes según sus políticas."
+  fr: "Mistral transcrit le son de ton microphone ; ElevenLabs v4 Turbo génère la voix de l’assistant à partir du texte de réponse et des réglages vocaux. La conversation utilise le routage IA et les compétences habituels d’OpenMates. Les fournisseurs peuvent conserver les données des requêtes selon leurs politiques."
+  pt: "A Mistral transcreve o áudio do teu microfone; a ElevenLabs v4 Turbo gera a voz do assistente a partir do texto da resposta e das definições de voz. A conversa usa o encaminhamento de IA e as competências habituais do OpenMates. Os fornecedores podem guardar dados dos pedidos segundo as suas políticas."
+  ru: "Mistral расшифровывает звук микрофона; ElevenLabs v4 Turbo создаёт голос ассистента из текста ответа и настроек голоса. В разговоре используются обычная маршрутизация ИИ и навыки OpenMates. Поставщики могут хранить данные запросов согласно своим правилам."
+  ja: "Mistral がマイク音声を文字起こしし、ElevenLabs v4 Turbo が回答テキストと音声設定からアシスタントの音声を生成します。会話には通常の OpenMates AI ルーティングとスキルが使われます。各プロバイダーは自身のポリシーに従ってリクエストデータを保持する場合があります。"
+  ko: "Mistral은 마이크 오디오를 전사하고, ElevenLabs v4 Turbo는 응답 텍스트와 음성 설정으로 어시스턴트 음성을 생성합니다. 대화에는 일반 OpenMates AI 라우팅과 스킬이 사용됩니다. 제공업체는 각자의 정책에 따라 요청 데이터를 보관할 수 있습니다."
+  it: "Mistral trascrive l’audio del microfono; ElevenLabs v4 Turbo genera la voce dell’assistente dal testo della risposta e dalle impostazioni vocali. La conversazione usa il normale instradamento IA e le funzionalità di OpenMates. I fornitori possono conservare i dati delle richieste secondo le proprie politiche."
+  tr: "Mistral mikrofon sesini yazıya döker; ElevenLabs v4 Turbo yanıt metni ve ses ayarlarından asistan sesini üretir. Görüşme, OpenMates’in normal yapay zekâ yönlendirmesini ve becerilerini kullanır. Sağlayıcılar istek verilerini kendi politikalarına göre saklayabilir."
+  vi: "Mistral chuyển âm thanh micrô của bạn thành văn bản; ElevenLabs v4 Turbo tạo giọng trợ lý từ văn bản trả lời và cài đặt giọng nói. Cuộc trò chuyện dùng cơ chế định tuyến AI và kỹ năng thông thường của OpenMates. Nhà cung cấp có thể lưu dữ liệu yêu cầu theo chính sách của họ."
+  id: "Mistral mentranskripsikan audio mikrofonmu; ElevenLabs v4 Turbo menghasilkan suara asisten dari teks balasan dan pengaturan suara. Percakapan memakai perutean AI dan keterampilan OpenMates seperti biasa. Penyedia dapat menyimpan data permintaan sesuai kebijakan mereka."
+  pl: "Mistral transkrybuje dźwięk mikrofonu; ElevenLabs v4 Turbo generuje głos asystenta z tekstu odpowiedzi i ustawień głosu. Rozmowa korzysta ze zwykłego routingu AI i umiejętności OpenMates. Dostawcy mogą przechowywać dane żądań zgodnie ze swoimi zasadami."
+  nl: "Mistral transcribeert je microfoonaudio; ElevenLabs v4 Turbo maakt de assistentstem op basis van antwoordtekst en steminstellingen. Het gesprek gebruikt de normale AI-routering en vaardigheden van OpenMates. Aanbieders kunnen aanvraaggegevens bewaren volgens hun eigen beleid."
+  ar: "تُحوّل Mistral صوت الميكروفون إلى نص؛ وتُنشئ ElevenLabs v4 Turbo صوت المساعد من نص الرد وإعدادات الصوت. تستخدم المحادثة توجيه الذكاء الاصطناعي ومهارات OpenMates المعتادة. قد يحتفظ المزوّدون ببيانات الطلبات وفق سياساتهم."
+  hi: "Mistral तुम्हारे माइक्रोफ़ोन की आवाज़ को टेक्स्ट में बदलता है; ElevenLabs v4 Turbo उत्तर के टेक्स्ट और आवाज़ की सेटिंग से सहायक की आवाज़ बनाता है। बातचीत में OpenMates की सामान्य AI रूटिंग और स्किल्स इस्तेमाल होती हैं। प्रदाता अपनी नीतियों के अनुसार अनुरोध का डेटा रख सकते हैं।"
+  th: "Mistral ถอดเสียงจากไมโครโฟนของคุณ ส่วน ElevenLabs v4 Turbo สร้างเสียงผู้ช่วยจากข้อความตอบกลับและการตั้งค่าเสียง การสนทนาใช้การเลือกเส้นทาง AI และทักษะตามปกติของ OpenMates ผู้ให้บริการอาจเก็บข้อมูลคำขอตามนโยบายของตน"
+  cs: "Mistral přepisuje zvuk mikrofonu; ElevenLabs v4 Turbo vytváří hlas asistenta z textu odpovědi a nastavení hlasu. Konverzace používá běžné směrování AI a dovednosti OpenMates. Poskytovatelé mohou uchovávat údaje požadavků podle svých zásad."
+  sv: "Mistral transkriberar mikrofonljudet; ElevenLabs v4 Turbo skapar assistentens röst från svarstext och röstinställningar. Samtalet använder OpenMates vanliga AI-routning och färdigheter. Leverantörer kan spara förfrågningsdata enligt sina egna policyer."
+  he: "Mistral מתמללת את שמע המיקרופון; ElevenLabs v4 Turbo יוצרת את קול העוזר מטקסט התשובה ומהגדרות הקול. השיחה משתמשת בניתוב ה-AI ובמיומנויות הרגילים של OpenMates. ספקים עשויים לשמור נתוני בקשות בהתאם למדיניות שלהם."
   verified_by_human: []
 privacy_terms:
-  context: Link to the speech provider privacy policy
-  en: Mistral privacy policy
-  de: Datenschutzerklärung von Mistral
+  context: Link to the OpenMates privacy policy covering call providers
+  en: "OpenMates privacy policy"
+  de: "OpenMates-Datenschutzerklärung"
+  zh: "OpenMates 隐私政策"
+  es: "Política de privacidad de OpenMates"
+  fr: "Politique de confidentialité d’OpenMates"
+  pt: "Política de privacidade do OpenMates"
+  ru: "Политика конфиденциальности OpenMates"
+  ja: "OpenMates プライバシーポリシー"
+  ko: "OpenMates 개인정보 처리방침"
+  it: "Informativa sulla privacy di OpenMates"
+  tr: "OpenMates gizlilik politikası"
+  vi: "Chính sách quyền riêng tư của OpenMates"
+  id: "Kebijakan privasi OpenMates"
+  pl: "Polityka prywatności OpenMates"
+  nl: "Privacybeleid van OpenMates"
+  ar: "سياسة خصوصية OpenMates"
+  hi: "OpenMates गोपनीयता नीति"
+  th: "นโยบายความเป็นส่วนตัวของ OpenMates"
+  cs: "Zásady ochrany soukromí OpenMates"
+  sv: "OpenMates integritetspolicy"
+  he: "מדיניות הפרטיות של OpenMates"
   verified_by_human: []
 privacy_continue:
   context: Explicit acknowledgement saved to profile before starting voice capture

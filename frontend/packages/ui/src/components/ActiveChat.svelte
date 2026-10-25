@@ -348,6 +348,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         prepareVoiceCallDraft?: (chatId: string) => Promise<boolean>;
         sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
+        hasMeaningfulDraftForChat: (chatId: string) => boolean;
         hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
         stopRecordingForVoiceCall: () => void;
@@ -5721,7 +5722,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const owner = $userProfile.user_id;
         const team = getActiveTeamContextSnapshot();
         const isCurrent = () => generation === composerDismissalGeneration && !messageInputFocused &&
-            (currentChat?.chat_id ?? temporaryChatId) === chatId && currentMessages.length === 0 &&
+            !voiceCallOwnsAudio && (currentChat?.chat_id ?? temporaryChatId) === chatId && currentMessages.length === 0 &&
             (!currentChat || isPersistedDraftOnlyChat(currentChat)) &&
             owner === $userProfile.user_id && isActiveTeamContext(team.teamId, team.epoch);
         if (!isCurrent()) return;
@@ -5853,7 +5854,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
       function canSpeakAssistantMessage(messageId: string): boolean {
         const chatId = currentChat?.chat_id;
-        if (!chatId || currentChat?.is_incognito) return false;
+        if (voiceCallOwnsAudio || !chatId || currentChat?.is_incognito) return false;
         if (!isPublicChat(chatId)) return $assistantSpeechGenerationAvailable;
         // Public chats cannot generate speech: only published message fixtures
         // can back the action, so an empty manifest must not expose a dead button.
@@ -8246,6 +8247,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             (($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
             (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
     );
+    // Keep welcome content out of this pane's call controls without hiding
+    // welcome screens used while a call is shown elsewhere.
+    const hideWelcomeContent = $derived(hideWelcomeForKeyboard || (showWelcome && showVoiceCallBarHere));
     const callControlsReplaceToolbar = $derived(
         voiceCallStripStuck || (showVoiceCallBarHere && isActiveDraftOnlyChat)
     );
@@ -8265,10 +8269,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
         void assistantSpeechController.stop();
-        // A Project draft can own the composer while the welcome is visible.
-        // Keep its saved context bound to the call; an empty welcome gets a new shell.
-        const hasLiveDraft = messageInputHasContent || !!messageInputFieldRef?.getTextContent().trim();
-        const chatId = showWelcome && !hasLiveDraft ? undefined : currentChat?.chat_id || temporaryChatId || undefined;
+        // A Project mention can own a meaningful draft without sendable plain
+        // text. Preserve that editor's reserved owner; empty welcomes get a shell.
+        const draftChatId = currentChat?.chat_id || temporaryChatId || undefined;
+        const hasLiveDraft = messageInputHasContent || !!messageInputFieldRef?.getTextContent().trim()
+            || !!(draftChatId && messageInputFieldRef?.hasMeaningfulDraftForChat(draftChatId));
+        const chatId = showWelcome && !hasLiveDraft ? undefined : draftChatId;
         const draftInput = messageInputFieldRef;
         // Start synchronously to retain audio activation while saving the local draft.
         const draftReady = chatId && (showWelcome || isActiveDraftOnlyChat)
@@ -14219,7 +14225,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <div
                     class="chat-side"
                     class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
+                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere
+                        && !(showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible)}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
@@ -14236,9 +14243,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         <div
                             class="daily-inspiration-area"
                             class:guest-all-examples-hidden={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                            class:welcome-hiding={hideWelcomeForKeyboard}
+                            class:welcome-hiding={hideWelcomeContent}
                             class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
-                            inert={hideWelcomeForKeyboard || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
+                            inert={hideWelcomeContent || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
                             data-testid="daily-inspiration-area"
                             bind:clientHeight={welcomeBannerHeight}
                         >
@@ -14415,10 +14422,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible}
                         class:call-strip-stuck={callControlsReplaceToolbar}
-                        inert={(showWelcome && hideWelcomeForKeyboard) || callControlsReplaceToolbar}
+                        inert={(showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible) || callControlsReplaceToolbar}
                     >
+                        {#if showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible}
+                            <div class="welcome-focused-call-actions" data-composer-focus-control>{@render close()}</div>
+                        {:else}
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
@@ -14428,6 +14438,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             navigationAction={timelineNavigation}
                         />
 
+                        {/if}
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
                                 <button
@@ -14454,7 +14465,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                     </div>
 
-                    <AssistantSpeechPlayer onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
+                    <AssistantSpeechPlayer callOwnsAudio={voiceCallOwnsAudio} onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Faded out via CSS opacity transition when keyboard is open to free up visual space -->
@@ -14465,8 +14476,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             class:guest-welcome-content={!$authStore.isAuthenticated}
                             class:guest-interest-selector-active={!$authStore.isAuthenticated && guestInterestSelectorVisible}
                             class:guest-all-examples-content={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                            class:welcome-hiding={hideWelcomeForKeyboard}
-                            inert={hideWelcomeForKeyboard}
+                            class:welcome-hiding={hideWelcomeContent}
+                            inert={hideWelcomeContent}
                             bind:this={welcomeContentEl}
                         >
                             {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
@@ -14559,8 +14570,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
                             <div
                                 class="guest-interest-tags-overlay"
-                                class:welcome-hiding={hideWelcomeForKeyboard}
-                                inert={hideWelcomeForKeyboard}
+                                class:welcome-hiding={hideWelcomeContent}
+                                inert={hideWelcomeContent}
                             >
                                 <GuestInterestTags
                                     shuffleToken={guestInterestShuffleToken}
@@ -17667,6 +17678,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         /* Ensure full width to keep justify-content: space-between working */
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* Preserve the handset's existing position while other welcome actions hide. */
+    .welcome-focused-call-actions {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
     }
 
     .top-buttons.call-strip-stuck:not(.top-buttons-flow) {

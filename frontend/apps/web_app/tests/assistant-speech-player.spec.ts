@@ -40,6 +40,14 @@ const PLAYER_PROOF = defineVideoProof({
 });
 
 test.describe('AssistantSpeechPlayer component preview', () => {
+    // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,assistant-speech.playback.live-call-streaming
+    test('hides ordinary playback controls while a call owns the shared audio', async ({ page }) => {
+        await page.goto('/dev/preview/AssistantSpeechPlayer?variant=callOwned&chrome=0', { waitUntil: 'networkidle' });
+        await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+        await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
+        await page.goto('/dev/preview/AssistantSpeechPlayer?chrome=0', { waitUntil: 'networkidle' });
+        await expect(page.getByTestId('assistant-speech-player')).toBeVisible();
+    });
     // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
     test('keeps loading feedback readable with reduced motion', async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' });

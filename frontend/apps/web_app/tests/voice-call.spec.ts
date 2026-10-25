@@ -3,6 +3,7 @@
  * encrypted messages, speech assets and source uploads use their normal owners.
  */
 import type { Locator, Page, TestInfo } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
@@ -48,7 +49,8 @@ interface SocketObservation {
   kind?: string;
   speechStatus?: string;
   segmentId?: string;
-  streamPhase?: 'start'|'chunk'|'end'|'error';
+  streamPhase?: 'start'|'chunk'|'end'|'error'|'alignment';
+  turnTrackId?: string;
   attemptId?: string;
   chunkIndex?: number;
   sequence?: number;
@@ -61,6 +63,9 @@ interface SocketObservation {
   snapshotPurpose?: 'prepare'|'send';
   snapshotSuccess?: boolean;
   snapshotHasCode?: boolean;
+  recoveryStatus?: 'completed'|'disabled'|'failed';
+  recoveryJobCount?: number;
+  recoveryPendingCount?: number;
   heardBoundary?: {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number};
   language?: string;
   observedAt?: number;
@@ -106,6 +111,7 @@ interface SocketObservation {
 }
 interface TurnDeliveryObservation {
   callId?: string; chatId?: string; turnId?: string; phase: string; reason?: string; observedAt: number;
+  foreground?: { visible: boolean; focused: boolean };
   failure?: {errorClass?:string;errorCode?:string;httpStatus?:number;module?:string;line?:number};
 }
 interface HeldSpeechEvidence {
@@ -202,6 +208,8 @@ test.afterEach(async ({page},testInfo)=>{
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
       speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
       historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
+      speechMediaProof:(window as unknown as {__voiceSpeechMediaProof?:Record<string,number>}).__voiceSpeechMediaProof,
+      manualSpeechNative:(window as unknown as {__voiceManualSpeechPlayback?:{native:unknown[]}}).__voiceManualSpeechPlayback?.native.slice(-64),
       draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,
       memoryBatch:state?.memoryBatch,privacySnapshotHeld:state?.privacySnapshotHeld,privacyNoopReplay:state?.privacyNoopReplay,callUIstatus,
       turnDelivery:state?.turnDelivery?.slice(-48)??[],
@@ -216,6 +224,11 @@ test.afterEach(async ({page},testInfo)=>{
         .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({...ids(frame),direction:frame.direction,
           status:frame.taskStatus,purpose:frame.snapshotPurpose,success:frame.snapshotSuccess,hasCode:frame.snapshotHasCode,
           code:frame.code?(serverCodes.has(frame.code)?frame.code:'other'):undefined})),
+      recoveryEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['native_client_lifecycle','native_client_lifecycle_ack','recovery_jobs_available','recovery_outputs_discovery_complete'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),direction:frame.direction,
+          status:frame.recoveryStatus,jobCount:frame.recoveryJobCount,pendingCount:frame.recoveryPendingCount})),
       bootstrapEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
         ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
         .filter(frame=>['voice_call_chat_prepare','encrypted_chat_metadata','encrypted_metadata_stored','start','ready'].includes(frame.type))
@@ -230,7 +243,11 @@ test.afterEach(async ({page},testInfo)=>{
       speechPrimes:native?.speechPrimes??[],
       workersCreated:native?.workersCreated??0,workersTerminated:native?.workersTerminated??0};
   }).catch(()=>({captureFailed:true}));
-  await testInfo.attach('voice-call-transport-state',{body:JSON.stringify(diagnostic),contentType:'application/json'});
+  // Persist independently of the reporter so completed failures retain their
+  // sanitized sender evidence even if the full runner later reaches its limit.
+  const diagnosticPath=testInfo.outputPath('voice-call-transport-state.json');
+  await writeFile(diagnosticPath,JSON.stringify(diagnostic),'utf8');
+  await testInfo.attach('voice-call-transport-state',{path:diagnosticPath,contentType:'application/json'});
 });
 
 async function observeRealTransport(page: Page, deferReady = false, bootstrapControls = false): Promise<void> {
@@ -268,7 +285,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       'message_failed','message_waiting_for_connection','predecessor_not_saved','message_identity_conflict','turn_already_settled',
       'immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch','version_conflict',
       'inference_commitment_mismatch','client_update_required','operation_failed']);
-    for(const stage of ['sender','predecessor','optimistic_timestamp','model_admission','personal_privacy','fast_admission',
+    for(const stage of ['sender','predecessor','predecessor_wait','journal_read','reply_discovery','optimistic_timestamp','model_admission','personal_privacy','fast_admission',
       'connected_accounts','embed_preparation','saved_history','metadata_and_keys','private_context','history_projection',
       'embed_storage','preflight_key','preflight_ciphertext','preflight_journal','preflight_serialization','preflight_receipt',
       'preflight_dispatch','preflight_ack','canonical_dispatch'])reasons.add(stage);
@@ -282,7 +299,9 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       'privacy_snapshot_rejected','privacy_connection_changed','privacy_snapshot_timeout','privacy_snapshot_unsent',
       'privacy_full_owner_changed','privacy_session_expired','privacy_full_unavailable','privacy_full_owner_unavailable',
       'privacy_owner_unavailable','privacy_owner_changed','privacy_receipt_mismatch','privacy_cache_mismatch',
-      'privacy_policy_unconfirmed','privacy_freshness_changed','privacy_filter_changed']);
+      'privacy_policy_unconfirmed','privacy_freshness_changed','privacy_filter_changed',
+      'pending_message_row_unavailable','pending_message_journal_invalid','reply_recovery_foreground_required',
+      'reply_recovery_discovery_timeout','reply_recovery_not_completed']);
     for(const code of errorCodes)reasons.add(code);
     const httpStatuses=new Set([400,401,403,404,408,409,413,422,429,500,502,503,504]);
     const errorModules=new Set(['services/voiceCallTurns.ts','services/chatSyncService.ts','services/sendersChatMessages.ts',
@@ -314,7 +333,9 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       }
       const events=evidence.turnDelivery??(evidence.turnDelivery=[]);
       events.push({callId:safeId(detail.callId),chatId:safeId(detail.chatId),turnId:safeId(detail.turnId),
-        phase:detail.phase,reason,observedAt:performance.now(),...(Object.keys(failure).length?{failure}:{})});
+        phase:detail.phase,reason,observedAt:performance.now(),
+        foreground:{visible:document.visibilityState==='visible',focused:document.hasFocus()},
+        ...(Object.keys(failure).length?{failure}:{})});
       if(events.length>48)events.splice(0,events.length-48);
     });
     const NativeWebSocket=window.WebSocket;
@@ -363,12 +384,16 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
           ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
           ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
-            segmentId:payload.segment_id,generatedAssetPresent:!!payload.generated_asset_id,
+            segmentId:payload.segment_id,turnTrackId:safeId(payload.turn_track_id),generatedAssetPresent:!!payload.generated_asset_id,
             generatedAssetId:safeId(payload.generated_asset_id)}:{}),
+          ...(['native_client_lifecycle_ack','recovery_jobs_available','recovery_outputs_discovery_complete'].includes(event.type)?{
+            recoveryStatus:['completed','disabled','failed'].includes(payload.status)?payload.status:undefined,
+            recoveryJobCount:Array.isArray(payload.jobs)?Math.min(payload.jobs.length,50_000):undefined,
+            recoveryPendingCount:Number.isSafeInteger(payload.pending_count)&&payload.pending_count>=0&&payload.pending_count<=50_000?payload.pending_count:undefined}:{}),
           ...(event.type==='chat_deleted'?{tombstone:payload.tombstone===true}:{}),
           ...(event.type==='assistant_speech_audio'?{kind:payload.kind,segmentId:safeId(payload.segment_id),
             callId:safeId(payload.voice_call_id),attemptId:safeId(payload.attempt_id),
-            streamPhase:['start','chunk','end','error'].includes(payload.phase)?payload.phase:undefined,
+            streamPhase:['start','chunk','end','error','alignment'].includes(payload.phase)?payload.phase:undefined,
             chunkIndex:Number.isSafeInteger(payload.chunk_index)?payload.chunk_index:undefined,
             sequence:Number.isSafeInteger(payload.sequence)?payload.sequence:undefined,
             sourceVersion:Number.isSafeInteger(payload.source_version)?payload.source_version:undefined,
@@ -387,10 +412,11 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         }
         if(event.type==='assistant_speech_status'&&Array.isArray(payload.segments)){
           for(const segment of payload.segments)(sent?evidence.sent:evidence.received).push({...frame,
-            segmentId:safeId(segment.segment_id),speechStatus:taskStatuses.has(segment.status)?segment.status:
+            segmentId:safeId(segment.segment_id),speechStatus:frame.speechStatus==='sealed'?'sealed':taskStatuses.has(segment.status)?segment.status:
               ['registered','generating','cancelled','deleted','invalidated'].includes(segment.status)?segment.status:undefined,
             kind:typeof segment.kind==='string'&&/^[a-z_]{1,64}$/.test(segment.kind)?segment.kind:undefined,
             sequence:Number.isSafeInteger(segment.sequence)?segment.sequence:undefined,
+            sourceVersion:Number.isSafeInteger(segment.source_version)?segment.source_version:undefined,
             generatedAssetPresent:!!segment.generated_asset_id,generatedAssetId:safeId(segment.generated_asset_id)});
           return;
         }
@@ -710,6 +736,134 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
       state.outputTracks.push(...output.stream.getTracks());
       return output.stream;
     };
+  });
+}
+
+/** Bind actual appended audio objects to their received payload, including pre-seal replay. */
+async function observeSpeechMediaSources(page: Page) {
+  await page.addInitScript(() => {
+    type Binding = { key: string; segmentId: string };
+    const sources = new Map<string, string>();
+    const proof = { starts: 0, taggedChunks: 0, decodedChunks: 0, matchedAppends: 0, invalidAppends: 0 };
+    const starts = new Set<string>();
+    const owners = new WeakMap<SourceBuffer, MediaSource>();
+    const urls = new WeakMap<MediaSource, Set<string>>();
+    const mediaBindings = new WeakMap<MediaSource, Binding | null>();
+    const bytesBindings = new WeakMap<object, { binding: Binding; fingerprint: Promise<string> }>();
+    const parse = JSON.parse;
+    const digest = async (bytes: Uint8Array<ArrayBuffer>) => Array.from(
+      new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
+    const validId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+    const version = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
+    const bindingFor = (payload: Record<string, unknown>, socketId: number): Binding | null => {
+      const identity = [payload.chat_id, payload.voice_call_id, payload.message_id, payload.segment_id, payload.attempt_id];
+      if (!identity.every(validId) || ![payload.source_version, payload.execution_version, payload.sequence].every(version)
+        || !['voice_prose_clause','voice_prose_turn'].includes(String(payload.kind))
+        || payload.kind === 'voice_prose_turn' && payload.sequence !== 0) return null;
+      return { key: JSON.stringify([socketId, ...identity, payload.source_version, payload.execution_version, payload.sequence, payload.kind]),
+        segmentId: payload.segment_id as string };
+    };
+    // The application retains parsed early payload objects until their owner seal.
+    // Tag that exact object's audio_data reads, rather than the latest arrival,
+    // so two identical fixture chunks still have distinct segment provenance.
+    let dispatch: { data: string; socketId: number } | undefined;
+    let read: { encoded: string; binding: Binding } | undefined;
+    let decoded: { raw: string; binding: Binding } | undefined;
+    JSON.parse = (text, reviver) => {
+      const result = parse(text, reviver);
+      if (!reviver && dispatch?.data === text && result?.type === 'assistant_speech_audio') {
+        const payload = result.payload;
+        if (payload && typeof payload === 'object' && payload.phase === 'chunk' && typeof payload.audio_data === 'string') {
+          const binding = bindingFor(payload, dispatch.socketId), encoded = payload.audio_data;
+          if (binding && starts.has(binding.key)) { proof.taggedChunks++; Object.defineProperty(payload, 'audio_data', {
+            enumerable: true, configurable: true,
+            get() {
+              const candidate = { encoded, binding }; read = candidate;
+              queueMicrotask(() => { if (read === candidate) read = undefined; });
+              return encoded;
+            },
+          }); }
+        }
+      }
+      return result;
+    };
+    const NativeSocket = window.WebSocket;
+    let nextSocket = 0;
+    window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
+      const socket: WebSocket = Reflect.construct(Target, args), socketId = ++nextSocket;
+      if (new URL(String(args[0]), location.href).pathname === '/v1/ws') socket.addEventListener('message', event => {
+        if (typeof event.data !== 'string') return;
+        const current = { data: event.data, socketId }; dispatch = current;
+        // Native event callbacks can checkpoint microtasks between listeners.
+        // Keep this exact wire frame through the whole message dispatch task.
+        setTimeout(() => { if (dispatch === current) dispatch = undefined; }, 0);
+        try {
+          const frame = parse(event.data), payload = frame?.payload;
+          if (frame?.type === 'assistant_speech_audio' && payload?.phase === 'start' && payload.chunk_index === 0) {
+            const binding = bindingFor(payload, socketId);
+            if (binding && starts.size < 2048) { starts.add(binding.key); proof.starts++; }
+          }
+        } catch { /* Invalid wire input cannot establish a start. */ }
+      });
+      return socket;
+    } });
+    const atob = window.atob.bind(window);
+    window.atob = encoded => {
+      const candidate = read; read = undefined;
+      const raw = atob(encoded);
+      if (candidate?.encoded === encoded) {
+        const current = { raw, binding: candidate.binding }; decoded = current;
+        queueMicrotask(() => { if (decoded === current) decoded = undefined; });
+      } else decoded = undefined;
+      return raw;
+    };
+    const from = Uint8Array.from;
+    Object.defineProperty(Uint8Array, 'from', { configurable: true, writable: true,
+      value: function (this: unknown, ...args: unknown[]) {
+        const candidate = decoded; decoded = undefined;
+        const bytes: Uint8Array<ArrayBuffer> = Reflect.apply(from, this, args);
+        if (candidate && args[0] === candidate.raw && bytes.length === candidate.raw.length
+          && bytes.every((byte, index) => byte === candidate.raw.charCodeAt(index))) {
+          const fingerprint = digest(bytes);
+          // Handle failures even when a rejected stream never appends this object.
+          void fingerprint.catch(() => {});
+          bytesBindings.set(bytes, { binding: candidate.binding, fingerprint }); proof.decodedChunks++;
+        }
+        return bytes;
+      },
+    });
+    const create = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = object => {
+      const url = create(object);
+      if (object instanceof MediaSource) {
+        const owned = urls.get(object) ?? new Set<string>(); owned.add(url); urls.set(object, owned);
+      }
+      return url;
+    };
+    const add = MediaSource.prototype.addSourceBuffer;
+    MediaSource.prototype.addSourceBuffer = function (...args) {
+      const buffer = add.apply(this, args); owners.set(buffer, this); return buffer;
+    };
+    const append = SourceBuffer.prototype.appendBuffer;
+    SourceBuffer.prototype.appendBuffer = function (bytes) {
+      const result = append.call(this, bytes), media = owners.get(this);
+      if (!media) return result;
+      const provenance = bytesBindings.get(bytes);
+      const actual = ArrayBuffer.isView(bytes)
+        ? new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes as ArrayBuffer);
+      const invalidate = () => { proof.invalidAppends++; mediaBindings.set(media, null); for (const url of urls.get(media) ?? []) sources.delete(url); };
+      if (!provenance) invalidate();
+      else void Promise.all([provenance.fingerprint, digest(actual)]).then(([expected, observed]) => {
+        const previous = mediaBindings.get(media);
+        if (expected !== observed || previous === null || previous && previous.key !== provenance.binding.key) invalidate();
+        else {
+          mediaBindings.set(media, provenance.binding); proof.matchedAppends++;
+          for (const url of urls.get(media) ?? []) sources.set(url, provenance.binding.segmentId);
+        }
+      }).catch(invalidate);
+      return result;
+    };
+    Object.assign(window, { __voiceSpeechMediaSources: sources, __voiceSpeechMediaProof: proof });
   });
 }
 
@@ -1330,9 +1484,12 @@ test.describe('Voice mode through ordinary chat', () => {
       },chatId);
       await expect(page.getByTestId('message-user')).toHaveCount(0);
       await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+      await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeFocused();
       const before=await evidence(page);
       expect(voiceFrames(before,'start')).toHaveLength(0);
       expect(before.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
+      // Start the exact live draft without dismissing/parking its composer.
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
       // Same-draft startup must retain its real destination instead of clearing
@@ -1427,6 +1584,8 @@ test.describe('Voice mode through ordinary chat', () => {
       // The actual Project draft exists in the welcome composer; no chat has
       // been selected or turn submitted to make controls appear artificially.
       expect(new URL(page.url()).hash).not.toContain('chat-id=');
+      // Start the exact live draft without dismissing/parking its composer.
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
         .__voiceCallEvidence.bootstrapHeld===true),{timeout:30_000}).toBe(true);
@@ -1444,6 +1603,8 @@ test.describe('Voice mode through ordinary chat', () => {
       // Retry only this bootstrap with one forbidden protocol field. The real
       // server must reject it; this test never fabricates an error or success.
       await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.rejectNextBootstrap=true);
+      // Start the exact live draft without dismissing/parking its composer.
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.path==='/v1/ws'&&frame.type==='error'
         &&frame.chatId===chatId&&frame.voiceCallBootstrap&&frame.code==='voice_call_bootstrap_failed'),{timeout:30_000}).toBe(true);
@@ -1500,7 +1661,7 @@ test.describe('Voice mode through ordinary chat', () => {
             const json=response.json.bind(response);
             response.json=async()=>{
               const payload=await json();
-              if(response.ok&&payload.version===2&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
+              if(response.ok&&payload.version===3&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
               return payload;
             };
           }
@@ -1530,7 +1691,7 @@ test.describe('Voice mode through ordinary chat', () => {
     const profileAcknowledgement=()=>page.evaluate(async apiUrl=>{
       const response=await fetch(`${apiUrl}/v1/settings/voice-processing-ack`,{credentials:'include'});
       const profile=await response.json();
-      return {ok:response.ok,versionValid:profile.version===2,acknowledged:profile.acknowledged===true,
+      return {ok:response.ok,versionValid:profile.version===3,acknowledged:profile.acknowledged===true,
         timestampValid:Number.isSafeInteger(profile.acknowledged_at)&&profile.acknowledged_at>0};
     },apiUrl!);
     const expectNoCall=async()=>{
@@ -1545,7 +1706,8 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     const notice=page.getByTestId('notification').filter({hasText:'Before your first voice call'});
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText('Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses the normal OpenMates AI routing, skills and rich chat messages.');
+    await expect(notice).toContainText('Mistral transcribes your microphone audio; ElevenLabs v4 Turbo generates assistant voice from reply text and voice settings. Your conversation uses normal OpenMates AI routing and skills. Providers may retain request data under their policies.');
+    await expect(notice.getByRole('link',{name:'OpenMates privacy policy',exact:true})).toHaveAttribute('href','/legal/privacy');
     await expectNoCall();
     expect((await events()).filter(event=>event==='ack_post')).toHaveLength(0);
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-before-cancel.png')});
@@ -1639,6 +1801,8 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.readyHeld),
       { timeout: 30_000 }).toBe(true);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Connecting… Wait to speak.');
+    await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
+    await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
     const waiting = await evidence(page);
     const start = voiceFrames(waiting, 'start')[0];
     expect(start.startupAllowanceMs).toBe(10_000);
@@ -1884,7 +2048,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('record-audio-button')).toBeEnabled();
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.audio.spoken-rich-response,assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only,assistant-speech.lifecycle.disable-delete-invalidate
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.audio.single-owner,video-call.audio.spoken-rich-response,assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only,assistant-speech.lifecycle.disable-delete-invalidate
   test('keeps call audio ephemeral, caches later manual Speak once, and removes its audio access when the chat is deleted',async({page},testInfo)=>{
     test.setTimeout(240_000);
     // Isolated CI has trusted speech replay but no paid Mistral credentials.
@@ -1899,28 +2063,70 @@ test.describe('Voice mode through ordinary chat', () => {
       await route.fulfill({response,json:metadata});
     });
     await page.addInitScript(()=>{
-      const state={epoch:0,progress:[] as Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>};
+      const state={epoch:0,ended:[] as Array<{trackId:string;observedAt:number}>,
+        progress:[] as Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>,
+        native:[] as Array<{event:string;epoch:number;sourceKind:string;mapped:boolean;currentTime:number;paused:boolean;ended:boolean;errorCode:number|null}>};
       const mseUrls=new Set<string>();const create=URL.createObjectURL.bind(URL);
       URL.createObjectURL=object=>{const url=create(object);if(object instanceof MediaSource)mseUrls.add(url);return url;};
+      type Generation={source:string;epoch:number;segmentId:string|null;lastTime:number;reported:boolean;sampled:boolean};
+      const generations=new WeakMap<HTMLMediaElement,Generation>();
+      const storedBindings=new Map<string,string|null>();
       const observed=new WeakSet<HTMLMediaElement>();
+      const sourceKind=(source:string)=>mseUrls.has(source)?'mse':source.startsWith('blob:')?'stored_blob':'other';
+      const segment=(generation:Generation)=>sourceKind(generation.source)==='mse'
+        ?(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(generation.source)??null
+        :generation.segmentId;
+      const record=(audio:HTMLMediaElement,event:string,generation:Generation)=>{
+        if(state.native.length<64)state.native.push({event,epoch:generation.epoch,sourceKind:sourceKind(generation.source),mapped:!!segment(generation),
+          currentTime:Number.isFinite(audio.currentTime)?audio.currentTime:0,paused:audio.paused,ended:audio.ended,errorCode:audio.error?.code??null});
+      };
       const play=HTMLMediaElement.prototype.play;
       HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
-        if(this instanceof HTMLAudioElement&&!observed.has(this)){
-          observed.add(this);let lastTime=0;let lastSource='';let lastEpoch=-1;let reported=false;
+        if(!(this instanceof HTMLAudioElement))return play.apply(this,args);
+        let generation=generations.get(this);
+        if(!generation||generation.source!==this.src||generation.epoch!==state.epoch){
+          generation={source:this.src,epoch:state.epoch,segmentId:null,lastTime:0,reported:false,sampled:false};generations.set(this,generation);
+        }
+        if(!observed.has(this)){
+          observed.add(this);
+          this.addEventListener('ended',()=>{
+            const current=generations.get(this);if(!current||current.source!==this.src)return;
+            record(this,'ended',current);const segmentId=segment(current);
+            if(segmentId)state.ended.push({trackId:segmentId,observedAt:performance.now()});
+          },{capture:true});
           this.addEventListener('timeupdate',()=>{
-            if(lastSource!==this.src||lastEpoch!==state.epoch){lastTime=0;lastSource=this.src;lastEpoch=state.epoch;reported=false;}
-            if(!reported&&!this.paused&&!this.ended&&this.currentTime>lastTime+0.001){
-              state.progress.push({epoch:state.epoch,segmentId:document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id')??null,
-                sourceKind:mseUrls.has(this.src)?'mse':this.src.startsWith('blob:')?'stored_blob':'other',currentTime:this.currentTime});
-              reported=true;
+            const current=generations.get(this);if(!current||current.source!==this.src)return;
+            if(!current.sampled&&this.currentTime>0){current.sampled=true;record(this,'timeupdate',current);}
+            const segmentId=segment(current);
+            if(!current.reported&&segmentId&&!this.paused&&!this.ended&&this.currentTime>current.lastTime+0.001){
+              state.progress.push({epoch:current.epoch,segmentId,sourceKind:sourceKind(current.source),currentTime:this.currentTime});
+              current.reported=true;record(this,'progress',current);
             }
-            lastTime=this.currentTime;
+            current.lastTime=this.currentTime;
+          });
+          for(const event of ['error','waiting','stalled','emptied'])this.addEventListener(event,()=>{
+            const current=generations.get(this);if(current)record(this,event,current);
           });
         }
-        return play.apply(this,args);
+        record(this,'play',generation);
+        const current=generation,result=play.apply(this,args);
+        // Snapshot this native generation after its play promise and Svelte's
+        // pending render flush. Later timeupdates never follow arbitrary labels.
+        void result.then(()=>queueMicrotask(()=>{
+          if(generations.get(this)!==current||this.src!==current.source||current.epoch<1||sourceKind(current.source)!=='stored_blob')return;
+          const candidate=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+          const ready=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence?.received.some(frame=>
+            frame.type==='assistant_speech_status'&&frame.speechStatus==='ready'&&frame.segmentId===candidate&&!!frame.generatedAssetId);
+          if(!candidate||!ready)return;
+          const known=storedBindings.get(current.source);
+          if(known===null||known&&known!==candidate){storedBindings.set(current.source,null);return;}
+          storedBindings.set(current.source,candidate);current.segmentId=candidate;
+        })).catch(()=>{});
+        return result;
       };
       Object.assign(window,{__voiceManualSpeechPlayback:state,__voiceManualSpeechDownloads:new Map<string,string>()});
     });
+    await observeSpeechMediaSources(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
@@ -1931,14 +2137,32 @@ test.describe('Voice mode through ordinary chat', () => {
     const messageId=(await assistant.getAttribute('data-message-id'))!;
     const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
     const player=page.getByTestId('assistant-speech-player');
-    await expect(player).toHaveAttribute('data-status','completed',{timeout:60_000});
+    await expect(player).toHaveCount(0);
+    await expect(assistant.getByTestId('assistant-message-speak')).toHaveCount(0);
+    await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn'&&frame.streamPhase==='end'),{timeout:60_000}).toBe(true);
     const callProof=await evidence(page);
-    const callSegments=[...new Set(callProof.received.filter(frame=>frame.type==='assistant_speech_audio'
-      &&frame.messageId===messageId&&frame.kind==='voice_prose_clause').map(frame=>frame.segmentId!))];
-    expect(callSegments.length).toBeGreaterThan(0);
+    const callTracks=[...new Set(callProof.received.filter(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn').map(frame=>frame.segmentId!))];
+    expect(callTracks).toHaveLength(1);
+    const callAttempts=callProof.received.filter(frame=>frame.type==='assistant_speech_audio'
+      &&frame.messageId===messageId&&frame.kind==='voice_prose_turn');
+    expect(new Set(callAttempts.map(frame=>frame.attemptId)).size).toBe(1);
+    expect(callAttempts.every(frame=>frame.sequence===0&&!!frame.attemptId)).toBe(true);
+    expect(callAttempts.filter(frame=>frame.streamPhase==='start')).toHaveLength(1);
+    expect(new Set(callAttempts.map(frame=>frame.sourceVersion)).size).toBe(1);
+    expect(new Set(callAttempts.map(frame=>frame.executionVersion)).size).toBe(1);
+    await expect.poll(()=>page.evaluate(segments=>new Set((window as unknown as {__voiceManualSpeechPlayback:{ended:Array<{trackId:string;observedAt:number}>}})
+      .__voiceManualSpeechPlayback.ended.filter(item=>segments.includes(item.trackId)).map(item=>item.trackId)).size,callTracks),{timeout:60_000}).toBe(callTracks.length);
+    const drainedAt=callAttempts.find(frame=>frame.streamPhase==='end')!.observedAt!;
+    const nativeEndedAt=await page.evaluate(trackId=>(window as unknown as {__voiceManualSpeechPlayback:{ended:Array<{trackId:string;observedAt:number}>}})
+      .__voiceManualSpeechPlayback.ended.find(item=>item.trackId===trackId)?.observedAt,callTracks[0]);
+    expect(nativeEndedAt).toBeGreaterThanOrEqual(drainedAt);
+    await expect(player).toHaveCount(0);
+    await expect(assistant.getByTestId('assistant-message-speak')).toHaveCount(0);
     expect(callProof.received.filter(frame=>frame.type==='assistant_speech_status'&&frame.messageId===messageId&&frame.generatedAssetPresent)).toHaveLength(0);
     await expect.poll(()=>page.evaluate(segments=>(window as unknown as {__voiceManualSpeechPlayback:{progress:Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>}})
-      .__voiceManualSpeechPlayback.progress.some(item=>item.epoch===0&&item.sourceKind==='mse'&&item.currentTime>0&&segments.includes(item.segmentId??'')),callSegments)).toBe(true);
+      .__voiceManualSpeechPlayback.progress.some(item=>item.epoch===0&&item.sourceKind==='mse'&&item.currentTime>0&&segments.includes(item.segmentId??'')),callTracks)).toBe(true);
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
     const speak=assistant.getByTestId('assistant-message-speak');
     expect(speechCapabilityResponses).toBeGreaterThan(0);
@@ -1953,7 +2177,7 @@ test.describe('Voice mode through ordinary chat', () => {
       &&frame.messageId===messageId&&frame.speechStatus==='ready'&&frame.generatedAssetId);
     const assets=[...new Set(manual.map(frame=>frame.generatedAssetId!))].sort();
     expect(assets.length).toBeGreaterThan(0);
-    expect(manual.every(frame=>!!frame.segmentId&&!callSegments.includes(frame.segmentId))).toBe(true);
+    expect(manual.every(frame=>!!frame.segmentId&&!callTracks.includes(frame.segmentId))).toBe(true);
     const manualSegments=[...new Set(manual.map(frame=>frame.segmentId!))];
     expect((await evidence(page)).received.slice(startManual).filter(frame=>frame.type==='assistant_speech_audio'&&frame.messageId===messageId)).toHaveLength(0);
     await expect.poll(()=>page.evaluate(segments=>(window as unknown as {__voiceManualSpeechPlayback:{progress:Array<{epoch:number;segmentId:string|null;sourceKind:string;currentTime:number}>}})
@@ -2052,7 +2276,7 @@ test.describe('Voice mode through ordinary chat', () => {
 
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy,assistant-speech.playback.live-call-streaming,ai-model-routing.preprocessing.prepared-privacy
-  test('carries actual heard-clause progress to the next canonical turn while retaining the complete rich answer',async({page},testInfo)=>{
+  test('keeps continuous playback progress conservative on interruption while retaining the complete rich answer',async({page},testInfo)=>{
     await installVoiceFixtureImageProxy(page);
     test.setTimeout(180_000);
     await page.addInitScript(()=>{
@@ -2083,18 +2307,18 @@ test.describe('Voice mode through ordinary chat', () => {
             if(lastSource!==this.src){lastSource=this.src;lastTime=0;}
             const advancing=this.currentTime>lastTime+0.001;lastTime=this.currentTime;
             if(held.audio===this&&this.src!==held.source&&mseUrls.has(this.src)&&!this.paused&&!this.ended&&advancing){
-              const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+              const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(this.src);
               const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
               const next=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='chunk'
-                &&frame.kind==='voice_prose_clause'&&frame.segmentId===active&&frame.messageId===evidence.heldSpeechAudio?.messageId);
+                &&frame.kind==='voice_prose_turn'&&frame.segmentId===active&&frame.messageId===evidence.heldSpeechAudio?.messageId);
               if(next?.messageId&&active&&!held.handoffProgress)held.handoffProgress={messageId:next.messageId,segmentId:active,
                 audioId:(window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.speechAudioId(this),
                 observedAt:performance.now(),currentTime:this.currentTime};
             }
             if(held.audio||!(this instanceof HTMLAudioElement)||!mseUrls.has(this.src)||this.paused||this.ended||this.currentTime<=0)return;
-            const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+            const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(this.src);
             const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
-            const prose=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_clause'
+            const prose=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_turn'
               &&frame.streamPhase==='chunk'&&frame.segmentId===active);
             const ended=evidence?.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='end'&&frame.segmentId===active);
             if(!prose||!active||ended)return;
@@ -2110,12 +2334,15 @@ test.describe('Voice mode through ordinary chat', () => {
         return play.apply(this,args);
       };
     });
+    await observeSpeechMediaSources(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
     await page.getByTestId('voice-call-mute').click();
     const richTurnId=await sendCameraCallText(page,'Show voice rich results');
+    await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
+    await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
     const editor=page.getByTestId('message-editor').locator('[contenteditable="true"]');
     await expect(editor).toBeEmpty();await editor.click();
     const followup='Please continue from the last part I heard.';
@@ -2132,7 +2359,7 @@ test.describe('Voice mode through ordinary chat', () => {
       return browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'
         &&frame.streamPhase==='end'&&frame.segmentId===browser.__voiceSpeechHeld.segmentId);
     },undefined,{timeout:45_000});
-    const progressive=await page.evaluate(()=>{
+    const progressive=await page.evaluate(userTurnId=>{
       const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence;
         __nativeVoiceInput:NativeVoiceInputEvidence};
       const held=browser.__voiceSpeechHeld;
@@ -2140,12 +2367,13 @@ test.describe('Voice mode through ordinary chat', () => {
         &&frame.streamPhase==='end'&&frame.segmentId===held.segmentId);
       return {audioId:held.audio?browser.__nativeVoiceInput.speechAudioId(held.audio):null,
         mse:held.sourceMse,beforeProviderEnd:held.beforeProviderEnd,firstProgressAt:held.firstProgressAt,
-        providerEndAt:end?.observedAt,sourceUnchanged:held.audio?.src===held.source,
+        providerEndAt:end?.observedAt,canonicalFinalAt:browser.__voiceCallEvidence.received.find(frame=>
+          frame.type==='ai_message_update'&&frame.userMessageId===userTurnId&&frame.final)?.observedAt,sourceUnchanged:held.audio?.src===held.source,
         offsetPreserved:Math.abs((held.audio?.currentTime??0)-held.offset)<0.01,
         paused:held.audio?.paused,playCallsAtHold:held.playCallsAtHold,playCalls:held.playCalls,
         assets:browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_status'
-          &&frame.kind==='voice_prose_clause'&&frame.generatedAssetPresent).length};
-    });
+          &&frame.generatedAssetPresent).length};
+    },richTurnId);
     expect(progressive).toMatchObject({mse:true,beforeProviderEnd:true,sourceUnchanged:true,offsetPreserved:true,paused:true,
       playCallsAtHold:1,playCalls:1,assets:0});
     expect(progressive.firstProgressAt).not.toBeNull();
@@ -2157,6 +2385,40 @@ test.describe('Voice mode through ordinary chat', () => {
       primes:(await nativeVoiceInput(page)).speechPrimes,registrationAt:speechRegistration!.observedAt,progressive,
     }),contentType:'application/json'});
     expect(progressive.providerEndAt).toBeGreaterThan(progressive.firstProgressAt!);
+    expect(progressive.canonicalFinalAt).toBeDefined();
+    expect(progressive.canonicalFinalAt!).toBeGreaterThan(progressive.firstProgressAt!);
+    // The rich response has multiple immutable clauses but one encoded MP3
+    // track, one provider attempt and one native source. Never relabel it as
+    // independently ended clause files or use the hidden message player as proof.
+    const continuousProof=await page.evaluate(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence;
+        __voiceSpeechMediaSources:Map<string,string>};
+      const trackId=browser.__voiceSpeechHeld.segmentId!;
+      const frames=browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_audio'
+        &&frame.segmentId===trackId&&frame.kind==='voice_prose_turn');
+      const messageId=frames[0]?.messageId;
+      const members=browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_status'
+        &&frame.messageId===messageId&&frame.kind==='voice_prose_clause'&&frame.speechStatus==='sealed');
+      return {trackId,messageId,frames,members,
+        nativeSourceCount:[...browser.__voiceSpeechMediaSources].filter(([,id])=>id===trackId).length,
+        sourceMatchesHeld:browser.__voiceSpeechMediaSources.get(browser.__voiceSpeechHeld.source??'')===trackId,
+        alignmentEvents:frames.filter(frame=>frame.streamPhase==='alignment').length,
+        finiteProseAudio:browser.__voiceCallEvidence.received.filter(frame=>frame.type==='assistant_speech_audio'
+          &&frame.messageId===messageId&&frame.kind==='voice_prose_clause').length};
+    });
+    expect(continuousProof.frames.filter(frame=>frame.streamPhase==='start')).toHaveLength(1);
+    expect(continuousProof.frames.filter(frame=>frame.streamPhase==='end')).toHaveLength(1);
+    expect(continuousProof.frames.every(frame=>frame.sequence===0&&!!frame.attemptId)).toBe(true);
+    expect(new Set(continuousProof.frames.map(frame=>frame.attemptId)).size).toBe(1);
+    expect(new Set(continuousProof.frames.map(frame=>frame.sourceVersion)).size).toBe(1);
+    expect(new Set(continuousProof.frames.map(frame=>frame.executionVersion)).size).toBe(1);
+    expect(continuousProof.nativeSourceCount).toBe(1);expect(continuousProof.sourceMatchesHeld).toBe(true);
+    expect(continuousProof.members.length).toBeGreaterThanOrEqual(2);
+    expect(continuousProof.members.every(frame=>!!frame.segmentId&&frame.segmentId!==continuousProof.trackId
+      &&frame.turnTrackId===continuousProof.trackId&&frame.sourceVersion===continuousProof.frames[0].sourceVersion)).toBe(true);
+    expect(new Set(continuousProof.members.map(frame=>frame.segmentId)).size).toBe(continuousProof.members.length);
+    expect(continuousProof).toMatchObject({alignmentEvents:0,finiteProseAudio:0});
+    await testInfo.attach('voice-continuous-track-and-immutable-clauses',{body:JSON.stringify(continuousProof),contentType:'application/json'});
     await page.evaluate(async()=>{
       const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
       await held.audio!.play();
@@ -2165,8 +2427,8 @@ test.describe('Voice mode through ordinary chat', () => {
       const browser=window as unknown as {__voiceCallEvidence:CallEvidence;
         __voiceSpeechHeld:HeldSpeechEvidence};
       const held=browser.__voiceSpeechHeld;
-      const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
-      const voice=browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_clause'&&frame.streamPhase==='chunk'&&frame.segmentId===active);
+      const active=(window as unknown as {__voiceSpeechMediaSources:Map<string,string>}).__voiceSpeechMediaSources.get(held.audio?.src??'');
+      const voice=browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_turn'&&frame.streamPhase==='chunk'&&frame.segmentId===active);
       return voice&&active===held.segmentId&&held.audio?.src===held.source&&!held.audio.paused&&!held.audio.ended&&held.audio.currentTime>held.offset;
     },undefined,{timeout:10_000,polling:'raf'});
     // Phase3 always supplies a genuine authenticated batch, including an empty
@@ -2224,17 +2486,16 @@ test.describe('Voice mode through ordinary chat', () => {
     const prior=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
     await expect(prior).toHaveCount(1);
     expect(boundary.assistant_message_id).toBe(await prior.getAttribute('data-message-id'));
-    expect(boundary.completed_sequences.length>0||boundary.active_sequence!==null&&boundary.active_offset_ms>0).toBe(true);
-    const heldBoundary=await page.evaluate(()=>{
+    // This provider fixture supplies no verified alignment. Real audible track
+    // progress is proved above, but track sequence zero is never prose clause zero.
+    // Provider completion while native playback is paused grants no heard clauses.
+    expect(boundary).toEqual({assistant_message_id:await prior.getAttribute('data-message-id'),
+      completed_sequences:[],active_sequence:null,active_offset_ms:0});
+    const heldTrack=await page.evaluate(()=>{
       const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
-      return {sequence:held.sequence,offsetMs:Math.floor(held.offset*1000)};
+      return {trackSequence:held.sequence,offsetMs:Math.floor(held.offset*1000)};
     });
-    expect(heldBoundary.sequence).not.toBeNull();
-    expect(boundary.active_sequence).toBe(heldBoundary.sequence);
-    expect(boundary.active_offset_ms).toBeGreaterThanOrEqual(heldBoundary.offsetMs);
-    expect(boundary.completed_sequences).not.toContain(heldBoundary.sequence);
-    expect(boundary.completed_sequences.length).toBeLessThanOrEqual(256);
-    expect(boundary.active_offset_ms).toBeGreaterThanOrEqual(0);expect(boundary.active_offset_ms).toBeLessThanOrEqual(3_600_000);
+    expect(heldTrack.trackSequence).toBe(0);expect(heldTrack.offsetMs).toBeGreaterThan(0);
     expect(Object.keys(boundary).sort()).toEqual(['active_offset_ms','active_sequence','assistant_message_id','completed_sequences']);
     expect(protocol.received.some(frame=>frame.type==='audio.interrupted'&&frame.assistantMessageId===boundary.assistant_message_id)).toBe(true);
     const privateRow=await page.evaluate(async id=>{

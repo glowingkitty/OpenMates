@@ -1,11 +1,11 @@
 schema_version: 1
-specification: feature.video-call@11
+specification: feature.video-call@12
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
   when: She accepts the current speech-processing notice and starts a call.
-  then: The call identifies Voxtral speech and ordinary routed reasoning, stays bound to ramen and shows the existing
-    controls.
+  then: The call identifies Mistral Voxtral transcription, Eleven v4 Turbo speech and ordinary routed reasoning,
+    stays bound to ramen and shows the existing controls.
 binding:
 - id: browse-another-chat
   given: Maya is speaking in a call attached to her ramen chat.
@@ -102,14 +102,16 @@ privacy:
   then: The call is refused visibly without spending provider credit or exposing keys or private media.
 first_call_privacy:
 - id: new-processing-consent
-  given: Maya previously accepted the old Google-only voice notice.
-  when: She starts the replacement voice mode and then chooses Continue on the Mistral and routed-model notice.
-  then: The server requires and confirms the new version-2 profile acknowledgement before microphone/provider access;
-    later sessions on her account reuse that acknowledgement.
+  given: Maya previously accepted the Google-only notice or the version-2 Mistral-only notice.
+  when: She starts a call and chooses Continue on the notice naming Mistral transcription, ElevenLabs speech
+    and ordinary routed reasoning.
+  then: The server confirms her version-3 profile acknowledgement before microphone capture or paid speech
+    access; later sessions on her account reuse it.
 - id: consent-write-failure
-  given: Maya has no version-2 acknowledgement and saving it fails.
+  given: Maya has no version-3 acknowledgement and saving it fails.
   when: She chooses Continue.
-  then: The notice remains actionable, an error is shown and neither microphone capture nor a paid speech session starts.
+  then: The notice remains actionable, an error is shown and neither microphone capture nor a paid speech
+    session starts.
 transcripts:
 - id: speech-survives-reload
   given: Maya asks a question by voice and Gemini responds, with user transcription arriving after the first assistant
@@ -264,8 +266,9 @@ providers:
 - id: replace-live-provider
   given: The replacement call implementation is deployed.
   when: Maya starts a call and the normal router chooses a Google reasoning model.
-  then: Speech uses Voxtral, reasoning uses the ordinary selected model, and no Gemini Live socket, legacy calling fallback
-    or separate voice broker is opened.
+  then: Transcription uses Voxtral and speech uses Eleven v4 Turbo; reasoning uses the ordinary selected model.
+    No Gemini Live socket, legacy calling fallback, separate voice answer broker or automatic paid speech
+    retry opens.
 chat_metadata:
 - id: new-call-topic
   given: Maya starts a new voice chat and asks how to make vegetarian ramen.
@@ -315,10 +318,20 @@ interruption_intent:
     undone or repeated.
 spoken_rich_response:
 - id: images-and-video
-  given: A normal main response contains prose, three grouped images and a video preview.
-  when: The assistant says it found city images and a useful history video.
-  then: Chat renders the image group and video between the prose blocks; speech reads those natural sentences without
-    embed IDs or generic structured-data announcements.
+  given: A long normal main response is still streaming prose with three grouped images and a video preview.
+  when: The assistant releases an approved city-images sentence, then a history-video sentence while Eleven
+    v4 Turbo is already returning audio.
+  then: Maya hears useful speech before the final response and input finish, on one continuous ordered turn
+    track. Chat preserves the image group, video, links and full shared reasoning and permissions; no call
+    audio history or replay file is created.
+- id: conservative-heard-interruption
+  given: Two immutable clauses belong to a call response; the audio track has started, but reliable clause
+    timing is unavailable.
+  when: Maya interrupts before the track ends, then later allows a different response with sealed membership
+    to finish at the provider and native player.
+  then: The interrupted response records an explicit empty heard boundary, never full completion, and late
+    audio is rejected. Only the cleanly completed response marks all its sealed clauses heard; validated conservative
+    timing may establish partial heard clauses when available.
 localized_waiting:
 - id: slow-german-mercury
   given: Maya asks a German question routed to Mercury with a slow search skill.
@@ -362,10 +375,19 @@ migration_disconnect_settlement:
     and no new paid call starts.
 migration_distinct_usage:
 - id: distinct-usage
-  given: Maya sends 20 seconds of microphone audio and receives one tool-assisted spoken response.
-  when: Usage is settled and repeated status packets arrive.
-  then: The STT started-minute rate and ordinary model, skill and successful speech charges each settle once, with no
-    Gemini Live token or connected-time fee.
+  given: Maya sends 20 seconds of microphone audio and receives an Eleven v4 Turbo response whose incremental
+    text appends contain 120 then 280 exact characters for one assistant message.
+  when: The 400-character synthesis completes successfully, then duplicate settlement packets arrive.
+  then: The STT started-minute charge and ordinary model and skill charges settle separately. Call speech
+    charges sixteen credits once for all 400 submitted characters, attributed to ElevenLabs and Eleven v4
+    Turbo; appends and duplicate settlement add no separate charge, with no connected-time fee.
+- id: call-failure-and-manual-speak
+  given: A call response is interrupted before successful synthesis completion and its encrypted rich text
+    remains after hangup.
+  when: Maya later presses manual Speak for 400 characters and replays the ready file.
+  then: Failed call synthesis adds no speech charge and creates no audio history. Manual Speak uses Mistral
+    at 0.013 credits per character, six credits cumulatively, and its encrypted cached replay adds no generation
+    or charge.
 migration_camera_ordinary_input:
 - id: camera-ordinary-input
   given: Maya enables her camera in a web call.

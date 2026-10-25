@@ -11,6 +11,21 @@ const turn = {callId:'call-1',chatId:'chat-1',turnId:'turn-1',text:'Explain this
 beforeEach(()=>{mocks.identity='owner-1';mocks.epoch=1;mocks.connected=true;mocks.save.mockReset().mockResolvedValue(undefined);mocks.event.mockClear();mocks.updateChat.mockReset().mockResolvedValue(undefined);mocks.send.mockReset().mockResolvedValue(undefined);mocks.row.mockReset().mockResolvedValue({status:'sending'});});
 
 // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy
+it.each(['predecessor_wait', 'journal_read', 'reply_discovery'] as const)('identifies the fixed predecessor substage %s', stage => {
+  const events: Array<Record<string, unknown>> = [];
+  const observe = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener('voiceCallTurnDelivery', observe);
+  try {
+    const diagnostics = createVoiceCallSendDiagnostics({ chat_id: turn.chatId, message_id: turn.turnId,
+      voice_mode: true, voice_call_id: turn.callId, voice_turn_id: turn.turnId });
+    diagnostics.enter(stage); diagnostics.failed();
+    expect(events.map(event => [event.phase, event.reason])).toEqual([
+      ['canonical_prerequisite', stage], ['canonical_prerequisite_failed', stage],
+    ]);
+  } finally { window.removeEventListener('voiceCallTurnDelivery', observe); }
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy
 it('records only fixed canonical prerequisite stages for exact voice delivery identities', () => {
   const events: Array<Record<string, unknown>> = [];
   const observe = (event: Event) => events.push((event as CustomEvent).detail);
@@ -155,9 +170,14 @@ it('reports only allowlisted error categories and static source locations from s
 
 // contract-test: supporting surface=gui.web assertions=video-call.privacy,video-call.audio.complete-turn-admission
 it.each([
+  ['Pending message row is unavailable for durable embed preparation.', 'pending_message_row_unavailable'],
+  ['Pending message embed bundle is invalid.', 'pending_message_journal_invalid'],
+  ['Reply recovery requires a connected foreground chat.', 'reply_recovery_foreground_required'],
+  ['Completed reply discovery timed out.', 'reply_recovery_discovery_timeout'],
+  ['Completed reply discovery did not finish.', 'reply_recovery_not_completed'],
   ['Personal privacy receipt does not match this turn', 'privacy_receipt_mismatch'],
   ['Personal privacy scope changed during freshness check', 'privacy_freshness_changed'],
-])('identifies the exact fixed privacy guard without exporting exception text: %s', async (message, code) => {
+])('identifies the exact fixed delivery guard without exporting exception text: %s', async (message, code) => {
   const events: Array<Record<string, unknown>> = [];
   const observe = (event: Event) => events.push((event as CustomEvent).detail);
   window.addEventListener('voiceCallTurnDelivery', observe);

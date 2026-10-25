@@ -58,9 +58,9 @@ AUDIO_JITTER_SECONDS = 2
 MAX_PENDING_TRANSCRIPTS = 32
 MAX_TEXT_IDENTITIES = 2048
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
-PROCESSING_ACK_FIELD = "voice_processing_ack_v2_at"
-PROCESSING_ACK_VERSION = 2
-SPEECH_OUTPUT_TRANSPORT = "mp3_stream_v1"
+PROCESSING_ACK_FIELD = "voice_processing_ack_v3_at"
+PROCESSING_ACK_VERSION = 3
+SPEECH_OUTPUT_TRANSPORT = "mp3_turn_stream_v2"
 
 def _timestamp() -> int:
     return int(time.time())

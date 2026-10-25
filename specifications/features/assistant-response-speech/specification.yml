@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 9
+version: 10
 status: approved
 title: Assistant Response Speech
 summary: >
@@ -18,7 +18,7 @@ scope:
     - Deterministic selection of a prerecorded acknowledgement by mate voice, response language, and preprocessor request category.
     - Immediate acknowledgement playback alongside optional thinking, followed by a generated app-use announcement while selected app previews remain visibly processing.
     - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
-    - One Mistral generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
+    - Outside live calls, one Mistral generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
     - Web voice-message, Auto speak response, and manual Speak playback that registers paragraph order without generating every paragraph, then requests Mistral audio only for the first needed paragraph and each later paragraph as playback approaches it or the listener selects it.
     - Faster pitch-preserving browser playback and a local repeating confirmation sound while a selected chapter is pending.
     - A responsive full-width playback bar pinned over the top of the active-chat history, below the chat action buttons, that follows the approved Figma chapter, waveform, mate-avatar, loading, and control hierarchy on desktop and mobile.
@@ -27,18 +27,18 @@ scope:
     - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
     - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
     - In-app paragraph controls for play, pause, close, previous paragraph, and next paragraph, plus best-effort operating-system media controls.
-    - A successful-generation-only charge after each ready provider segment, with cumulative message-level rounding at 13 credits per 1,000 exact characters.
-    - Voxtral TTS 3 for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
+    - "Successful-generation-only charges with cumulative message rounding: stored Mistral speech at 13 credits per 1,000 exact characters; ephemeral Eleven v4 Turbo call speech at 40."
+    - Voxtral TTS 3 for stored assistant-message speech and Eleven v4 Turbo for ephemeral incremental live-call speech, while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
     - Web and Apple semantic parity after the approved first-party server contract is complete.
     - Optional local-first private assistant playback on supported Apple targets using verified installed Supertonic3 assets, with an explicit online retry after local failure.
   excludes:
-    - A combined message-level audio file containing the whole assistant response.
+    - A stored combined message-level audio file containing the whole assistant response; transient live-call turn tracks are permitted.
     - User-selectable or cloned voices, raw provider voice IDs, and impersonation of real people.
     - Reading raw JSON, protocol fences, raw URLs, code syntax, or complete table markup aloud by default.
     - A general-purpose LLM rewrite, compression, or cleanup pass before text-to-speech generation.
     - Browser speech synthesis or another provider as a silent fallback.
-    - Relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
+    - Outside active live calls, relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
     - Anonymous or developer-API generation, public npm or pip SDK generation, and direct public access to private encrypted chat speech assets.
     - Changing the explicit user-invoked audio.speak app-skill contract.
     - Native Apple demand-driven provider dispatch until its playback owner supports chapter requests; provider-backed native turns retain eager dispatch.
@@ -100,7 +100,7 @@ models:
     model:
       type: server_configured_model
       required: true
-      constraints: {assistant_response_speech: voxtral-mini-tts-3-0, audio_speak_default_unchanged: eleven_v3, silent_substitution: forbidden}
+      constraints: {stored_assistant_response_speech: voxtral-mini-tts-3-0, live_call_speech: eleven_v4_turbo, audio_speak_default_unchanged: eleven_v3, silent_substitution: forbidden}
 
   AcknowledgementClip:
     clip_id:
@@ -375,8 +375,9 @@ assertions:
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
     must: >-
-      Provider-backed assistant speech uses each mate's product-curated, versioned
-      Voxtral TTS 3 preset with version-2 profiles; version-1 queued work and ready assets retain their original provider and model without a silent fallback;
+      Outside live calls, provider-backed assistant speech uses each mate's product-curated, versioned
+      Voxtral TTS 3 preset with version-2 profiles. Live calls use product-curated, versioned Eleven v4 Turbo voices without exposing provider identifiers; routing never silently substitutes a provider. Existing
+      version-1 queued work and ready assets retain their original provider and model without a silent fallback;
       the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
       On supported Apple targets, verified installed optional Supertonic3 assets are
       preferred for private assistant-response playback using the approved local
@@ -427,7 +428,27 @@ assertions:
     depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue]
   - id: assistant-speech.playback.live-call-streaming
     type: behavior
-    must: During an authenticated active web voice call, a supported browser immediately plays approved immutable prose and waiting confirmations as Mistral returns audio; playback never waits for provider completion, file creation or storage. Only the owning call receives bounded transient audio in clause and chunk order. Call speech is never persisted, uploaded, logged, cached for replay or converted into a generated audio embed; the normal encrypted conversation text and rich message content remain authoritative, with only minimal content-free operational and billing metadata. Missing chunks, provider failure, hangup, interruption, invalidation or loss of call ownership stop playback and reject late audio; an incomplete stream never counts as fully heard and never silently starts a second synthesis. Successful completed synthesis contributes its exact submitted character count once to existing billing. If the user later presses Speak on the stored text, that separate action generates and caches audio normally and subsequent manual replay reuses that cache. Normal automatic model routing, rich embeds and independent message listening remain intact.
+    must: >-
+      During an authenticated active web voice call, approved immutable prose is appended incrementally to
+      Eleven v4 Turbo and a supported browser plays returned chunks as they become available, without
+      requiring final response or speech-input completion or waiting for provider completion, file creation or
+      storage. Ongoing long responses can overlap canonical text generation, incremental speech input and
+      useful audible playback. Only the owning call receives bounded transient ordered chunks in one
+      continuous audio track per assistant turn, distinct from its immutable semantic clauses; finite waiting
+      confirmations remain ordered and never overlap useful speech. Call speech is never persisted, uploaded,
+      logged, cached for replay or converted into a generated audio embed; normal encrypted text and rich
+      content remain authoritative, with only minimal content-free operational and billing metadata. Missing
+      chunks, provider failure, hangup, interruption, invalidation or lost ownership stop playback and reject
+      late audio without automatic paid reconnect or synthesis retry. Input completion, provider completion
+      and audible playback end are distinct. Validated conservative timing may establish partial heard
+      clauses; unknown partial timing records an explicit empty heard boundary. Mark every clause heard only
+      after successful provider completion, sealed semantic membership and native playback end; failed,
+      cancelled, stale or incomplete streams never qualify. Successful completed call synthesis settles exact
+      submitted characters once at 0.04 credits per character with cumulative message rounding and
+      provider/model attribution. Later manual Speak remains a separate Mistral request at 0.013 credits per
+      character, generating encrypted cached audio; replay reuses that cache without another charge. The full
+      shared pre/main/post decisions, automatic model and thinking routing, permissions, ethics, Learning
+      Mode, skills and rich embeds remain intact; ordinary independent message listening resumes after hangup.
     depends_on: [models.SpeechSegment, models.PlaybackQueue, examples.live_call_streaming]
   - id: assistant-speech.execution.web-paragraph-demand
     type: invariant
@@ -492,15 +513,35 @@ assertions:
     depends_on: [models.SpeechGenerationRequest, examples.privacy, applies_to]
   - id: assistant-speech.safety.provider-after-approval
     type: security
-    must: Runtime-generated segment text receives deterministic safety checks and a minimal non-rewriting semantic safety decision before Mistral execution; rejected or safety-error segments call no speech provider, charge no credits, expose a safe visible error, and do not affect the text response.
+    must: >-
+      Runtime-generated speech text receives deterministic safety checks and a minimal non-rewriting semantic
+      safety decision before provider execution, including each incrementally released live-call span.
+      Rejected or safety-error text calls no speech provider, charges no credits, exposes a safe visible
+      error, and does not affect the canonical text response.
     depends_on: [models.SpeechSegment.speakable_text, models.SpeechSegment.status, examples.voxtral_safety_before_generation]
   - id: assistant-speech.privacy.transient-plaintext-encrypted-audio
     type: privacy
-    must: The server and Mistral receive only the current speakable segment text and required voice settings; unrelated chat state, encryption material, provider credentials, safety reasoning, and raw embed payloads are excluded, segment plaintext is not durably stored or logged, and every generated paragraph audio file is encrypted before private S3 persistence.
+    must: >-
+      The server and selected speech provider receive only the approved current speakable text and required
+      voice settings; unrelated chat state, encryption material, provider credentials, safety reasoning and
+      raw embed payloads are excluded, and speech plaintext is never durably stored or logged. Outside live
+      calls, Mistral paragraph audio is encrypted before private S3 persistence. Eleven v4 Turbo call audio
+      remains transient with no history, replay cache or generated audio asset; first-call consent names both
+      Mistral transcription and ElevenLabs speech before capture or paid dispatch.
     depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.voxtral_segment_privacy]
   - id: assistant-speech.billing.segment-success-once
     type: invariant
-    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every ready provider segment contributes its exact submitted character count once to a durable message ledger. Each positive charge has a stable segment identity and chat/message/provider/model attribution; charge only the increase in ceil(cumulative characters * 0.013), with zero-credit increments recorded as settled. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits. A later successful retry adds only its cumulative increment.
+    must: >-
+      Every runtime-generated speech dispatch performs character-based credit preflight, including cumulative
+      headroom before each live-call text append. Successful completed speech contributes exact submitted
+      characters once to a durable message ledger with stable work identity and chat/message/provider/model
+      attribution. Outside live calls, each ready Mistral segment charges only the increase in ceil(cumulative
+      characters * 0.013). Successful completed Eleven v4 Turbo call synthesis instead charges only the
+      increase in ceil(cumulative message characters * 0.04); immutable semantic clauses do not create
+      duplicate per-clause synthesis charges for a continuous turn track. Zero-credit increments are recorded
+      as settled. Failed synthesis, interrupted incomplete call synthesis, cancelled-before-dispatch,
+      prerecorded, cached and replayed audio costs zero additional credits. A later explicitly authorized
+      successful retry adds only its cumulative increment; no paid retry is automatic.
     depends_on: [models.SpeechManifest.billing_settled_segment_ids, models.SpeechSegment.billable_character_count, models.SpeechBillingSettlement, models.AcknowledgementClip.audio_asset, examples.voxtral_cumulative_mistral_price]
   - id: assistant-speech.failure.nonblocking-visible-resumable
     type: failure
@@ -555,3 +596,8 @@ notes:
     of backend automatic speech while handling the response locally. This extends
     the existing contract and records behavior authorization; it does not assert
     that an exact-fingerprint review was separately presented or acknowledged.
+  version_10_scope_authorization: >-
+    Direct user instruction on 2026-10-25 authorizes Eleven v4 Turbo call speech with
+    incremental text input, retaining manual Mistral Speak and the audio.speak default.
+    This records behavior authorization; it does not assert that a new exact-fingerprint
+    review was separately presented or acknowledged.

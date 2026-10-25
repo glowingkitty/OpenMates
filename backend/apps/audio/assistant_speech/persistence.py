@@ -56,6 +56,10 @@ async def create_manifest_and_segments(
     """Create idempotent owner-scoped metadata without storing segment plaintext."""
     voice_key = str(voice_profile["key"])
     voice_version = int(voice_profile["version"])
+    speech_model = ASSISTANT_RESPONSE_SPEECH_MODEL
+    if voice_version == 3:
+        from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
+        speech_model = resolve_assistant_voice_profile(voice_key, version=voice_version).model
     manifest_id = manifest_id_for(
         chat_id=chat_id,
         assistant_message_id=assistant_message_id,
@@ -75,7 +79,7 @@ async def create_manifest_and_segments(
         "voice_profile_version": voice_version,
         "ordered_segment_ids": ordered_segment_ids,
         "status": "queued",
-        "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "model": speech_model,
         "sealed": False,
         "billing_status": "pending",
         "billing_settled_segment_ids": [],

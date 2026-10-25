@@ -431,10 +431,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.assistant-response-speech:
-    version: 9
+    version: 10
     status: approved
     path: features/assistant-response-speech
-    fingerprint: 758b9e10746da96910d73a83c5308739c522f0a3b090473629412e30ab011540
+    fingerprint: 2a5472aa3098534629b5f5b524dc120b8241270ef70fafaa21d5686add0beb8d
     required_applies_to:
     - rest_api
     - cli
@@ -760,10 +760,10 @@ specifications:
     required_applies_to:
     - cli
   feature.video-call:
-    version: 11
+    version: 12
     status: approved
     path: features/video-call
-    fingerprint: 7c47c9bafbe5f108f6ae0d01a1e787c12c065aedf99976ac8848d8489237aa81
+    fingerprint: 8a2ab479cbbb342cbb4b33be0528a4dffa331d07e530cd333bb442665997da6e
     required_applies_to:
     - gui.web
     - gui.apple
@@ -5176,7 +5176,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.chat-scoped-default-off:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
@@ -5186,7 +5186,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.voice-recording-visible-activation:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 6f19e3f1b5a3915027e63bdaa4516a9f0e8398b9825c913a59d5be850526703a
@@ -5196,17 +5196,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.deterministic-free:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 8533c6275022da5b9cb35855b5d7b3a559a27f01432e1952ddd1462cb1e3c3d4
+    fingerprint: 5af887f69b7c8d665ccfce6ad6d1e355f32b8f5f8229a270786487785bf1b2e5
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: fa05f4afcf53c4a93a2beeed902ca882fa0e4e16e9364510855c267915004b8a
@@ -5216,27 +5216,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.voice.fixed-versioned-mate-profile:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 5849e7d24172ad42a2fda80a9de160c0a0ab150e5e2d89807cbaa228c42ada04
+    fingerprint: df81f58bef71378db68ab31acc22e6b66a8a867068dd116e9dc68fcecfb3082e
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.one-file-per-segment:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 2f37e57ca7c2f745df087cf82b49ae0e9f9272b1cc7ea6e6da3e523eb69bed25
+    fingerprint: 91c16363f58736233cd81e45af6c7033d57a5f5353c3cb9e6549b88c30a5f526
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.immutable-source:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 6bcf60f02def51294ab8365021eb6e354623542f4f7c7668071e57f7f9e295d9
@@ -5246,7 +5246,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.deterministic-semantic:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: dd71ca709413c96339aeb1d2c31d56915086f1dfd09c9dcb063bf8536f9ebd60
@@ -5256,7 +5256,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.no-cleanup-inference:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: 413acdbe620c7274a9fd7b311423b5fcaf72d4816bbebfc3ede8e8cbca6a5ab7
@@ -5266,7 +5266,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.text-stream-independent:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: adb13f975bd57ca222ca5858b81ef9fa895a354406cfe527a451d6a12b9ca926
@@ -5276,7 +5276,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.app-skill-progressive:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 20928f112ebe227be696437319477a76c1f6b5b9b0fc4fa1fe9178c9517071bc
@@ -5286,7 +5286,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.first-segment-progressive:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 8370489e264d4551fa837620cd00ecb804d0b1e4d3c31fc271bafae6e00cc1e2
@@ -5296,17 +5296,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.live-call-streaming:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: f95df0d81e556577d2e0f9a523631185206b26a201fb9cf29d678d66f5c7db1e
+    fingerprint: 2f3f7fffaee590450c6804a01a35792788c9137fdf7fb44f35ddb301a0edd53b
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.execution.web-paragraph-demand:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 9fb1f26883b5cf0adfb691ca9d12797c1870055c974f63f0972c41efd9f97fd1
@@ -5316,7 +5316,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.single-queue-segment-control:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: e61742ab271766484184514b6af7c1923c05095ce93494dbd8033d678958c7a2
@@ -5326,7 +5326,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.deterministic-chapter-labels:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 327f4239724920968e8f7f445e924d8253ed87267e7e2d6598b2d71240c25e3b
@@ -5336,7 +5336,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.pinned-full-response-waveform:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 51660292c85181476bfbddcda72bcf191c0005ff52d4c4d95c641445b65c84ee
@@ -5346,7 +5346,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.two-second-idle-grace:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 33416a442e755490b64119207988fa3dfaeeeb403aea5a21c8593113651f7a5d
@@ -5356,7 +5356,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.os-controls-best-effort:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: parity
     fingerprint: e17ddddd5e17e7a42a3a95e3b96e32d60ef993eb4a10a87ae79227c243561576
@@ -5366,7 +5366,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.autoplay-recovery-visible:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: 1067558cb045a7c6a449a32021cbdce66231c173c86f193e999425556cf35264
@@ -5376,7 +5376,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.on-demand.generate-missing-only:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 03ba11efd4329a27153bdb13d85d9f082b840d4a685ffeaad86a92b26bf9334c
@@ -5386,7 +5386,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.cli.owner-generated-existing-messages:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 64448164c0a9786e31f9caadfd8d03d100ac7da08adcff31a31334fa11cde313
@@ -5396,7 +5396,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.public-example.reviewed-fixture-playback:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: 0517fe4418778250ca4c81cc6df9302c300b1f98c95e6046b9d696d1ce51b44f
@@ -5406,7 +5406,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.access.first-party-owner-scoped:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: security
     fingerprint: 55b12c69fc2eace58c65552443f1cd2f362fbe9d063d9bee80002ddeb0bd5d5c
@@ -5416,37 +5416,37 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.safety.provider-after-approval:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 3c1b8abac27a73537a0d35c765aa76b12eae7140caf5906772587876ffe9e579
+    fingerprint: 063486e7469068605dc891e9d7ba17e24071cd820f00a26d530571a8bb3b4f30
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.privacy.transient-plaintext-encrypted-audio:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: 67bd9462546751895d85e047c5e87b4605f65cbf31fcb3122945c545db7170ad
+    fingerprint: 1b19df1321fdf7a0970832d41c5f881926a89e71585e24df4c31d330d99b20ad
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.billing.segment-success-once:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: ba8e814a9235095aaf688562334f5dce99b642cc818f40f91befc3a5e79ced70
+    fingerprint: 341a91ff275e6c322fac146aae8a95925ff6f6ceeeeb607df51198b417c0c4f7
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.failure.nonblocking-visible-resumable:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: 892387caa5bb52202af1c0a2ee91281a96d1cabdf4a9cdf47d9e112441ee7f45
@@ -5456,7 +5456,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.lifecycle.disable-delete-invalidate:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: e57a16adbc5d4fbd575a7982563b05eabb1148c71201452b13abcd0511802e26
@@ -5466,10 +5466,10 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.surface.semantic-parity:
-    specification: feature.assistant-response-speech@9
+    specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 38d2b859c3f80711b868777debfa6f6e789b18b082704f0bf86133c1c01bac60
+    fingerprint: 601248a978de64aa98e2a63f5a998c133dab6b11cc0585002d036e6af921e255
     required_applies_to:
     - rest_api
     - cli
@@ -9822,15 +9822,15 @@ assertions:
     required_applies_to:
     - cli
   video-call.chat.launch-and-provider:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
-    fingerprint: da52f7f3db60ee645837c823ebae80567c20325ae3f77856a4de276d67aa6ae3
+    fingerprint: 50c6ed042c1005e1153ae5839f1681e4fa62f53fcb487eedee0e919c019edda2
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.chat.fixed-binding:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: a88b39e937685ef3b36835355fd55bb2526c57433c337b351f5a0c1358b7eab8
@@ -9838,7 +9838,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-strip-layout:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: d4cc228c575f7816241edda909314f508ea116181508af9a1a233ec891de2745
@@ -9846,7 +9846,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-events:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: d05b5385d0b2f6da4062711d02eb4829a5fe8ac56de817c28108c5db6c7eea0c
@@ -9854,7 +9854,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.skill-integration:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 87bd1bb769fe20c5f83431830aeb5ec18c5df05b2be102746d2e98cf3fcf3dce
@@ -9862,7 +9862,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.ethics:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: f95c17203d14b5d982d403d9a6c4557bb231a5cb120f16d1e58cd4b4f3978983
@@ -9870,7 +9870,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.compressed-context:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8337b9518698747ccacd1dc520ba7b8fe33734f5ed2c8c88929d3d962c01197c
@@ -9878,7 +9878,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.project-context:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 4e05d8875d1384b76cead35562d58f87f5553bc1069c0f077ceda2f0b40da9bc
@@ -9886,7 +9886,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.memories-and-focus:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: fe89014c7bf245c67124c41d8eb3e38dda2932be45301470e20bb93d98e9f48a
@@ -9894,7 +9894,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.assistant-identity:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 89ca56d4b52f7077a8461ff1df8d5fe9d517a2b8463b7bc4b5d3298488723428
@@ -9902,7 +9902,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.encrypted-whole-call:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: a05e2e359a6f28e8cf73abf60f287237b3a7ea1d5e13ff0ce8157472140da9de
@@ -9910,7 +9910,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.open-and-download:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: e7954782b4dd8ee486f604ca93359bcdd054a7f79d659e328f4b1d325f9907e3
@@ -9918,7 +9918,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: a11a6a144ceb4af34d46468299928e190af5c062ee8e2bb9849b5f65ed426438
@@ -9926,15 +9926,15 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy.first-call-warning:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
-    fingerprint: 131567de7aabe4dab03bc6e087b1fb4f34ecd820f62b79458ee07b44e1c79d70
+    fingerprint: 09a81c2884af33a70e76ae06f84d5c156ad68138d45518a96e78903868f01143
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.chat.transcripts:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 6857057b99b814b9d1c464424e5d5665d2320bc8d826ebc6d1e45f1422b5863d
@@ -9942,7 +9942,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.typed-input:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8bc1ba5a1e96cbf6c8db1be7e96b6642677932747997e7a79d2fc9df532cc041
@@ -9950,7 +9950,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.single-owner:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 13ae8e2701ab21bb98bd490a3298aafa3540b31819cdc3de1764cb192a5046ab
@@ -9958,7 +9958,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.confirmation-sounds:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 813b771f6a10584e4f7d1c8310c0d3e8a4ed804ed8f7db401c9233032dae608a
@@ -9966,7 +9966,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.background-detection:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: a8d5b889819e9af1138983c190cc6ca7dc53a3467abd79343d6b55d43e28e262
@@ -9974,7 +9974,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.automatic-idle:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: a7582df85ad8228d03e6b6ab0659833bdc4f41e5cdd71db3398ef4c3e738aa0f
@@ -9982,7 +9982,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.startup-buffer:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 97cee3f17d0bdd6488f28c0d357ae25f55c06fd788b410fc3b33c873023bc240
@@ -9990,7 +9990,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.activity-status:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 182c7a34784f39a775c47c067d14c4105f3b8973689df7ba4a840073843b415e
@@ -9998,7 +9998,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.lifecycle.recovery-and-billing:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 2819f6d0402831e796c447c64d39198271725200172ff605b3d761d82015bba7
@@ -10006,15 +10006,15 @@ assertions:
     - gui.web
     - gui.apple
   video-call.usage.provider-metering:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
-    fingerprint: e10eb2a1d99e6490a7bc7840dc5933c38957d287df2a4bd8fcae762553f24387
+    fingerprint: 7e34fa121d3ea087f22281852c51feffbb4087fd51660044b03afee6c41051b8
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.video.input-and-output:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 6f3c61adda30a31d7ac6aee1998f0eb60e4c736a9c86a41f5724c9b37fb53a2d
@@ -10022,7 +10022,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.source-frame-provenance:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 8b19e09bf137104bd406014f06a8f64377454b616e6a4d64da2218aeac49f145
@@ -10030,7 +10030,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.generated-media-stage:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 18cfb11b77eed89f9c7774115dbd2ed8c529fe6dfebb3e7f1d6110ed6df69fdc
@@ -10038,7 +10038,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.fast-generation-default:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 786130fa12035a635377f3c863941733d3f9aafdbc9c6d56cb5452432e15e5ba
@@ -10046,15 +10046,15 @@ assertions:
     - gui.web
     - gui.apple
   video-call.provider.boundary:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
-    fingerprint: 15680600319a758b4c210970c142ed486bb410abf85d10c71ca26c73127e47ca
+    fingerprint: 0b94c57dc2deca6665c46d0721b0e31ea61339064422e3c6ff0bd68cd97b85f1
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.chat.metadata-generation:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: be764e43be17ec965c2433ae55ae275fdcf0807da5c84499687e6f16fdb433d4
@@ -10062,7 +10062,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.metadata-lifecycle:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 11e39fd9b7187d801fd48400ae50308ef0614e2188300e627f51bc558f564043
@@ -10070,7 +10070,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.intentional-interruption:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: 261a19ed9e99563e087fb8e3425d9ed51519669a5d37f59fac446ebdda8a02ff
@@ -10078,15 +10078,15 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.spoken-rich-response:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
-    fingerprint: d9031e8232a4c106d5d9202e3a9108ebc1e39853fc36f47eff736ce2890279fa
+    fingerprint: 89d3187ac4efceb6499bd573f66a2dbb14620922c25a4e1014b69fa35979cf0e
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.audio.localized-waiting:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: behavior
     fingerprint: 3d8fe1a2ea579d3850dd6ad63d424fcb18b3ae1695028ca78aa4591748e59e5d
@@ -10094,7 +10094,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.complete-turn-admission:
-    specification: feature.video-call@11
+    specification: feature.video-call@12
     specification_id: feature.video-call
     type: invariant
     fingerprint: ec5e651b5d3f477adddc00c177f18208f6590f3dd9e6b2fe972fc6ec013ce994

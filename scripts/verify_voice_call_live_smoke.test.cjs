@@ -7,7 +7,9 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
-const { installObservation, cleanupRealCall, progressivePlaybackMetrics } = require('./verify_voice_call_live_smoke.cjs');
+const crypto = require('node:crypto');
+const encodedAudio = Buffer.from('public synthetic audio bytes').toString('base64');
+const { installObservation, cleanupRealCall, progressivePlaybackMetrics, continuousTurnMetrics, responsePlaybackComplete, validateObservedHeardBoundaries } = require('./verify_voice_call_live_smoke.cjs');
 
 function browserHarness() {
   let time = 0, nextTimer = 0, waveform = null;
@@ -31,7 +33,8 @@ function browserHarness() {
     finish() { this.ended = true; this.paused = true; this.dispatch('ended'); }
   }
   class Audio extends Media {}
-  class MediaSource {}
+  class SourceBuffer { appendBuffer() {} }
+  class MediaSource { addSourceBuffer() { return new SourceBuffer(); } }
   class BrowserURL extends URL {
     static createObjectURL() { return `blob:mse-${++nextTimer}`; }
   }
@@ -57,7 +60,10 @@ function browserHarness() {
     return { ok: next.ok, json: async () => next.body };
   } };
   const sandbox = { window, document, navigator: { mediaDevices: { getUserMedia: async () => {} } },
-    HTMLMediaElement: Media, HTMLAudioElement: Audio, MediaSource, URL: BrowserURL, Promise, location: { href: 'https://app.dev.openmates.org/' },
+    HTMLMediaElement: Media, HTMLAudioElement: Audio, MediaSource, SourceBuffer,
+    atob: value => Buffer.from(value, 'base64').toString('binary'),
+    crypto: { subtle: { digest: async (_algorithm, bytes) => crypto.createHash('sha256')
+      .update(Buffer.from(bytes.buffer ?? bytes, bytes.byteOffset ?? 0, bytes.byteLength)).digest() } }, URL: BrowserURL, Promise, location: { href: 'https://app.dev.openmates.org/' },
     performance: { now: () => time }, MutationObserver: class { observe() {} },
     setInterval(callback) { timers.set(++nextTimer, callback); return nextTimer; },
     clearInterval(handle) { timers.delete(handle); }, requestAnimationFrame(callback) { frames.push(callback); },
@@ -68,7 +74,12 @@ function browserHarness() {
   const socket = new window.WebSocket('wss://api.dev.openmates.org/v1/ws');
   const voice = new window.WebSocket('wss://api.dev.openmates.org/v1/voice-call');
   return { Audio, api, socket, voice, document, context,
-    createMediaSourceURL: () => BrowserURL.createObjectURL(new MediaSource()),
+    connectSocket: () => new window.WebSocket('wss://api.dev.openmates.org/v1/ws'),
+    createMediaSourceURL: (encoded = encodedAudio) => {
+      const media = new MediaSource(), url = BrowserURL.createObjectURL(media);
+      if (encoded !== null) media.addSourceBuffer('audio/mpeg').appendBuffer(new Uint8Array(Buffer.from(encoded, 'base64')));
+      return url;
+    },
     waveform(value) { waveform = value; },
     tick(milliseconds = 50) { time += milliseconds; for (const callback of [...timers.values()]) callback(); },
     async refresh(chat, messagesVersion, { bodyChat = chat, ok = true, origin = 'https://api.dev.openmates.org' } = {}) {
@@ -83,7 +94,7 @@ function browserHarness() {
       message_id: message, segment_id: segment, status: 'ready', kind,
     }); return api.state.events.at(-1); },
     playback() { return JSON.parse(JSON.stringify(api.state.playback)); },
-    async settle() { await Promise.resolve(); this.frame(); this.frame(); },
+    async settle() { for (let i = 0; i < 20; i++) await Promise.resolve(); this.frame(); this.frame(); },
   };
 }
 
@@ -101,7 +112,7 @@ test('only the exact known silent autoplay prime is excluded; the same element s
   browser.socket.receive('assistant_speech_audio', { message_id: 'real-response', segment_id: 'real-segment',
     kind: 'voice_prose_clause', phase: 'start', attempt_id: 'real-attempt', chunk_index: 0 });
   browser.socket.receive('assistant_speech_audio', { message_id: 'real-response', segment_id: 'real-segment',
-    kind: 'voice_prose_clause', phase: 'chunk', attempt_id: 'real-attempt', chunk_index: 0 });
+    kind: 'voice_prose_clause', phase: 'chunk', attempt_id: 'real-attempt', chunk_index: 0, audio_data: encodedAudio });
   audio.src = browser.createMediaSourceURL(); browser.waveform('real-segment');
   await audio.play(); await browser.settle(); audio.currentTime = 0.2; browser.tick(); browser.tick();
   const progress = browser.playback()[0];
@@ -189,7 +200,7 @@ test('MSE progress precedes the SAME segment provider end and retains phase meta
     phase, chunk_index: index, attempt_id: 'attempt-1', source_version: 1, execution_version: 2,
     ...(phase === 'chunk' ? { audio_data: rawAudio } : {}),
   });
-  audio.src = browser.createMediaSourceURL(); browser.waveform('stream-segment');
+  audio.src = browser.createMediaSourceURL(rawAudio); browser.waveform('stream-segment');
   await audio.play(); await browser.settle(); audio.currentTime = 0.2; browser.tick(); browser.tick();
   const progress = browser.playback()[0];
   assert.equal(progress.sourceKind, 'media_source');
@@ -203,7 +214,7 @@ test('MSE progress precedes the SAME segment provider end and retains phase meta
   assert.equal(progressivePlaybackMetrics(browser.api.state, progress).playbackBeforeSameSegmentProviderEnd, false);
   browser.tick();
   const storedReady = browser.ready('stream-segment', 'response-stream', 'voice_prose_clause');
-  browser.socket.receive('assistant_speech_audio', { message_id: 'response-stream', segment_id: 'stream-segment', phase: 'end', attempt_id: 'attempt-1' });
+  browser.socket.receive('assistant_speech_audio', { message_id: 'response-stream', segment_id: 'stream-segment', phase: 'end', attempt_id: 'attempt-1', source_version: 1, execution_version: 2 });
   const metric = progressivePlaybackMetrics(browser.api.state, progress);
   assert.equal(metric.speechReadyMs, storedReady.atMs);
   assert.equal(metric.playbackBeforeSameSegmentProviderEnd, true);
@@ -215,6 +226,98 @@ test('MSE progress precedes the SAME segment provider end and retains phase meta
   assert.equal(receipt.includes('audio_data'), false);
   assert.equal(browser.api.state.events.filter(event => event.type === 'assistant_speech_audio').length, 5);
 });
+
+test('MSE byte/source correlation proves clock progress with no message player DOM', async () => {
+  const browser = browserHarness(), audio = new browser.Audio();
+  const querySelector = browser.document.querySelector.bind(browser.document);
+  browser.document.querySelector = selector => {
+    if (selector.includes('assistant-speech-waveform')) throw new Error('MSE playback must not query message player DOM');
+    return querySelector(selector);
+  };
+  const identity = { message_id: 'hidden-call-response', segment_id: 'hidden-call-segment',
+    kind: 'voice_prose_clause', attempt_id: 'hidden-attempt', source_version: 3, execution_version: 7, sequence: 2 };
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'start', chunk_index: 0 });
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'chunk', chunk_index: 0, audio_data: encodedAudio });
+  // A newer unrelated start must not steal the actual SourceBuffer's identity.
+  browser.socket.receive('assistant_speech_audio', { ...identity, segment_id: 'future-segment', phase: 'start', chunk_index: 0 });
+  audio.src = browser.createMediaSourceURL();
+  await audio.play(); await browser.settle(); browser.tick();
+  assert.equal(browser.playback().length, 0, 'appended bytes alone are not audible progress');
+  audio.currentTime = 0.2; browser.tick();
+  const progress = browser.playback()[0];
+  assert.equal(progress.segmentId, browser.api.state.events[0].segmentId);
+  assert.equal(progress.attemptId, browser.api.state.events[0].attemptId);
+  assert.equal(progress.sourceKind, 'media_source');
+  browser.tick();
+  for (const key of ['source_version', 'execution_version', 'sequence']) {
+    browser.socket.receive('assistant_speech_audio', { ...identity, [key]: 99, phase: 'end', chunk_index: 1 });
+  }
+  browser.socket.send(JSON.stringify({ type: 'assistant_speech_audio', payload: { ...identity, phase: 'end', chunk_index: 1 } }));
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).sameSegmentProviderEndMs, null,
+    'wrong source/execution/sequence and outgoing frames cannot provide an end fence');
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'end', chunk_index: 1 });
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).playbackBeforeSameSegmentProviderEnd, true);
+  audio.finish();
+  assert.deepEqual(browser.playback().map(item => item.type), ['first_progress', 'ended']);
+  const receipt = JSON.stringify(browser.api.snapshot());
+  assert.equal(receipt.includes(encodedAudio), false);
+  assert.equal(receipt.includes('audio_data'), false);
+  assert.equal(receipt.includes(crypto.createHash('sha256').update(Buffer.from(encodedAudio, 'base64')).digest('hex')), false);
+});
+
+test('native MSE provider timing requires start, chunk and end on the exact playback connection', async () => {
+  const browser = browserHarness(), audio = new browser.Audio();
+  const identity = { message_id: 'response', segment_id: 'segment', kind: 'voice_prose_clause', attempt_id: 'attempt' };
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'start', chunk_index: 0 });
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'chunk', chunk_index: 0, audio_data: encodedAudio });
+  audio.src = browser.createMediaSourceURL();
+  await audio.play(); await browser.settle(); audio.currentTime = 0.2; browser.tick();
+  const progress = browser.playback()[0];
+  assert.equal(progress.socketId, browser.api.state.events[0].socketId, 'native playback retains the received start connection');
+  browser.tick();
+  browser.connectSocket().receive('assistant_speech_audio', { ...identity, phase: 'end', chunk_index: 1 });
+  const mismatched = progressivePlaybackMetrics(browser.api.state, progress);
+  assert.equal(mismatched.sameSegmentProviderEndMs, null);
+  assert.equal(mismatched.playbackBeforeSameSegmentProviderEnd, false, 'another connection cannot complete this native source');
+  browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'end', chunk_index: 1 });
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).playbackBeforeSameSegmentProviderEnd, true);
+  for (const phase of ['start', 'chunk', 'end']) {
+    const state = { events: browser.api.state.events.filter(event => event.socketId === progress.socketId)
+      .map(event => event.phase === phase ? { ...event, socketId: progress.socketId + 99 } : event) };
+    assert.equal(progressivePlaybackMetrics(state, progress).playbackBeforeSameSegmentProviderEnd, false,
+      `the ${phase} fence must belong to the actual playback connection`);
+  }
+  assert.equal(progressivePlaybackMetrics(browser.api.state, { ...progress, socketId: undefined })
+    .playbackBeforeSameSegmentProviderEnd, false, 'missing playback connection fails closed');
+  audio.finish();
+  assert.equal(browser.playback().at(-1).socketId, progress.socketId);
+});
+
+for (const mismatch of ['bytes', 'source', 'segment', 'message', 'attempt', 'source_version', 'execution_version', 'sequence', 'sent', 'ambiguous']) {
+  test(`MSE correlation fails closed for unmatched ${mismatch} despite ready status and DOM`, async () => {
+    const browser = browserHarness(), audio = new browser.Audio();
+    const identity = { message_id: 'response', segment_id: 'segment', kind: 'voice_prose_clause', attempt_id: 'attempt',
+      source_version: 1, execution_version: 2, sequence: 0 };
+    browser.socket.receive('assistant_speech_audio', { ...identity, phase: 'start', chunk_index: 0 });
+    const chunk = { ...identity, phase: 'chunk', chunk_index: 0, audio_data: encodedAudio };
+    const field = { segment: 'segment_id', message: 'message_id', attempt: 'attempt_id' }[mismatch] ?? mismatch;
+    if (['segment', 'message', 'attempt'].includes(mismatch)) chunk[field] = 'unmatched';
+    if (['source_version', 'execution_version', 'sequence'].includes(mismatch)) chunk[field] = 99;
+    if (mismatch === 'sent') browser.socket.send(JSON.stringify({ type: 'assistant_speech_audio', payload: chunk }));
+    else browser.socket.receive('assistant_speech_audio', chunk);
+    if (mismatch === 'ambiguous') {
+      const other = { ...identity, segment_id: 'ambiguous-segment' };
+      browser.socket.receive('assistant_speech_audio', { ...other, phase: 'start', chunk_index: 0 });
+      browser.socket.receive('assistant_speech_audio', { ...chunk, ...other });
+    }
+    browser.ready('segment', 'response', 'voice_prose_clause'); browser.waveform('segment');
+    const matchedSource = browser.createMediaSourceURL(mismatch === 'bytes' ? Buffer.from('different actual bytes').toString('base64') : encodedAudio);
+    audio.src = mismatch === 'source' ? browser.createMediaSourceURL(null) : matchedSource;
+    await audio.play(); await browser.settle(); audio.currentTime = 0.3; browser.tick(); audio.finish();
+    assert.equal(browser.playback().length, 0);
+    assert.equal(browser.api.state.events.filter(event => event.type === 'media_correlation_failed').length, 1);
+  });
+}
 
 test('hangup intent requires the actual outgoing voice frame; early closure remains unexpected', () => {
   const browser = browserHarness();
@@ -375,12 +478,53 @@ test('unresolved completion conflict expires after the bounded callback/refresh/
   assert.equal(browser.api.snapshot().recoveryPending, 1);
 });
 
-test('a second conflicting retry cannot become a handled completion CAS', async () => {
-  const browser = browserHarness(); conflictRecovery(browser);
-  await browser.refresh(recoveryScope.chat, 4); sendRecovery(browser, 'persist-retry', 4);
-  browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-retry' });
-  assert.equal(browser.api.snapshot().revisionConflict, true);
-});
+for (const count of [2, 3]) {
+  test(`${count} consecutive completion conflicts require a fresh authorized read at each edge and one final terminal ACK`, async () => {
+    const browser = browserHarness(); conflictRecovery(browser);
+    for (let index = 1; index <= count; index++) {
+      await browser.refresh(recoveryScope.chat, 5 + index);
+      sendRecovery(browser, `persist-retry-${index}`, 5 + index);
+      if (index < count) browser.socket.receive('error', {
+        code: 'version_conflict', job_id: recoveryScope.job, request_id: `persist-retry-${index}`,
+      });
+    }
+    assert.equal(browser.api.snapshot().revisionConflict, false);
+    assert.equal(browser.api.snapshot().recoveryPending, 1);
+    acknowledgeRecovery(browser, { request_id: `persist-retry-${count}`, committed_messages_v: 6 + count });
+    const receipt = browser.api.snapshot();
+    assert.equal(receipt.revisionConflict, false);
+    assert.equal(receipt.recoveryPending, 0);
+    assert.equal(receipt.recoveryConflicts.length, count);
+    assert.ok(receipt.recoveryConflicts.every(item => item.status === 'resolved'));
+    assert.equal(receipt.events.filter(event => event.type === 'recovery_chat_version_refresh').length, count * 2);
+    assert.equal(JSON.stringify(receipt).includes('persist-retry-'), false);
+  });
+}
+
+for (const mismatch of ['missing_fresh_read', 'old_terminal', 'parallel_request', 'duplicate_conflict', 'fourth_conflict']) {
+  test(`a completion conflict chain fails closed on ${mismatch}`, async () => {
+    const browser = browserHarness(); conflictRecovery(browser);
+    await browser.refresh(recoveryScope.chat, 6); sendRecovery(browser, 'persist-retry', 6);
+    browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-retry' });
+    if (mismatch === 'duplicate_conflict') browser.socket.receive('error', {
+      code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-retry',
+    });
+    else if (mismatch === 'parallel_request') {
+      sendRecovery(browser, 'parallel-request', 7);
+      browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'parallel-request' });
+    } else {
+      if (mismatch !== 'missing_fresh_read') await browser.refresh(recoveryScope.chat, 7);
+      sendRecovery(browser, 'persist-third', 7);
+      if (mismatch === 'fourth_conflict') {
+        browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-third' });
+        await browser.refresh(recoveryScope.chat, 8); sendRecovery(browser, 'persist-fourth', 8);
+        browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-fourth' });
+      } else acknowledgeRecovery(browser, { request_id: mismatch === 'old_terminal' ? 'persist-retry' : 'persist-third', committed_messages_v: 8 });
+    }
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+    assert.equal(browser.api.snapshot().recoveryPending, 1);
+  });
+}
 
 test('visible revision or error notification is fatal even after matching recovery; notification bodies never persist', async () => {
   for (const revision of [false, true]) {
@@ -471,4 +615,144 @@ test('malformed metadata discovery cannot disappear from terminal proof', () => 
     assert.doesNotThrow(() => browser.socket.receive('metadata_jobs_available', payload));
     assert.equal(browser.api.snapshot().revisionConflict, true);
   }
+});
+
+async function continuousBrowser() {
+  const browser = browserHarness(), player = new browser.Audio();
+  const identity = { chat_id: 'private-chat', message_id: 'turn-response', voice_call_id: 'call-id',
+    segment_id: 'd'.repeat(64), kind: 'voice_prose_turn', sequence: 0, attempt_id: 'turn-attempt',
+    source_version: 1, execution_version: 2 };
+  const members = [0, 1].map(sequence => ({ segment_id: String(sequence + 1).repeat(64), sequence,
+    kind: 'voice_prose_clause', source_version: 1 }));
+  const receive = (phase, fields = {}) => browser.socket.receive('assistant_speech_audio', {
+    ...identity, phase, chunk_index: phase === 'start' || phase === 'chunk' ? 0 : 1,
+    ...(phase === 'chunk' ? { audio_data: encodedAudio } : {}), ...fields,
+  });
+  receive('start'); receive('chunk');
+  player.src = browser.createMediaSourceURL();
+  await player.play(); await browser.settle(); player.currentTime = 0.2; browser.tick();
+  const first = browser.playback()[0];
+  const seal = (fields = {}, socket = browser.socket) => socket.receive('assistant_speech_status', {
+    ...identity, kind: undefined, segment_id: undefined, status: 'sealed', turn_track_id: identity.segment_id,
+    segments: members, ...fields,
+  });
+  const sendHeard = (completed, active = null, offset = 0) => browser.socket.send(JSON.stringify({
+    type: 'chat_message_added', payload: { chat_id: identity.chat_id, message_id: 'next-request', role: 'user',
+      voice_heard_boundary: { assistant_message_id: identity.message_id,
+        completed_sequences: completed, active_sequence: active, active_offset_ms: offset } },
+  }));
+  return { browser, player, identity, members, receive, first, seal, sendHeard };
+}
+
+test('continuous turn preserves exact byte/native provenance and separates track identity from sealed clauses', async () => {
+  const { browser, player, first, receive, seal, members } = await continuousBrowser();
+  assert.equal(first.kind, 'voice_prose_turn');
+  assert.equal(continuousTurnMetrics(browser.api.state, first).continuousPlaybackComplete, false);
+  seal();
+  let proof = continuousTurnMetrics(browser.api.state, first);
+  assert.equal(proof.semanticMemberCount, 2);
+  assert.deepEqual(proof.completedSemanticSequences, [], 'the audio track sequence zero is not heard clause zero');
+  browser.tick(); receive('end');
+  assert.equal(progressivePlaybackMetrics(browser.api.state, first).playbackBeforeSameSegmentProviderEnd, true);
+  assert.equal(responsePlaybackComplete(browser.api.state, first), false, 'provider end is not native playback end');
+  player.currentTime = 3; player.finish();
+  proof = continuousTurnMetrics(browser.api.state, first);
+  assert.equal(proof.continuousSingleNativeSource, true);
+  assert.equal(proof.continuousPlaybackComplete, true);
+  assert.deepEqual(proof.completedSemanticSequences, members.map(row => row.sequence));
+  assert.equal(responsePlaybackComplete(browser.api.state, first), true);
+  assert.equal(browser.playback().filter(row => row.type === 'first_progress').length, 1);
+  const receipt = JSON.stringify(browser.api.snapshot());
+  for (const secret of [encodedAudio, 'audio_data', 'private-chat', 'turn-response', crypto.createHash('sha256')
+    .update(Buffer.from(encodedAudio, 'base64')).digest('hex')]) assert.equal(receipt.includes(secret), false);
+});
+
+test('unknown turn alignment accepts an explicit empty partial heard boundary and rejects track-as-clause claims', async () => {
+  const { browser, first, sendHeard } = await continuousBrowser();
+  sendHeard([]);
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), true);
+  assert.deepEqual(continuousTurnMetrics(browser.api.state, first).completedSemanticSequences, []);
+  sendHeard([0]);
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), false);
+});
+
+test('known immutable timing grants partial heard only after the correlated native clock crosses it', async () => {
+  const { browser, player, identity, members, receive, sendHeard, first } = await continuousBrowser();
+  for (const member of members) browser.socket.receive('assistant_speech_status', {
+    ...identity, ...member, status: 'queued',
+  });
+  receive('alignment', { clause_timings: members.map((member, index) => ({
+    segment_id: member.segment_id, sequence: index, start_ms: index * 1000, end_ms: (index + 1) * 1000,
+  })) });
+  player.currentTime = 1.2; browser.tick();
+  sendHeard([0], 1, 200);
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), true);
+  assert.deepEqual(continuousTurnMetrics(browser.api.state, first).completedSemanticSequences, [0]);
+  player.currentTime = 1.8; browser.tick();
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), true, 'later clock samples must not erase exact send-time proof');
+  sendHeard([0, 1]);
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), false);
+});
+
+for (const mismatch of ['track', 'socket', 'source', 'message', 'call', 'failed', 'members', 'unsealed']) {
+  test(`continuous native end cannot complete semantic membership for ${mismatch}`, async () => {
+    const { browser, player, first, receive, seal } = await continuousBrowser();
+    if (mismatch !== 'unsealed') {
+      const fields = { track: { turn_track_id: 'wrong-track' }, source: { source_version: 99 },
+        message: { message_id: 'other-message' }, call: { voice_call_id: 'other-call' },
+        failed: { error: 'Speech is temporarily unavailable.' }, members: { segments: [{ segment_id: 'x', sequence: 0, kind: 'voice_prose_turn', source_version: 1 }] } }[mismatch] ?? {};
+      seal(fields, mismatch === 'socket' ? browser.connectSocket() : browser.socket);
+    }
+    browser.tick(); receive('end'); player.currentTime = 3; player.finish();
+    const proof = continuousTurnMetrics(browser.api.state, first);
+    assert.equal(proof.continuousPlaybackComplete, false);
+    assert.deepEqual(proof.completedSemanticSequences, []);
+  });
+}
+
+for (const failure of ['provider-error', 'cancelled', 'invalidated']) {
+  test(`continuous ${failure} fences completion even with a late clean end and seal`, async () => {
+    const { browser, player, first, identity, receive, seal } = await continuousBrowser();
+    if (failure === 'provider-error') receive('error');
+    else browser.socket.receive('assistant_speech_status', { ...identity, status: failure });
+    browser.tick(); receive('end'); seal(); player.currentTime = 2; player.finish();
+    assert.equal(continuousTurnMetrics(browser.api.state, first).continuousPlaybackComplete, false);
+  });
+}
+
+test('continuous native-ended before seal waits for membership and rejects a conflicting later seal', async () => {
+  const { browser, player, first, receive, seal, members } = await continuousBrowser();
+  browser.tick(); receive('end'); player.currentTime = 2; player.finish();
+  assert.equal(responsePlaybackComplete(browser.api.state, first), false);
+  seal(); assert.equal(responsePlaybackComplete(browser.api.state, first), true);
+  seal({ segments: [members[0]] });
+  assert.equal(responsePlaybackComplete(browser.api.state, first), false);
+});
+
+test('new response and wrong attempt/version end cannot complete the prior native source', async () => {
+  const { browser, player, first, receive, seal } = await continuousBrowser();
+  seal();
+  for (const fields of [{ message_id: 'next-response' }, { attempt_id: 'stale-attempt' }, { execution_version: 99 }]) {
+    receive('end', fields);
+  }
+  player.currentTime = 2; player.finish();
+  assert.equal(responsePlaybackComplete(browser.api.state, first), false);
+  assert.equal(progressivePlaybackMetrics(browser.api.state, first).sameSegmentProviderEndMs, null);
+});
+
+test('continuous second native source for the same track is not one-source completion', async () => {
+  const { browser, player, first, receive, seal } = await continuousBrowser();
+  const second = new browser.Audio(); second.src = browser.createMediaSourceURL();
+  await second.play(); await browser.settle(); second.currentTime = 0.3; browser.tick();
+  receive('end'); seal(); player.currentTime = 2; player.finish(); second.finish();
+  assert.equal(continuousTurnMetrics(browser.api.state, first).continuousSingleNativeSource, false);
+  assert.equal(responsePlaybackComplete(browser.api.state, first), false);
+});
+
+test('missing partial heard coverage after continuous playback began fails closed', async () => {
+  const { browser, identity } = await continuousBrowser();
+  browser.socket.send(JSON.stringify({ type: 'chat_message_added', payload: {
+    chat_id: identity.chat_id, message_id: 'next-request', role: 'user',
+  } }));
+  assert.equal(validateObservedHeardBoundaries(browser.api.state), false);
 });

@@ -26,6 +26,7 @@ RICH_RESPONSE = (
 GERMAN_REQUEST = "Bitte prüfe das gründlich"
 GERMAN_RESPONSE = "Ich habe das geprüft. Hier ist das Ergebnis."
 GERMAN_RESPONSE_DELAY_SECONDS = 3.5
+RICH_RESPONSE_DELAY_SECONDS = 3.0
 
 _voice_request: ContextVar[Any] = ContextVar("isolated_voice_pipeline_request", default=None)
 
@@ -169,8 +170,12 @@ def main_stream(request: Any, *, message_history: list[dict], tools: list[dict] 
             # Reuse only the skill's returned refs; finalization still checks
             # them against successfully authored, permission-bound child embeds.
             source_url = image_results[0]["source_page_url"]
-            prose = ("# Results\n\nHere are the images I found. See "
-                     f"[the source]({source_url}).\n\n")
+            # Model an upstream LLM that keeps writing after the first released
+            # sentence. The ordinary audio owner must start native playback
+            # during this interval; the browser test measures actual ordering.
+            yield "# Results\n\nHere are the images I found. "
+            await asyncio.sleep(RICH_RESPONSE_DELAY_SECONDS)
+            prose = f"See [the source]({source_url}).\n\n"
             yield prose + "".join(f"[!](embed:{row['embed_ref']})\n" for row in image_results) + "\n"
         elif text == RAMEN_REQUEST:
             yield RAMEN_RESPONSE

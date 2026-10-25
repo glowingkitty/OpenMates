@@ -323,3 +323,29 @@ async def test_real_listener_routes_only_valid_content_free_live_seal():
         message={"type": "assistant_speech_status", "payload": {"chat_id": CHAT, "message_id": MESSAGE, **sealed_payload()}},
         user_id=OWNER, device_fingerprint_hash="owning-device",
     )
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+def test_continuous_turn_alignment_is_bounded_text_free_and_separate_from_finite_clauses():
+    timing = {"segment_id": "c" * 64, "sequence": 0, "start_ms": 0, "end_ms": 1000}
+    envelope = event("alignment", kind="voice_prose_turn", clause_timings=[timing])
+    assert validate_assistant_speech_audio_event(envelope, channel=CHANNEL)["clause_timings"] == [timing]
+    for changes in [
+        {"kind": "voice_prose_clause"},
+        {"sequence": 1},
+        {"clause_timings": [{**timing, "text": "private"}]},
+        {"clause_timings": [{**timing, "end_ms": 600001}]},
+        {"clause_timings": [timing, {**timing, "segment_id": "d" * 64, "sequence": 1, "start_ms": 500}]},
+        {"clause_timings": [{**timing, "start_ms": False}]},
+    ]:
+        with pytest.raises(ValueError):
+            validate_assistant_speech_audio_event({**envelope, "payload": {**envelope["payload"], **changes}}, channel=CHANNEL)
+    assert validate_assistant_speech_audio_event(event("start", kind="voice_prose_turn"), channel=CHANNEL)["kind"] == "voice_prose_turn"
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+def test_continuous_turn_seal_accepts_only_content_free_track_identity():
+    payload = {**sealed_payload(), "turn_track_id": "d" * 64}
+    assert validate_assistant_speech_sealed_segments(payload) == payload["segments"]
+    for track in [None, "private text", {}, 1]:
+        with pytest.raises(ValueError):
+            validate_assistant_speech_sealed_segments({**payload, "turn_track_id": track})

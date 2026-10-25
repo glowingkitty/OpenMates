@@ -299,6 +299,7 @@ async def _dispatch_automatic_assistant_speech_segment(
     log_prefix: str,
     live_mock_mode: Optional[str],
     live_mock_group: Optional[str],
+    queue_provider_work: bool = True,
 ) -> None:
     """Persist and queue one immutable segment outside the authoritative text path."""
     if directus_service is None:
@@ -319,12 +320,12 @@ async def _dispatch_automatic_assistant_speech_segment(
         assistant_message_id=str(segment["assistant_message_id"]),
         source_version=int(segment["source_version"]),
         voice_profile=voice_profile,
-        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if lazy_dispatch and int(segment["sequence"]) > 0 else "queued"}],
+        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if not queue_provider_work or (lazy_dispatch and int(segment["sequence"]) > 0) else "queued"}],
         voice_call_id=str(segment["voice_call_id"]) if segment.get("voice_call_id") else None,
     )
     if not auto_speak:
         return
-    should_dispatch = (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
+    should_dispatch = queue_provider_work and (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
     if should_dispatch:
         celery_config.app.send_task(
             "apps.audio.tasks.assistant_speech_segment",
@@ -379,6 +380,8 @@ async def _seal_automatic_assistant_speech_manifest(
     *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object],
     cache_service: Optional[CacheService] = None, redis_channel_name: str = "",
     user_id_hash: str = "", log_prefix: str = "",
+    turn_track_id: Optional[str] = None,
+    billing_enabled: bool = True,
 ) -> None:
     """Seal final membership after detached segment persistence has completed."""
     if directus_service is None:
@@ -406,6 +409,7 @@ async def _seal_automatic_assistant_speech_manifest(
             "status": "sealed", "voice_call_id": str(metadata["voice_call_id"]),
             "source_version": int(metadata["source_version"]),
             "segments": metadata.get("segments", []),
+            **({"turn_track_id": turn_track_id} if turn_track_id else {}),
             **({"error": LIVE_HANDOFF_ERROR} if handoff_failed or not sealed else {}),
         }
         validate_assistant_speech_sealed_segments(payload)
@@ -415,7 +419,7 @@ async def _seal_automatic_assistant_speech_manifest(
              "message_id": str(metadata["assistant_message_id"]), "user_id_hash": user_id_hash,
              "payload": payload}, log_prefix, "assistant speech sealed membership",
         )
-    if sealed:
+    if sealed and billing_enabled:
         celery_config.app.send_task(
             "apps.audio.tasks.assistant_speech_billing",
             kwargs={"arguments": {"manifest_id": manifest_id}},
@@ -6201,6 +6205,7 @@ async def _consume_main_processing_stream(
     completion_timing: Optional[AICompletionTiming] = None,
     before_first_chunk_publish: Optional[Callable[[], Awaitable[None]]] = None,
     voice_waiting_started_at: float | None = None,
+    owned_live_speech: Optional[List[Any]] = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -6371,6 +6376,7 @@ async def _consume_main_processing_stream(
     )
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
     voice_waiting = None
+    realtime_speech_turn = None
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
@@ -6405,7 +6411,7 @@ async def _consume_main_processing_stream(
         else:
             voice_profile = {
                 "key": selected_mate.voice_profile.key,
-                "version": selected_mate.voice_profile.version,
+                "version": 3 if request_data.voice_mode else selected_mate.voice_profile.version,
             }
             speech_language = (
                 preprocessing_result.output_language
@@ -6465,9 +6471,41 @@ async def _consume_main_processing_stream(
             )
             from backend.apps.ai.testing.voice_pipeline_fixture import speech_fixture_context
             voice_speech_fixture = speech_fixture_context(request_data)
-            speech_tracker = ImmutableSpeechBoundaryTracker(
-                metadata=speech_metadata,
-                dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
+            waiting_speech_segment = None
+
+            async def stop_waiting_speech():
+                if voice_waiting is not None:
+                    await voice_waiting.close()
+                if waiting_speech_segment is not None:
+                    await _invalidate_automatic_assistant_speech_segment(
+                        segment=waiting_speech_segment, directus_service=directus_service,
+                    )
+
+            if request_data.voice_mode and request_data.auto_speak_response:
+                from backend.apps.audio.assistant_speech.realtime_turn import create_realtime_speech_turn
+
+                realtime_speech_turn = create_realtime_speech_turn(
+                    metadata=speech_metadata, user_id=request_data.user_id,
+                    voice_profile=voice_profile, directus=directus_service,
+                    cache=cache_service, secrets_manager=secrets_manager,
+                    on_first_audio=stop_waiting_speech,
+                    live_mock_context={
+                        "live_mock_mode": voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
+                        "live_mock_group": voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
+                    },
+                )
+                if owned_live_speech is not None:
+                    owned_live_speech.append(realtime_speech_turn)
+
+            async def dispatch_speech_segment(segment):
+                nonlocal waiting_speech_segment
+                if int(segment["sequence"]) == -1:
+                    waiting_speech_segment = segment
+                continuous = realtime_speech_turn is not None and int(segment["sequence"]) >= 0
+                if continuous:
+                    # Track identity/status must arrive before semantic clauses.
+                    await realtime_speech_turn.prepare()
+                await _dispatch_automatic_assistant_speech_segment(
                     segment=segment,
                     directus_service=directus_service,
                     user_id=request_data.user_id,
@@ -6480,7 +6518,27 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix,
                     live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
                     live_mock_group=voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
-                ),
+                    queue_provider_work=not continuous,
+                )
+                if continuous:
+                    await realtime_speech_turn.enqueue(segment)
+
+            async def finalize_speech_segments(metadata):
+                if realtime_speech_turn is not None:
+                    # EOS queues behind handoffs but never waits for synthesis.
+                    realtime_speech_turn.finish_input()
+                await _seal_automatic_assistant_speech_manifest(
+                    metadata=metadata, directus_service=directus_service,
+                    voice_profile=voice_profile, cache_service=cache_service,
+                    redis_channel_name=redis_channel_name,
+                    user_id_hash=request_data.user_id_hash, log_prefix=log_prefix,
+                    turn_track_id=realtime_speech_turn.track_id if realtime_speech_turn is not None else None,
+                    billing_enabled=not (realtime_speech_turn is not None and realtime_speech_turn.is_mock),
+                )
+
+            speech_tracker = ImmutableSpeechBoundaryTracker(
+                metadata=speech_metadata,
+                dispatch_speech=dispatch_speech_segment,
                 invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
                     segment=segment,
                     directus_service=directus_service,
@@ -6498,13 +6556,7 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     "assistant speech status",
                 ),
-                finalize_speech=lambda metadata: _seal_automatic_assistant_speech_manifest(
-                    metadata=metadata,
-                    directus_service=directus_service,
-                    voice_profile=voice_profile,
-                    cache_service=cache_service, redis_channel_name=redis_channel_name,
-                    user_id_hash=request_data.user_id_hash, log_prefix=log_prefix,
-                ),
+                finalize_speech=finalize_speech_segments,
                 sequence_offset=1 if app_use_announcement else 0,
             )
             if request_data.voice_mode and request_data.auto_speak_response:
@@ -6814,6 +6866,8 @@ async def _consume_main_processing_stream(
                     "Published same-turn skill wait",
                 )
                 logger.info("%s Suspended provider loop for %s terminal jobs", log_prefix, len(task_ids))
+                if realtime_speech_turn is not None:
+                    await realtime_speech_turn.cancel()
                 return "".join(final_response_chunks), False, False, thinking_buffer, debug_metadata
             
             # Check for app settings/memories permission marker
@@ -9941,6 +9995,11 @@ async def _consume_main_processing_stream(
         # A zero-chunk or failed stream still joins before terminal output.
         await first_chunk_barrier.wait()
 
+    if realtime_speech_turn is not None and (
+        was_revoked_during_stream or was_soft_limited_during_stream or terminal_failure_reason
+    ):
+        await realtime_speech_turn.cancel()
+
     with ai_phase_span("main.response_finalize"):
         await content_publisher.flush()
     
@@ -10334,6 +10393,8 @@ async def _consume_main_processing_stream(
     # No error message, no response, no final marker - the client will show the permission dialog
     # We don't save anything to cache or publish any Redis messages in this case
     if awaiting_app_settings_memories_permission:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "permission_required"
         # Return early - no message processing needed
@@ -10341,6 +10402,8 @@ async def _consume_main_processing_stream(
         return "", False, False, [], debug_metadata
 
     if awaiting_connected_account_permission:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for connected account. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "connected_account_required"
         return "", False, False, [], debug_metadata
@@ -10348,11 +10411,15 @@ async def _consume_main_processing_stream(
     # Handle paused execution cases: waiting for sub-chats or user input
     # The client handles the paused state without finalizing the current message
     if awaiting_user_input:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting user input. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "user_input_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chat_confirmation:
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         logger.info(f"{log_prefix} Task completing without response - awaiting sub-chat confirmation. No final marker will be sent.")
         debug_metadata["user_task_blocked_reason_code"] = "sub_chat_confirmation_required"
         return "", False, False, [], debug_metadata
@@ -10423,6 +10490,8 @@ async def _consume_main_processing_stream(
                 )
 
         debug_metadata["awaiting_focus_mode_continuation"] = True
+        if realtime_speech_turn is not None:
+            await realtime_speech_turn.cancel()
         return aggregated_response, False, False, [], debug_metadata
     
     # IMPROVED LOGGING: metadata-only stream completion details.
@@ -11530,6 +11599,9 @@ async def _consume_main_processing_stream(
             log_prefix=log_prefix,
             secrets_manager=secrets_manager,
         )
+
+    if realtime_speech_turn is not None and owned_live_speech is None:
+        await realtime_speech_turn.wait()
 
     # Retryable conflicts return successfully after BillingService has created
     # a durable pending settlement. An exception here therefore means no durable

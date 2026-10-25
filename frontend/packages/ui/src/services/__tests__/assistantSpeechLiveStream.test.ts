@@ -664,3 +664,100 @@ it.each(["invalidated", "close", "release"])("disposes live audio on %s and igno
   expect(controller.playbackBoundary?.completed_sequences ?? []).toEqual([]);
   if (action === "invalidated") await controller.close();
 });
+
+const turnTrack = { kind: 'voice_prose_turn' as const, segment_id: 'd'.repeat(64), sequence: 0 };
+const turnMembers = [sealedMember('a'.repeat(64),0), sealedMember('b'.repeat(64),1)];
+const beginTurn = async () => {
+  const controller = await controllerForCall();
+  await status(turnTrack);
+  for (const member of turnMembers) await status(member);
+  const media = await beginAudio(turnTrack);
+  return {controller,media,player:TestSpeechAudio.instances[0]};
+};
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.spoken-rich-response
+it('plays multiple immutable clauses on exactly one continuous source and completes only after seal, drain and native ended',async()=>{
+  const {controller,media,player}=await beginTurn();
+  expect(TestMediaSource.instances).toHaveLength(1);
+  expect(player.play).toHaveBeenCalledOnce();
+  player.currentTime=2;
+  expect(controller.playbackBoundary).toEqual({assistant_message_id:'message',completed_sequences:[],active_sequence:null,active_offset_ms:0});
+  await seal(turnMembers,{turn_track_id:turnTrack.segment_id});
+  audio({...turnTrack,phase:'end',chunk_index:1});media.buffer.flush();
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  player.emit('ended');await flushSpeechPromises();
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0,1]);
+  expect(get(controller.player).status).toBe('completed');
+  expect(TestMediaSource.instances).toHaveLength(1);
+  audio({...turnTrack,phase:'error',chunk_index:1});
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0,1]);
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.intentional-interruption
+it('uses validated native source time rather than received bytes to report completed and partial clauses',async()=>{
+  const {controller,player}=await beginTurn();
+  audio({...turnTrack,phase:'alignment',chunk_index:1,clause_timings:[
+    {segment_id:turnMembers[0].segment_id,sequence:0,start_ms:0,end_ms:1000},
+    {segment_id:turnMembers[1].segment_id,sequence:1,start_ms:1000,end_ms:2500},
+  ]});
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  player.currentTime=1.25;
+  expect(controller.playbackBoundary).toEqual({assistant_message_id:'message',completed_sequences:[0],active_sequence:1,active_offset_ms:250});
+  audio({...turnTrack,phase:'error',chunk_index:1});
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0]);
+  await seal(turnMembers,{turn_track_id:turnTrack.segment_id});
+  player.emit('ended');
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0]);
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,assistant-speech.playback.live-call-streaming
+it('rejects wrong turn attempts and canceled finalization without claiming unheard clauses',async()=>{
+  const {controller,media,player}=await beginTurn();
+  audio({...turnTrack,attempt_id:'99999999-9999-4999-8999-999999999999',phase:'end',chunk_index:1});
+  audio({...turnTrack,execution_version:2,phase:'end',chunk_index:1});
+  audio({...turnTrack,source_version:2,phase:'end',chunk_index:1});
+  expect(media.endOfStream).not.toHaveBeenCalled();
+  await status({...turnTrack,status:'cancelled'});
+  await seal(turnMembers,{turn_track_id:turnTrack.segment_id,error:'Speech is temporarily unavailable.'});
+  player.emit('ended');
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  expect(get(controller.player).status).toBe('failed');
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only
+it('keeps later manual Speak independent of the consumed continuous call source',async()=>{
+  const {controller,media,player}=await beginTurn();
+  audio({...turnTrack,phase:'end',chunk_index:1});media.buffer.flush();player.emit('ended');
+  await seal(turnMembers,{turn_track_id:turnTrack.segment_id});
+  await controller.stop();controller.setCallOwner(null);
+  await controller.request('chat','manual-message','A normal manual response.');
+  expect(mocks.send).toHaveBeenCalledWith('assistant_speech',expect.objectContaining({action:'request',assistant_message_id:'manual-message'}));
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.spoken-rich-response
+it('waits for successful immutable membership when continuous native playback finishes before the seal',async()=>{
+  const {controller,media,player}=await beginTurn();
+  audio({...turnTrack,phase:'end',chunk_index:1});media.buffer.flush();player.emit('ended');
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  await seal(turnMembers,{turn_track_id:turnTrack.segment_id});
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0,1]);
+  await status({...turnTrack,status:'ready'});
+  expect(get(controller.player).status).toBe('completed');
+  expect(player.play).toHaveBeenCalledOnce();
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.spoken-rich-response
+it('refuses unbound finite membership seals for a continuous response rather than creating phantom clause sources',async()=>{
+  const {controller,media,player}=await beginTurn();
+  audio({...turnTrack,phase:'end',chunk_index:1});media.buffer.flush();player.emit('ended');
+  await seal(turnMembers);
+  expect(get(controller.player).status).toBe('failed');
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  expect(TestMediaSource.instances).toHaveLength(1);
+  await controller.close();
+});

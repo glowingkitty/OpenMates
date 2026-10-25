@@ -644,7 +644,7 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "sequence",
     "kind",
     "language",
-    "voice_call_id",
+    "voice_call_id", "turn_track_id",
     "source_version",
     "execution_version",
 )

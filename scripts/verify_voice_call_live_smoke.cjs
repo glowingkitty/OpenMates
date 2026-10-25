@@ -167,9 +167,9 @@ function installObservation({ inputs }) {
       if (!validId(payload.request_id) || !validId(job) || requests.has(payload.request_id) || requests.size >= 256) {
         fatalRecovery('recovery_request_identity_invalid'); return {};
       }
-      const request = { job, chat, message: message?.client_message_id, type, ack, socketId, view };
+      const request = { requestId: payload.request_id, job, chat, message: message?.client_message_id, type, ack, socketId, view };
       requests.set(payload.request_id, request); state.recoveryRequests.push(view);
-      const pending = [...conflicts.values()].filter(item => item.view.status === 'pending' && item.request.job === job);
+      const pending = [...conflicts.values()].filter(item => item.view.status === 'pending' && !item.retry && item.request.job === job);
       for (const conflict of pending) {
         if (conflict.retry || type !== 'recovery_job_persist' || request.type !== conflict.request.type
           || request.socketId !== conflict.request.socketId || request.socketId !== mainSocketId || request.chat !== conflict.request.chat
@@ -184,10 +184,15 @@ function installObservation({ inputs }) {
     }
     if (direction === 'received' && type === 'error' && payload.code === 'version_conflict') {
       const request = requests.get(payload.request_id);
+      const chain = [...conflicts.values()].filter(item => item.request.job === request?.job);
+      const previous = chain.at(-1);
       if (!request || request.socketId !== socketId || socketId !== mainSocketId || request.type !== 'recovery_job_persist'
         || payload.job_id !== request.job || !validId(request.chat) || !validId(request.message)
         || !version(request.view.expectedVersion)
-        || [...conflicts.values()].some(item => item.request.job === request.job)) {
+        || conflicts.has(payload.request_id) || chain.length >= 3
+        || previous && (previous.view.status !== 'pending' || previous.retry !== payload.request_id
+          || previous.request.chat !== request.chat || previous.request.message !== request.message
+          || previous.request.socketId !== request.socketId)) {
         fatalRecovery('recovery_conflict_unscoped'); return {};
       }
       const view = { conflictId: id(payload.request_id), jobId: id(request.job), chatId: id(request.chat),
@@ -199,7 +204,7 @@ function installObservation({ inputs }) {
     if (direction === 'received' && recoveryAcks.has(type)) {
       const request = requests.get(payload.request_id);
       const identity = payload.job_id ?? payload.record_id;
-      const related = [...conflicts.values()].find(item => item.request.job === identity);
+      const related = [...conflicts.values()].filter(item => item.request.job === identity);
       const fields = { requestId: id(payload.request_id), jobId: id(payload.job_id), recordId: id(payload.record_id),
         chatId: id(payload.chat_id ?? payload.target_chat_id), operation: request?.view.operation, state: typeof payload.state === 'string' ? word(payload.state.toLowerCase()) : undefined,
         committedVersion: version(payload.committed_messages_v) ? payload.committed_messages_v
@@ -209,7 +214,7 @@ function installObservation({ inputs }) {
         taskId: id(payload.task_id), stage: ['initial', 'postprocessing'].includes(payload.stage) ? payload.stage : undefined,
         keyVersion: version(payload.chat_key_version) ? payload.chat_key_version : undefined };
       if (!request || request.ack !== type || request.job !== identity || request.socketId !== socketId || socketId !== mainSocketId) {
-        if (request || related || type.startsWith('metadata_job_') || type === 'recovery_job_persisted'
+        if (request || related.length || type.startsWith('metadata_job_') || type === 'recovery_job_persisted'
           && [...conflicts.values()].some(item => item.view.status === 'pending')) fatalRecovery('recovery_ack_identity_mismatch');
         return fields;
       }
@@ -219,12 +224,17 @@ function installObservation({ inputs }) {
           && payload.committed_messages_v >= request.view.expectedVersion
           && (payload.chat_id === undefined || payload.chat_id === request.chat);
         if (!valid) fatalRecovery('recovery_ack_not_terminal');
-        if (related) {
-          if (!valid || related.view.status !== 'pending' || related.retry !== payload.request_id || !related.refresh) {
+        if (related.length) {
+          const terminal = related.at(-1);
+          if (!valid || terminal.retry !== payload.request_id || related.some((item, index) =>
+            item.view.status !== 'pending' || !item.refresh || !item.retry
+            || index < related.length - 1 && item.retry !== related[index + 1].request.requestId)) {
             fatalRecovery('recovery_ack_wrong_retry');
           } else {
-            related.view.status = 'resolved'; related.view.resolvedAtMs = now();
-            related.view.committedVersion = payload.committed_messages_v;
+            for (const item of related) {
+              item.view.status = 'resolved'; item.view.resolvedAtMs = now();
+              item.view.committedVersion = payload.committed_messages_v;
+            }
           }
         }
       }
@@ -263,7 +273,7 @@ function installObservation({ inputs }) {
         && init?.credentials === 'include' && init?.cache === 'no-store' && [...url.searchParams.keys()].length === 2
         && url.searchParams.get('limit') === '1'
         && url.searchParams.get('respect_compression_boundary') === 'false'
-        ? [...conflicts.values()].filter(item => item.view.status === 'pending' && item.request.chat === match[1]) : [];
+        ? [...conflicts.values()].filter(item => item.view.status === 'pending' && !item.retry && item.request.chat === match[1]) : [];
       const conflict = candidates.length === 1 ? candidates[0] : null;
       const refreshId = conflict ? `refresh-${++nextRefresh}` : null;
       if (candidates.length > 1) fatalRecovery('recovery_refresh_ambiguous');
@@ -295,10 +305,60 @@ function installObservation({ inputs }) {
     'assistant_speech_status', 'assistant_speech_audio', 'ai_message_update', 'audio.interrupted', 'stop', 'ended', 'error',
     'ai_task_failed', 'ai_task_completed', 'cancel_ai_task', 'ai_task_cancel_requested', 'hangup', 'call_message_confirmed', 'metadata_jobs_available', ...Object.keys(operations), ...recoveryAcks]);
   const segments = new Map(), streamSegments = new Map(), mediaSourceUrls = new Set();
+  // Match actual appended bytes to a received chunk from an exact start frame.
+  // Only transient SHA-256 fingerprints live in this closure; neither audio nor
+  // fingerprints enter snapshots. Never assign the latest unbound start to a URL.
+  const chunkBindings = new Map(), mediaBindings = new WeakMap(), bufferOwners = new WeakMap();
+  const bindingKey = item => JSON.stringify([item.socketId, item.messageId, item.segmentId, item.attemptId,
+    item.sourceVersion, item.executionVersion, item.sequence, item.kind]);
+  const digest = async bytes => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+    byte => byte.toString(16).padStart(2, '0')).join('');
+  let receivedDigests = Promise.resolve();
+  const observeChunk = (item, encoded) => {
+    const start = streamSegments.get(item.segmentId);
+    if (!start || !item.messageId || !item.attemptId || bindingKey(start) !== bindingKey(item)
+      || !Number.isSafeInteger(item.chunkIndex) || item.chunkIndex < 0 || typeof encoded !== 'string'
+      || encoded.length > 8 * 1024 * 1024 || chunkBindings.size >= 2048) return;
+    try {
+      const raw = atob(encoded);
+      const fingerprint = digest(Uint8Array.from(raw, character => character.charCodeAt(0)));
+      receivedDigests = Promise.all([receivedDigests, fingerprint]).then(([, hash]) => {
+        const existing = chunkBindings.get(hash);
+        // Identical bytes belonging to multiple segments/attempts are ambiguous.
+        chunkBindings.set(hash, existing === null || existing && bindingKey(existing) !== bindingKey(start)
+          ? null : { ...start });
+      }).catch(() => {});
+    } catch { /* Malformed audio cannot establish playback identity. */ }
+  };
+  if (typeof MediaSource !== 'undefined' && typeof SourceBuffer !== 'undefined') {
+    const addSourceBuffer = MediaSource.prototype.addSourceBuffer;
+    MediaSource.prototype.addSourceBuffer = function (...args) {
+      const buffer = addSourceBuffer.apply(this, args);
+      bufferOwners.set(buffer, this);
+      return buffer;
+    };
+    const appendBuffer = SourceBuffer.prototype.appendBuffer;
+    SourceBuffer.prototype.appendBuffer = function (bytes) {
+      const result = appendBuffer.call(this, bytes); // A rejected append proves nothing.
+      const owner = bufferOwners.get(this), atMs = now(), pending = receivedDigests;
+      if (owner) {
+        void Promise.all([pending, digest(bytes)]).then(([, hash]) => {
+          const binding = chunkBindings.get(hash), previous = mediaBindings.get(owner);
+          if (!binding || previous === null || previous && bindingKey(previous) !== bindingKey(binding)) {
+            mediaBindings.set(owner, null);
+          } else mediaBindings.set(owner, { ...binding, appendedAtMs: previous?.appendedAtMs ?? atMs });
+        }).catch(() => { mediaBindings.set(owner, null); });
+      }
+      return result;
+    };
+  }
+  const mediaSourceObjects = new Map();
   const createObjectURL = URL.createObjectURL;
   if (createObjectURL) URL.createObjectURL = function (object) {
     const url = createObjectURL.call(this, object);
-    if (typeof MediaSource !== 'undefined' && object instanceof MediaSource) mediaSourceUrls.add(url);
+    if (typeof MediaSource !== 'undefined' && object instanceof MediaSource) {
+      mediaSourceUrls.add(url); mediaSourceObjects.set(url, object);
+    }
     return url;
   };
   const NativeSocket = window.WebSocket;
@@ -331,6 +391,23 @@ function installObservation({ inputs }) {
         assistantMessageId: id(payload.assistant_message_id), callId: id(payload.call_id ?? payload.voice_call_id),
         turnId: id(payload.turn_id), role: ['user', 'assistant'].includes(message.role) ? message.role : undefined };
       if (event.type === 'transcript') frame.final = payload.final === true;
+      if (event.type === 'chat_message_added' && message.voice_heard_boundary !== undefined) {
+        const boundary = message.voice_heard_boundary;
+        const completed = boundary?.completed_sequences;
+        const valid = boundary && typeof boundary === 'object' && typeof boundary.assistant_message_id === 'string'
+          && Array.isArray(completed) && completed.length <= 256
+          && completed.every((value, index) => Number.isSafeInteger(value) && value >= 0 && value <= 65535
+            && (index === 0 || value > completed[index - 1]))
+          && (boundary.active_sequence === null || Number.isSafeInteger(boundary.active_sequence)
+            && boundary.active_sequence >= 0 && boundary.active_sequence <= 65535)
+          && Number.isSafeInteger(boundary.active_offset_ms) && boundary.active_offset_ms >= 0 && boundary.active_offset_ms <= 3600000
+          && (boundary.active_sequence !== null || boundary.active_offset_ms === 0);
+        frame.invalidHeardBoundary = !valid;
+        for (const audio of media) observations.get(audio)?.inspect(false);
+        frame.nativeProgressAtSend = (state.nativeProgress ?? []).map(item => ({ ...item }));
+        if (valid) frame.heardBoundaryDetail = { assistantMessageId: id(boundary.assistant_message_id),
+          completedSequences: [...completed], activeSequence: boundary.active_sequence, activeOffsetMs: boundary.active_offset_ms };
+      }
       if (event.type === 'chat_message_added') Object.assign(frame, {
         voiceMode: message.voice_mode === true, autoSpeak: message.auto_speak_response === true,
         forcedModel: !!(message.model || message.provider || message.model_id || message.provider_id),
@@ -340,19 +417,55 @@ function installObservation({ inputs }) {
       if (event.type === 'error') Object.assign(frame, { code: word(payload.code) ?? 'unknown', stage: word(payload.stage) });
       if (event.type === 'assistant_speech_audio') {
         const item = { ...frame, segmentId: id(payload.segment_id), kind: word(payload.kind),
-          phase: ['start', 'chunk', 'end', 'error'].includes(payload.phase) ? payload.phase : undefined,
+          phase: ['start', 'chunk', 'end', 'error', 'alignment'].includes(payload.phase) ? payload.phase : undefined,
           attemptId: id(payload.attempt_id), chunkIndex: Number.isSafeInteger(payload.chunk_index) ? payload.chunk_index : undefined,
           sourceVersion: Number.isSafeInteger(payload.source_version) ? payload.source_version : undefined,
           executionVersion: Number.isSafeInteger(payload.execution_version) ? payload.execution_version : undefined,
           sequence: Number.isSafeInteger(payload.sequence) ? payload.sequence : undefined };
-        // Never copy, decode or persist audio_data, URLs, transcripts or keys.
-        if (item.segmentId && item.phase === 'start') streamSegments.set(item.segmentId, item);
+        if (item.phase === 'alignment') {
+          const rows = payload.clause_timings; let previous = -1, previousEnd = 0; const seen = new Set();
+          const valid = item.kind === 'voice_prose_turn' && Array.isArray(rows) && rows.length <= 1024 && rows.every(row => {
+            if (!row || Object.keys(row).sort().join(',') !== 'end_ms,segment_id,sequence,start_ms'
+              || typeof row.segment_id !== 'string' || !row.segment_id || row.segment_id.length > 128 || seen.has(row.segment_id)
+              || !Number.isSafeInteger(row.sequence) || row.sequence <= previous || row.sequence > 65535
+              || !Number.isSafeInteger(row.start_ms) || row.start_ms < previousEnd
+              || !Number.isSafeInteger(row.end_ms) || row.end_ms <= row.start_ms || row.end_ms > 600000) return false;
+            previous = row.sequence; previousEnd = row.end_ms; seen.add(row.segment_id); return true;
+          });
+          item.alignmentValid = valid;
+          if (valid) item.clauseTimings = rows.map(row => ({ segmentId: id(row.segment_id), sequence: row.sequence,
+            startMs: row.start_ms, endMs: row.end_ms }));
+        }
+        // Never add audio_data, URLs, transcripts, keys or private fingerprints to evidence.
+        if (direction === 'received' && pathname === '/v1/ws' && item.segmentId) {
+          if (item.phase === 'start') streamSegments.set(item.segmentId, item);
+          if (item.phase === 'chunk') observeChunk(item, payload.audio_data);
+        }
         add(item); return;
       }
       if (event.type === 'assistant_speech_status') {
+        if (payload.status === 'sealed') {
+          const rows = payload.segments;
+          let previous = -1; const seen = new Set();
+          const valid = Array.isArray(rows) && rows.length <= 1024 && Number.isSafeInteger(payload.source_version)
+            && payload.source_version >= 1 && rows.every(row => {
+              if (!row || typeof row !== 'object' || Object.keys(row).sort().join(',') !== 'kind,segment_id,sequence,source_version'
+                || typeof row.segment_id !== 'string' || !row.segment_id || row.segment_id.length > 128
+                || seen.has(row.segment_id) || row.kind !== 'voice_prose_clause' || row.source_version !== payload.source_version
+                || !Number.isSafeInteger(row.sequence) || row.sequence <= previous || row.sequence > 65535) return false;
+              previous = row.sequence; seen.add(row.segment_id); return true;
+            });
+          add({ ...frame, speechStatus: 'sealed', trackId: id(payload.turn_track_id), sourceVersion: payload.source_version,
+            sealValid: valid, failed: payload.error !== undefined,
+            members: valid ? rows.map(row => ({ segmentId: id(row.segment_id), sequence: row.sequence })) : [] });
+          return;
+        }
         const statuses = Array.isArray(payload.segments) ? payload.segments : [payload];
         for (const status of statuses) {
           const item = { ...frame, segmentId: id(status.segment_id), speechStatus: word(status.status ?? payload.status),
+            sequence: Number.isSafeInteger(status.sequence ?? payload.sequence) ? (status.sequence ?? payload.sequence) : undefined,
+            sourceVersion: Number.isSafeInteger(status.source_version ?? payload.source_version) ? (status.source_version ?? payload.source_version) : undefined,
+            executionVersion: Number.isSafeInteger(status.execution_version ?? payload.execution_version) ? (status.execution_version ?? payload.execution_version) : undefined,
             kind: word(status.kind ?? payload.kind), generatedAssetPresent: !!status.generated_asset_id };
           if (item.segmentId) segments.set(item.segmentId, { ...segments.get(item.segmentId),
             ...Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined)) });
@@ -397,13 +510,17 @@ function installObservation({ inputs }) {
         if (current > generation.lastTime + 0.001 && !audio.paused && !audio.ended) {
           generation.firstProgress ??= { atMs: now(), currentTimeSeconds: current };
         }
-        // play() precedes Svelte's active-waveform DOM update. Never bind the
-        // preceding clip's segment to the new source, even if time has advanced.
-        if (!generation.binding && generation.domSettled) {
+        if (mediaSourceUrls.has(generation.source)) {
+          const binding = mediaBindings.get(mediaSourceObjects.get(generation.source));
+          generation.binding = binding && generation.firstProgress?.atMs >= binding.appendedAtMs ? binding : null;
+        }
+        // Stored manual/waiting clips retain their rendered player correlation.
+        // Live call MSE correlation never depends on a message player DOM node.
+        if (!mediaSourceUrls.has(generation.source) && !generation.binding && generation.domSettled) {
           const raw = document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
           const activeId = id(raw), segment = { ...streamSegments.get(activeId), ...segments.get(activeId) };
           if (generation.candidate !== activeId) generation.candidate = activeId;
-          else if ((segment.speechStatus === 'ready' || mediaSourceUrls.has(audio.src) && streamSegments.has(activeId))
+          else if (segment.speechStatus === 'ready'
             && audio.src.startsWith('blob:')
             && (!generation.sourceChanged || activeId !== generation.previousSegmentId)) {
             const known = observation.sourceSegments.get(generation.source);
@@ -414,16 +531,30 @@ function installObservation({ inputs }) {
           }
         }
         const binding = generation.binding;
+        if (binding && generation.firstProgress) {
+          generation.lastObservedTime = current;
+          state.nativeProgress ??= [];
+          const progress = { atMs: now(), mediaId: observation.mediaId, generation: generation.ordinal,
+            sourceId: id(generation.source), socketId: binding.socketId, chatId: binding.chatId, callId: binding.callId,
+            messageId: binding.messageId, segmentId: binding.segmentId, attemptId: binding.attemptId,
+            sourceVersion: binding.sourceVersion, executionVersion: binding.executionVersion,
+            kind: binding.kind, currentTimeSeconds: current };
+          const index = state.nativeProgress.findIndex(item => item.mediaId === observation.mediaId && item.generation === generation.ordinal);
+          if (index >= 0) state.nativeProgress[index] = progress;
+          else if (state.nativeProgress.length < 1024) state.nativeProgress.push(progress);
+        }
         if (binding && generation.firstProgress && !generation.reported) {
           state.playback.push({ ...generation.firstProgress, type: 'first_progress', mediaId: observation.mediaId,
             generation: generation.ordinal, sourceId: id(generation.source), segmentId: binding.segmentId,
-            messageId: binding.messageId, kind: binding.kind, attemptId: binding.attemptId,
+            messageId: binding.messageId, chatId: binding.chatId, callId: binding.callId, socketId: binding.socketId, kind: binding.kind, attemptId: binding.attemptId,
+            sourceVersion: binding.sourceVersion, executionVersion: binding.executionVersion, sequence: binding.sequence,
             sourceKind: mediaSourceUrls.has(generation.source) ? 'media_source' : 'stored_blob' });
           generation.reported = true;
         }
         if (ended) {
           if (binding) state.playback.push({ atMs: now(), type: 'ended', mediaId: observation.mediaId,
-            generation: generation.ordinal, segmentId: binding.segmentId, messageId: binding.messageId,
+            generation: generation.ordinal, segmentId: binding.segmentId, messageId: binding.messageId, chatId: binding.chatId, callId: binding.callId, socketId: binding.socketId,
+            attemptId: binding.attemptId, sourceVersion: binding.sourceVersion, executionVersion: binding.executionVersion, sequence: binding.sequence,
             sourceId: id(generation.source), kind: binding.kind, currentTimeSeconds: current, progressed: !!generation.reported,
             sourceKind: mediaSourceUrls.has(generation.source) ? 'media_source' : 'stored_blob' });
           else add({ type: 'media_correlation_failed', mediaId: observation.mediaId, generation: generation.ordinal });
@@ -518,6 +649,7 @@ function installObservation({ inputs }) {
     expireRecovery();
     const bar = document.querySelector('[data-testid="voice-call-bar"]');
     if (bar && bar.getAttribute('aria-busy') === 'false') state.callSeen = true;
+    if (bar && document.querySelector('[data-testid="assistant-speech-player"],[data-testid="assistant-message-speak"]')) state.callPlayerLeak = true;
     if (state.callSeen && !state.expectedHangup && (!bar || document.querySelector('[data-testid="voice-call-error"]'))) state.unexpectedEnd = true;
     // Only known static failure text is inspected; arbitrary notification text
     // never leaves the page. Protocol conflict codes are observed above too.
@@ -566,8 +698,12 @@ async function cleanupRealCall(page, snapshot) {
 function progressivePlaybackMetrics(state, firstAudio) {
   const sameSegment = state.events.filter(event => event.segmentId === firstAudio.segmentId
     && event.messageId === firstAudio.messageId
-    && (event.type !== 'assistant_speech_audio' || !firstAudio.attemptId || event.attemptId === firstAudio.attemptId));
+    && event.direction === 'received' && event.path === '/v1/ws'
+    && Number.isSafeInteger(firstAudio.socketId) && event.socketId === firstAudio.socketId
+    && (event.type !== 'assistant_speech_audio' || ['attemptId', 'sourceVersion', 'executionVersion', 'sequence']
+      .every(key => firstAudio[key] === undefined || event[key] === firstAudio[key])));
   const ready = sameSegment.find(event => event.type === 'assistant_speech_status' && event.speechStatus === 'ready');
+  const start = sameSegment.find(event => event.type === 'assistant_speech_audio' && event.phase === 'start');
   const chunk = sameSegment.find(event => event.type === 'assistant_speech_audio' && event.phase === 'chunk');
   const end = sameSegment.find(event => event.type === 'assistant_speech_audio' && event.phase === 'end');
   return {
@@ -576,12 +712,106 @@ function progressivePlaybackMetrics(state, firstAudio) {
     speechReadyMs: ready?.atMs ?? null,
     sameSegmentFirstAudioChunkMs: chunk?.atMs ?? null,
     sameSegmentProviderEndMs: end?.atMs ?? null,
-    playbackBeforeSameSegmentProviderEnd: !!end && !!chunk && firstAudio.sourceKind === 'media_source'
-      && chunk.atMs <= firstAudio.atMs && firstAudio.atMs < end.atMs,
+    playbackBeforeSameSegmentProviderEnd: !!start && !!end && !!chunk && firstAudio.sourceKind === 'media_source'
+      && start.atMs <= chunk.atMs && chunk.atMs <= firstAudio.atMs && firstAudio.atMs < end.atMs,
     sameSegmentPlaybackLeadMs: end ? end.atMs - firstAudio.atMs : null,
     generatedCallAssetStatusCount: state.events.filter(event => event.type === 'assistant_speech_status'
       && event.messageId === firstAudio.messageId && event.generatedAssetPresent).length,
   };
+}
+
+/** Exact native source identity; a turn track is never itself a semantic clause. */
+function samePlaybackSource(left, right) {
+  return ['socketId', 'chatId', 'callId', 'messageId', 'segmentId', 'attemptId', 'sourceVersion', 'executionVersion']
+    .every(key => left[key] !== undefined && left[key] === right[key]);
+}
+
+function continuousTurnMetrics(state, firstAudio, atMs = Infinity) {
+  const identity = event => samePlaybackSource(event, firstAudio);
+  const received = (state.events ?? []).filter(event => event.direction === 'received' && event.path === '/v1/ws' && event.atMs <= atMs);
+  const stream = received.filter(event => event.type === 'assistant_speech_audio' && identity(event));
+  const starts = stream.filter(event => event.phase === 'start');
+  const end = stream.find(event => event.phase === 'end');
+  const seals = received.filter(event => event.type === 'assistant_speech_status' && event.speechStatus === 'sealed'
+    && event.socketId === firstAudio.socketId && event.chatId === firstAudio.chatId && event.callId === firstAudio.callId
+    && event.messageId === firstAudio.messageId && event.sourceVersion === firstAudio.sourceVersion && event.trackId === firstAudio.segmentId);
+  const seal = seals.find(event => event.sealValid && !event.failed);
+  const sealConflict = seals.some(event => !event.sealValid || event.failed || seal && JSON.stringify(event.members) !== JSON.stringify(seal.members));
+  const native = (state.playback ?? []).filter(event => identity(event) && event.atMs <= atMs);
+  const progresses = native.filter(event => event.type === 'first_progress');
+  const ended = native.find(event => event.type === 'ended' && event.progressed && event.sourceId === firstAudio.sourceId
+    && event.mediaId === firstAudio.mediaId && event.generation === firstAudio.generation && event.atMs >= firstAudio.atMs);
+  const failed = stream.some(event => event.phase === 'error' && (!ended || event.atMs <= ended.atMs))
+    || received.some(event => event.type === 'assistant_speech_status' && event.messageId === firstAudio.messageId
+      && event.socketId === firstAudio.socketId && event.sourceVersion === firstAudio.sourceVersion
+      && ['error', 'cancelled', 'invalidated', 'deleted'].includes(event.speechStatus) && (!ended || event.atMs <= ended.atMs));
+  const oneSource = progresses.length === 1 && progresses[0].sourceId === firstAudio.sourceId;
+  const full = firstAudio.kind === 'voice_prose_turn' && starts.length === 1 && oneSource && !!seal && !sealConflict && !failed
+    && !!end && !!ended && end.atMs <= ended.atMs && seal.members.length > 0;
+  const latest = (state.nativeProgress ?? []).find(event => identity(event) && event.atMs <= atMs
+    && event.sourceId === firstAudio.sourceId && event.mediaId === firstAudio.mediaId && event.generation === firstAudio.generation);
+  const nativeTimeMs = ended ? ended.currentTimeSeconds * 1000 : latest ? latest.currentTimeSeconds * 1000 : 0;
+  const timings = new Map(); let alignmentValid = !sealConflict;
+  for (const event of stream.filter(event => event.phase === 'alignment')) {
+    if (!event.alignmentValid) { alignmentValid = false; break; }
+    for (const row of event.clauseTimings) {
+      const prior = timings.get(row.segmentId);
+      if (prior && JSON.stringify(prior) !== JSON.stringify(row)
+        || seal && !seal.members.some(member => member.segmentId === row.segmentId && member.sequence === row.sequence)) alignmentValid = false;
+      timings.set(row.segmentId, row);
+    }
+  }
+  const ordered = [...timings.values()].sort((a,b) => a.sequence - b.sequence);
+  if (ordered.some((row,index) => index > 0 && (row.startMs < ordered[index-1].endMs || row.sequence === ordered[index-1].sequence))) alignmentValid = false;
+  // Before a seal, timings still need matching immutable semantic registration.
+  const knownMember = row => seal ? seal.members.some(member => member.segmentId === row.segmentId && member.sequence === row.sequence)
+    : received.some(event => event.type === 'assistant_speech_status' && event.kind === 'voice_prose_clause'
+      && event.socketId === firstAudio.socketId && event.messageId === firstAudio.messageId && event.chatId === firstAudio.chatId
+      && event.callId === firstAudio.callId && event.sourceVersion === firstAudio.sourceVersion && event.segmentId === row.segmentId
+      && event.sequence === row.sequence);
+  const eligible = alignmentValid && oneSource ? ordered.filter(knownMember) : [];
+  const completed = full ? [...seal.members].map(member => member.sequence) : eligible.filter(row => row.endMs <= nativeTimeMs).map(row => row.sequence);
+  const active = full ? null : eligible.find(row => row.startMs <= nativeTimeMs && nativeTimeMs < row.endMs);
+  return { continuousTrackId: firstAudio.segmentId, continuousSingleNativeSource: oneSource,
+    continuousMembershipSealed: !!seal && !sealConflict, continuousPlaybackComplete: full,
+    semanticMemberCount: seal?.members.length ?? 0, completedSemanticSequences: completed,
+    activeSemanticSequence: active?.sequence ?? null, activeSemanticOffsetMs: active ? Math.floor(nativeTimeMs-active.startMs) : 0,
+    nativePlaybackEndedMs: ended?.atMs ?? null };
+}
+
+function responsePlaybackComplete(state, firstAudio) {
+  if (firstAudio.kind === 'voice_prose_turn') return continuousTurnMetrics(state, firstAudio).continuousPlaybackComplete;
+  // Legacy finite clauses retain their native-ended proof; never consult the hidden player UI.
+  const seal = state.events.find(event => event.type === 'assistant_speech_status' && event.speechStatus === 'sealed'
+    && event.messageId === firstAudio.messageId && event.socketId === firstAudio.socketId && !event.trackId && event.sealValid && !event.failed);
+  return !!seal && seal.members.length > 0 && seal.members.every(member => state.playback.some(event => event.type === 'ended'
+    && event.progressed && event.messageId === firstAudio.messageId && event.segmentId === member.segmentId
+    && event.socketId === firstAudio.socketId && event.kind === 'voice_prose_clause'));
+}
+
+function validateObservedHeardBoundaries(state) {
+  return state.events.filter(event => event.type === 'chat_message_added' && event.direction === 'sent').every(event => {
+    if (event.invalidHeardBoundary) return false;
+    const heard = event.heardBoundaryDetail;
+    if (!heard) {
+      const prior = [...state.playback].reverse().find(play => play.type === 'first_progress' && play.kind === 'voice_prose_turn'
+        && play.chatId === event.chatId && play.atMs <= event.atMs);
+      // After a continuous track began, missing timing must be explicit empty
+      // coverage. Null/omission would let downstream code assume canonical text.
+      return !prior || continuousTurnMetrics(state, prior, event.atMs).continuousPlaybackComplete;
+    }
+    const first = state.playback.find(play => play.type === 'first_progress' && play.kind === 'voice_prose_turn'
+      && play.messageId === heard.assistantMessageId && play.atMs <= event.atMs);
+    if (!first) {
+      const knownTurn = state.events.some(item => item.type === 'assistant_speech_audio' && item.kind === 'voice_prose_turn'
+        && item.messageId === heard.assistantMessageId && item.atMs <= event.atMs);
+      return !knownTurn || heard.completedSequences.length === 0 && heard.activeSequence === null && heard.activeOffsetMs === 0;
+    } // Existing finite-clause contracts remain independent.
+    const proof = continuousTurnMetrics({ ...state, nativeProgress: event.nativeProgressAtSend ?? [] }, first, event.atMs);
+    return heard.completedSequences.every(sequence => proof.completedSemanticSequences.includes(sequence))
+      && (heard.activeSequence === null ? heard.activeOffsetMs === 0
+        : heard.activeSequence === proof.activeSemanticSequence && heard.activeOffsetMs <= proof.activeSemanticOffsetMs);
+  });
 }
 
 async function login(page, origin, credentials) {
@@ -720,20 +950,22 @@ async function main() {
       state = await wait(state => {
         const done = state.events.find(event => event.type === 'ai_message_update' && event.final && event.userMessageId === transcript.messageId);
         const assistantId = done?.messageId;
-        return assistantId && state.inputs[ordinal - 1]?.endMs !== undefined
-          && state.playback.some(event => event.messageId === assistantId && event.kind === 'voice_prose_clause'
-          && event.type === 'first_progress') && state.playerStatus === 'completed' && state.activeMedia === 0;
+        const first = state.playback.find(event => event.messageId === assistantId
+          && ['voice_prose_clause', 'voice_prose_turn'].includes(event.kind) && event.type === 'first_progress');
+        return first && state.inputs[ordinal - 1]?.endMs !== undefined && responsePlaybackComplete(state, first) && state.activeMedia === 0;
       }, args['turn-timeout-ms'], 'canonical_response_or_real_playback_timeout');
       const done = state.events.find(event => event.type === 'ai_message_update' && event.final && event.userMessageId === transcript.messageId);
-      const firstAudio = state.playback.find(event => event.type === 'first_progress' && event.messageId === done.messageId && event.kind === 'voice_prose_clause');
+      const firstAudio = state.playback.find(event => event.type === 'first_progress' && event.messageId === done.messageId && ['voice_prose_clause', 'voice_prose_turn'].includes(event.kind));
       const firstAnySpeech = state.playback.find(event => event.type === 'first_progress' && event.messageId === done.messageId);
       const speech = state.events.filter(event => event.type === 'assistant_speech_status' && event.messageId === done.messageId
-        && event.segmentId === firstAudio.segmentId && event.kind === 'voice_prose_clause');
+        && event.segmentId === firstAudio.segmentId && event.kind === firstAudio.kind);
       Object.assign(turn, { assistantMessageId: done.messageId, canonicalResponseCompleteMs: done.atMs,
+        playbackBeforeCanonicalResponseComplete: firstAudio.atMs < done.atMs,
         speechQueuedMs: speech.find(event => event.speechStatus === 'queued')?.atMs ?? null,
         ...progressivePlaybackMetrics(state, firstAudio),
         firstActualPlaybackMs: firstAudio.atMs,
-        firstActualPlaybackKind: 'voice_prose_clause',
+        firstActualPlaybackKind: firstAudio.kind,
+        ...(firstAudio.kind === 'voice_prose_turn' ? continuousTurnMetrics(state, firstAudio) : {}),
         firstAnySpeechPlaybackMs: firstAnySpeech?.atMs ?? null,
         firstAnySpeechPlaybackKind: firstAnySpeech?.kind ?? null,
         finalTranscriptToFirstAudioMs: firstAudio.atMs - transcript.atMs,
@@ -773,11 +1005,13 @@ async function main() {
       'unresolved_recovery_or_metadata_job');
     if (args['require-progressive']) {
       check(!state.events.some(event => event.type === 'assistant_speech_status'
-        && event.kind === 'voice_prose_clause' && event.generatedAssetPresent), 'live_call_published_generated_audio_asset');
-      const playedSegments = state.playback.filter(event => event.type === 'first_progress' && event.kind === 'voice_prose_clause')
+        && ['voice_prose_clause', 'voice_prose_turn'].includes(event.kind) && event.generatedAssetPresent), 'live_call_published_generated_audio_asset');
+      const playedSegments = state.playback.filter(event => event.type === 'first_progress' && ['voice_prose_clause', 'voice_prose_turn'].includes(event.kind))
         .map(event => event.segmentId);
       check(new Set(playedSegments).size === playedSegments.length, 'live_call_clause_played_more_than_once');
     }
+    check(!state.callPlayerLeak, 'ordinary_message_speech_controls_visible_during_call');
+    check(validateObservedHeardBoundaries(state), 'native_heard_boundary_overclaimed');
     check(state.microphoneFrames > 0, 'no_real_microphone_upload_frames');
     check(!state.nativeErrors, 'browser_native_error_observed');
     check(state.userRowIds.length === 2 && new Set(state.userRowIds).size === 2
@@ -833,7 +1067,7 @@ async function main() {
   if (result.status !== 'passed') process.exitCode = 1;
 }
 
-module.exports = { installObservation, cleanupRealCall, progressivePlaybackMetrics };
+module.exports = { installObservation, cleanupRealCall, progressivePlaybackMetrics, continuousTurnMetrics, responsePlaybackComplete, validateObservedHeardBoundaries };
 if (require.main === module) main().catch(error => {
   console.error(/^[a-z][a-z0-9_-]{1,100}$/.test(error.message) ? error.message : 'voice_smoke_setup_failed');
   process.exitCode = 1;

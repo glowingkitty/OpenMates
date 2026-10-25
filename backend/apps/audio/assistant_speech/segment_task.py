@@ -275,7 +275,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 log_prefix=log_prefix,
             )
         if live_call:
-            if profile.provider != "mistral":
+            if profile.provider != "mistral" and profile.version != 3:
                 raise RuntimeError("Live speech profile is unavailable")
             decision = await safety_check(text=text)
             if not decision.get("approved"):
@@ -283,8 +283,14 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                           "error": str(decision.get("safe_error") or "Speech is unavailable for this paragraph.")}
             else:
                 client = AssistantSpeechReplayStreamClient(live_mock_audio) if live_mock_audio else MistralSpeechClient(secrets_manager=task._secrets_manager)
+                live_request = profile.mistral_request() if profile.provider == "mistral" else {
+                    "voice_id": str(profile.elevenlabs_request()["voice_id"]), "model": profile.model,
+                }
+                if profile.version == 3 and live_mock_audio is None:
+                    from backend.apps.audio.assistant_speech.realtime_turn import ElevenRealtimeFiniteClient
+                    client = ElevenRealtimeFiniteClient(secrets_manager=task._secrets_manager)
                 completion = await generate_live_speech(
-                    client=client, text=text, **profile.mistral_request(),
+                    client=client, text=text, **live_request,
                     context={
                         "chat_id": str(arguments.get("chat_id") or ""),
                         "message_id": str(arguments.get("assistant_message_id") or ""),

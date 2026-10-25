@@ -176,6 +176,11 @@ directus_users:
       nullable: true
       note: "Server timestamp of explicit first-call acknowledgment of voice processing disclosure, version 2. Legacy Google voice consent does not grant this consent."
 
+    voice_processing_ack_v3_at:
+      type: integer
+      nullable: true
+      note: "Server timestamp of explicit first-call acknowledgment of Mistral microphone transcription and ElevenLabs assistant voice processing, version 3. Prior voice consent does not grant this consent."
+
     consent_mates_default_settings:
       type: string
       length: 256

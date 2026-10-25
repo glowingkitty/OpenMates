@@ -1,5 +1,5 @@
 import type { VoiceHeardBoundary } from '../types/chat';
-import type { AssistantSpeechStreamSource } from './assistantSpeechStream';
+import type { AssistantSpeechStreamSource, AssistantSpeechClauseTiming } from './assistantSpeechStream';
 // assistantSpeechQueue.ts
 // Owns browser playback for one assistant response at a time.
 // Accepts only ready/generating segment metadata from its caller.
@@ -112,6 +112,68 @@ export class AssistantSpeechQueue {
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
   private readonly heardVoiceSequences = new Set<number>();
+  private turnTrack: { id: string; began: boolean; ended: boolean; failed: boolean; sealed: boolean;
+    members: Map<string, number>; timings: Map<string, AssistantSpeechClauseTiming>; offset: number } | null = null;
+
+  registerTurnTrack(id: string): void {
+    if (!this.turnTrack) this.turnTrack = { id, began: false, ended: false, failed: false, sealed: false,
+      members: new Map(), timings: new Map(), offset: 0 };
+  }
+
+  registerTurnClause(id: string, sequence: number): void {
+    const turn = this.turnTrack;
+    if (!turn || turn.sealed || turn.failed) return;
+    if ((!turn.members.has(id) && turn.members.size >= 1024)
+      || [...turn.members].some(([knownId, knownSequence]) => knownId !== id && knownSequence === sequence)
+      || (turn.members.has(id) && turn.members.get(id) !== sequence)) { this.failLiveResponse(); return; }
+    turn.members.set(id, sequence);
+  }
+
+  updateTurnTimings(timings: AssistantSpeechClauseTiming[]): void {
+    const turn = this.turnTrack;
+    if (!turn || turn.failed) return;
+    // Once received, timing is immutable. Unknown or conflicting mappings fail closed.
+    const merged = new Map(turn.timings);
+    for (const row of timings) {
+      const prior = merged.get(row.segment_id);
+      if (turn.members.get(row.segment_id) !== row.sequence || (prior &&
+        (prior.start_ms !== row.start_ms || prior.end_ms !== row.end_ms || prior.sequence !== row.sequence))) {
+        this.failLiveResponse(); return;
+      }
+      merged.set(row.segment_id, row);
+    }
+    let previousEnd = 0;
+    for (const row of [...merged.values()].sort((a,b) => a.sequence - b.sequence)) {
+      if (row.start_ms < previousEnd) { this.failLiveResponse(); return; }
+      previousEnd = row.end_ms;
+    }
+    turn.timings = merged;
+  }
+
+  sealTurnTrack(id: string, members: { id: string; sequence: number }[], failed: boolean): void {
+    const turn = this.turnTrack;
+    if (!turn || turn.id !== id) { this.failLiveResponse(); return; }
+    if (failed) { this.failLiveResponse(); return; }
+    const final = new Map(members.map(row => [row.id, row.sequence]));
+    if ([...turn.timings.values()].some(row => final.get(row.segment_id) !== row.sequence)) {
+      this.failLiveResponse(); return;
+    }
+    turn.members = final; turn.sealed = true;
+    this.markComplete();
+  }
+
+  private turnPlaybackBoundary(responseId: string): VoiceHeardBoundary | null {
+    const turn = this.turnTrack!;
+    if (!turn.began) return null;
+    const seconds = this.currentAudio?.currentTime ?? turn.offset;
+    const time = Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : 0;
+    const timings = [...turn.timings.values()];
+    const completeAll = turn.ended && turn.sealed && !turn.failed;
+    const completed = completeAll ? [...turn.members.values()] : timings.filter(row => row.end_ms <= time).map(row => row.sequence);
+    const active = completeAll ? undefined : timings.find(row => row.start_ms <= time && time < row.end_ms);
+    return { assistant_message_id: responseId, completed_sequences: [...new Set(completed)].sort((a,b)=>a-b).slice(-256),
+      active_sequence: active?.sequence ?? null, active_offset_ms: active ? Math.min(3_600_000, Math.floor(time-active.start_ms)) : 0 };
+  }
   private autoplayPending = true;
   private playGeneration = 0;
   private complete = false;
@@ -146,6 +208,7 @@ export class AssistantSpeechQueue {
   get playbackBoundary(): VoiceHeardBoundary | null {
     const responseId = this.state.responseId;
     if (!responseId || responseId.length > 128) return null;
+    if (this.turnTrack) return this.turnPlaybackBoundary(responseId);
     const retainedOffset = this.state.activeSegmentId ? this.streams.get(this.state.activeSegmentId)?.offset ?? 0 : 0;
     const active = (this.currentAudio || retainedOffset > 0) && this.activeSegment?.kind === 'voice_prose_clause'
       && this.activeSegment.playbackClass === 'replayable' ? this.activeSegment : null;
@@ -219,6 +282,7 @@ export class AssistantSpeechQueue {
     this.segments.clear();
     this.completedSegmentIds.clear();
     this.heardVoiceSequences.clear();
+    this.turnTrack = null;
     this.requestedSegmentIds.clear();
     this.explicitSelectionPending = false;
     this.pendingSegmentId = null;
@@ -329,7 +393,7 @@ export class AssistantSpeechQueue {
   /** Attach only after status has established the segment's canonical ordering. */
   attachStream(segmentId: string, source: AssistantSpeechStreamSource): boolean {
     const segment = this.segments.get(segmentId);
-    if (!segment || !["voice_prose_clause", "waiting_confirmation"].includes(segment.kind ?? "") || this.state.status === "stopped" || this.liveResponseFailed
+    if (!segment || !["voice_prose_clause", "waiting_confirmation", "voice_prose_turn"].includes(segment.kind ?? "") || this.state.status === "stopped" || this.liveResponseFailed
       || this.completedSegmentIds.has(segmentId) || this.streams.has(segmentId)
       || (segment.status === "ready" && segment.audioUrl)) return false;
     this.streams.set(segmentId, { source, failed: false, ended: false, offset: 0 });
@@ -342,6 +406,7 @@ export class AssistantSpeechQueue {
     const segment = this.segments.get(segmentId);
     if (!stream || stream.source !== source || stream.failed || stream.ended || !segment) return;
     stream.failed = true;
+    if (this.turnTrack?.id === segmentId) { this.turnTrack.failed = true; this.turnTrack.offset = this.currentAudio?.currentTime ?? stream.offset; }
     const active = this.state.activeSegmentId === segmentId;
     if (active) {
       const seconds = this.currentAudio?.currentTime ?? stream.offset;
@@ -491,6 +556,10 @@ export class AssistantSpeechQueue {
   }
 
   private failLiveResponse(): void {
+    if (this.turnTrack) {
+      this.turnTrack.failed = true;
+      this.turnTrack.offset = this.currentAudio?.currentTime ?? this.turnTrack.offset;
+    }
     this.liveResponseFailed = true;
     this.autoplayPending = false;
     const activeId = this.state.activeSegmentId;
@@ -510,12 +579,17 @@ export class AssistantSpeechQueue {
   }
 
   fail(): void {
+    if (this.turnTrack) { this.failLiveResponse(); return; }
     this.stopCurrentAudio();
     this.stopPendingCue();
     this.setState({ ...this.state, status: "failed" });
   }
 
   stop(): void {
+    if (this.turnTrack) {
+      this.turnTrack.offset = this.currentAudio?.currentTime ?? this.turnTrack.offset;
+      if (!this.turnTrack.ended) this.turnTrack.failed = true;
+    }
     this.autoplayPending = false;
     this.stopCurrentAudio();
     this.disposeStreams();
@@ -654,6 +728,7 @@ export class AssistantSpeechQueue {
       if (generation !== this.playGeneration || !this.isCurrentAudio(segment.id, audio)) {
         return;
       }
+      if (segment.kind === "voice_prose_turn" && this.turnTrack) this.turnTrack.began = true;
       this.setState({ ...this.state, status: "playing" });
       this.maybePrefetchNext(segment, audio);
     } catch (error) {
@@ -745,6 +820,10 @@ export class AssistantSpeechQueue {
       const segment = this.segments.get(segmentId);
       if (segment) this.segments.set(segmentId, { ...segment,
         audioUrl: undefined, status: "ready" });
+    }
+    if (this.turnTrack?.id === segmentId) {
+      this.turnTrack.offset = audio.currentTime ?? 0;
+      this.turnTrack.ended = true;
     }
     this.completedSegmentIds.add(segmentId);
     const ended = this.segments.get(segmentId);

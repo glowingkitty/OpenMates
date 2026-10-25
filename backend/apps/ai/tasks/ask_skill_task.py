@@ -2389,6 +2389,32 @@ _owned_summary_tasks: ContextVar[list | None] = ContextVar("owned_summary_tasks"
 _owned_metadata_tasks: ContextVar[list | None] = ContextVar("owned_metadata_tasks", default=None)
 
 
+_owned_live_speech: ContextVar[list | None] = ContextVar("owned_live_speech", default=None)
+
+
+def _owns_live_speech(function):
+    """Drain call output after the complete shared pre/main/post pipeline.
+
+    The AI worker slot remains owned until the bounded audio drain finishes;
+    canonical persistence, final output and postprocessing are already done.
+    Every exceptional/early exit still closes any open provider transport.
+    """
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        owners = []
+        token = _owned_live_speech.set(owners)
+        try:
+            result = await function(*args, **kwargs)
+            if owners:
+                await asyncio.gather(*(owner.wait() for owner in owners))
+            return result
+        finally:
+            if owners:
+                await asyncio.gather(*(owner.cancel() for owner in owners), return_exceptions=True)
+            _owned_live_speech.reset(token)
+    return owned
+
+
 def _owns_optional_metadata(function):
     """Metadata cannot retain transports on rejection, cancellation or failure."""
     @wraps(function)
@@ -2646,6 +2672,7 @@ async def _consume_sub_chat_recovery_children(
             raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
 
 
+@_owns_live_speech
 @_owns_deferred_summary
 @_owns_optional_metadata
 async def _async_process_ai_skill_ask_task(
@@ -4213,6 +4240,7 @@ async def _async_process_ai_skill_ask_task(
                         skill_config_dict=skill_config_dict,
                         completion_timing=completion_timing,
                         voice_waiting_started_at=voice_waiting_started_at,
+                        owned_live_speech=_owned_live_speech.get(),
                         before_first_chunk_publish=(publish_initial_metadata_after_seal
                             if initial_metadata_task and not early_metadata_task else None),
                     )

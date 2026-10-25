@@ -83,7 +83,7 @@ const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
   'elapsed_seconds', 'credits_accrued', 'credits_charged', 'audio_credits',
   'stt_duration_seconds',
 ];
-const SPEECH_OUTPUT_TRANSPORT = 'mp3_stream_v1';
+const SPEECH_OUTPUT_TRANSPORT = 'mp3_turn_stream_v2';
 
 function microphoneError(error: unknown): string {
   const name = error instanceof Error ? error.name : '';

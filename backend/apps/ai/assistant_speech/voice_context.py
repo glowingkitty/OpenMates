@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from backend.apps.ai.assistant_speech.projection import project_final_voice_clauses
@@ -47,3 +49,28 @@ def build_voice_heard_context(boundary: VoiceHeardBoundary | None, history: Sequ
         "content were heard, and do not undo or repeat committed actions automatically.\n"
         + json.dumps(context, ensure_ascii=False)
     )
+
+
+VOICE_MAIN_INSTRUCTION_KEY = "base_voice_conversation_instruction"
+
+
+@lru_cache(maxsize=1)
+def _canonical_voice_main_instruction() -> str:
+    """Load the new source even while an older base-instruction cache is live."""
+    path = Path(__file__).resolve().parents[1] / "instructions" / f"{VOICE_MAIN_INSTRUCTION_KEY}.md"
+    instruction = path.read_text(encoding="utf-8")
+    if not instruction.strip():
+        raise RuntimeError("Voice conversation instruction source is empty")
+    return instruction
+
+
+def build_voice_main_instruction(base_instructions: Mapping[str, Any], *, voice_mode: bool) -> str:
+    """Choose voice main delivery without altering the regular answer bundle."""
+    if not voice_mode:
+        return ""
+    instruction = base_instructions.get(VOICE_MAIN_INSTRUCTION_KEY)
+    if isinstance(instruction, str) and instruction.strip():
+        return instruction
+    # Existing cached bundles predate the voice key. Read the same canonical
+    # source rather than silently omitting voice delivery or copying its prose.
+    return _canonical_voice_main_instruction()

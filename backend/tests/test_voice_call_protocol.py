@@ -268,7 +268,7 @@ async def test_ready_is_stt_only_and_never_sends_chat_context_to_provider(runtim
 
 
 # contract-test: direct surface=gui.web assertions=video-call.provider.boundary,video-call.privacy,video-call.lifecycle.recovery-and-billing
-@pytest.mark.parametrize("transport", [None, "full_file_v0", False])
+@pytest.mark.parametrize("transport", [None, "full_file_v0", "mp3_stream_v1", False])
 async def test_missing_or_unknown_output_transport_is_rejected_before_provider_or_paid_admission(runtime, monkeypatch, transport):
     credits = AsyncMock(return_value=1000)
     charge = AsyncMock()
@@ -511,28 +511,49 @@ def request(origin="https://app.example.org"):
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.privacy
-async def test_consent_v2_ignores_google_approval_and_requires_durable_confirmation(monkeypatch):
+async def test_consent_v3_ignores_older_provider_approvals_and_requires_durable_confirmation(monkeypatch):
     monkeypatch.setattr(route, "isolated_voice_fixture_enabled", lambda: False)
     profile, cache, user = Profile(), Cache(), SimpleNamespace(id="owner")
-    profile.fields = {"voice_google_processing_ack_v1_at": 1_800_000_000}
+    profile.fields = {"voice_google_processing_ack_v1_at": 1_800_000_000, "voice_processing_ack_v2_at": 1_800_000_000}
     assert (await route.get_processing_ack(request(), user, profile, cache))["acknowledged"] is False
-    for body in [{"version": 1}, {"version": True}]:
+    for body in [{"version": 1}, {"version": 2}, {"version": True}]:
         with pytest.raises(HTTPException) as error:
             await route.record_processing_ack(request(), body, user, profile, cache)
         assert error.value.status_code == 422
-    accepted = await route.record_processing_ack(request(), {"version": 2}, user, profile, cache)
-    assert accepted["version"] == 2 and accepted["acknowledged"]
+    accepted = await route.record_processing_ack(request(), {"version": 3}, user, profile, cache)
+    assert accepted["version"] == 3 and accepted["acknowledged"]
     assert await route.get_processing_ack(request(), user, profile, cache) == accepted
-    assert await route.record_processing_ack(request(), {"version": 2}, user, profile, cache) == accepted
-    assert len(profile.writes) == 1 and "voice_google_processing_ack_v1_at" in profile.fields
+    assert await route.record_processing_ack(request(), {"version": 3}, user, profile, cache) == accepted
+    assert len(profile.writes) == 1
+    assert profile.fields["voice_google_processing_ack_v1_at"] == 1_800_000_000
+    assert profile.fields["voice_processing_ack_v2_at"] == 1_800_000_000
+    assert set(profile.writes[0]) == {"voice_processing_ack_v3_at"}
     with pytest.raises(HTTPException) as error:
-        await route.record_processing_ack(request("https://foreign.example"), {"version": 2}, user, profile, cache)
+        await route.record_processing_ack(request("https://foreign.example"), {"version": 3}, user, profile, cache)
     assert error.value.status_code == 403
     profile.fields.pop(route.PROCESSING_ACK_FIELD)
     profile.write_success = False
     with pytest.raises(HTTPException) as error:
-        await route.record_processing_ack(request(), {"version": 2}, user, profile, cache)
+        await route.record_processing_ack(request(), {"version": 3}, user, profile, cache)
     assert error.value.status_code == 503
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.privacy
+async def test_old_mistral_only_ack_denies_call_before_capture_or_provider(runtime, monkeypatch):
+    profile = Profile()
+    profile.fields = {"voice_processing_ack_v2_at": 1_800_000_000}
+    original_read = route._processing_ack_at
+
+    async def old_profile(*_args):
+        return await original_read(profile, "owner")
+
+    monkeypatch.setattr(route, "_effective_processing_ack_at", old_profile)
+    socket, provider, task = await runtime.start(wait_ready=False)
+    await task
+    assert not socket.accepted and not provider.opened and not provider.audio
+    assert socket.close_options["reason"] == "voice_ack_required"
+    assert not runtime.issued and not runtime.finalized
+    assert not profile.writes
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.privacy

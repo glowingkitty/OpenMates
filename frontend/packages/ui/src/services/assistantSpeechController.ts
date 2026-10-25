@@ -55,6 +55,7 @@ interface SpeechStatusPayload extends SpeechStatusSegment {
   chat_id?: string;
   message_id?: string;
   segments?: SpeechStatusSegment[];
+  turn_track_id?: string;
   error?: string;
 }
 
@@ -146,9 +147,11 @@ class AssistantSpeechController {
   private readonly audioAttempts = new Map<string, AssistantSpeechAudioEvent>();
   private readonly liveCallSegmentIds = new Set<string>();
   private readonly rejectedLiveAudio = new Set<string>();
+  private turnTrack: { id: string; messageId: string; sourceVersion: number; executionVersion: number } | null = null;
   private liveSeal: {
     chatId: string; messageId: string; callId: string; sourceVersion: number;
     members: Map<string, number>;
+    trackId?: string;
     failed: boolean;
   } | null = null;
   private readonly earlyAudio = new Map<string, {
@@ -440,6 +443,19 @@ class AssistantSpeechController {
       return;
     }
     if (payload.status === "sealed") { this.handleLiveSeal(payload); return; }
+    if (payload.kind === "voice_prose_turn" && payload.voice_call_id) {
+      await this.handleTurnStatus(payload); return;
+    }
+    if (this.turnTrack?.messageId === payload.message_id && payload.kind === "voice_prose_clause") {
+      if (payload.segment_id && Number.isSafeInteger(payload.sequence) && payload.sequence! >= 0
+        && payload.source_version === this.turnTrack.sourceVersion) {
+        this.latestStatusBySegmentId.set(payload.segment_id, payload);
+        this.segmentSequence.set(payload.segment_id, payload.sequence!);
+        this.queue.registerTurnClause(payload.segment_id, payload.sequence!);
+        if (payload.status === "error" || this.isCancelledStatus(payload)) this.queue.fail();
+      }
+      this.publish(); return;
+    }
     if (!this.matchesLiveSeal(payload)) return;
     if (payload.message_id) this.supersedeCurrentMessage(payload.message_id);
     if (payload.status === "accepted" && payload.segments && this.pending) {
@@ -573,11 +589,43 @@ class AssistantSpeechController {
     return ["cancelled", "deleted", "invalidated"].includes(status?.status ?? "");
   }
 
+  private async handleTurnStatus(payload: SpeechStatusPayload): Promise<void> {
+    const id = payload.segment_id;
+    if (!id || !/^(?:[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(id)
+      || !this.activeCallId || payload.voice_call_id !== this.activeCallId || payload.chat_id !== this.callOwner
+      || !payload.message_id || payload.sequence !== 0 || !Number.isSafeInteger(payload.source_version) || payload.source_version! < 1
+      || !Number.isSafeInteger(payload.execution_version) || payload.execution_version! < 1) return;
+    if (this.turnTrack && this.turnTrack.messageId === payload.message_id &&
+      (this.turnTrack.id !== id || this.turnTrack.sourceVersion !== payload.source_version
+        || this.turnTrack.executionVersion !== payload.execution_version)) return;
+    const latest = this.latestStatusBySegmentId.get(id);
+    if (this.isCancelledStatus(latest) || this.olderAudioVersion(payload, latest ?? {})) return;
+    if (this.turnTrack?.messageId !== payload.message_id) {
+      this.supersedeCurrentMessage(payload.message_id);
+      this.chatId = payload.chat_id!; this.messageId = payload.message_id;
+      this.queue.start(payload.message_id, [{ id, sequence: 0, status: "generating", durationMs: 0,
+        waveform: [], ...defaultPresentation(0, "voice_prose_turn") }]);
+      this.turnTrack = { id, messageId: payload.message_id, sourceVersion: payload.source_version!, executionVersion: payload.execution_version! };
+      this.queue.registerTurnTrack(id);
+    }
+    this.latestStatusBySegmentId.set(id, payload);
+    this.segmentSequence.set(id, 0);
+    this.liveCallSegmentIds.add(id);
+    this.presentationBySegmentId.set(id, defaultPresentation(0, "voice_prose_turn"));
+    if (payload.status === "error" || this.isCancelledStatus(payload)) {
+      this.liveAudio.get(id)?.fail(); this.queue.fail(); this.publish(); return;
+    }
+    await this.hydrateReadySegment(payload);
+    this.flushEarlyAudio(id);
+  }
+
   private matchesLiveSeal(payload: SpeechStatusPayload): boolean {
     const seal = this.liveSeal;
     if (!seal || payload.message_id !== seal.messageId) return true;
     if (seal.failed) return false;
     if (!payload.segment_id || payload.sequence === -1) return true;
+    if (payload.kind === "voice_prose_turn") return payload.segment_id === seal.trackId
+      && payload.chat_id === seal.chatId && payload.voice_call_id === seal.callId && payload.source_version === seal.sourceVersion;
     return payload.chat_id === seal.chatId && payload.voice_call_id === seal.callId
       && payload.kind === "voice_prose_clause" && payload.source_version === seal.sourceVersion
       && seal.members.get(payload.segment_id) === payload.sequence;
@@ -607,17 +655,26 @@ class AssistantSpeechController {
       members.set(row.segment_id, row.sequence!);
       previousSequence = row.sequence!;
     }
+    if (this.turnTrack?.messageId === payload.message_id && payload.turn_track_id !== this.turnTrack.id) {
+      this.queue.fail(); this.publish(); return;
+    }
     const existing = this.liveSeal;
     if (existing && existing.messageId === payload.message_id && (existing.callId !== payload.voice_call_id
       || existing.sourceVersion !== payload.source_version || existing.members.size !== members.size
-      || existing.failed !== failed
+      || existing.failed !== failed || existing.trackId !== payload.turn_track_id
       || [...members].some(([id, sequence]) => existing.members.get(id) !== sequence))) return;
 
     this.supersedeCurrentMessage(payload.message_id);
     this.chatId = payload.chat_id;
     this.messageId = payload.message_id;
     this.liveSeal = { chatId: payload.chat_id, messageId: payload.message_id, callId: payload.voice_call_id,
-      sourceVersion: payload.source_version!, members, failed };
+      sourceVersion: payload.source_version!, members, failed, trackId: payload.turn_track_id };
+    if (payload.turn_track_id !== undefined) {
+      if (this.turnTrack?.id !== payload.turn_track_id || this.turnTrack.messageId !== payload.message_id) { this.queue.fail(); return; }
+      this.queue.sealTurnTrack(payload.turn_track_id, [...members].map(([id,sequence]) => ({id,sequence})), failed);
+      if (failed) this.liveAudio.get(payload.turn_track_id)?.fail();
+      this.publish(); return;
+    }
     for (const [id, pending] of this.earlyAudio) {
       if (pending.events[0]?.message_id === payload.message_id && pending.events[0]?.kind === "voice_prose_clause"
         && !members.has(id)) this.dropEarlyAudio(id);
@@ -676,6 +733,11 @@ class AssistantSpeechController {
     if (!isAssistantSpeechAudioEvent(payload) || !supportsAssistantSpeechStream()) return;
     if (!this.activeCallId || payload.voice_call_id !== this.activeCallId || payload.chat_id !== this.callOwner
       || this.stoppedMessageIds.has(payload.message_id) || this.dismissedMessageIds.has(payload.message_id)) return;
+    if (this.turnTrack?.messageId === payload.message_id) {
+      if (payload.kind === "voice_prose_clause") return;
+      if (payload.kind === "voice_prose_turn" && (payload.segment_id !== this.turnTrack.id
+        || payload.source_version !== this.turnTrack.sourceVersion || payload.execution_version !== this.turnTrack.executionVersion)) return;
+    }
     if (!this.matchesLiveSeal(payload)) return;
     if (this.rejectedLiveAudio.has(payload.segment_id)) return;
     const status = this.latestStatusBySegmentId.get(payload.segment_id);
@@ -723,7 +785,7 @@ class AssistantSpeechController {
             this.error = "Live speech playback failed. Try speaking again.";
             this.publish();
           }
-        });
+        }, payload.kind === "voice_prose_turn");
         this.liveAudio.set(payload.segment_id, stream);
         if (!this.queue.attachStream(payload.segment_id, stream)) { stream.dispose(); return; }
         stream.accept(payload);
@@ -735,7 +797,11 @@ class AssistantSpeechController {
       return;
     }
     if (payload.source_version !== current.source_version || payload.execution_version !== current.execution_version) return;
-    if (payload.phase !== "start") this.liveAudio.get(payload.segment_id)?.accept(payload);
+    if (payload.phase !== "start") {
+      const stream = this.liveAudio.get(payload.segment_id);
+      stream?.accept(payload);
+      if (payload.phase === "alignment" && stream?.active) this.queue.updateTurnTimings(payload.clause_timings!);
+    }
   }
 
   private flushEarlyAudio(segmentId: string): void {
@@ -774,6 +840,7 @@ class AssistantSpeechController {
     this.liveCallSegmentIds.clear();
     this.rejectedLiveAudio.clear();
     this.liveSeal = null;
+    this.turnTrack = null;
     for (const id of this.earlyAudio.keys()) this.dropEarlyAudio(id);
     this.queue.disposeStreams();
   }
@@ -812,9 +879,9 @@ class AssistantSpeechController {
     if (sequence === undefined) return;
     const presentation = this.presentationBySegmentId.get(status.segment_id) ?? defaultPresentation(sequence, status.kind);
     if (this.liveCallSegmentIds.has(status.segment_id)
-      || (this.activeCallId && ["voice_prose_clause", "waiting_confirmation"].includes(presentation.kind))) {
+      || (this.activeCallId && ["voice_prose_clause", "waiting_confirmation", "voice_prose_turn"].includes(presentation.kind))) {
       const unsupported = !supportsAssistantSpeechStream();
-      const invalidKind = !["voice_prose_clause", "waiting_confirmation"].includes(presentation.kind);
+      const invalidKind = !["voice_prose_clause", "waiting_confirmation", "voice_prose_turn"].includes(presentation.kind);
       this.queue.upsertSegment({ id: status.segment_id, sequence,
         status: unsupported || invalidKind || this.rejectedLiveAudio.has(status.segment_id) || status.status === "error" ? "failed" : "generating",
         durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000), waveform: [], ...presentation });

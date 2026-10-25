@@ -49,7 +49,7 @@ from backend.apps.ai.processing.model_routing import (
 from backend.apps.ai.utils.instruction_loader import (
     REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
 )
-from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.utils.mate_utils import MateConfig, select_mate_system_prompt
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
 from backend.apps.ai.utils.app_skill_result_groups import (
     is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata,
@@ -4296,15 +4296,6 @@ async def handle_main_processing(
         heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
         if heard_context:
             prompt_parts.append(heard_context)
-        prompt_parts.append(
-            "This turn is an ongoing voice conversation with the normal rich chat interface. "
-            "Answer naturally in the user's language, using concise spoken sentences. "
-            "Keep all useful inline source links, app skill results, image groups and other embeds "
-            "in the canonical response. Introduce visual results naturally in nearby prose so the "
-            "spoken sentences make sense while the user sees those results. Do not read URLs, "
-            "embed identifiers, raw code or table cells aloud; explain their significance in prose. "
-            "Use the usual skills and permission flow. Do not claim work is complete before it is."
-        )
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -4321,10 +4312,11 @@ async def handle_main_processing(
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
     if selected_mate_config:
-        if learning_mode_active:
-            prompt_parts.append(selected_mate_config.learning_mode_system_prompt)
-        else:
-            prompt_parts.append(selected_mate_config.default_system_prompt)
+        prompt_parts.append(select_mate_system_prompt(
+            selected_mate_config,
+            voice_mode=bool(getattr(request_data, "voice_mode", False)),
+            learning_mode=learning_mode_active,
+        ))
         # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
     # This informs the user who created the assistant and which model (name and id) powers the response.
@@ -5206,6 +5198,15 @@ async def handle_main_processing(
             "If the user asks for image, audio, music, video, or other file generation, "
             "or an account-connected action, explain that creating an account is required."
         )
+    # Apply delivery after domain, focus and rich-output instructions. Keep the
+    # exact same canonical ethics/privacy and tool/model policies in every mode.
+    from backend.apps.ai.assistant_speech.voice_context import build_voice_main_instruction
+
+    voice_main_instruction = build_voice_main_instruction(
+        base_instructions, voice_mode=bool(getattr(request_data, "voice_mode", False)),
+    )
+    if voice_main_instruction:
+        prompt_parts.append(voice_main_instruction)
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts

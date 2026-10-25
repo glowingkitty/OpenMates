@@ -3,16 +3,17 @@ import { get } from 'svelte/store';
 import { text } from '../i18n/translations';
 import { notificationStore } from '../stores/notificationStore';
 import { getApiUrl } from '../config/api';
+import { externalLinks } from '../config/links';
 
-interface ProcessingAcknowledgement { version: 2; acknowledged: boolean; acknowledged_at: number | null }
+interface ProcessingAcknowledgement { version: 3; acknowledged: boolean; acknowledged_at: number | null }
 async function acknowledgement(signal: AbortSignal, save: boolean): Promise<ProcessingAcknowledgement> {
   const response = await fetch(`${getApiUrl()}/v1/settings/voice-processing-ack`, {
     method: save ? 'POST' : 'GET', credentials: 'include', signal,
-    ...(save ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: 2 }) } : {}),
+    ...(save ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: 3 }) } : {}),
   });
   if (!response.ok) throw new Error('Voice privacy acknowledgement unavailable');
   const result = await response.json() as ProcessingAcknowledgement;
-  if (result.version !== 2 || typeof result.acknowledged !== 'boolean' ||
+  if (result.version !== 3 || typeof result.acknowledged !== 'boolean' ||
       (result.acknowledged ? !Number.isSafeInteger(result.acknowledged_at) || result.acknowledged_at! <= 0 : result.acknowledged_at !== null)) {
     throw new Error('Invalid voice privacy acknowledgement');
   }
@@ -47,7 +48,7 @@ export async function ensureVoiceCallPrivacyAcknowledgement(signal: AbortSignal,
       notificationId = notificationStore.addNotificationWithOptions('info', {
         title: translate('voicecall.privacy_title'),
         message: translate('voicecall.privacy_description'),
-        messageLink: { href: 'https://legal.mistral.ai/terms/privacy-policy', label: translate('voicecall.privacy_terms') },
+        messageLink: { href: externalLinks.legal.privacyPolicy, label: translate('voicecall.privacy_terms') },
         duration: 0,
         dismissible: true,
         dedupeKey: 'voice-call-privacy',

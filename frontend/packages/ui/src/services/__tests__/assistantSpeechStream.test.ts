@@ -128,3 +128,44 @@ it("requires supported MP3 MediaSource and validates bounded call/attempt envelo
     { phase: "end", audio_data: "private-bytes" }, { chunk_index: Number.NaN },
   ]) expect(isAssistantSpeechAudioEvent({ ...audioEvent(), ...invalid })).toBe(false);
 });
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+it('validates bounded text-free continuous clause alignment without accepting finite-stream alignment',()=>{
+  const timing={segment_id:'a'.repeat(64),sequence:0,start_ms:0,end_ms:1000};
+  const event=audioEvent({kind:'voice_prose_turn',phase:'alignment',clause_timings:[timing]});
+  expect(isAssistantSpeechAudioEvent(event)).toBe(true);
+  expect(isAssistantSpeechAudioEvent({...event,kind:'voice_prose_clause'})).toBe(false);
+  expect(isAssistantSpeechAudioEvent({...event,clause_timings:[{...timing,text:'private'}]})).toBe(false);
+  expect(isAssistantSpeechAudioEvent({...event,clause_timings:[{...timing,end_ms:600001}]})).toBe(false);
+  expect(isAssistantSpeechAudioEvent({...event,clause_timings:[timing,{...timing,segment_id:'b'.repeat(64),sequence:1,start_ms:500}]})).toBe(false);
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+it('bounds continuous stream lifetime even while its input keeps producing audio',()=>{
+  const failure=vi.fn();const stream=new AssistantSpeechStream(failure,true);
+  const turn={kind:'voice_prose_turn' as const};
+  stream.accept(audioEvent(turn));
+  for(let index=0;index<40;index++){
+    stream.accept(audioEvent({...turn,phase:'chunk',chunk_index:index,audio_data:btoa('a')}));
+    vi.advanceTimersByTime(14999);
+  }
+  expect(failure).not.toHaveBeenCalled();
+  stream.accept(audioEvent({...turn,phase:'chunk',chunk_index:40,audio_data:btoa('a')}));
+  vi.advanceTimersByTime(41);
+  expect(failure).toHaveBeenCalledOnce();
+  expect(stream.active).toBe(false);
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.privacy
+it('permits a continuous turn above the finite-clause bound but rejects above sixteen MiB',()=>{
+  const failure=vi.fn();const stream=new AssistantSpeechStream(failure,true);
+  const media=TestMediaSource.instances[0];media.open();
+  const turn={kind:'voice_prose_turn' as const};stream.accept(audioEvent(turn));
+  const bytes=btoa('a'.repeat(MAX_SPEECH_STREAM_CHUNK_BYTES));
+  for(let index=0;index<128;index++){
+    stream.accept(audioEvent({...turn,phase:'chunk',chunk_index:index,audio_data:bytes}));media.buffer.flush();
+  }
+  expect(failure).not.toHaveBeenCalled();
+  stream.accept(audioEvent({...turn,phase:'chunk',chunk_index:128,audio_data:bytes}));
+  expect(failure).toHaveBeenCalledOnce();expect(stream.active).toBe(false);
+});

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@9
+specification: feature.assistant-response-speech@10
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -326,31 +326,58 @@ voxtral_lazy_mistral_generation:
     then: Speak is available. Only the first paragraph is initially requested from Mistral; selecting the third requests that paragraph once. A matching ready paragraph replays without another request or charge.
 
 voxtral_safety_before_generation:
-  - id: safety-before-generation
-    given: The requested speech segment is rejected by the existing speech safety decision.
-    when: The user attempts to listen to it.
-    then: No Mistral generation or speech charge occurs, the player shows a safe retry or failure state, and the ordinary text response remains available.
-
+- id: safety-before-generation
+  given: A response paragraph or incrementally released call clause is rejected by the normal deterministic
+    or semantic speech safety decision.
+  when: The speech path considers dispatching that text.
+  then: Neither Mistral nor ElevenLabs receives the rejected text, no speech credits are charged, and a safe
+    visible speech error leaves the canonical text response intact.
 voxtral_segment_privacy:
-  - id: segment-privacy
-    given: A permitted message paragraph is ready for speech synthesis.
-    when: The server generates its audio.
-    then: Mistral receives only that speakable paragraph and required voice settings. Plaintext is not durably logged or stored, and audio is encrypted before private storage.
-
+- id: segment-privacy
+  given: A permitted stored-message paragraph is ready for speech synthesis.
+  when: The server generates its audio.
+  then: Mistral receives only that speakable paragraph and required voice settings. Plaintext is not durably
+    logged or stored, and audio is encrypted before private storage.
+- id: call-privacy
+  given: A listener has only the old Mistral-only call acknowledgement.
+  when: They accept the new notice naming Mistral transcription and ElevenLabs speech and begin a call.
+  then: Version-3 consent is confirmed before capture or paid dispatch. ElevenLabs receives only released
+    approved speech text and required voice settings; no unrelated chat or keys are sent and no call audio
+    history or replay asset is stored.
 voxtral_cumulative_mistral_price:
-  - id: cumulative-mistral-price
-    given: Mistral successfully generates paragraphs containing 120 and 280 characters for one assistant message.
-    when: The two encrypted files become ready and a billing retry runs.
-    then: The first paragraph charges two credits and the second adds four, for six total. Retry and replay add no duplicate charge; the usage is attributed to Mistral and Voxtral TTS 3.
-
+- id: cumulative-mistral-price
+  given: Mistral successfully generates paragraphs containing 120 and 280 characters for one assistant message.
+  when: The two encrypted files become ready and a billing retry runs.
+  then: The first paragraph charges two credits and the second adds four, for six total. Retry and replay
+    add no duplicate charge; the usage is attributed to Mistral and Voxtral TTS 3.
+- id: cumulative-call-price
+  given: Eleven v4 Turbo receives incremental appends of 120 and 280 exact characters on one continuous turn track
+    for an assistant message.
+  when: The 400-character synthesis completes successfully and settlement retries arrive.
+  then: The ledger charges sixteen credits once for the cumulative 400 characters, attributed to ElevenLabs and
+    Eleven v4 Turbo; appends and retries add nothing. Clauses within a track add no duplicate synthesis charge,
+    and interrupted incomplete synthesis adds none.
 live_call_streaming:
-  - id: hear-call-speech-while-provider-is-generating
-    assertion_ids: [assistant-speech.playback.live-call-streaming, assistant-speech.execution.first-segment-progressive]
-    given: A listener is in an active voice call in a browser supporting streamed MP3. The assistant produces an approved complete prose clause alongside ordinary chat text and image previews.
-    when: Mistral begins returning audio and is still generating the rest of that clause.
-    then: The listener immediately hears the arriving audio in order, only on the owning call. No audio file, generated audio embed, upload or replay cache is created. The encrypted conversation text and normal rich content are saved, and the completed synthesis is billed once.
-  - id: manual-speak-after-an-ephemeral-call
-    assertion_ids: [assistant-speech.playback.live-call-streaming]
-    given: A voice call has ended and its assistant text remains in the chat; none of the call's spoken audio was stored.
-    when: The user later presses Speak on that assistant message, then presses Speak again after listening.
-    then: The first explicit Speak action generates and caches encrypted audio through normal message playback. The next manual replay reuses that cache without another synthesis or charge. An interrupted or failed live stream never silently regenerates, resumes from a nonexistent stored file or marks unheard speech complete.
+- id: hear-call-speech-while-provider-is-generating
+  assertion_ids:
+  - assistant-speech.playback.live-call-streaming
+  - assistant-speech.execution.first-segment-progressive
+  - assistant-speech.segmentation.one-file-per-segment
+  - assistant-speech.voice.fixed-versioned-mate-profile
+  given: A listener is in an active web call; a long ordinary main response is streaming approved prose, source
+    links and image previews.
+  when: Eleven v4 Turbo receives the first released clause, returns audio, and receives another clause before
+    response and speech input completion.
+  then: The listener hears one continuous ordered turn track immediately while rich chat keeps progressing
+    through normal shared decisions and permissions. No call audio file, upload, generated embed or replay
+    cache exists. Exact successful submitted characters settle once at 0.04 credits per character.
+- id: manual-speak-after-an-ephemeral-call
+  assertion_ids:
+  - assistant-speech.playback.live-call-streaming
+  given: A call ends with encrypted rich assistant text saved, and no call audio stored. An earlier response
+    was interrupted without reliable clause timing.
+  when: The user presses manual Speak on the saved message, then replays it after listening.
+  then: The interrupted call records an explicit empty heard boundary and rejects late audio; it never claims
+    the full response heard. All clauses count as heard only for a sealed response with successful provider
+    completion and native playback end. Manual Speak separately uses Mistral at 0.013 credits per character
+    and encrypts its audio; replay uses the cache without generation or charge.

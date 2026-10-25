@@ -50,10 +50,18 @@ const privacyFailureCodes = new Map([
   ['Personal privacy scope changed during freshness check', 'privacy_freshness_changed'],
   ['Personal privacy owner or preferences changed before filtering', 'privacy_filter_changed'],
 ]);
+// Exact static predecessor guards only; never export raw exception messages.
+const predecessorFailureCodes = new Map([
+  ['Pending message row is unavailable for durable embed preparation.', 'pending_message_row_unavailable'],
+  ['Pending message embed bundle is invalid.', 'pending_message_journal_invalid'],
+  ['Reply recovery requires a connected foreground chat.', 'reply_recovery_foreground_required'],
+  ['Completed reply discovery timed out.', 'reply_recovery_discovery_timeout'],
+  ['Completed reply discovery did not finish.', 'reply_recovery_not_completed'],
+]);
 const deliveryErrorCodes = new Set(['immutable_chat_key_mismatch', 'message_identity_mismatch', 'preflight_mismatch',
   'recovery_key_mismatch', 'version_conflict', 'inference_commitment_mismatch', 'client_update_required',
   'durable_preflight_failed', 'preflight_expired', 'preflight_required', 'team_chat_scope_mismatch',
-  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed', ...privacyFailureCodes.values()]);
+  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed', ...privacyFailureCodes.values(), ...predecessorFailureCodes.values()]);
 const deliveryHttpStatuses = new Set([400, 401, 403, 404, 408, 409, 413, 422, 429, 500, 502, 503, 504]);
 const deliveryErrorModules = new Set(['services/voiceCallTurns.ts', 'services/chatSyncService.ts',
   'services/sendersChatMessages.ts', 'services/preparedPrivacyForSend.ts', 'services/preflightAcknowledgement.ts',
@@ -75,7 +83,7 @@ function deliveryFailureMetadata(error: unknown): VoiceCallDeliveryFailure {
   }
   if (typeof value.code === 'string' && deliveryErrorCodes.has(value.code)) failure.errorCode = value.code;
   if (!failure.errorCode && error instanceof Error) {
-    const privacyCode = privacyFailureCodes.get(error.message);
+    const privacyCode = privacyFailureCodes.get(error.message) ?? predecessorFailureCodes.get(error.message);
     if (privacyCode) failure.errorCode = privacyCode;
   }
   const status = value.status ?? value.statusCode;
@@ -107,7 +115,7 @@ export function reportVoiceCallTurnDelivery(
 }
 
 const canonicalPrerequisites = new Set([
-  'sender', 'predecessor', 'optimistic_timestamp', 'model_admission', 'personal_privacy',
+  'sender', 'predecessor', 'predecessor_wait', 'journal_read', 'reply_discovery', 'optimistic_timestamp', 'model_admission', 'personal_privacy',
   'fast_admission', 'connected_accounts', 'embed_preparation', 'saved_history', 'metadata_and_keys',
   'private_context', 'history_projection', 'embed_storage', 'preflight_key', 'preflight_ciphertext',
   'preflight_journal', 'preflight_serialization', 'preflight_receipt', 'preflight_dispatch',
@@ -138,7 +146,7 @@ export function createVoiceCallSendDiagnostics(message: Pick<Message,
 
 function deliveryFailureCode(error: unknown): string {
   if (error instanceof Error) {
-    const privacyCode = privacyFailureCodes.get(error.message);
+    const privacyCode = privacyFailureCodes.get(error.message) ?? predecessorFailureCodes.get(error.message);
     if (privacyCode) return privacyCode;
     if (error.message === 'The previous encrypted reply has not been saved. Retry this message after recovery.') return 'predecessor_not_saved';
     if (error.message === 'An active message send cannot change its immutable content.') return 'message_identity_conflict';
