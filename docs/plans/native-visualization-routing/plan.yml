@@ -1,0 +1,255 @@
+schema_version: 2
+profile: concise
+id: native-visualization-routing
+title: Reliable native visualization instructions and explicit-only Mermaid source
+status: implementing
+goal: >-
+  we do not want to see any Mermaid code whatsoever unless explicitly mentioned
+  by the user asking for Mermaid code. But otherwise the default must be to use
+  the existing instructions. So investigate and then make a plan on how we should
+  improve and fix this reliably.
+tracking:
+  authority: OpenMates Tasks
+  task: TASK-3560
+  task_id: eecc7891-3e82-4e5c-ae1c-bf3738ac101d
+  investigation_task: TASK-69
+  session: d238
+clarified_intent:
+  user_direction: >-
+    Jeff should include the instructions whenever a process flow or an
+    architecture or anything mind map or diagram related is being discussed in
+    a chat, so that the main processor can decide whether or not to use them.
+  loading_rule: >-
+    Discussing these subjects in the conversation is sufficient to load the
+    relevant public guidance. Neither an explicit request for a visual nor a
+    prior decision to generate one is required. Include preceding conversation
+    context when interpreting short follow-ups.
+  main_processor_discretion: >-
+    Loaded guidance offers available methods and native formats. The main
+    processor may use prose alone, a native mind map, or a native diagram as
+    appropriate. Loading guidance must not instruct it to create a visual in
+    every relevant response. Mermaid source still requires an explicit user request.
+investigation:
+  inspected_on: '2026-10-25'
+  source_revision: b08826725
+  conclusion: >-
+    The offending turn omitted native visualization instructions and loaded no
+    private app settings/memories. The model produced Mermaid anyway, and the
+    stream consumer accepted it as ordinary code. This establishes instruction
+    selection and output-enforcement failures. It does not establish that a
+    particular saved personal Memory failed decryption or was lost.
+  confirmed:
+    - >-
+      The saved 27-line Mermaid code embed matches the screenshot. No user
+      message in the preceding conversation requested Mermaid, a mind map, or
+      a diagram explicitly; the assistant added the visualization itself.
+      The preceding assistant response used an ASCII architecture sketch.
+    - >-
+      At 2026-10-24 15:16:33 UTC, preprocessing returned an empty
+      load_app_settings_and_memories list, web-search as its relevant skill,
+      and website as its preview type. Stage one reported one selected app.
+      The exact selected_app_ids list is not established by these log entries.
+    - >-
+      The corresponding APP_INSTRUCTIONS record names only images and web;
+      neither mindmaps nor diagrams appears. APP_SETTINGS_MEMORIES explicitly
+      reports an empty dictionary. The available-apps list nevertheless
+      includes both mindmaps and diagrams: registration alone was insufficient.
+    - >-
+      The same request then created a processing code placeholder with language
+      mermaid. This was generation and generic-code persistence behavior,
+      rather than a native mind-map renderer failing to display valid content.
+    - >-
+      Current app instruction injection skips apps omitted by selected_app_ids.
+      Mind Maps has no executable skill to bring its instructions back through
+      baseline-skill exceptions. Its explicit-request guard only removes
+      conflicting image-generation skills; it does not guarantee native guidance.
+    - >-
+      The public capability catalogue has a detailed diagrams description but
+      no corresponding mindmaps description; the latter falls back to its name.
+      The preview-type catalogue has neither mindmap nor diagram. App filtering
+      also narrows private-memory candidates before relevance selection.
+    - >-
+      Diagram Design uses published app Memories, separately from private user
+      settings. Its full guides require both the diagrams app and selected type
+      IDs; an empty type selection returns no guidance. The incident's empty
+      private-memory list alone therefore does not explain the whole omission.
+    - >-
+      A second relevance gate asks whether the latest user request asks to
+      create, redraw or revise an actual diagram. Selected Diagram Design type
+      IDs are returned only when that answer passes its threshold. Broadening
+      the app shortlist instruction alone would still leave this explicit-request
+      gate preventing the guidance from reaching a general architecture discussion.
+    - >-
+      The software-development mate already says to use Mermaid only when
+      explicitly requested. A separate old Mermaid instruction file is dormant
+      and describes an obsolete disabled-diagram/ASCII fallback. Existing static
+      tests check those strings; they do not enforce actual generated behavior.
+      Mermaid-specific embed detection is disabled, so its source intentionally
+      falls through to the generic Code path without an explicit-request check.
+  unresolved:
+    - >-
+      Whether a particular relevant private preference existed and was eligible
+      at the incident revision remains unverified. Current CLI memory listing
+      stops with Personal memory owner changed during preparation, including
+      explicit Personal scope. Preserve that owner check; its present failure
+      is not evidence of the historical browser request's failure.
+    - >-
+      The records prove omitted guidance and unchecked output. They do not prove
+      whether any single catalogue description, classifier score, or model
+      compliance failure was solely responsible for choosing Mermaid.
+  evidence_handling: >-
+    The original chat, embeds and bounded request logs were inspected privately.
+    Raw prompts, account identifiers, saved Memory bodies and log exports remain
+    outside the repository. Any regression fixture must use synthetic content.
+  validation_performed:
+    - The concise Plan passes scripts/plan_validate.py.
+    - >-
+      Both existing Mermaid/selected-diagram instruction contract tests pass
+      (2 passed, 8 deselected). These are static source checks, not proof that
+      generated responses obey the instructions; the incident demonstrates that gap.
+source_anchors:
+  - backend/apps/mindmaps/app.yml:29
+  - backend/apps/ai/processing/jev_preprocessing.py:31
+  - backend/apps/ai/processing/jev_preprocessing.py:122
+  - backend/apps/ai/processing/jev_preprocessing.py:642
+  - backend/apps/ai/processing/jev_preprocessing.py:699
+  - backend/apps/ai/processing/preprocessor.py:4385
+  - backend/apps/ai/processing/main_processor.py:4813
+  - backend/apps/ai/processing/main_processor.py:5018
+  - backend/apps/diagrams/diagram_guidance.py:122
+  - backend/apps/ai/mates/software_development.md:47
+  - backend/apps/ai/utils/mermaid_fences.py:16
+  - backend/tests/test_ai_instruction_contracts.py:82
+existing_contracts:
+  - specifications/features/app-memories/specification.yml
+  - specifications/features/chats/specification.yml
+  - docs/plans/mindmap-embeds/plan.yml
+  - docs/plans/editable-diagram-design/plan.yml
+scope:
+  in:
+    - Broader public Mind Maps and Diagram Design guidance loading for relevant conversation subjects.
+    - Main-processor discretion over whether a visual helps and which native format to use.
+    - First-turn and follow-up selection, complete prompt inclusion and truthful existing Memory receipts.
+    - Regression checks for prose-only answers, native visuals and explicit-only Mermaid source.
+  out:
+    - Rewriting the reported chat or bulk-converting existing Mermaid/code embeds.
+    - Re-enabling the retired Mermaid renderer or building a Mermaid-to-mind-map converter.
+    - Automatically loading every private Memory or bypassing owner, consent or Project-access checks.
+    - Changing inference model/provider defaults or using model overrides to make tests pass.
+    - Repairing unrelated CLI account/session tooling as part of this implementation.
+    - Changing private-memory selection policy or weakening its existing consent and owner checks.
+    - New streaming buffers, artifact authorization protocols or regeneration loops in the initial repair.
+proposed_implementation:
+  - outcome: Select public visual guidance when its subject is discussed.
+    changes:
+      - >-
+        Update Jev's stage-one app relevance instruction and capability descriptions
+        to include Mind Maps and Diagram Design guidance whenever processes,
+        workflows, architectures, relationships, concept maps or related visual
+        subjects are discussed. Evaluate the conversation context, not only whether
+        the latest message explicitly requests a diagram or calls an app skill.
+      - >-
+        Give Mind Maps a meaningful public capability description alongside
+        Diagram Design. Include their compact format instructions in relevant
+        turns even though neither app has an executable skill. Preserve existing
+        explicit visual requests as sufficient positive selection cases.
+      - >-
+        Ensure the needs_detailed_context decision and cached/continued routing
+        paths retain access to relevant guidance for discussion-only requests.
+        A public app shortlist makes guidance available; it does not execute an
+        app, authorize private access or require the assistant to create anything.
+  - outcome: Load useful complete guides without requiring a creation request.
+    changes:
+      - >-
+        Broaden the stage-two diagram_creation decision into guidance relevance:
+        could the available process, architecture or diagram guides help the
+        main processor explain the conversation? Remove the explicit-artifact-request
+        prerequisite for selecting guide types. Keep any actual creation-intent
+        distinction separate if another caller still needs it.
+      - >-
+        Select the most relevant existing Diagram Design types from the current
+        discussion and load their complete common resources and type guides,
+        retaining the existing bounded type limit. Loading public guidance does
+        not mean loading all 44 guides or decrypting private Memories.
+      - >-
+        State in the active app instructions that the main processor decides
+        whether to use a visual when guidance was loaded because of discussion
+        relevance. When it chooses one, follow the existing openmates_mindmap
+        or openmates_diagram contract. Preserve explicit user requests and format
+        preferences rather than producing every available visual type.
+      - >-
+        Preserve and clearly state the explicit-only Mermaid rule in active
+        guidance. Do not reactivate the dormant Mermaid instruction file with
+        its obsolete disabled-diagram/ASCII fallback.
+      - >-
+        Reuse actual applied-memory receipts for selected public type guides.
+        Assert prompt inclusion, rather than treating a shortlist entry as proof
+        that the main processor received a complete guide. Preserve private-memory
+        consent, ownership, revision checks and content-free operational logging.
+  - outcome: Verify guidance availability separately from visual generation.
+    changes:
+      - >-
+        Add behavioral selection and prompt-assembly cases for architecture,
+        everyday process flows, concept/relationship discussions and short
+        follow-ups without asking for a visual. Verify relevant complete guides
+        reach the main prompt even when no executable skill is selected.
+      - >-
+        Cover unrelated discussion as a negative control. Also cover an explicit
+        request for prose only: guidance may be present, but no visual is forced.
+        Preserve explicit native-map/diagram and explicit Mermaid source controls.
+      - >-
+        Verify actual selection with a bounded real-inference dev evaluation
+        using ordinary default routing. Mocked decision responses prove downstream
+        loading behavior, not that Jev follows its broader selection instruction.
+separate_hardening_proposal: >-
+  A shared generated-output guard could provide stronger enforcement if models
+  still emit unsolicited Mermaid after receiving the right guidance. The earlier
+  buffer/regeneration design is not part of this clarified first repair. Record
+  remaining violations honestly and reassess that separate work from evidence;
+  a classifier/prompt change alone is not a deterministic output guarantee.
+required_verification_for_implementation:
+  local:
+    - >-
+      Behavioral unit tests for discussion-based app/type selection and assembled
+      prompt contents, including Mind Maps without executable skills, architecture
+      and process discussions without visual requests, and short follow-up edits.
+      Extend test_preprocessor_jev.py and extracted prompt-assembly helpers;
+      static instruction-string tests remain supporting evidence only.
+    - >-
+      Extend test_diagram_guidance.py to prove complete selected guides reach
+      the prompt for discussion-only requests and preserve the existing type
+      limit. Check active instructions retain the main processor's discretion,
+      explicit-only Mermaid and the existing native formats.
+    - >-
+      Preserve test_memory_context.py source/consent/revision checks and prove
+      denied/unavailable private Memories do not prevent public guide loading.
+  isolated_ci:
+    - >-
+      Update contract-tagged product coverage for loaded-guide receipts and
+      optional prose/native visual outcomes using synthetic signed inference
+      replay. Submit with sessions.py ci-source and the existing CI coordinator;
+      no live provider inference in CI.
+    - >-
+      Add a browser regression for generated native mind-map preview/fullscreen,
+      reload and reopened history, and an ordinary source-code result for an
+      explicit Mermaid request. Existing mindmap-embed.spec.ts tests import,
+      not generation-time instruction selection, so it is insufficient alone.
+  real_inference_dev:
+    - >-
+      In an isolated test Project/profile, run a small fixed set using ordinary
+      automatic routing: architecture discussion, everyday process discussion,
+      a short follow-up, an explicit prose-only answer, an explicit native visual,
+      and explicit Mermaid source. Inspect guide loading independently from
+      actual embed types. Do not require visuals for discussion-only cases,
+      mutate the reported conversation or force a model/provider. Any unsolicited
+      Mermaid remains a failed outcome to report, not a waived result.
+completion_conditions:
+  - Relevant architecture, process-flow and diagram-related discussions load the public instructions without requiring an explicit visual request.
+  - The main processor retains discretion to answer with prose alone or use a suitable native visual; loading never mandates generation.
+  - When a visual is generated in the required regression cases it follows the existing native format, unless Mermaid source was explicitly requested.
+  - Private Memory access and encrypted history remain source-scoped, consented and intact; receipts describe what was actually applied.
+  - Required focused checks pass, with isolated CI evidence and the bounded default-routing dev evaluation recorded separately.
+delivery:
+  authorization: User approved implementation and repeating the original request on 2026-10-25.
+  current_scope: Implementing the clarified guidance-loading repair and focused verification.
+  next_step: Complete isolated CI, scoped dev deployment and default-routing replay of the original request.

@@ -5,13 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from backend.apps.ai.processing.jev_preprocessing import (
     decide_app_and_project_routing_with_jev,
     decide_preprocessing_with_jev,
 )
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
-from backend.apps.ai.testing.diagram_html_fixture import GROUP, PROMPT, active, llm_fixture
+from backend.apps.ai.testing.diagram_html_fixture import (
+    GROUP, PROMPT, DISCUSSION_PROMPT, PROSE_PROMPT, PROSE_RESPONSE,
+    SOURCE_PROMPT, SOURCE_RESPONSE, MINDMAP_PROMPT, MINDMAP_RESPONSE, MINDMAP_SOURCE, active, llm_fixture,
+)
+from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
 from backend.apps.ai.utils.diagram_html_fences import validate_diagram_html_source
 from backend.shared.providers.typesafe import budget as jev_budget
 from backend.shared.providers.typesafe import client as jev_client_module
@@ -42,8 +47,9 @@ def diagram_replay(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 @pytest.mark.asyncio
-async def test_diagram_replay_selects_app_and_type_through_real_jev_questions(diagram_replay) -> None:
-    history = [{"role": "user", "content": PROMPT}]
+@pytest.mark.parametrize("prompt", [PROMPT, DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT])
+async def test_diagram_replay_selects_app_and_type_through_real_jev_questions(diagram_replay, prompt) -> None:
+    history = [{"role": "user", "content": prompt}]
     routing = await decide_app_and_project_routing_with_jev(
         model_id="typesafe/jev-1.13", secrets_manager=None, message_history=history,
         available_apps=["diagrams", "web"], available_skills=[], available_focus_modes=[],
@@ -62,6 +68,45 @@ async def test_diagram_replay_selects_app_and_type_through_real_jev_questions(di
     assert selected["selected_app_ids"] == ["diagrams"]
     assert selected["relevant_diagram_types"] == ["type-architecture"]
     assert selected["relevant_diagram_variant"] == "minimal_dark"
+
+
+@pytest.mark.parametrize(("prompt", "previous_prompt"), [
+    (DISCUSSION_PROMPT, None), (PROSE_PROMPT, None), (SOURCE_PROMPT, None),
+    (SOURCE_PROMPT, PROSE_PROMPT), (DISCUSSION_PROMPT, SOURCE_PROMPT), (MINDMAP_PROMPT, None),
+])
+# contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.precedence.obligations
+def test_discussion_replay_requires_complete_prompt_before_optional_output(diagram_replay, prompt, previous_prompt) -> None:
+    root = Path(__file__).resolve().parents[1] / "apps"
+    protocols = [yaml.safe_load((root / app / "app.yml").read_text())["instructions"][0]["instruction"]
+                 for app in ("mindmaps", "diagrams")]
+    guide = diagram_guidance_prompt(["type-architecture"], variant="minimal_dark")
+    history = ([{"role": "user", "content": previous_prompt},
+                {"role": "assistant", "content": "Previous answer."}] if previous_prompt else [])
+    kwargs = {"model": "fixture-model", "stream": True,
+              "messages": [*history, {"role": "user", "content": prompt}], "tools": []}
+    with pytest.raises(AssertionError, match="complete native visualization guidance"):
+        llm_fixture("llm/fixture-model", kwargs)
+    for missing in range(3):
+        incomplete = [part for index, part in enumerate([*protocols, guide]) if index != missing]
+        with pytest.raises(AssertionError, match="complete native visualization guidance"):
+            llm_fixture("llm/fixture-model", {**kwargs, "messages": [
+                {"role": "system", "content": "\n".join(incomplete)}, *kwargs["messages"]]})
+    replay = llm_fixture("llm/fixture-model", {**kwargs, "messages": [
+        {"role": "system", "content": "\n".join([*protocols, guide])}, *kwargs["messages"]]})
+    content = "".join(chunk["value"] for chunk in replay["response"]["chunks"])
+    if prompt == SOURCE_PROMPT:
+        assert content == SOURCE_RESPONSE
+    elif prompt == MINDMAP_PROMPT:
+        from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+        assert content == MINDMAP_RESPONSE
+        assert normalize_mindmap_source(MINDMAP_SOURCE).status == "valid"
+    elif prompt == PROSE_PROMPT:
+        assert "mermaid" not in content.lower()
+        assert content == PROSE_RESPONSE
+        assert "```" not in content
+    else:
+        assert "mermaid" not in content.lower()
+        assert content.startswith("```openmates_diagram\n")
 
 
 # contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence

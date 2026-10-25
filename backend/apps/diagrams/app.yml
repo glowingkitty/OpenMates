@@ -8,8 +8,13 @@ last_updated: "2026-10-11"
 settings_and_memories: []
 instructions:
   - instruction: |
-      When the user asks for a diagram and the Diagrams app is selected, create a
+      These public guides may be loaded whenever architectures, processes,
+      workflows, relationships or diagrams are discussed. Decide whether a visual
+      would help; prose alone is fine. Loading guidance does not require creating
+      a diagram. Respect explicit prose-only requests. When the user asks for a
+      diagram, or you choose to include one in your explanation, create a
       self-contained HTML document with inline CSS and an accessible inline SVG.
+      Use Mermaid source only when the user explicitly asks for Mermaid code or syntax.
       Output the complete document in one ```openmates_diagram fenced block.
       Set integer data-om-render-width and data-om-render-height on the root
       html element to fit the whole document at that viewport, including the
