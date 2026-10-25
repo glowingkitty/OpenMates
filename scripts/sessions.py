@@ -14,6 +14,7 @@ import hashlib
 import html
 import io
 import json
+import math
 import os
 import re
 import secrets
@@ -1586,7 +1587,44 @@ def _prepared_workspace_manifests(root: Path) -> list[Path]:
     return sorted(manifests)
 
 
-def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list[Path]:
+def _manifest_differs_only_in_exports(candidate: Path, installed: Path) -> bool:
+    """Compare valid manifest objects without relaxing any install-affecting field."""
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate manifest key")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError(f"Invalid JSON constant: {value}")
+
+    def finite_float(value):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError("Non-finite manifest number")
+        return parsed
+
+    try:
+        manifests = [
+            json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_pairs,
+                       parse_constant=invalid_constant, parse_float=finite_float)
+            for path in (candidate, installed)
+        ]
+        if not all(isinstance(manifest, dict) for manifest in manifests):
+            return False
+        for manifest in manifests:
+            manifest.pop("exports", None)
+        # JSON serialization preserves primitive types (True must not equal 1).
+        return json.dumps(manifests[0], sort_keys=True) == json.dumps(manifests[1], sort_keys=True)
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return False
+
+
+def _validate_prepared_dependency_source(
+    checkout: Path, prepared: Path, *, exports_only_manifests: frozenset[Path] = frozenset(),
+) -> list[Path]:
     """Refuse stale or incomplete installed dependencies before touching checkout."""
     if checkout == prepared or (checkout / "node_modules").exists() or (checkout / "node_modules").is_symlink():
         raise RuntimeError("Prepared dependencies require a fresh integration checkout")
@@ -1602,8 +1640,13 @@ def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list
     installed_manifests = _prepared_workspace_manifests(prepared)
     if candidate_manifests != installed_manifests:
         raise RuntimeError("Prepared dependencies are stale: workspace package set differs")
+    if not exports_only_manifests.issubset(candidate_manifests):
+        raise RuntimeError("Prepared dependencies require selected workspace manifests")
     for relative in candidate_manifests:
-        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative):
+        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative) and (
+            relative not in exports_only_manifests
+            or not _manifest_differs_only_in_exports(checkout / relative, prepared / relative)
+        ):
             raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
     for relative in ("pnpm-lock.yaml", "pnpm-workspace.yaml"):
         if not (checkout / relative).is_file():
@@ -1677,11 +1720,15 @@ def _copy_prepared_dependency_entry(source: Path, target: Path, prepared: Path, 
         raise RuntimeError(f"Prepared dependency layout contains an unsupported entry: {source}")
 
 
-def _reuse_prepared_dependencies(checkout: Path, prepared: Path) -> None:
+def _reuse_prepared_dependencies(
+    checkout: Path, prepared: Path, *, exports_only_manifests: frozenset[Path] = frozenset(),
+) -> None:
     """Mirror pnpm links into integration while resolving workspace packages locally."""
     checkout = checkout.resolve()
     prepared = prepared.resolve()
-    manifests = _validate_prepared_dependency_source(checkout, prepared)
+    manifests = _validate_prepared_dependency_source(
+        checkout, prepared, exports_only_manifests=exports_only_manifests,
+    )
     source_modules = prepared / "node_modules"
     target_modules = checkout / "node_modules"
     target_modules.mkdir()
@@ -11602,16 +11649,28 @@ def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, fi
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
     """Provide cached dependencies and generated prerequisites when selected files need them."""
+    exports_only_manifests = frozenset(
+        Path(file) for file in files
+        if (file == "package.json" or file.endswith("/package.json"))
+        and _manifest_differs_only_in_exports(checkout_root / file, CONTROL_PLANE_ROOT / file)
+    )
     dependency_inputs_changed = any(
-        file in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
-        or file.endswith("/package.json")
+        file in {"pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
+        or ((file == "package.json" or file.endswith("/package.json"))
+            and Path(file) not in exports_only_manifests)
         or file.startswith("patches/")
         for file in files
     )
-    if not (_has_frontend_files(files) or _should_validate_embed_registry(files) or dependency_inputs_changed):
+    if not (_has_frontend_files(files) or _should_validate_embed_registry(files)
+            or dependency_inputs_changed or exports_only_manifests):
         return
     if not dependency_inputs_changed:
-        _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
+        if exports_only_manifests:
+            _reuse_prepared_dependencies(
+                checkout_root, CONTROL_PLANE_ROOT, exports_only_manifests=exports_only_manifests,
+            )
+        else:
+            _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
     result = bootstrap_session_worktree(
         checkout_root,
         dependencies_prepared=not dependency_inputs_changed,

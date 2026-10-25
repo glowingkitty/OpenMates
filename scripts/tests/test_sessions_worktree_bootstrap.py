@@ -365,3 +365,194 @@ def test_shared_runtime_links_survive_resources_created_later(monkeypatch: pytes
     (root / "logs" / "nightly-reports" / "stale-code.json").write_text("{}\n", encoding="utf-8")
     assert (worktree / ".env").read_text(encoding="utf-8") == "LATER=value\n"
     assert (worktree / "logs" / "nightly-reports" / "stale-code.json").read_text(encoding="utf-8") == "{}\n"
+
+
+@pytest.mark.parametrize("manifest_path", ["package.json", "frontend/packages/ui/package.json"])
+def test_selected_exports_only_manifest_reuses_dependencies_and_generates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, manifest_path: str,
+) -> None:
+    sessions = load_sessions_module()
+    prepared, checkout = prepared_dependency_fixture(tmp_path)
+    path = Path(manifest_path)
+    baseline = json.loads((prepared / path).read_text(encoding="utf-8"))
+    baseline["exports"] = {"./old": "./source.js"}
+    (prepared / path).write_text(json.dumps(baseline), encoding="utf-8")
+    candidate = {**baseline, "exports": {"./old": "./source.js", "./new-entry": "./new-entry.js"}}
+    (checkout / path).write_text(json.dumps(candidate), encoding="utf-8")
+    (checkout / path.parent / "new-entry.js").write_text("integration-only export", encoding="utf-8")
+    commands: list[tuple[str, ...]] = []
+    selected: list[frozenset[Path]] = []
+    real_reuse = sessions._reuse_prepared_dependencies
+
+    def reuse(root, source, *, exports_only_manifests):
+        selected.append(exports_only_manifests)
+        real_reuse(root, source, exports_only_manifests=exports_only_manifests)
+
+    def run(command, cwd=None, timeout=None):
+        assert Path(cwd) == checkout
+        commands.append(tuple(command))
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", prepared)
+    monkeypatch.setattr(sessions, "_reuse_prepared_dependencies", reuse)
+    monkeypatch.setattr(sessions, "_run_cmd", run)
+    sessions._bootstrap_integration_for_files(checkout, [manifest_path])
+
+    assert selected == [frozenset({path})]
+    assert commands == [
+        ("node", "frontend/packages/ui/scripts/build-tokens.js"),
+        ("node", "frontend/packages/ui/scripts/build-translations.js"),
+        ("node", "frontend/packages/ui/scripts/validate-locales.js"),
+    ]
+    assert json.loads((checkout / path).read_text(encoding="utf-8")) == candidate
+    assert json.loads((prepared / path).read_text(encoding="utf-8")) == baseline
+    if manifest_path != "package.json":
+        workspace = checkout / "frontend/apps/cli/node_modules/@repo/ui"
+        assert workspace.resolve() == checkout / path.parent
+        assert (workspace / "new-entry.js").read_text(encoding="utf-8") == "integration-only export"
+
+
+def test_exports_only_manifest_still_requires_explicit_validation_opt_in(tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    prepared, checkout = prepared_dependency_fixture(tmp_path)
+    path = checkout / "frontend/packages/ui/package.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**manifest, "exports": {"./new": "./new.js"}}), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Prepared dependencies are stale"):
+        sessions._reuse_prepared_dependencies(checkout, prepared)
+    assert not (checkout / "node_modules").exists()
+
+
+@pytest.mark.parametrize("field,value", [
+    ("dependencies", {"left-pad": "2.0"}),
+    ("scripts", {"prepare": "node unreviewed.js"}),
+    ("name", "renamed-package"),
+    ("version", "2.0.0"),
+    ("unknown", "new metadata"),
+    ("dependencies", {"left-pad": "file:../local"}),
+])
+def test_export_opt_in_does_not_accept_other_manifest_changes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, field: str, value,
+) -> None:
+    sessions = load_sessions_module()
+    prepared, checkout = prepared_dependency_fixture(tmp_path)
+    relative = Path("frontend/packages/ui/package.json")
+    path = checkout / relative
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest.update({"exports": {"./new": "./new.js"}, field: value})
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Prepared dependencies are stale"):
+        sessions._reuse_prepared_dependencies(checkout, prepared, exports_only_manifests=frozenset({relative}))
+    assert not (checkout / "node_modules").exists()
+    calls = []
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", prepared)
+    monkeypatch.setattr(sessions, "bootstrap_session_worktree", lambda root, *, dependencies_prepared: calls.append(dependencies_prepared) or {"status": "ready"})
+    sessions._bootstrap_integration_for_files(checkout, [str(relative)])
+    assert calls == [False]
+
+
+@pytest.mark.parametrize("damage", ["lock", "workspace", "npmrc", "pnpmfile", "patches", "installed_lock", "layout", "missing_dependency", "local_dependency", "nonselected_manifest"])
+def test_export_opt_in_preserves_prepared_dependency_guards(tmp_path: Path, damage: str) -> None:
+    sessions = load_sessions_module()
+    prepared, checkout = prepared_dependency_fixture(tmp_path)
+    relative = Path("frontend/packages/ui/package.json")
+    path = checkout / relative
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**manifest, "exports": {"./new": "./new.js"}}), encoding="utf-8")
+    if damage in {"lock", "workspace", "npmrc", "pnpmfile"}:
+        changed = {"lock": "pnpm-lock.yaml", "workspace": "pnpm-workspace.yaml", "npmrc": ".npmrc", "pnpmfile": ".pnpmfile.cjs"}[damage]
+        (checkout / changed).write_text("changed", encoding="utf-8")
+    elif damage == "patches":
+        (checkout / "patches").mkdir()
+        (checkout / "patches/new.patch").write_text("changed", encoding="utf-8")
+    elif damage == "installed_lock":
+        (prepared / "node_modules/.pnpm/lock.yaml").write_text("changed", encoding="utf-8")
+    elif damage == "layout":
+        (prepared / "node_modules/.modules.yaml").write_text("nodeLinker: hoisted\n", encoding="utf-8")
+    elif damage == "missing_dependency":
+        (prepared / "node_modules/tool").unlink()
+    else:
+        other = Path("frontend/apps/cli/package.json")
+        value = json.loads((prepared / other).read_text(encoding="utf-8"))
+        if damage == "local_dependency":
+            value["dependencies"]["@repo/ui"] = "file:../../packages/ui"
+            (prepared / other).write_text(json.dumps(value), encoding="utf-8")
+        else:
+            value["exports"] = {"./unselected": "./source.js"}
+        (checkout / other).write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Prepared dependencies"):
+        sessions._reuse_prepared_dependencies(checkout, prepared, exports_only_manifests=frozenset({relative}))
+    assert not (checkout / "node_modules").exists()
+
+
+@pytest.mark.parametrize("invalid", ['{', '[]', '{"name":"first","name":"second"}', '{"name":NaN}'])
+def test_invalid_manifest_never_qualifies_for_export_reuse(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, invalid: str,
+) -> None:
+    sessions = load_sessions_module()
+    prepared, checkout = prepared_dependency_fixture(tmp_path)
+    relative = Path("frontend/packages/ui/package.json")
+    (checkout / relative).write_text(invalid, encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Prepared dependencies are stale"):
+        sessions._reuse_prepared_dependencies(checkout, prepared, exports_only_manifests=frozenset({relative}))
+    assert not (checkout / "node_modules").exists()
+    calls = []
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", prepared)
+    monkeypatch.setattr(sessions, "bootstrap_session_worktree", lambda root, *, dependencies_prepared: calls.append(dependencies_prepared) or {"status": "ready"})
+    sessions._bootstrap_integration_for_files(checkout, [str(relative)])
+    assert calls == [False]
+
+
+def test_export_comparison_does_not_coerce_other_json_primitive_types(tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    left, right = tmp_path / "left.json", tmp_path / "right.json"
+    left.write_text('{"private":true,"exports":{"./new":"./new.js"}}', encoding="utf-8")
+    right.write_text('{"private":1}', encoding="utf-8")
+    assert sessions._manifest_differs_only_in_exports(left, right) is False
+
+
+
+@pytest.mark.parametrize("side", ["candidate", "installed"])
+@pytest.mark.parametrize("location", ["metadata", "exports", "nested_exports"])
+@pytest.mark.parametrize("number", ["1e999", "-1e999"])
+def test_export_comparison_rejects_exponent_overflow_before_dropping_exports(
+    tmp_path: Path, side: str, location: str, number: str,
+) -> None:
+    sessions = load_sessions_module()
+    candidate, installed = tmp_path / "candidate.json", tmp_path / "installed.json"
+    candidate.write_text('{"name":"same","exports":{"./new":"./new.js"}}', encoding="utf-8")
+    installed.write_text('{"name":"same"}', encoding="utf-8")
+    values = {
+        "metadata": '{"name":"same","metadata":NUMBER}',
+        "exports": '{"name":"same","exports":NUMBER}',
+        "nested_exports": '{"name":"same","exports":{"nested":[{"value":NUMBER}]}}',
+    }
+    (candidate if side == "candidate" else installed).write_text(values[location].replace("NUMBER", number), encoding="utf-8")
+    assert sessions._manifest_differs_only_in_exports(candidate, installed) is False
+
+
+def test_export_comparison_rejects_distinct_overflows_outside_exports(tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    candidate, installed = tmp_path / "candidate.json", tmp_path / "installed.json"
+    candidate.write_text('{"metadata":1e999,"exports":{"./new":"./new.js"}}', encoding="utf-8")
+    installed.write_text('{"metadata":2e999}', encoding="utf-8")
+    assert sessions._manifest_differs_only_in_exports(candidate, installed) is False
+
+
+@pytest.mark.parametrize("side", ["candidate", "installed"])
+@pytest.mark.parametrize("location", ["metadata", "exports", "nested_exports"])
+@pytest.mark.parametrize("number", ["1e2", "-1e2", "1e308"])
+def test_export_comparison_accepts_finite_exponents(tmp_path: Path, side: str, location: str, number: str) -> None:
+    sessions = load_sessions_module()
+    candidate, installed = tmp_path / "candidate.json", tmp_path / "installed.json"
+    values = {
+        "metadata": ('{"name":"same","metadata":NUMBER,"exports":{"./new":"./new.js"}}', '{"name":"same","metadata":NUMBER}'),
+        "exports": ('{"name":"same","exports":NUMBER}', '{"name":"same"}'),
+        "nested_exports": ('{"name":"same","exports":{"nested":[{"value":NUMBER}]}}', '{"name":"same"}'),
+    }
+    new, old = values[location]
+    if side == "installed":
+        new, old = old, new
+    candidate.write_text(new.replace("NUMBER", number), encoding="utf-8")
+    installed.write_text(old.replace("NUMBER", number), encoding="utf-8")
+    assert sessions._manifest_differs_only_in_exports(candidate, installed) is True
