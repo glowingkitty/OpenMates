@@ -7,6 +7,8 @@ last_verified: 2026-10-25
 
 Task: TASK-45. Reviewed 25 October 2026 by four independent researchers covering mainstream events, community events, housing and jobs. This is a provider-selection report and proposed sequence; implementation and publication remain follow-up work.
 
+**Quality follow-up:** [Live key-free API evaluation](event-api-quality-2026-10-25.md) does not justify a broad event-discovery integration from the tested feeds. The candidate order below was provisional research; defer general Events support and prefer an existing weather embed for the landing animation. OpenAgenda remains untested without a read key.
+
 The intended use is a commercial conversational assistant that searches across organizers, landlords or employers, displays normalized result embeds, preserves results in encrypted user history, and can publish an attributed example on the landing page. An official API alone does not establish all those downstream rights. Software licences and event/listing-content licences are separate.
 
 ## Recommended selection
