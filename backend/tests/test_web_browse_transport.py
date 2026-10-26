@@ -6,11 +6,155 @@ actual socket destination and rejection behavior, rather than resolver syntax.
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+import httpx
 
 from backend.shared.providers import web_browse_runtime as runtime
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status,retryable", [(401, False), (409, False), (502, True), (503, True)]
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.private-storage-and-api
+async def test_rpc_retains_safe_status_without_replaying_an_action(
+    monkeypatch, status, retryable
+):
+    from backend.shared.providers.e2b_browser import E2BBrowser, BrowserRpcUnavailable
+
+    requests = []
+
+    def reject(request):
+        requests.append(request)
+        return httpx.Response(status, json={"error": "private-upstream-content"})
+
+    native = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: native(transport=httpx.MockTransport(reject), **kwargs),
+    )
+    provider = {
+        "rpc_url": "https://private-sandbox.invalid/rpc",
+        "token": "private-token",
+        "traffic_access_token": "private-ingress",
+    }
+    with pytest.raises(BrowserRpcUnavailable) as exc:
+        await E2BBrowser("placeholder").rpc(
+            provider, {"operation": "act", "kind": "click", "target": "0"}
+        )
+    assert len(requests) == 1
+    assert exc.value.status_code == status and exc.value.retryable is retryable
+    assert "private" not in str(exc.value)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run
+@pytest.mark.asyncio
+async def test_native_resume_waits_for_ingress_using_metadata_without_repeating_input(
+    monkeypatch,
+):
+    from e2b import Sandbox
+    from backend.shared.providers.e2b_browser import E2BBrowser, BrowserRpcUnavailable
+
+    monkeypatch.setattr(
+        Sandbox,
+        "connect",
+        Mock(return_value=SimpleNamespace(traffic_access_token="private-ingress")),
+    )
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    browser = E2BBrowser("placeholder")
+    browser.rpc = AsyncMock(
+        side_effect=[
+            BrowserRpcUnavailable(retryable=True, status_code=502),
+            {},
+        ]
+    )
+    provider = {"sandbox_id": "private-sandbox"}
+    await browser.resume(provider)
+    assert provider["running_since"] is not None
+    assert browser.rpc.await_count == 2
+    assert all(
+        c.args[1] == {"operation": "metadata"} for c in browser.rpc.await_args_list
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+async def test_resume_does_not_retry_a_rejected_runtime_credential(monkeypatch):
+    from e2b import Sandbox
+    from backend.shared.providers.e2b_browser import E2BBrowser, BrowserRpcUnavailable
+
+    monkeypatch.setattr(
+        Sandbox,
+        "connect",
+        Mock(return_value=SimpleNamespace(traffic_access_token="private-ingress")),
+    )
+    browser = E2BBrowser("placeholder")
+    browser.rpc = AsyncMock(side_effect=BrowserRpcUnavailable(status_code=401))
+    with pytest.raises(BrowserRpcUnavailable):
+        await browser.resume({"sandbox_id": "private-sandbox"})
+    browser.rpc.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+@pytest.mark.asyncio
+async def test_navigation_retries_only_the_destroyed_observation(monkeypatch):
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    old = SimpleNamespace(
+        evaluate=AsyncMock(side_effect=RuntimeError("Execution context was destroyed")),
+        dispose=AsyncMock(),
+    )
+    fresh = SimpleNamespace(
+        evaluate=AsyncMock(return_value={"url": "https://example.com/next"}),
+        dispose=AsyncMock(),
+    )
+    page = SimpleNamespace(
+        evaluate_handle=AsyncMock(side_effect=[old, fresh]),
+        wait_for_load_state=AsyncMock(),
+        mouse=SimpleNamespace(click=AsyncMock()),
+    )
+    handle, observed = await runtime.capture_page_snapshot(page)
+    assert handle is fresh and observed["url"].endswith("/next")
+    old.dispose.assert_awaited_once()
+    page.wait_for_load_state.assert_awaited_once_with("domcontentloaded", timeout=5000)
+    page.mouse.click.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.budgets-and-stop
+@pytest.mark.asyncio
+async def test_navigation_observation_retries_are_bounded(monkeypatch):
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    page = SimpleNamespace(
+        evaluate_handle=AsyncMock(
+            side_effect=RuntimeError("Execution context was destroyed")
+        ),
+        wait_for_load_state=AsyncMock(),
+    )
+    with pytest.raises(RuntimeError):
+        await runtime.capture_page_snapshot(page)
+    assert page.evaluate_handle.await_count == 3
+    assert page.wait_for_load_state.await_count == 2
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.network-and-content
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    ["Crawler access denied", "Target page, context or browser has been closed"],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.network-and-content
+async def test_observation_does_not_retry_access_denials_or_a_lost_page(error):
+    page = SimpleNamespace(
+        evaluate_handle=AsyncMock(side_effect=RuntimeError(error)),
+        wait_for_load_state=AsyncMock(),
+    )
+    with pytest.raises(RuntimeError, match=error):
+        await runtime.capture_page_snapshot(page)
+    page.evaluate_handle.assert_awaited_once()
+    page.wait_for_load_state.assert_not_awaited()
 
 
 class Writer:

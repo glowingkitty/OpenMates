@@ -42,6 +42,15 @@ class BrowserAdmissionRejected(BrowserUnavailable):
     """The provider explicitly rejected creation before allocating a machine."""
 
 
+class BrowserRpcUnavailable(BrowserUnavailable):
+    """Transport metadata without upstream bodies, URLs or credentials."""
+
+    def __init__(self, *, retryable: bool = False, status_code: int | None = None):
+        super().__init__("The browser connection is unavailable.")
+        self.retryable = retryable
+        self.status_code = status_code
+
+
 class E2BBrowser:
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
@@ -204,6 +213,18 @@ class E2BBrowser:
         provider["traffic_access_token"] = sandbox.traffic_access_token
         provider["running_since"] = time.time()
         provider["provider_deadline"] = time.time() + 120
+        # A successful native resume precedes ingress readiness. In particular,
+        # an auto-paused sandbox can still return 502 briefly after connect.
+        # Read metadata only: readiness neither changes the controller nor acts.
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                await self.rpc(provider, {"operation": "metadata"}, timeout=2)
+                break
+            except BrowserRpcUnavailable as exc:
+                if not exc.retryable or time.monotonic() >= deadline:
+                    raise
+                await asyncio.sleep(0.25)
 
     async def pause(self, provider: dict[str, Any]) -> None:
         from e2b import Sandbox
@@ -232,7 +253,12 @@ class E2BBrowser:
                         "e2b-traffic-access-token": provider["traffic_access_token"],
                     },
                 )
-            if response.status_code != 200 or len(response.content) > 2_000_000:
+            if response.status_code != 200:
+                raise BrowserRpcUnavailable(
+                    retryable=response.status_code in (502, 503, 504),
+                    status_code=response.status_code,
+                )
+            if len(response.content) > 2_000_000:
                 raise BrowserUnavailable(
                     "Browser operation was rejected; refresh the observation."
                 )
@@ -242,5 +268,7 @@ class E2BBrowser:
             return result
         except BrowserUnavailable:
             raise
-        except (httpx.HTTPError, ValueError):
+        except httpx.HTTPError:
+            raise BrowserRpcUnavailable(retryable=True) from None
+        except ValueError:
             raise BrowserUnavailable("The browser connection is unavailable.") from None

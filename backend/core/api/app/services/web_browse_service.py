@@ -518,6 +518,14 @@ class BrowseService:
                     else saved
                 )
             await self.ensure_live(record)
+            if request.session_id and request.max_credits < record["max_credits"]:
+                # Never accept a tighter requested cap while spending against a
+                # previously authorized, larger window. Changing a session cap
+                # requires closing it and explicitly starting another session.
+                raise HTTPException(
+                    409,
+                    "This session has a higher established spending cap. Close it and start a new session to use a lower cap.",
+                )
             if record.get("last_result", {}).get("run_id") == run_id:
                 return (
                     job.model_copy(update={"dispatch_required": False})
@@ -655,6 +663,8 @@ class BrowseService:
         checked_observations = {}
         no_progress = 0
         prior = None
+        phase = "startup"
+        failure = {}
         try:
             startup_started = time.monotonic()
             driver = await self.browser()
@@ -725,6 +735,7 @@ class BrowseService:
                             raise BrowseControlChanged()
                         await self.keep_running(record)
                         with private_inference_logging():
+                            phase = "observe"
                             observation_started = time.monotonic()
                             observation = await driver.rpc(
                                 record["provider"], {"operation": "observe"}
@@ -770,6 +781,7 @@ class BrowseService:
                     # No execution lease is held during inference. Take control can invalidate
                     # the observation immediately; stale decisions are checked again before input.
                     with private_inference_logging():
+                        phase = "decide"
                         action = await models.choose(observation, request.task, history)
                     if action["kind"] == "blocked":
                         status, reason = (
@@ -782,6 +794,7 @@ class BrowseService:
                     if action["kind"] == "done":
                         with private_inference_logging():
                             if request.output_schema:
+                                phase = "extract"
                                 extracted = await models.generate(
                                     {
                                         "purpose": "extract",
@@ -817,6 +830,7 @@ class BrowseService:
                                 data["text"] = observation.get(
                                     "document_text", observation.get("text", "")
                                 )
+                            phase = "verify"
                             verified = await models.verify(
                                 request.task, observation, data
                             )
@@ -857,6 +871,7 @@ class BrowseService:
                         }
                         await self.store.save(record)
                         with private_inference_logging():
+                            phase = "act"
                             action_started = time.monotonic()
                             await driver.rpc(
                                 record["provider"],
@@ -884,6 +899,7 @@ class BrowseService:
                         await self.store.save(record)
                 if status in ("completed", "no_results"):
                     with private_inference_logging():
+                        phase = "scan"
                         checked = await models.sanitize_external(
                             {
                                 "data": data,
@@ -920,7 +936,10 @@ class BrowseService:
                 "needs_user",
                 "The page could not be safely checked. Take control to continue.",
             )
-        except (BrowserModelError, BrowserUnavailable):
+        except (BrowserModelError, BrowserUnavailable) as exc:
+            failure = {"error_kind": type(exc).__name__, "error_phase": phase}
+            if isinstance(getattr(exc, "status_code", None), int):
+                failure["rpc_status_code"] = exc.status_code
             status, reason = (
                 "failed",
                 "The browser or decision provider could not complete this task.",
@@ -973,6 +992,8 @@ class BrowseService:
                     "accounting_pending": bool(record.get("accounting_pending")),
                     "runtime_cost_usd": str(self.runtime_cost(record)),
                     "inference_cost_usd": record["inference_cost_usd"],
+                    "verification": getattr(models, "verification", {}),
+                    **failure,
                     **{k: round(v, 3) for k, v in stage_times.items()},
                 }
                 result = BrowseResult(

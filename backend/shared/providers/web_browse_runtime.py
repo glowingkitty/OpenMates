@@ -21,6 +21,33 @@ READER_AGENT = "OpenMatesBrowser"
 USER_AGENT = "OpenMatesBrowser/1.0 (+https://openmates.org)"
 
 
+async def capture_page_snapshot(page):
+    """Retry a read destroyed by navigation; never repeat the preceding action."""
+    for attempt in range(3):
+        handle = None
+        try:
+            handle = await page.evaluate_handle(SNAPSHOT)
+            observation = await handle.evaluate("(s)=>s.observation")
+            return handle, observation
+        except Exception as exc:
+            if handle is not None:
+                try:
+                    await handle.dispose()
+                except Exception:
+                    pass
+            transient = any(
+                marker in str(exc)
+                for marker in (
+                    "Execution context was destroyed",
+                    "Cannot find context with specified id",
+                )
+            )
+            if not transient or attempt == 2:
+                raise
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+            await asyncio.sleep(0.15)
+
+
 async def public_ipv4(hostname: str) -> list[str]:
     """Resolve once; callers connect to these literal, validated addresses."""
     rows = await asyncio.get_running_loop().getaddrinfo(
@@ -367,8 +394,7 @@ async def serve() -> None:
                 raise ValueError("AI observations are paused")
             if snapshot:
                 await snapshot.dispose()
-            snapshot = await page.evaluate_handle(SNAPSHOT)
-            observation = await snapshot.evaluate("(s)=>s.observation")
+            snapshot, observation = await capture_page_snapshot(page)
             observation["url"] = observation_url(observation["url"])
             for link in observation["links"]:
                 link["url"] = observation_url(link["url"])

@@ -248,6 +248,23 @@ async def test_foreign_or_different_chat_cannot_observe_resume_or_spend(service)
     assert service.driver.calls == calls
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_tighter_followup_cap_cannot_silently_spend_the_existing_larger_cap(
+    service,
+):
+    result = await run(service)
+    calls = deepcopy(service.driver.calls)
+    with pytest.raises(HTTPException) as exc:
+        await run(
+            service,
+            arguments(session_id=result.session_id, max_credits=1),
+            message_id="lower-cap",
+        )
+    assert exc.value.status_code == 409
+    assert service.driver.calls == calls
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.exclusive-takeover,web-browse.control-loop
 @pytest.mark.asyncio
 async def test_takeover_during_inference_discards_pending_click(service):
