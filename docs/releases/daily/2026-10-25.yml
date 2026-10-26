@@ -1,0 +1,4652 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-25'
+generated_at: '2026-10-26T00:20:41+00:00'
+range:
+  since: '2026-10-25T00:00:00+00:00'
+  until: '2026-10-26T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 73
+  section_counts:
+    features: 6
+    bug_fixes: 19
+    improvements: 0
+    docs: 7
+    tests: 35
+    infrastructure: 6
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 15
+  dev_only_items: 73
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: stream v4 Turbo call speech with shared voice processing'
+    section: features
+    commits:
+    - 953d73f03
+    authored_at: '2026-10-25T16:43:37+00:00'
+    changed_paths:
+    - backend/apps/ai/assistant_speech/voice_context.py
+    - backend/apps/ai/instructions/base_voice_conversation_instruction.md
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/voice_pipeline_fixture.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/realtime_turn.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/users.yml
+    - backend/scripts/test_elevenlabs_realtime_incremental.py
+    - backend/scripts/test_mistral_realtime_tts_availability.py
+    - backend/shared/providers/elevenlabs/realtime.py
+    - backend/shared/python_utils/assistant_speech_audio.py
+    - backend/tests/test_assistant_speech_audio_routing.py
+    - backend/tests/test_elevenlabs_realtime.py
+    - backend/tests/test_voice_call_instructions.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_realtime_turn.py
+    - backend/tests/test_voice_waiting_v4.py
+    - docs/apis/elevenlabs-realtime-call-speech.md
+    - docs/plans/voice-call-delivery-correction/plan.yml
+    - docs/plans/voice-call-delivery-correction/provider-and-performance.md
+    - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
+    - frontend/apps/web_app/tests/helpers/voice-call-media-observer.test.mjs
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechLiveStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCompletionCas.test.js
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallPrivacy.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/assistantSpeechStream.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - scripts/tests/test_message_input_welcome_contract.py
+    - scripts/verify_voice_call_live_smoke.cjs
+    - scripts/verify_voice_call_live_smoke.test.cjs
+    - shared/docs/privacy_policy.yml
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add calendar event previews and calendar export'
+    section: features
+    commits:
+    - 252a9a579
+    authored_at: '2026-10-25T15:23:03+00:00'
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/testing/fixtures/calendar_event.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/calendar/app.yml
+    - docs/plans/calendar-event-embeds/plan.yml
+    - frontend/apps/web_app/tests/calendar-event-embed.spec.ts
+    - frontend/apps/web_app/tests/components/calendar-event-embed.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/tests/calendarEventExport.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/public-site/src/components/results/ResultCalendarWeek.svelte
+    - frontend/packages/public-site/src/components/results/calendarWeek.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedHarness.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedHarness.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/calendarEventEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/calendar_event.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    - frontend/packages/ui/src/utils/calendarEvent.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/calendar_event.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_calendar_event.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/verify_calendar_event_real_dev.py
+    - shared/test-fixtures/calendar-event-export.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:calendar, embed:calendar:event'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: generate standalone calendar event artifacts'
+    section: features
+    commits:
+    - 7e956b95e
+    authored_at: '2026-10-25T11:54:37+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/calendar_event_fences.py
+    - backend/apps/ai/utils/json_content_fences.py
+    - backend/apps/calendar/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_calendar_event_content.py
+    - backend/tests/test_calendar_event_streaming.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    - docs/plans/calendar-event-embeds/plan.yml
+    - specifications/features/calendar-event-embeds/examples.yml
+    - specifications/features/calendar-event-embeds/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:calendar'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: prefer live-verified Together for DeepSeek V4.1 Flash'
+    section: features
+    commits:
+    - dd9e7cf18
+    authored_at: '2026-10-25T11:08:30+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/llm_providers/together_wrapper.py
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/tests/test_baseten_provider.py
+    - backend/tests/test_together_deepseek_flash.py
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Baseten DeepSeek V4.1 and nested cache billing'
+    section: features
+    commits:
+    - 9cc730d1f
+    authored_at: '2026-10-25T09:00:53+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/llm_providers/baseten_client.py
+    - backend/apps/ai/llm_providers/cerebras_client.py
+    - backend/apps/ai/llm_providers/cerebras_wrapper.py
+    - backend/apps/ai/llm_providers/google_maas_client.py
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/llm_providers/local_openai_compatible.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_openrouter.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/llm_providers/openrouter_client.py
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/llm_providers/together_wrapper.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/providers/baseten.yml
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/shared/providers/baseten/__init__.py
+    - backend/shared/providers/baseten/client.py
+    - backend/tests/test_baseten_provider.py
+    - backend/tests/test_compatible_provider_cache_usage.py
+    - backend/tests/test_glm_mistral.py
+    - backend/tests/test_health_status_alerts.py
+    - backend/tests/test_nested_chat_cache_billing.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    - frontend/apps/web_app/tests/nested-chat-cache-billing.spec.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - scripts/api_tests/test_baseten_api.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: sync twenty recent parent chats with bound inventory recovery'
+    section: features
+    commits:
+    - 785293e64
+    authored_at: '2026-10-25T00:14:16+00:00'
+    changed_paths:
+    - .claude/rules/cli-sdk.md
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_metadata_recovery_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_completion_inventory_discovery.py
+    - backend/tests/test_correlated_inventory_discovery.py
+    - backend/tests/test_inventory_transaction_binding.py
+    - backend/tests/test_paused_completion_inventory_ack.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_phased_sync_origin_binding.py
+    - backend/tests/test_sync_api.py
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/helpers/browser-process-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/browser-process-evidence.test.cjs
+    - frontend/apps/web_app/tests/helpers/performance-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/performance-evidence.test.cjs
+    - frontend/apps/web_app/tests/helpers/startup-performance-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/startup-performance-evidence.test.cjs
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/chatMetadataCacheInvalidation.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - scripts/ci_startup_sync_fixture.mjs
+    - specifications/architecture/sync/examples.yml
+    - specifications/architecture/sync/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: preserve private modes when retrieving CI evidence'
+    section: bug_fixes
+    commits:
+    - d9fc86be1
+    authored_at: '2026-10-25T23:50:02+00:00'
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep manual message speech on Mistral after calls'
+    section: bug_fixes
+    commits:
+    - 40f53aab5
+    authored_at: '2026-10-25T19:00:41+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/tests/test_ephemeral_voice_manual_speak.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: await owned Project draft before voice startup'
+    section: bug_fixes
+    commits:
+    - 3e953bebb
+    authored_at: '2026-10-25T18:21:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/voice-call-draft-preparation.test.mjs
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recognize superseded metadata in voice proof'
+    section: bug_fixes
+    commits:
+    - 276dd3c5a
+    authored_at: '2026-10-25T17:28:40+00:00'
+    changed_paths:
+    - scripts/verify_voice_call_live_smoke.cjs
+    - scripts/verify_voice_call_live_smoke.test.cjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain historical specification successor references'
+    section: bug_fixes
+    commits:
+    - 4fb75de35
+    authored_at: '2026-10-25T16:14:44+00:00'
+    changed_paths:
+    - scripts/specifications.py
+    - scripts/tests/test_specifications_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh existing browser Rust dependency locks'
+    section: bug_fixes
+    commits:
+    - '800217103'
+    authored_at: '2026-10-25T15:05:51+00:00'
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/ci_sdk_lockfiles.py
+    - scripts/tests/test_ci_sdk_lockfiles.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: open app settings embeds across workspaces'
+    section: bug_fixes
+    commits:
+    - 97d4566a6
+    authored_at: '2026-10-25T14:42:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/tests/app-embeds-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/app-embeds-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/StandaloneEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/StandaloneEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.preview.ts
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.svelte
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: identify isolated native keyring runtime'
+    section: bug_fixes
+    commits:
+    - 78da78c04
+    authored_at: '2026-10-25T13:49:09+00:00'
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_native_private_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): load native visual guidance for relevant discussions'
+    section: bug_fixes
+    commits:
+    - 373e0d754
+    authored_at: '2026-10-25T13:27:44+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/apps/diagrams/app.yml
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/apps/mindmaps/app.yml
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - docs/plans/native-visualization-routing/plan.yml
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:diagrams, app:mindmaps'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore English privacy policy rendering'
+    section: bug_fixes
+    commits:
+    - 7c285b1ed
+    authored_at: '2026-10-25T13:07:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/website-redirects.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/publicLegalRendering.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide inactive apps and correct integration copy'
+    section: bug_fixes
+    commits:
+    - f14b162ad
+    authored_at: '2026-10-25T12:36:06+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/health/focus_modes/health-insights/SKILL.ar.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.cs.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.de.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.es.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.fr.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.he.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.hi.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.id.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.it.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ja.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ko.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.nl.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.pl.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.pt.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ru.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.sv.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.th.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.tr.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.vi.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.zh.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ar.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.cs.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.de.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.es.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.fr.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.he.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.hi.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.id.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.it.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ja.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ko.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.nl.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.pl.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.pt.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ru.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.sv.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.th.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.tr.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.vi.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.zh.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ar.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.cs.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.de.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.es.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.fr.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.he.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.hi.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.id.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.it.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ja.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ko.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.nl.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.pl.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.pt.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ru.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.sv.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.th.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.tr.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.vi.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.zh.md
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/app_discovery_visibility.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_app_discovery_visibility.py
+    - backend/tests/test_apps_metadata_availability.py
+    - backend/tests/test_focus_instruction_sources.py
+    - backend/tests/test_retired_app_capabilities.py
+    - backend/tests/test_workflow_skill_output_contracts.py
+    - docs/plans/app-catalog-cleanup/plan.yml
+    - frontend/apps/web_app/tests/components/apps-catalog-availability.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/focus-mode-instructions.spec.ts
+    - frontend/apps/web_app/tests/helpers/apps-catalog-readiness.ts
+    - frontend/apps/web_app/tests/helpers/provider-boundary.ts
+    - frontend/apps/web_app/tests/provider-boundary.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/scripts/focus-mode-content.test.mjs
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/appCatalogPreview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
+    - frontend/packages/ui/src/components/settings/focusModeInstructions.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/jobs.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_health_insights.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_prepare_doctor_appointment.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_prepare_doctor_report.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/main.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/social_media_content_calendar_strategist.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, app:health, app:travel, app:videos, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound recursive subchats and admit saved-child user turns'
+    section: bug_fixes
+    commits:
+    - 0e9e2a78f
+    authored_at: '2026-10-25T10:40:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/shared/python_utils/saved_chat_turn_authority.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_saved_chat_turn_authority.py
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - frontend/apps/web_app/tests/nested-chat-cache-billing.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve public example routes on Vercel'
+    section: bug_fixes
+    commits:
+    - 813b19efa
+    authored_at: '2026-10-25T08:47:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - scripts/tests/test_vercel_public_routes.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align public examples with supported integrations'
+    section: bug_fixes
+    commits:
+    - a1bbcdc27
+    authored_at: '2026-10-25T08:33:40+00:00'
+    changed_paths:
+    - README.md
+    - backend/apps/web/app.yml
+    - docs/design-guide/landing-native-captures.md
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/devices-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-mobile.webp
+    - frontend/apps/web_app/tests/chat-focused-scroll.spec.ts
+    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
+    - frontend/apps/web_app/tests/components/composer-embed-suggestions.spec.ts
+    - frontend/apps/web_app/tests/components/composer-public-embed.spec.ts
+    - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/landing-admitted-content.spec.ts
+    - frontend/apps/web_app/tests/components/landing-example-link.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/apps/web_app/tests/composer-embed-open.spec.ts
+    - frontend/apps/web_app/tests/composer-split-layout.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
+    - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts
+    - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
+    - frontend/apps/web_app/tests/example-chat-ipad-multitab.spec.ts
+    - frontend/apps/web_app/tests/example-chat-logout-preserve.spec.ts
+    - frontend/apps/web_app/tests/example-chat-removals.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/landing-health-targeted.spec.ts
+    - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-mindmap-preserved-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-provider-icons-targeted.spec.ts
+    - frontend/apps/web_app/tests/landing-shopping-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-videos-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
+    - frontend/apps/web_app/tests/models3d-example-chat.spec.ts
+    - frontend/apps/web_app/tests/public-example-activity-summary.spec.ts
+    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/devices-mobile.webp
+    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/website/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/hero-mobile.webp
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.preview.ts
+    - frontend/packages/ui/src/components/NewChatSuggestions.preview.ts
+    - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentProvider.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleEmbedIsolation.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/__tests__/landingExampleCatalog.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-retail-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beginner-yoga-classes-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-english-speaking-gp-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/find-brand-name-and-domain.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gigantic-airplanes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/printable-benchy-phone-stand-models.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/social-app-name-domain-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/air_fryers_retail_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beginner_yoga_classes_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_english_speaking_gp_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/find_brand_name_and_domain.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/printable_benchy_phone_stand_models.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/social_app_name_domain_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_example_chat_single_quoted_embeds.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve absent Cargo candidate identity during WASM packaging'
+    section: bug_fixes
+    commits:
+    - 16e331b57
+    authored_at: '2026-10-25T04:58:44+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: classify Cargo bindgen aliases by guarded file identity'
+    section: bug_fixes
+    commits:
+    - f04f0af2c
+    authored_at: '2026-10-25T03:27:11+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: attribute guarded WASM bindgen detachment refusals'
+    section: bug_fixes
+    commits:
+    - 6546f4659
+    authored_at: '2026-10-25T02:33:49+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve bindgen provenance across verified Cargo hardlinks'
+    section: bug_fixes
+    commits:
+    - 5dc0a85eb
+    authored_at: '2026-10-25T00:17:18+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse verified dependencies for export-only manifest edits'
+    section: bug_fixes
+    commits:
+    - 72a678bca
+    authored_at: '2026-10-25T00:03:22+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record calendar event verification and Rust deferral'
+    section: docs
+    commits:
+    - 0425e95e9
+    authored_at: '2026-10-25T15:32:50+00:00'
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/calendar-event-embeds/plan.yml
+    - docs/plans/calendar-event-embeds/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record native visualization verification'
+    section: docs
+    commits:
+    - 65eadce81
+    authored_at: '2026-10-25T13:55:55+00:00'
+    changed_paths:
+    - docs/plans/native-visualization-routing/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record verified Together caching and bounded nested execution'
+    section: docs
+    commits:
+    - 3c851b865
+    authored_at: '2026-10-25T11:31:15+00:00'
+    changed_paths:
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record live provider caching and nested billing findings'
+    section: docs
+    commits:
+    - ad5be2d28
+    authored_at: '2026-10-25T10:05:36+00:00'
+    changed_paths:
+    - docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: evaluate key-free event API quality'
+    section: docs
+    commits:
+    - 7b7e69a87
+    authored_at: '2026-10-25T09:39:28+00:00'
+    changed_paths:
+    - docs/apis/discovery-provider-research-2026-10-25.md
+    - docs/apis/event-api-quality-2026-10-25.md
+    - docs/apis/evidence/event-api-quality-2026-10-25.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: research permitted discovery APIs'
+    section: docs
+    commits:
+    - ae6fab085
+    authored_at: '2026-10-25T09:14:40+00:00'
+    changed_paths:
+    - docs/apis/discovery-provider-research-2026-10-25.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: align sync architecture with twenty-parent startup'
+    section: docs
+    commits:
+    - 820d38642
+    authored_at: '2026-10-25T00:26:39+00:00'
+    changed_paths:
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: register reviewed shared Rust cache settlement sources'
+    section: tests
+    commits:
+    - acb24e8ff
+    authored_at: '2026-10-25T23:58:48+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-cache-settlement-source-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register SDK native TypeScript stripping compatibility'
+    section: tests
+    commits:
+    - e8ea166b7
+    authored_at: '2026-10-25T21:58:05+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: synchronize Cookie version SDK capability'
+    section: tests
+    commits:
+    - 54626a1a4
+    authored_at: '2026-10-25T20:56:49+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register reviewed Rust compilation repairs'
+    section: tests
+    commits:
+    - f3223c740
+    authored_at: '2026-10-25T20:36:02+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin reviewed shared Rust client workflows'
+    section: tests
+    commits:
+    - d24ce6c4a
+    authored_at: '2026-10-25T19:37:15+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: synchronize reviewed Rust client SDK verification'
+    section: tests
+    commits:
+    - 02ef20a77
+    authored_at: '2026-10-25T18:08:42+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-window-7edfe1b.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin reviewed browser key restore entry'
+    section: tests
+    commits:
+    - b6d094b6e
+    authored_at: '2026-10-25T16:19:52+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register verified focused voice-call controls'
+    section: tests
+    commits:
+    - 10152fe9c
+    authored_at: '2026-10-25T16:03:55+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register reviewed shared client integration'
+    section: tests
+    commits:
+    - 8d84c0f37
+    authored_at: '2026-10-25T15:51:42+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: identify closed SDK window conformance failures'
+    section: tests
+    commits:
+    - 7f8e0a754
+    authored_at: '2026-10-25T14:30:23+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register reviewed Rust browser crypto foundation'
+    section: tests
+    commits:
+    - 9dfe8bcaf
+    authored_at: '2026-10-25T14:11:36+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register reviewed Rust encrypted-window conformance'
+    section: tests
+    commits:
+    - 0583207ef
+    authored_at: '2026-10-25T13:56:56+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: activate canonical recovery for isolated voice calls'
+    section: tests
+    commits:
+    - 8d9706ca8
+    authored_at: '2026-10-25T13:31:24+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/ci_voice_recovery_epoch.py
+    - scripts/tests/test_ci_voice_recovery_epoch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin supported binding authority observer'
+    section: tests
+    commits:
+    - 6f94a1bb2
+    authored_at: '2026-10-25T13:16:15+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin guarded saved-chat SDK return admission'
+    section: tests
+    commits:
+    - 00ce74d97
+    authored_at: '2026-10-25T12:26:19+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin reviewed SDK unit regression corrections'
+    section: tests
+    commits:
+    - b08826725
+    authored_at: '2026-10-25T11:36:41+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin SDK formatting and expanded matrix counts'
+    section: tests
+    commits:
+    - 3f95f2c31
+    authored_at: '2026-10-25T11:18:48+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin cached Rust core and synchronized session drafts'
+    section: tests
+    commits:
+    - 35b0881e1
+    authored_at: '2026-10-25T11:01:10+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: admit focused Rust browser password entry proof'
+    section: tests
+    commits:
+    - d49e355c5
+    authored_at: '2026-10-25T10:53:39+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_browser_password_entry_profile.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    - scripts/tests/test_ci_native_private_profile.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enable recovery fixture for stopped draft resends'
+    section: tests
+    commits:
+    - c45aedb69
+    authored_at: '2026-10-25T10:35:40+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin reviewed Rust history and draft client source'
+    section: tests
+    commits:
+    - da0e00e11
+    authored_at: '2026-10-25T10:34:09+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register SDK docs wiki and embed conformance'
+    section: tests
+    commits:
+    - 64de3ffb7
+    authored_at: '2026-10-25T10:08:29+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register direct SDK history and draft conformance'
+    section: tests
+    commits:
+    - 4ee83a570
+    authored_at: '2026-10-25T09:01:05+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register Rust CAS inventory and strip WASM debug names'
+    section: tests
+    commits:
+    - 1348bca73
+    authored_at: '2026-10-25T07:46:01+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register cross-SDK account-consistency vectors'
+    section: tests
+    commits:
+    - 843a1399c
+    authored_at: '2026-10-25T05:13:02+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provision isolated native OS keyring CI coverage'
+    section: tests
+    commits:
+    - 434c59fd2
+    authored_at: '2026-10-25T05:10:18+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_native_keyring.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_native_keyring.py
+    - scripts/tests/test_ci_native_private_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register reviewed browser snapshot module in SDK client'
+    section: tests
+    commits:
+    - f962f40a2
+    authored_at: '2026-10-25T04:06:35+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify browser credential snapshot public symbols'
+    section: tests
+    commits:
+    - 87e22f19b
+    authored_at: '2026-10-25T03:34:25+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align saved-read preload oracle with full reader'
+    section: tests
+    commits:
+    - 6b0777989
+    authored_at: '2026-10-25T03:13:16+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: attribute saved-read conformance failures safely'
+    section: tests
+    commits:
+    - 82b375b0f
+    authored_at: '2026-10-25T02:39:23+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_saved_read_diagnostics.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: run browser Rust streaming with isolated replay worker'
+    section: tests
+    commits:
+    - 331844c5b
+    authored_at: '2026-10-25T02:37:04+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    - scripts/tests/test_ci_native_private_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: admit isolated native bounded saved-chat read coverage'
+    section: tests
+    commits:
+    - 3232bf688
+    authored_at: '2026-10-25T02:14:29+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_native_private_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin correlated metadata-only CLI recovery fixture'
+    section: tests
+    commits:
+    - c81a1234f
+    authored_at: '2026-10-25T01:29:12+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register rich saved-chat SDK conformance'
+    section: tests
+    commits:
+    - 7d968ce9f
+    authored_at: '2026-10-25T01:00:21+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: register bounded saved-chat SDK conformance'
+    section: tests
+    commits:
+    - 91aa1a07a
+    authored_at: '2026-10-25T00:26:32+00:00'
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: validate pinned wasm-bindgen direct import form'
+    section: infrastructure
+    commits:
+    - f8eb111b2
+    authored_at: '2026-10-25T23:00:20+00:00'
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: verify portable Rust CLI fixture inputs'
+    section: infrastructure
+    commits:
+    - 8d4dba4dc
+    authored_at: '2026-10-25T22:30:38+00:00'
+    changed_paths:
+    - scripts/check_rust_cli_package.py
+    - scripts/ci_native_dev.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_ci_native_dev.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: initialize locked Rust build registry before offline checks'
+    section: infrastructure
+    commits:
+    - 1ae3037a7
+    authored_at: '2026-10-25T21:40:47+00:00'
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/tests/test_ci_native_dev.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: admit source-bound Rust crypto WASM helper'
+    section: infrastructure
+    commits:
+    - df5793e7c
+    authored_at: '2026-10-25T21:28:50+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_results.py
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: add isolated private ARM Rust dev build'
+    section: infrastructure
+    commits:
+    - 1a68dd59f
+    authored_at: '2026-10-25T20:51:03+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/check_rust_cli_package.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_ci_native_dev.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: execute source-held WASM DedicatedWorker tests'
+    section: infrastructure
+    commits:
+    - c9688e15c
+    authored_at: '2026-10-25T16:03:47+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_wasm_worker.mjs
+    - scripts/ci_wasm_worker.py
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_wasm_worker.mjs
+    - scripts/tests/test_ci_wasm_worker.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: register reviewed shared Rust cache settlement sources'
+    commits:
+    - acb24e8ff
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve private modes when retrieving CI evidence'
+    commits:
+    - d9fc86be1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: validate pinned wasm-bindgen direct import form'
+    commits:
+    - f8eb111b2
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: verify portable Rust CLI fixture inputs'
+    commits:
+    - 8d4dba4dc
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register SDK native TypeScript stripping compatibility'
+    commits:
+    - e8ea166b7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: initialize locked Rust build registry before offline checks'
+    commits:
+    - 1ae3037a7
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: admit source-bound Rust crypto WASM helper'
+    commits:
+    - df5793e7c
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: synchronize Cookie version SDK capability'
+    commits:
+    - 54626a1a4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: add isolated private ARM Rust dev build'
+    commits:
+    - 1a68dd59f
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register reviewed Rust compilation repairs'
+    commits:
+    - f3223c740
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pin reviewed shared Rust client workflows'
+    commits:
+    - d24ce6c4a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep manual message speech on Mistral after calls'
+    commits:
+    - 40f53aab5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: await owned Project draft before voice startup'
+    commits:
+    - 3e953bebb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: synchronize reviewed Rust client SDK verification'
+    commits:
+    - 02ef20a77
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recognize superseded metadata in voice proof'
+    commits:
+    - 276dd3c5a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: stream v4 Turbo call speech with shared voice processing'
+    commits:
+    - 953d73f03
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'test: pin reviewed browser key restore entry'
+    commits:
+    - b6d094b6e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain historical specification successor references'
+    commits:
+    - 4fb75de35
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register verified focused voice-call controls'
+    commits:
+    - 10152fe9c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: execute source-held WASM DedicatedWorker tests'
+    commits:
+    - c9688e15c
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register reviewed shared client integration'
+    commits:
+    - 8d84c0f37
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record calendar event verification and Rust deferral'
+    commits:
+    - 0425e95e9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add calendar event previews and calendar export'
+    commits:
+    - 252a9a579
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+  - title: 'fix: refresh existing browser Rust dependency locks'
+    commits:
+    - '800217103'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: open app settings embeds across workspaces'
+    commits:
+    - 97d4566a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: identify closed SDK window conformance failures'
+    commits:
+    - 7f8e0a754
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register reviewed Rust browser crypto foundation'
+    commits:
+    - 9dfe8bcaf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register reviewed Rust encrypted-window conformance'
+    commits:
+    - 0583207ef
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record native visualization verification'
+    commits:
+    - 65eadce81
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: identify isolated native keyring runtime'
+    commits:
+    - 78da78c04
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: activate canonical recovery for isolated voice calls'
+    commits:
+    - 8d9706ca8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): load native visual guidance for relevant discussions'
+    commits:
+    - 373e0d754
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+  - title: 'test: pin supported binding authority observer'
+    commits:
+    - 6f94a1bb2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore English privacy policy rendering'
+    commits:
+    - 7c285b1ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide inactive apps and correct integration copy'
+    commits:
+    - f14b162ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: pin guarded saved-chat SDK return admission'
+    commits:
+    - 00ce74d97
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: generate standalone calendar event artifacts'
+    commits:
+    - 7e956b95e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+  - title: 'test: pin reviewed SDK unit regression corrections'
+    commits:
+    - b08826725
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record verified Together caching and bounded nested execution'
+    commits:
+    - 3c851b865
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pin SDK formatting and expanded matrix counts'
+    commits:
+    - 3f95f2c31
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: prefer live-verified Together for DeepSeek V4.1 Flash'
+    commits:
+    - dd9e7cf18
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: pin cached Rust core and synchronized session drafts'
+    commits:
+    - 35b0881e1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: admit focused Rust browser password entry proof'
+    commits:
+    - d49e355c5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound recursive subchats and admit saved-child user turns'
+    commits:
+    - 0e9e2a78f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: enable recovery fixture for stopped draft resends'
+    commits:
+    - c45aedb69
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pin reviewed Rust history and draft client source'
+    commits:
+    - da0e00e11
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register SDK docs wiki and embed conformance'
+    commits:
+    - 64de3ffb7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record live provider caching and nested billing findings'
+    commits:
+    - ad5be2d28
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: evaluate key-free event API quality'
+    commits:
+    - 7b7e69a87
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: research permitted discovery APIs'
+    commits:
+    - ae6fab085
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register direct SDK history and draft conformance'
+    commits:
+    - 4ee83a570
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add Baseten DeepSeek V4.1 and nested cache billing'
+    commits:
+    - 9cc730d1f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve public example routes on Vercel'
+    commits:
+    - 813b19efa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align public examples with supported integrations'
+    commits:
+    - a1bbcdc27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'test: register Rust CAS inventory and strip WASM debug names'
+    commits:
+    - 1348bca73
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register cross-SDK account-consistency vectors'
+    commits:
+    - 843a1399c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provision isolated native OS keyring CI coverage'
+    commits:
+    - 434c59fd2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve absent Cargo candidate identity during WASM packaging'
+    commits:
+    - 16e331b57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register reviewed browser snapshot module in SDK client'
+    commits:
+    - f962f40a2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: classify browser credential snapshot public symbols'
+    commits:
+    - 87e22f19b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: classify Cargo bindgen aliases by guarded file identity'
+    commits:
+    - f04f0af2c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align saved-read preload oracle with full reader'
+    commits:
+    - 6b0777989
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: attribute saved-read conformance failures safely'
+    commits:
+    - 82b375b0f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: run browser Rust streaming with isolated replay worker'
+    commits:
+    - 331844c5b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: attribute guarded WASM bindgen detachment refusals'
+    commits:
+    - 6546f4659
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: admit isolated native bounded saved-chat read coverage'
+    commits:
+    - 3232bf688
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pin correlated metadata-only CLI recovery fixture'
+    commits:
+    - c81a1234f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register rich saved-chat SDK conformance'
+    commits:
+    - 7d968ce9f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: align sync architecture with twenty-parent startup'
+    commits:
+    - 820d38642
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: register bounded saved-chat SDK conformance'
+    commits:
+    - 91aa1a07a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve bindgen provenance across verified Cargo hardlinks'
+    commits:
+    - 5dc0a85eb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: sync twenty recent parent chats with bound inventory recovery'
+    commits:
+    - 785293e64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reuse verified dependencies for export-only manifest edits'
+    commits:
+    - 72a678bca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: stream v4 Turbo call speech with shared voice processing'
+    commits:
+    - 953d73f03
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'feat: add calendar event previews and calendar export'
+    commits:
+    - 252a9a579
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+  - title: 'fix(ai): load native visual guidance for relevant discussions'
+    commits:
+    - 373e0d754
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+  - title: 'fix: hide inactive apps and correct integration copy'
+    commits:
+    - f14b162ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: generate standalone calendar event artifacts'
+    commits:
+    - 7e956b95e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+  - title: 'fix: align public examples with supported integrations'
+    commits:
+    - a1bbcdc27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'feat: sync twenty recent parent chats with bound inventory recovery'
+    commits:
+    - 785293e64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: keep manual message speech on Mistral after calls'
+    commits:
+    - 40f53aab5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: await owned Project draft before voice startup'
+    commits:
+    - 3e953bebb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: stream v4 Turbo call speech with shared voice processing'
+    commits:
+    - 953d73f03
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'feat: add calendar event previews and calendar export'
+    commits:
+    - 252a9a579
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: embed:calendar:event
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:calendar
+      source: backend/apps/calendar/app.yml
+    newsletter_ready: false
+  - title: 'fix: open app settings embeds across workspaces'
+    commits:
+    - 97d4566a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(ai): load native visual guidance for relevant discussions'
+    commits:
+    - 373e0d754
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore English privacy policy rendering'
+    commits:
+    - 7c285b1ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide inactive apps and correct integration copy'
+    commits:
+    - f14b162ad
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: generate standalone calendar event artifacts'
+    commits:
+    - 7e956b95e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    newsletter_ready: false
+  - title: 'feat: prefer live-verified Together for DeepSeek V4.1 Flash'
+    commits:
+    - dd9e7cf18
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: bound recursive subchats and admit saved-child user turns'
+    commits:
+    - 0e9e2a78f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add Baseten DeepSeek V4.1 and nested cache billing'
+    commits:
+    - 9cc730d1f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve public example routes on Vercel'
+    commits:
+    - 813b19efa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align public examples with supported integrations'
+    commits:
+    - a1bbcdc27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'feat: sync twenty recent parent chats with bound inventory recovery'
+    commits:
+    - 785293e64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: acb24e8ff898835040544722c8370249b7ef1afb
+    short_sha: acb24e8ff
+    authored_at: '2026-10-25T23:58:48+00:00'
+    subject: 'test: register reviewed shared Rust cache settlement sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-cache-settlement-source-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: d9fc86be1fe26765d86a6b01cdba610f69716f67
+    short_sha: d9fc86be1
+    authored_at: '2026-10-25T23:50:02+00:00'
+    subject: 'fix: preserve private modes when retrieving CI evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/tests/test_ci_results.py
+    related_feature_ids: []
+  - sha: f8eb111b225827868db030d435665370b0e2361d
+    short_sha: f8eb111b2
+    authored_at: '2026-10-25T23:00:20+00:00'
+    subject: 'ci: validate pinned wasm-bindgen direct import form'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 8d4dba4dc785845f45759fdd134502fbd787f438
+    short_sha: 8d4dba4dc
+    authored_at: '2026-10-25T22:30:38+00:00'
+    subject: 'ci: verify portable Rust CLI fixture inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/check_rust_cli_package.py
+    - scripts/ci_native_dev.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_ci_native_dev.py
+    related_feature_ids: []
+  - sha: e8ea166b7f3cd2a9df98c33894333dfd93a48aa7
+    short_sha: e8ea166b7
+    authored_at: '2026-10-25T21:58:05+00:00'
+    subject: 'test: register SDK native TypeScript stripping compatibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 1ae3037a7f0e72dd3951a400d4c00c34a919b023
+    short_sha: 1ae3037a7
+    authored_at: '2026-10-25T21:40:47+00:00'
+    subject: 'ci: initialize locked Rust build registry before offline checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/tests/test_ci_native_dev.py
+    related_feature_ids: []
+  - sha: df5793e7c2f1b07aad266946816602decfc2c588
+    short_sha: df5793e7c
+    authored_at: '2026-10-25T21:28:50+00:00'
+    subject: 'ci: admit source-bound Rust crypto WASM helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_results.py
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 54626a1a429b73ac6a6fa01613806b5a78f7859c
+    short_sha: 54626a1a4
+    authored_at: '2026-10-25T20:56:49+00:00'
+    subject: 'test: synchronize Cookie version SDK capability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 1a68dd59ffd4d6cf2a7fa658e4d9fdbc72eaebb8
+    short_sha: 1a68dd59f
+    authored_at: '2026-10-25T20:51:03+00:00'
+    subject: 'ci: add isolated private ARM Rust dev build'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/check_rust_cli_package.py
+    - scripts/ci_coordinator.py
+    - scripts/ci_native_dev.py
+    - scripts/ci_native_supervisor.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/sync_rust_cli_assets.py
+    - scripts/tests/test_ci_native_dev.py
+    related_feature_ids: []
+  - sha: f3223c740b7c7a9c9c04faf3c725cfad356a4d86
+    short_sha: f3223c740
+    authored_at: '2026-10-25T20:36:02+00:00'
+    subject: 'test: register reviewed Rust compilation repairs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: d24ce6c4a49b3d031481be7e0a9c2af5785b2769
+    short_sha: d24ce6c4a
+    authored_at: '2026-10-25T19:37:15+00:00'
+    subject: 'test: pin reviewed shared Rust client workflows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 40f53aab536f9f95e854611d1182b3a80f6fef7a
+    short_sha: 40f53aab5
+    authored_at: '2026-10-25T19:00:41+00:00'
+    subject: 'fix: keep manual message speech on Mistral after calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/tests/test_ephemeral_voice_manual_speak.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3e953bebb0decfeb0b0434c549b602f085f20291
+    short_sha: 3e953bebb
+    authored_at: '2026-10-25T18:21:32+00:00'
+    subject: 'fix: await owned Project draft before voice startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/voice-call-draft-preparation.test.mjs
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 02ef20a777e167f6ee2f0f72201aeb8c73536057
+    short_sha: 02ef20a77
+    authored_at: '2026-10-25T18:08:42+00:00'
+    subject: 'test: synchronize reviewed Rust client SDK verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/fixtures/sdk-conformance-trust-reviewed229-delta.json
+    - scripts/tests/fixtures/sdk-conformance-trust-window-7edfe1b.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 276dd3c5a4a6bda7e2e4e4c510392e0831a067da
+    short_sha: 276dd3c5a
+    authored_at: '2026-10-25T17:28:40+00:00'
+    subject: 'fix: recognize superseded metadata in voice proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/verify_voice_call_live_smoke.cjs
+    - scripts/verify_voice_call_live_smoke.test.cjs
+    related_feature_ids: []
+  - sha: 953d73f03a950dc970d380a61a421b6efc5610ab
+    short_sha: 953d73f03
+    authored_at: '2026-10-25T16:43:37+00:00'
+    subject: 'feat: stream v4 Turbo call speech with shared voice processing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/assistant_speech/voice_context.py
+    - backend/apps/ai/instructions/base_voice_conversation_instruction.md
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/voice_pipeline_fixture.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/realtime_turn.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/directus/schemas/users.yml
+    - backend/scripts/test_elevenlabs_realtime_incremental.py
+    - backend/scripts/test_mistral_realtime_tts_availability.py
+    - backend/shared/providers/elevenlabs/realtime.py
+    - backend/shared/python_utils/assistant_speech_audio.py
+    - backend/tests/test_assistant_speech_audio_routing.py
+    - backend/tests/test_elevenlabs_realtime.py
+    - backend/tests/test_voice_call_instructions.py
+    - backend/tests/test_voice_call_protocol.py
+    - backend/tests/test_voice_realtime_turn.py
+    - backend/tests/test_voice_waiting_v4.py
+    - docs/apis/elevenlabs-realtime-call-speech.md
+    - docs/plans/voice-call-delivery-correction/plan.yml
+    - docs/plans/voice-call-delivery-correction/provider-and-performance.md
+    - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    - frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts
+    - frontend/apps/web_app/tests/helpers/voice-call-media-observer.test.mjs
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.preview.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/ActiveChatCallHeaderPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechLiveStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechStream.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCompletionCas.test.js
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallPrivacy.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallTurns.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/assistantSpeechStream.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - scripts/tests/test_message_input_welcome_contract.py
+    - scripts/verify_voice_call_live_smoke.cjs
+    - scripts/verify_voice_call_live_smoke.test.cjs
+    - shared/docs/privacy_policy.yml
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+  - sha: b6d094b6e0864555c8f3446bf2b3d73a361c1c7f
+    short_sha: b6d094b6e
+    authored_at: '2026-10-25T16:19:52+00:00'
+    subject: 'test: pin reviewed browser key restore entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 4fb75de351840bec5fa7a82191e9fcf6cb0930b0
+    short_sha: 4fb75de35
+    authored_at: '2026-10-25T16:14:44+00:00'
+    subject: 'fix: retain historical specification successor references'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/specifications.py
+    - scripts/tests/test_specifications_workflow.py
+    related_feature_ids: []
+  - sha: 10152fe9c96101ce682344ea7a223c105826f7e0
+    short_sha: 10152fe9c
+    authored_at: '2026-10-25T16:03:55+00:00'
+    subject: 'test: register verified focused voice-call controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: c9688e15c0168e36ef40f25bb3338247dacfe512
+    short_sha: c9688e15c
+    authored_at: '2026-10-25T16:03:47+00:00'
+    subject: 'ci: execute source-held WASM DedicatedWorker tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_wasm_worker.mjs
+    - scripts/ci_wasm_worker.py
+    - scripts/tests/test_ci_rust_wasm.py
+    - scripts/tests/test_ci_wasm_worker.mjs
+    - scripts/tests/test_ci_wasm_worker.py
+    related_feature_ids: []
+  - sha: 8d84c0f3767ec0f47b861017ab4d9beb1d6bbf9a
+    short_sha: 8d84c0f37
+    authored_at: '2026-10-25T15:51:42+00:00'
+    subject: 'test: register reviewed shared client integration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 0425e95e946af6465a1b4956df8f474ce4ec5ea9
+    short_sha: 0425e95e9
+    authored_at: '2026-10-25T15:32:50+00:00'
+    subject: 'docs: record calendar event verification and Rust deferral'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/calendar-event-embeds/plan.yml
+    - docs/plans/calendar-event-embeds/verification.md
+    related_feature_ids: []
+  - sha: 252a9a5799a5e453251bb87fbc40a7fd9cfeaf3e
+    short_sha: 252a9a579
+    authored_at: '2026-10-25T15:23:03+00:00'
+    subject: 'feat: add calendar event previews and calendar export'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - backend/apps/ai/testing/fixtures/calendar_event.json
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/apps/calendar/app.yml
+    - docs/plans/calendar-event-embeds/plan.yml
+    - frontend/apps/web_app/tests/calendar-event-embed.spec.ts
+    - frontend/apps/web_app/tests/components/calendar-event-embed.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/tests/calendarEventExport.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/public-site/src/components/results/ResultCalendarWeek.svelte
+    - frontend/packages/public-site/src/components/results/calendarWeek.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.preview.ts
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedHarness.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedHarness.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarEventEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/calendarEventEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/calendar_event.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    - frontend/packages/ui/src/utils/calendarEvent.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/calendar_event.py
+    - packages/openmates-python/pyproject.toml
+    - packages/openmates-python/tests/test_calendar_event.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/verify_calendar_event_real_dev.py
+    - shared/test-fixtures/calendar-event-export.json
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+    - app:calendar
+    - embed:calendar:event
+  - sha: 80021710370855583b6582788e96e2ef04daffe5
+    short_sha: '800217103'
+    authored_at: '2026-10-25T15:05:51+00:00'
+    subject: 'fix: refresh existing browser Rust dependency locks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/ci_sdk_lockfiles.py
+    - scripts/tests/test_ci_sdk_lockfiles.py
+    related_feature_ids: []
+  - sha: 97d4566a6b37efa90fb612fba7e96826e46e1ff7
+    short_sha: 97d4566a6
+    authored_at: '2026-10-25T14:42:44+00:00'
+    subject: 'fix: open app settings embeds across workspaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/tests/app-embeds-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/app-embeds-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/embeds/StandaloneEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/StandaloneEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.preview.ts
+    - frontend/packages/ui/src/components/settings/appSettings/AppEmbedsPanel.svelte
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7f8e0a7546f627bcefd0b4f87b832454325b8893
+    short_sha: 7f8e0a754
+    authored_at: '2026-10-25T14:30:23+00:00'
+    subject: 'test: identify closed SDK window conformance failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_sdk_conformance.py
+    related_feature_ids: []
+  - sha: 9dfe8bcafb8309cc7a7aeb0f58e18e5d95f6d3de
+    short_sha: 9dfe8bcaf
+    authored_at: '2026-10-25T14:11:36+00:00'
+    subject: 'test: register reviewed Rust browser crypto foundation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 0583207efb06287f292609cdc0e0a757c31dcc17
+    short_sha: 0583207ef
+    authored_at: '2026-10-25T13:56:56+00:00'
+    subject: 'test: register reviewed Rust encrypted-window conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 65eadce81165f99bb1e5ce514f2b7ac025abb605
+    short_sha: 65eadce81
+    authored_at: '2026-10-25T13:55:55+00:00'
+    subject: 'docs: record native visualization verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-visualization-routing/plan.yml
+    related_feature_ids: []
+  - sha: 78da78c04abe2c3da2894afcf670bd970ea557fb
+    short_sha: 78da78c04
+    authored_at: '2026-10-25T13:49:09+00:00'
+    subject: 'fix: identify isolated native keyring runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_native_private_profile.py
+    related_feature_ids: []
+  - sha: 8d9706ca8d75772452f6091f7038a5232808da74
+    short_sha: 8d9706ca8
+    authored_at: '2026-10-25T13:31:24+00:00'
+    subject: 'test: activate canonical recovery for isolated voice calls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/ci_voice_recovery_epoch.py
+    - scripts/tests/test_ci_voice_recovery_epoch.py
+    related_feature_ids: []
+  - sha: 373e0d7547d3cf1d6b18d420447c03d970e75430
+    short_sha: 373e0d754
+    authored_at: '2026-10-25T13:27:44+00:00'
+    subject: 'fix(ai): load native visual guidance for relevant discussions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/testing/diagram_html_fixture.py
+    - backend/apps/diagrams/app.yml
+    - backend/apps/diagrams/diagram_guidance.py
+    - backend/apps/mindmaps/app.yml
+    - backend/tests/test_diagram_guidance.py
+    - backend/tests/test_diagram_html_live_mock_fixture.py
+    - docs/plans/native-visualization-routing/plan.yml
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:diagrams
+    - app:mindmaps
+  - sha: 6f94a1bb2d095d7337ac29a6c9e23e2ae06c53c8
+    short_sha: 6f94a1bb2
+    authored_at: '2026-10-25T13:16:15+00:00'
+    subject: 'test: pin supported binding authority observer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 7c285b1edfd1ada128ca08e94c6b788cf6d7605b
+    short_sha: 7c285b1ed
+    authored_at: '2026-10-25T13:07:41+00:00'
+    subject: 'fix: restore English privacy policy rendering'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/website-redirects.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/publicLegalRendering.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: f14b162adfc4a2c162a3a27f6de2980588bafecf
+    short_sha: f14b162ad
+    authored_at: '2026-10-25T12:36:06+00:00'
+    subject: 'fix: hide inactive apps and correct integration copy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/health/focus_modes/health-insights/SKILL.ar.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.cs.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.de.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.es.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.fr.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.he.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.hi.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.id.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.it.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ja.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ko.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.nl.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.pl.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.pt.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.ru.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.sv.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.th.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.tr.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.vi.md
+    - backend/apps/health/focus_modes/health-insights/SKILL.zh.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ar.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.cs.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.de.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.es.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.fr.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.he.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.hi.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.id.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.it.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ja.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ko.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.nl.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.pl.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.pt.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.ru.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.sv.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.th.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.tr.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.vi.md
+    - backend/apps/health/focus_modes/prepare-doctor-appointment/SKILL.zh.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ar.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.cs.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.de.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.es.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.fr.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.he.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.hi.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.id.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.it.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ja.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ko.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.nl.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.pl.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.pt.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.ru.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.sv.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.th.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.tr.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.vi.md
+    - backend/apps/health/focus_modes/prepare-doctor-report/SKILL.zh.md
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/app_discovery_visibility.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_app_discovery_visibility.py
+    - backend/tests/test_apps_metadata_availability.py
+    - backend/tests/test_focus_instruction_sources.py
+    - backend/tests/test_retired_app_capabilities.py
+    - backend/tests/test_workflow_skill_output_contracts.py
+    - docs/plans/app-catalog-cleanup/plan.yml
+    - frontend/apps/web_app/tests/components/apps-catalog-availability.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/focus-mode-instructions.spec.ts
+    - frontend/apps/web_app/tests/helpers/apps-catalog-readiness.ts
+    - frontend/apps/web_app/tests/helpers/provider-boundary.ts
+    - frontend/apps/web_app/tests/provider-boundary.spec.ts
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/scripts/focus-mode-content.test.mjs
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/appCatalogPreview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
+    - frontend/packages/ui/src/components/settings/focusModeInstructions.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/jobs.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_health_insights.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_prepare_doctor_appointment.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/health_prepare_doctor_report.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/main.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/social_media_content_calendar_strategist.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/types/apps.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - app:health
+    - app:travel
+    - app:videos
+    - platform:workflows
+  - sha: 00ce74d97dd8aaf36f6e9e55ea50095f859b9bff
+    short_sha: 00ce74d97
+    authored_at: '2026-10-25T12:26:19+00:00'
+    subject: 'test: pin guarded saved-chat SDK return admission'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 7e956b95e901bc832cfb0568babf491997b0234d
+    short_sha: 7e956b95e
+    authored_at: '2026-10-25T11:54:37+00:00'
+    subject: 'feat: generate standalone calendar event artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/calendar_event_fences.py
+    - backend/apps/ai/utils/json_content_fences.py
+    - backend/apps/calendar/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_calendar_event_content.py
+    - backend/tests/test_calendar_event_streaming.py
+    - backend/tests/test_mindmap_embed_streaming.py
+    - docs/plans/calendar-event-embeds/plan.yml
+    - specifications/features/calendar-event-embeds/examples.yml
+    - specifications/features/calendar-event-embeds/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:calendar
+  - sha: b08826725e67265a35ea84425c166a8184b9ee5f
+    short_sha: b08826725
+    authored_at: '2026-10-25T11:36:41+00:00'
+    subject: 'test: pin reviewed SDK unit regression corrections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 3c851b8652d1f44d64057cbca26d2d1ba0b48fce
+    short_sha: 3c851b865
+    authored_at: '2026-10-25T11:31:15+00:00'
+    subject: 'test: record verified Together caching and bounded nested execution'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    related_feature_ids: []
+  - sha: 3f95f2c31db8f64e8242d63b1a2648817c622a42
+    short_sha: 3f95f2c31
+    authored_at: '2026-10-25T11:18:48+00:00'
+    subject: 'test: pin SDK formatting and expanded matrix counts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: dd9e7cf18318225c5d8405a77efc12ea8d555fee
+    short_sha: dd9e7cf18
+    authored_at: '2026-10-25T11:08:30+00:00'
+    subject: 'feat: prefer live-verified Together for DeepSeek V4.1 Flash'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/llm_providers/together_wrapper.py
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/tests/test_baseten_provider.py
+    - backend/tests/test_together_deepseek_flash.py
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    related_feature_ids:
+    - app:ai
+  - sha: 35b0881e116d503b068883b9f211ab0457981088
+    short_sha: 35b0881e1
+    authored_at: '2026-10-25T11:01:10+00:00'
+    subject: 'test: pin cached Rust core and synchronized session drafts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: d49e355c55086bf75588fa8677fe3dd72175ace7
+    short_sha: d49e355c5
+    authored_at: '2026-10-25T10:53:39+00:00'
+    subject: 'test: admit focused Rust browser password entry proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_browser_password_entry_profile.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    - scripts/tests/test_ci_native_private_profile.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 0e9e2a78fcc27dc3a58aa1a475c96d3d4f538790
+    short_sha: 0e9e2a78f
+    authored_at: '2026-10-25T10:40:49+00:00'
+    subject: 'fix: bound recursive subchats and admit saved-child user turns'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/src/operations.js
+    - backend/core/directus/extensions/sub-chat-orchestration-transaction/test/operations.test.js
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/shared/python_utils/saved_chat_turn_authority.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_saved_chat_turn_authority.py
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - frontend/apps/web_app/tests/nested-chat-cache-billing.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: c45aedb6902f3582db90c7398cbc074a80b3690a
+    short_sha: c45aedb69
+    authored_at: '2026-10-25T10:35:40+00:00'
+    subject: 'test: enable recovery fixture for stopped draft resends'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    related_feature_ids: []
+  - sha: da0e00e11df44c7629b089ed074bd8e9d951960c
+    short_sha: da0e00e11
+    authored_at: '2026-10-25T10:34:09+00:00'
+    subject: 'test: pin reviewed Rust history and draft client source'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 64de3ffb76960bd9d72b26adc9f4fde636e6b15b
+    short_sha: 64de3ffb7
+    authored_at: '2026-10-25T10:08:29+00:00'
+    subject: 'test: register SDK docs wiki and embed conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: ad5be2d28453021bcf156dbb04033d7362cc52e4
+    short_sha: ad5be2d28
+    authored_at: '2026-10-25T10:05:36+00:00'
+    subject: 'test: record live provider caching and nested billing findings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/llm-cache-nested-chats/live-validation-2026-10-25.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    related_feature_ids: []
+  - sha: 7b7e69a8775fb65333a2d080fd61df541d6837de
+    short_sha: 7b7e69a87
+    authored_at: '2026-10-25T09:39:28+00:00'
+    subject: 'docs: evaluate key-free event API quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/apis/discovery-provider-research-2026-10-25.md
+    - docs/apis/event-api-quality-2026-10-25.md
+    - docs/apis/evidence/event-api-quality-2026-10-25.json
+    related_feature_ids: []
+  - sha: ae6fab08512fa93a3b225ab2565815a3d428fdd4
+    short_sha: ae6fab085
+    authored_at: '2026-10-25T09:14:40+00:00'
+    subject: 'docs: research permitted discovery APIs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/apis/discovery-provider-research-2026-10-25.md
+    related_feature_ids: []
+  - sha: 4ee83a570a585e1924ddb1ee990fce8f3b3e8783
+    short_sha: 4ee83a570
+    authored_at: '2026-10-25T09:01:05+00:00'
+    subject: 'test: register direct SDK history and draft conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 9cc730d1f5f80004a74a871621fadb9bfae64d5f
+    short_sha: 9cc730d1f
+    authored_at: '2026-10-25T09:00:53+00:00'
+    subject: 'feat: add Baseten DeepSeek V4.1 and nested cache billing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/llm_providers/baseten_client.py
+    - backend/apps/ai/llm_providers/cerebras_client.py
+    - backend/apps/ai/llm_providers/cerebras_wrapper.py
+    - backend/apps/ai/llm_providers/google_maas_client.py
+    - backend/apps/ai/llm_providers/groq_client.py
+    - backend/apps/ai/llm_providers/local_openai_compatible.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_openrouter.py
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/apps/ai/llm_providers/openrouter_client.py
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/llm_providers/together_wrapper.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/providers/baseten.yml
+    - backend/providers/deepseek.yml
+    - backend/scripts/test_nested_chat_cache_billing_contract.py
+    - backend/shared/providers/baseten/__init__.py
+    - backend/shared/providers/baseten/client.py
+    - backend/tests/test_baseten_provider.py
+    - backend/tests/test_compatible_provider_cache_usage.py
+    - backend/tests/test_glm_mistral.py
+    - backend/tests/test_health_status_alerts.py
+    - backend/tests/test_nested_chat_cache_billing.py
+    - backend/tests/test_sub_chat_orchestration.py
+    - docs/apis/baseten.md
+    - docs/plans/llm-cache-nested-chats/plan.yml
+    - docs/plans/llm-cache-nested-chats/provider-audit.md
+    - frontend/apps/web_app/tests/nested-chat-cache-billing.spec.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - scripts/api_tests/test_baseten_api.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 813b19efa16ef39e689cb1b30caf202c3e56a96f
+    short_sha: 813b19efa
+    authored_at: '2026-10-25T08:47:29+00:00'
+    subject: 'fix: preserve public example routes on Vercel'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - scripts/tests/test_vercel_public_routes.py
+    related_feature_ids: []
+  - sha: a1bbcdc2753ef10b2d5c42ad886922dd11f0d1cd
+    short_sha: a1bbcdc27
+    authored_at: '2026-10-25T08:33:40+00:00'
+    subject: 'fix: align public examples with supported integrations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - README.md
+    - backend/apps/web/app.yml
+    - docs/design-guide/landing-native-captures.md
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/devices-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/web_app/static/landing/screenshots/hero-mobile.webp
+    - frontend/apps/web_app/tests/chat-focused-scroll.spec.ts
+    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
+    - frontend/apps/web_app/tests/components/composer-embed-suggestions.spec.ts
+    - frontend/apps/web_app/tests/components/composer-public-embed.spec.ts
+    - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/landing-admitted-content.spec.ts
+    - frontend/apps/web_app/tests/components/landing-example-link.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/panel-responsiveness.spec.ts
+    - frontend/apps/web_app/tests/composer-embed-open.spec.ts
+    - frontend/apps/web_app/tests/composer-split-layout.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
+    - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts
+    - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
+    - frontend/apps/web_app/tests/example-chat-ipad-multitab.spec.ts
+    - frontend/apps/web_app/tests/example-chat-logout-preserve.spec.ts
+    - frontend/apps/web_app/tests/example-chat-removals.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/landing-health-targeted.spec.ts
+    - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-mindmap-preserved-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-provider-icons-targeted.spec.ts
+    - frontend/apps/web_app/tests/landing-shopping-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-videos-replacement.spec.ts
+    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
+    - frontend/apps/web_app/tests/models3d-example-chat.spec.ts
+    - frontend/apps/web_app/tests/public-example-activity-summary.spec.ts
+    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
+    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/devices-mobile.webp
+    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/events-mobile.webp
+    - frontend/apps/website/static/landing/screenshots/hero-desktop.webp
+    - frontend/apps/website/static/landing/screenshots/hero-mobile.webp
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/landingLocale.generated.json
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.preview.ts
+    - frontend/packages/ui/src/components/NewChatSuggestions.preview.ts
+    - frontend/packages/ui/src/components/embeds/health/__tests__/HealthAppointmentProvider.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleEmbedIsolation.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/__tests__/landingExampleCatalog.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/air-fryers-retail-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beginner-yoga-classes-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-english-speaking-gp-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/deutschlandticket-train-fare-breakdown.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/find-brand-name-and-domain.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gigantic-airplanes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/printable-benchy-phone-stand-models.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/social-app-name-domain-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/air_fryers_retail_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/beginner_yoga_classes_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_english_speaking_gp_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/deutschlandticket_train_fare_breakdown.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/find_brand_name_and_domain.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/printable_benchy_phone_stand_models.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/social_app_name_domain_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_example_chat_single_quoted_embeds.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:web
+  - sha: 1348bca7383b21a27e91853f69f4f138fd49e9a6
+    short_sha: 1348bca73
+    authored_at: '2026-10-25T07:46:01+00:00'
+    subject: 'test: register Rust CAS inventory and strip WASM debug names'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 843a1399c2b420631c6e8e58490a1eb5266382a6
+    short_sha: 843a1399c
+    authored_at: '2026-10-25T05:13:02+00:00'
+    subject: 'test: register cross-SDK account-consistency vectors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 434c59fd28826ec45f43ea2a2edd0e726ed6eaae
+    short_sha: 434c59fd2
+    authored_at: '2026-10-25T05:10:18+00:00'
+    subject: 'test: provision isolated native OS keyring CI coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_native_keyring.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_native_keyring.py
+    - scripts/tests/test_ci_native_private_profile.py
+    related_feature_ids: []
+  - sha: 16e331b57a4d8056b5550ab66234af67f0a7f60e
+    short_sha: 16e331b57
+    authored_at: '2026-10-25T04:58:44+00:00'
+    subject: 'fix: preserve absent Cargo candidate identity during WASM packaging'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: f962f40a25539e4ae3f8363d28bd561212cd57a7
+    short_sha: f962f40a2
+    authored_at: '2026-10-25T04:06:35+00:00'
+    subject: 'test: register reviewed browser snapshot module in SDK client'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 87e22f19bcffbccecd917f9afef520b7c1288853
+    short_sha: 87e22f19b
+    authored_at: '2026-10-25T03:34:25+00:00'
+    subject: 'test: classify browser credential snapshot public symbols'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: f04f0af2cf1afd63b30bd4175410f13fe9fb13ec
+    short_sha: f04f0af2c
+    authored_at: '2026-10-25T03:27:11+00:00'
+    subject: 'fix: classify Cargo bindgen aliases by guarded file identity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 6b0777989214a91afa819989a9737f0addb97c50
+    short_sha: 6b0777989
+    authored_at: '2026-10-25T03:13:16+00:00'
+    subject: 'test: align saved-read preload oracle with full reader'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 82b375b0f8760a04debb8b66fac4da6a1da75182
+    short_sha: 82b375b0f
+    authored_at: '2026-10-25T02:39:23+00:00'
+    subject: 'test: attribute saved-read conformance failures safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance.py
+    - scripts/ci_sdk_conformance_trust.json
+    - scripts/tests/test_ci_saved_read_diagnostics.py
+    related_feature_ids: []
+  - sha: 331844c5b7114d99b436a2747056e284c596ecb9
+    short_sha: 331844c5b
+    authored_at: '2026-10-25T02:37:04+00:00'
+    subject: 'test: run browser Rust streaming with isolated replay worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_maps_recovery_profile.py
+    - scripts/tests/test_ci_native_private_profile.py
+    related_feature_ids: []
+  - sha: 6546f46590da48cb8a0a1560c4ae310955530a98
+    short_sha: 6546f4659
+    authored_at: '2026-10-25T02:33:49+00:00'
+    subject: 'fix: attribute guarded WASM bindgen detachment refusals'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 3232bf6884866312349926e572e13c02d67c9d54
+    short_sha: 3232bf688
+    authored_at: '2026-10-25T02:14:29+00:00'
+    subject: 'test: admit isolated native bounded saved-chat read coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/tests/test_ci_coverage.py
+    - scripts/tests/test_ci_native_private_profile.py
+    related_feature_ids: []
+  - sha: c81a1234ff529f1c01fc72cda896039a1b3c5b61
+    short_sha: c81a1234f
+    authored_at: '2026-10-25T01:29:12+00:00'
+    subject: 'test: pin correlated metadata-only CLI recovery fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 7d968ce9fb3f0cc79e958db23b0a1f2eee97413b
+    short_sha: 7d968ce9f
+    authored_at: '2026-10-25T01:00:21+00:00'
+    subject: 'test: register rich saved-chat SDK conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 820d38642ee0b2e5f28e7d52e51c1223407fb484
+    short_sha: 820d38642
+    authored_at: '2026-10-25T00:26:39+00:00'
+    subject: 'docs: align sync architecture with twenty-parent startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    related_feature_ids: []
+  - sha: 91aa1a07ab9c01d70fb1b30222abc019c4f0352a
+    short_sha: 91aa1a07a
+    authored_at: '2026-10-25T00:26:32+00:00'
+    subject: 'test: register bounded saved-chat SDK conformance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_sdk_conformance_trust.json
+    related_feature_ids: []
+  - sha: 5dc0a85eb97e563e6da37745b74e97fa4471b994
+    short_sha: 5dc0a85eb
+    authored_at: '2026-10-25T00:17:18+00:00'
+    subject: 'fix: preserve bindgen provenance across verified Cargo hardlinks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_rust_wasm.py
+    - scripts/tests/test_ci_rust_wasm.py
+    related_feature_ids: []
+  - sha: 785293e64850b73fc4322fcc8f128b8cbb9e4e34
+    short_sha: 785293e64
+    authored_at: '2026-10-25T00:14:16+00:00'
+    subject: 'feat: sync twenty recent parent chats with bound inventory recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/cli-sdk.md
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_metadata_recovery_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/sync_api.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_completion_inventory_discovery.py
+    - backend/tests/test_correlated_inventory_discovery.py
+    - backend/tests/test_inventory_transaction_binding.py
+    - backend/tests/test_paused_completion_inventory_ack.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_phased_sync_origin_binding.py
+    - backend/tests/test_sync_api.py
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/helpers/browser-process-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/browser-process-evidence.test.cjs
+    - frontend/apps/web_app/tests/helpers/performance-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/performance-evidence.test.cjs
+    - frontend/apps/web_app/tests/helpers/startup-performance-evidence.cjs
+    - frontend/apps/web_app/tests/helpers/startup-performance-evidence.test.cjs
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/chatMetadataCacheInvalidation.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftWebsocket.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - scripts/ci_startup_sync_fixture.mjs
+    - specifications/architecture/sync/examples.yml
+    - specifications/architecture/sync/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 72a678bca0223e771d11173842e0e5238d745e11
+    short_sha: 72a678bca
+    authored_at: '2026-10-25T00:03:22+00:00'
+    subject: 'fix: reuse verified dependencies for export-only manifest edits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_bootstrap.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on advancing AI voice capabilities with v4 Turbo streaming and introduced calendar event artifacts
+    with export support. The project also integrated DeepSeek V4.1 via Baseten and Together, alongside significant internal
+    SDK and CI infrastructure improvements.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Development of AI voice v4 Turbo streaming continued, including fixes for manual speech persistence and draft preparation
+      before call startup.
+    evidence:
+      commits:
+      - 953d73f03
+      - 40f53aab5
+      - 3e953bebb
+      - 276dd3c5a
+      - 10152fe9c
+      - 8d9706ca8
+    release_status: dev_only
+  - text: Calendar event support was expanded to include standalone artifacts, previews, and export functionality.
+    evidence:
+      commits:
+      - 252a9a579
+      - 7e956b95e
+      - 0425e95e9
+    release_status: dev_only
+  - text: Integration of DeepSeek V4.1 via Baseten and Together was initiated, including new nested cache billing logic.
+    evidence:
+      commits:
+      - dd9e7cf18
+      - 9cc730d1f
+      - 0e9e2a78f
+      - 3c851b865
+      - ad5be2d28
+    release_status: dev_only
+  - text: The sync architecture was updated to support phased recovery of twenty recent parent chats during startup.
+    evidence:
+      commits:
+      - 785293e64
+      - 820d38642
+    release_status: dev_only
+  - text: UI and UX refinements included app catalog cleanup, alignment of public examples with supported integrations, and
+      fixes for cross-workspace settings embeds.
+    evidence:
+      commits:
+      - f14b162ad
+      - a1bbcdc27
+      - 813b19efa
+      - 7c285b1ed
+      - 373e0d754
+      - 97d4566a6
+    release_status: dev_only
+  - text: Internal bug fixes addressed CI evidence retrieval, specification successor references, and Rust dependency lock
+      refreshing.
+    evidence:
+      commits:
+      - d9fc86be1
+      - 4fb75de35
+      - '800217103'
+      - 78da78c04
+      - 16e331b57
+      - f04f0af2c
+      - 6546f4659
+      - 5dc0a85eb
+      - 72a678bca
+    release_status: dev_only
+  internal_progress:
+  - text: Infrastructure updates improved CI workflows for Rust and WASM, including ARM dev builds and DedicatedWorker testing.
+    evidence:
+      commits:
+      - f8eb111b2
+      - 8d4dba4dc
+      - 1ae3037a7
+      - df5793e7c
+      - 1a68dd59f
+      - c9688e15c
+    release_status: dev_only
+  - text: Extensive SDK conformance testing was performed to verify Rust client verification, browser crypto foundations,
+      and saved-chat read coverage.
+    evidence:
+      commits:
+      - acb24e8ff
+      - e8ea166b7
+      - 54626a1a4
+      - f3223c740
+      - d24ce6c4a
+      - 02ef20a77
+      - b6d094b6e
+      - 8d84c0f37
+      - 7f8e0a754
+      - 9dfe8bcaf
+      - 0583207ef
+      - 6f94a1bb2
+      - 00ce74d97
+      - b08826725
+      - 3f95f2c31
+      - 35b0881e1
+      - d49e355c5
+      - c45aedb69
+      - da0e00e11
+      - 64de3ffb7
+      - 4ee83a570
+      - 1348bca73
+      - 843a1399c
+      - 434c59fd2
+      - f962f40a2
+      - 87e22f19b
+      - 6b0777989
+      - 82b375b0f
+      - 331844c5b
+      - 3232bf688
+      - c81a1234f
+      - 7d968ce9f
+      - 91aa1a07a
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI voice streaming v4 Turbo and call speech processing.
+      evidence:
+        commits:
+        - 953d73f03
+        - 40f53aab5
+        - 3e953bebb
+        - 276dd3c5a
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Calendar event previews and standalone artifact generation.
+      evidence:
+        commits:
+        - 252a9a579
+        - 7e956b95e
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: DeepSeek V4.1 integration and nested cache billing.
+      evidence:
+        commits:
+        - dd9e7cf18
+        - 9cc730d1f
+        - 0e9e2a78f
+      reason: Feature is currently in development and not yet released to the main branch.
+    rationale: No items from this update are currently marked as ready for public communication or released to the main branch.
+  social_video_recommendations:
+  - idea: A demonstration of the new v4 Turbo voice streaming showing low-latency assistant responses.
+    priority: medium
+    reason: Concrete product story showing a significant performance improvement in voice interactions.
+    evidence:
+      commits:
+      - 953d73f03
+  - idea: Showcasing how the assistant generates calendar events that can be previewed and exported directly to user calendars.
+    priority: low
+    reason: Visual feature that demonstrates utility and integration.
+    evidence:
+      commits:
+      - 252a9a579
+  quality_notes:
+  - Extensive automated testing was added for voice call protocols and calendar event streaming.
+  - CI coverage was expanded for native OS keyring runtimes and ARM-based Rust builds.
+  validation_warnings: []
