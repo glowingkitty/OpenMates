@@ -169,16 +169,17 @@ test('native camera preview stays attached across real parent call state and tim
 });
 
 // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output
-test('camera errors remain readable while collapsed phone camera controls stay clickable', async ({page}) => {
+test('camera errors use regular notifications while collapsed phone camera controls stay clickable', async ({page}) => {
   await page.setViewportSize({width:390,height:844});
   await page.goto(preview('error',390));
   await waitForComponentPreview(page);
-  const alert = page.getByRole('alert');
+  const alert = page.getByTestId('notification').filter({hasText:'Camera access was denied.'});
+  await expect(page.locator('.media-error')).toHaveCount(0);
   const panel = page.getByTestId('voice-call-media');
   const expand = page.getByTestId('voice-call-media-expand');
   const flip = page.getByTestId('voice-call-camera-flip');
   const camera = page.getByTestId('voice-call-camera-preview').locator('video');
-  await expect(alert).toHaveText('Camera access was denied.');
+  await expect(alert).toContainText('Camera access was denied.');
   await expand.click();
   await expect(panel).toHaveAttribute('data-expanded','false');
   const collapsedHeight = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 6);

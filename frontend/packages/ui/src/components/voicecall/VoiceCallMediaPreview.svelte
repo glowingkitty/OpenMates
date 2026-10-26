@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { notificationStore } from '../../stores/notificationStore';
+  import NotificationStack from '../NotificationStack.svelte';
   import VoiceCallMedia from './VoiceCallMedia.svelte';
   import type { VoiceCallDisplayedMedia } from '../../services/voiceCallMedia';
   import type { VoiceCallCameraFacing } from '../../services/voiceCallCamera';
@@ -14,6 +16,7 @@
   let cameraStream = $state<MediaStream | null>(null);
   // Reuse a real fixture clip as a deterministic smooth stream, without requesting a camera.
   onMount(() => {
+    if (initialError) notificationStore.addNotificationWithOptions('error', { message: initialError, duration: 0, dedupeKey: 'voice-camera-preview-error' });
     if (!cameraEnabled) return;
     let disposed = false;
     const source = document.createElement('video') as HTMLVideoElement & {captureStream?: () => MediaStream};
@@ -41,9 +44,11 @@
 </script>
 
 <VoiceCallMedia {cameraStream} {cameraEnabled} {cameraFacing} {expanded} {displayedMedia}
-  mediaCount={multiple ? results.length : 1} mediaIndex={index} error={initialError}
+  mediaCount={multiple ? results.length : 1} mediaIndex={index}
   onExpandedChange={value => { expanded = value; }}
   onShowCamera={() => { showCamera = true; }}
   onFlipCamera={() => { cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment'; }}
   onPrevious={() => { index = Math.max(0, index - 1); }}
   onNext={() => { index = Math.min(results.length - 1, index + 1); }} />
+
+<NotificationStack />

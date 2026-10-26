@@ -23,16 +23,13 @@
   const active = $derived(state.status === 'connecting' || state.status === 'live');
   const activityActive = $derived(state.billingActivity === null || state.billingActivity.inputListening || state.billingActivity.processing);
   const duration = $derived(`${String(Math.floor(state.activeElapsedSeconds / 60)).padStart(2, '0')}:${String(state.activeElapsedSeconds % 60).padStart(2, '0')}`);
-  const errorKey = $derived(state.error && ['microphone_denied', 'microphone_missing', 'microphone_failed', 'session_expired',
-    'connection_failed', 'connection_lost', 'invalid_response', 'transcript_save_failed', 'transcript_limit',
-    'context_too_large', 'context_unavailable'].includes(state.error) ? state.error : 'call_unavailable');
-  const statusKey = $derived(state.status === 'connecting' ? 'connecting' : state.status === 'error' ? errorKey :
+  const statusKey = $derived(state.status === 'connecting' ? 'connecting' :
     state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
     state.muted ? 'muted' : state.inputIdle && state.billingActivity?.inputListening === false &&
       state.billingActivity.processing === false ? 'input_idle' : 'live');
 </script>
 
-{#if active || state.status === 'error'}
+{#if active}
   <aside class="voice-call-bar" class:fixed data-testid="voice-call-bar" aria-label={$text('voicecall.title')} aria-busy={state.status === 'connecting'}>
     <div class="edge left">
       {#if fixed && moreActions}{@render moreActions()}
@@ -51,7 +48,7 @@
       <div class="wave">
         <VoiceCallWaveform levels={state.audioLevels} />
         <button class="round microphone" class:muted={state.muted} data-testid="voice-call-mute" data-activity-active={activityActive}
-          aria-label={state.status === 'error' ? $text(`voicecall.${errorKey}`) : $text(state.muted ? 'voicecall.unmute' : 'voicecall.mute')}
+          aria-label={$text(state.muted ? 'voicecall.unmute' : 'voicecall.mute')}
           aria-pressed={state.muted} aria-describedby="voice-call-accessible-status" disabled={state.status !== 'live'} onclick={() => controller.setMuted(!state.muted)}>
           <span class="clickable-icon icon_recordaudio" aria-hidden="true"></span>
           {#if state.muted}<span class="microphone-slash" aria-hidden="true"></span>{/if}
@@ -59,30 +56,23 @@
       </div>
     </div>
     <div class="edge right">
-      <button class="round hangup" data-testid="voice-call-hangup" aria-label={$text(state.status === 'error' ? 'voicecall.close' : 'voicecall.hangup')} onclick={() => controller.hangup()}>
+      <button class="round hangup" data-testid="voice-call-hangup" aria-label={$text('voicecall.hangup')} onclick={() => controller.hangup()}>
         <span class="clickable-icon icon_call" aria-hidden="true"></span>
       </button>
       {#if fixed && onCloseChat}<button class="round" data-testid="voice-call-close-chat" aria-label={$text('voicecall.close_chat')} onclick={onCloseChat}><span class="clickable-icon icon_close" aria-hidden="true"></span></button>{/if}
     </div>
-    <span class="sr-only" id="voice-call-accessible-status" role={state.status === 'error' ? 'alert' : 'status'} data-testid="voice-call-status"><span data-testid="voice-call-status-text">{$text(`voicecall.${statusKey}`)}</span></span>
-    {#if active && (state.cameraEnabled || state.displayedMedia || state.cameraError)}
+    <span class="sr-only" id="voice-call-accessible-status" role="status" data-testid="voice-call-status"><span data-testid="voice-call-status-text">{$text(`voicecall.${statusKey}`)}</span></span>
+    {#if active && (state.cameraEnabled || state.displayedMedia)}
       <div class="media-stage">
         <VoiceCallMedia cameraStream={state.cameraStream} cameraEnabled={state.cameraEnabled}
           cameraFacing={state.cameraFacing} expanded={state.mediaExpanded} displayedMedia={state.displayedMedia}
           mediaCount={state.mediaItems.length} mediaIndex={state.mediaIndex}
-          error={state.cameraError ? $text(`voicecall.${state.cameraError}`) : null}
           onExpandedChange={expanded => controller.setMediaExpanded(expanded)} onShowCamera={() => controller.showCamera()}
           onFlipCamera={() => controller.flipCamera()} onPrevious={() => controller.selectMedia(state.mediaIndex - 1)}
           onNext={() => controller.selectMedia(state.mediaIndex + 1)} />
       </div>
     {/if}
   </aside>
-  {#if state.status === 'error'}
-    <div class="call-error" role="alert" data-testid="voice-call-error">
-      <span>{$text(`voicecall.${errorKey}`)}</span>
-      {#if state.error !== 'context_too_large'}<button onclick={() => controller.start(state.chatId ?? undefined)}>{$text('voicecall.retry')}</button>{/if}
-    </div>
-  {/if}
 {/if}
 
 <style>
@@ -110,8 +100,6 @@
   .microphone:disabled { cursor:default; }
   .connecting-spinner { width:1rem; height:1rem; flex:none; border:2px solid color-mix(in srgb,currentColor 35%,transparent); border-top-color:currentColor; border-radius:var(--radius-full); animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
-  .call-error { display:flex; align-items:center; justify-content:space-between; gap:var(--spacing-4); padding:var(--spacing-6); color:var(--color-error); background:var(--color-error-light); border-radius:var(--radius-4); font-size:var(--font-size-small); }
-  .call-error button { flex:none; color:var(--color-font-primary); background:var(--color-grey-10); border:1px solid var(--color-grey-30); border-radius:var(--radius-full); padding:var(--spacing-4); cursor:pointer; }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   @media(max-width:700px) { .voice-call-bar { padding:var(--spacing-4); gap:var(--spacing-2); } .edge { gap:var(--spacing-2); } .fixed .round { width:2.25rem; height:2.25rem; padding:var(--spacing-3); } .fixed .wave { width:clamp(2.5rem,16vw,4rem); } }
   @media(prefers-reduced-motion:reduce) { .call-center strong { transition:none; } .connecting-spinner { animation:none; } }

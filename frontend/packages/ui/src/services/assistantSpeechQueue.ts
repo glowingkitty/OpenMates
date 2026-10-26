@@ -68,6 +68,7 @@ interface SpeechAudio {
   playbackRate?: number;
   preservesPitch?: boolean;
   webkitPreservesPitch?: boolean;
+  disableRemotePlayback?: boolean;
   load?(): void;
 }
 
@@ -748,11 +749,17 @@ export class AssistantSpeechQueue {
 
   private getAudio(segment: AssistantSpeechSegment): SpeechAudio {
     let audio = this.playbackAudio;
+    const managed = this.streams.get(segment.id)?.source.requiresRemotePlaybackDisabled === true;
     if (!audio) {
-      audio = this.audioFactory(segment.audioUrl!);
+      // Safari opens ManagedMediaSource only with remote playback disabled.
+      // Set it before attaching the source, including without a primed element.
+      audio = this.audioFactory(managed ? SILENT_AUDIO_DATA_URL : segment.audioUrl!);
+      audio.disableRemotePlayback = managed;
+      if (managed) audio.src = segment.audioUrl!;
       this.playbackAudio = audio;
       this.playbackAudioUrl = segment.audioUrl!;
     } else if (this.playbackAudioUrl !== segment.audioUrl) {
+      audio.disableRemotePlayback = managed;
       audio.src = segment.audioUrl!;
       this.playbackAudioUrl = segment.audioUrl!;
       audio.load?.();

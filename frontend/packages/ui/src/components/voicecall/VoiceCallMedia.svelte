@@ -11,7 +11,6 @@
     displayedMedia: VoiceCallDisplayedMedia | null;
     mediaCount?: number;
     mediaIndex?: number;
-    error?: string | null;
     onExpandedChange: (expanded: boolean) => void;
     onShowCamera: () => void;
     onFlipCamera: () => void;
@@ -19,7 +18,7 @@
     onNext: () => void;
   }
   let { cameraStream, cameraEnabled, cameraFacing, expanded, displayedMedia,
-    mediaCount = 0, mediaIndex = 0, error = null,
+    mediaCount = 0, mediaIndex = 0,
     onExpandedChange, onShowCamera, onFlipCamera, onPrevious, onNext }: Props = $props();
   let cameraVideo = $state<HTMLVideoElement>();
   $effect(() => {
@@ -38,7 +37,7 @@
   });
 </script>
 
-{#if cameraEnabled || displayedMedia || error}
+{#if cameraEnabled || displayedMedia}
   <section class="call-media" class:expanded class:collapsed={!expanded} data-testid="voice-call-media" data-expanded={expanded} aria-label={$text('voicecall.generated_media')}>
     {#if cameraEnabled}
       <div class="camera" class:inset={!!displayedMedia} data-testid="voice-call-camera-preview">
@@ -70,7 +69,6 @@
     {#if cameraEnabled}
       <button class="round flip" type="button" data-testid="voice-call-camera-flip" aria-label={$text('voicecall.flip_camera')} onclick={onFlipCamera}><span class="call-media-icon camera-icon" aria-hidden="true"></span></button>
     {/if}
-    {#if error}<span class="media-error" role="alert">{error}</span>{/if}
     <button class="round expand" type="button" data-testid="voice-call-media-expand" aria-label={$text(expanded ? 'voicecall.minimize' : 'voicecall.expand')} aria-expanded={expanded} onclick={() => onExpandedChange(!expanded)}><span class="call-media-icon up" class:down={!expanded} aria-hidden="true"></span></button>
   </section>
 {/if}
@@ -103,7 +101,6 @@
   .media-navigation button { display:flex; flex:0 0 2.5rem; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; padding:var(--spacing-4); border:0; border-radius:var(--radius-full); background:transparent; }
   .media-navigation > span { flex:none; white-space:nowrap; line-height:1.25; }
   .media-navigation button:disabled { opacity:.35; cursor:default; }
-  .media-error { position:absolute; left:var(--spacing-4); right:3.5rem; top:50%; transform:translateY(-50%); z-index:3; pointer-events:none; padding:var(--spacing-4); border-radius:var(--radius-4); color:var(--color-error); background:var(--color-error-light); font-size:var(--font-size-small); }
   @media (max-width:480px) { .camera.inset { width:4.5rem; height:3.375rem; } .media-navigation { gap:0; } }
   @media (prefers-reduced-motion:no-preference) { .call-media { transition:height 180ms ease; } }
 </style>

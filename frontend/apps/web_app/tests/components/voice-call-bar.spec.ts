@@ -70,7 +70,7 @@ test.describe('Reference voice call strip', () => {
     await waitForComponentPreview(page);
     const launch=page.getByTestId('voice-call-start');
     await expect(launch).toHaveAccessibleName('Start voice call');
-    await expect(launch).toHaveAccessibleDescription('Voice calls use Voxtral speech with normal OpenMates AI routing and usage-based billing.');
+    await expect(launch).toHaveAccessibleDescription('Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing.');
   });
   // contract-test: direct surface=gui.web assertions=video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.audio.single-owner
   test('dedicated microphone overlay toggles mute while the call remains live at 320px RTL',async({page},testInfo)=>{
@@ -237,17 +237,17 @@ test.describe('Reference voice call strip', () => {
   }
   for(const variant of ['connecting','error','contextError']) {
     // contract-test: direct surface=gui.web assertions=video-call.chat.call-strip-layout,video-call.lifecycle.recovery-and-billing
-    test(`${variant} keeps connection state visible and accessible`,async({page})=>{
+    test(`${variant} shows controls only while connecting`,async({page})=>{
       await page.setViewportSize({width:390,height:844});await page.goto(preview(variant,390,false));await waitForComponentPreview(page);
-      await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-      await expect(page.getByTestId('voice-call-mute')).toBeDisabled();
-      if(variant==='connecting') {await expect(page.getByTestId('voice-call-connecting')).toBeVisible();await expect(page.getByTestId('voice-call-bar')).toHaveAttribute('aria-busy','true');}
-      else {
-        await expect(page.getByTestId('voice-call-error')).toBeVisible();
-        await expect(page.getByTestId('voice-call-hangup')).toHaveAccessibleName('Close');
-        if(variant==='error') {await page.getByRole('button',{name:'Try again',exact:true}).click();await expect(page.getByTestId('voice-call-connecting')).toBeVisible();await expect(page.getByTestId('voice-call-error')).toHaveCount(0);}
+      if(variant==='connecting') {
+        await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+        await expect(page.getByTestId('voice-call-mute')).toBeDisabled();
+        await expect(page.getByTestId('voice-call-connecting')).toBeVisible();
+        await expect(page.getByTestId('voice-call-bar')).toHaveAttribute('aria-busy','true');
+        await page.getByTestId('voice-call-hangup').click();
       }
-      await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-error')).toHaveCount(0);
     });
   }
 });

@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
+import { notificationStore } from '../../stores/notificationStore';
+vi.mock('../../i18n/translations', async () => {
+  const { readable } = await import('svelte/store');
+  return { text: readable((key: string) => key) };
+});
 
 const persistence = vi.hoisted(() => ({
   persist: vi.fn(async (_callId: string, _chatId: string, _id: string, _text: string, _createdAt: number) => {}), rollback: vi.fn(async () => {}),
@@ -145,6 +150,7 @@ async function submittedId(socket: { send: ReturnType<typeof vi.fn> }): Promise<
 
 describe('integrated voice call typed turns', () => {
   beforeEach(() => {
+    notificationStore.clearAllNotifications();
     vi.stubGlobal('WebSocket', { OPEN: 1, CLOSING: 2 });
     vi.stubGlobal('crypto', { getRandomValues: (bytes: Uint8Array) => bytes.fill(0x2a) });
     heard.value=null;
@@ -170,7 +176,7 @@ describe('integrated voice call typed turns', () => {
     visual.destroy.mockClear();
     persistence.prepare.mockReset().mockResolvedValue({ chatId: 'chat-1', history: [] });
   });
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  afterEach(() => { notificationStore.clearAllNotifications(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   function startingController() {
     const sockets: Array<{ readyState: number; send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; onopen?: () => void; onmessage?: (event: { data: string }) => void }> = [];
@@ -568,6 +574,7 @@ describe('integrated voice call typed turns', () => {
     expect(states).toContainEqual({ status: 'connecting', chatId: 'chat-with-too-much-history' });
     expect(get(controller)).toMatchObject({ status: 'error', chatId: 'chat-with-too-much-history', error: 'context_too_large' });
     expect(bound).not.toHaveBeenCalled();
+    expect(get(notificationStore).notifications).toMatchObject([{type:'error',message:'voicecall.context_too_large'}]);
     expect(Socket).not.toHaveBeenCalled();
     expect(capture.stop).toHaveBeenCalledOnce();
     unsubscribe();
@@ -586,6 +593,29 @@ describe('integrated voice call typed turns', () => {
     expect(Socket).not.toHaveBeenCalled();
     controller.hangup();
     expect(get(controller).status).toBe('ended');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('deduplicates public call errors and never displays arbitrary server error text', () => {
+    const { controller, harness } = liveController();
+    harness.handleMessage({type:'error',code:'private arbitrary server detail'});
+    harness.handleMessage({type:'error',code:'another unknown detail'});
+    expect(get(controller)).toMatchObject({status:'error',chatId:'chat-1'});
+    expect(get(notificationStore).notifications).toMatchObject([
+      {type:'error',message:'voicecall.call_unavailable',dedupeKey:'voice-call-error-call_unavailable'},
+    ]);
+    expect(get(notificationStore).notifications).toHaveLength(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output
+  it('notifies repeated camera failures once while preserving the live call', () => {
+    const { controller, harness } = liveController();
+    harness.update({cameraError:'camera_denied'});
+    harness.update({cameraError:'camera_denied'});
+    expect(get(controller)).toMatchObject({status:'live',cameraError:'camera_denied'});
+    expect(get(notificationStore).notifications).toMatchObject([{type:'error',message:'voicecall.camera_denied'}]);
+    expect(get(notificationStore).notifications).toHaveLength(1);
+    controller.hangup();
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing

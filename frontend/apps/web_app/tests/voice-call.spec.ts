@@ -1560,7 +1560,7 @@ test.describe('Voice mode through ordinary chat', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,projects.lifecycle.encrypted-crud
-  test('keeps Project draft Cancel and error Close visible before a voice session starts',async({page},testInfo)=>{
+  test('keeps Project draft Cancel available and restores normal chat with a notification after startup failure',async({page},testInfo)=>{
     test.setTimeout(120_000);
     await installNativeVoiceInput(page);await observeRealTransport(page,false,true);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
@@ -1591,6 +1591,19 @@ test.describe('Voice mode through ordinary chat', () => {
       // The actual Project draft exists in the welcome composer; no chat has
       // been selected or turn submitted to make controls appear artificially.
       expect(new URL(page.url()).hash).not.toContain('chat-id=');
+      // API-shape regression only: Chromium's native MSE still backs playback.
+      // Exercise an MMS-only window after the transport observer captured MSE;
+      // this proves constructor selection, not real Safari media behavior.
+      expect(await page.evaluate(() => {
+        const browser = window as unknown as {
+          MediaSource?: typeof MediaSource; ManagedMediaSource?: typeof MediaSource;
+        };
+        const nativeMediaSource = browser.MediaSource;
+        if (!nativeMediaSource?.isTypeSupported('audio/mpeg')) return false;
+        Object.defineProperty(window, 'ManagedMediaSource', { configurable: true, writable: true, value: nativeMediaSource });
+        Object.defineProperty(window, 'MediaSource', { configurable: true, writable: true, value: undefined });
+        return !browser.MediaSource && browser.ManagedMediaSource?.isTypeSupported('audio/mpeg') === true;
+      })).toBe(true);
       // Start the exact live draft without dismissing/parking its composer.
       await expect(page.getByTestId('voice-call-start')).toBeVisible();
       await page.locator('[data-testid="voice-call-start"]:visible').click();
@@ -1615,11 +1628,11 @@ test.describe('Voice mode through ordinary chat', () => {
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.path==='/v1/ws'&&frame.type==='error'
         &&frame.chatId===chatId&&frame.voiceCallBootstrap&&frame.code==='voice_call_bootstrap_failed'),{timeout:30_000}).toBe(true);
-      await expect(page.getByTestId('voice-call-error')).toBeVisible();
-      await expect(page.getByTestId('voice-call-status')).toHaveAttribute('role','alert');
-      await expect(cancel).toBeVisible();await expect(cancel).toBeEnabled();await expect(cancel).toHaveAccessibleName('Close');
+      await expect(page.getByTestId('notification').filter({hasText:'Voice calling is unavailable right now.'})).toHaveCount(1);
+      await expect(bar).toHaveCount(0);
+      await expect(cancel).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-start')).toBeVisible();
       await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
-      await cancel.click();await expect(bar).toHaveCount(0);
       await expect(page.getByTestId('voice-call-error')).toHaveCount(0);await assertVoiceInputCleanup(page);
       const protocol=await evidence(page);
       expect(protocol.sent.filter(frame=>frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId)).toHaveLength(2);

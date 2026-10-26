@@ -8234,17 +8234,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     });
     let voiceCallStripStuck = $state(false);
     const voiceCallHasVisibleControls = $derived(
-        $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' ||
-        $voiceCallController.status === 'error'
+        $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live'
     );
     const boundWelcomeDraftCall = $derived(
-        showWelcome && ($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') &&
+        showWelcome && $voiceCallController.status === 'connecting' &&
         !!$voiceCallController.chatId && $voiceCallController.chatId === (currentChat?.chat_id || temporaryChatId)
     );
     const showVoiceCallBarHere = $derived(
         voiceCallHasVisibleControls && !globalVoiceCallControlsVisible &&
         (boundWelcomeDraftCall ||
-            (($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
+            ($voiceCallController.status === 'connecting' && !$voiceCallController.chatId) ||
             (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
     );
     // Keep welcome content out of this pane's call controls without hiding

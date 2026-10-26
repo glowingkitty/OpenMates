@@ -1,5 +1,7 @@
 /** A single browser-owned voice call, fixed to the chat selected at launch. */
 import { get, writable, type Readable } from 'svelte/store';
+import { text } from '../i18n/translations';
+import { notificationStore } from '../stores/notificationStore';
 import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
@@ -199,6 +201,23 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private update(patch: Partial<VoiceCallState>): void {
     this.state = { ...this.state, ...patch };
     this.store.set(this.state);
+    if (patch.error) this.notifyError(patch.error);
+    if (patch.cameraError) this.notifyError(patch.cameraError, true);
+  }
+
+  private notifyError(code: string, camera = false): void {
+    // Only translate known public codes; never display arbitrary server payloads.
+    const known = camera
+      ? ['camera_denied', 'camera_missing', 'camera_failed', 'source_frame_failed', 'media_unavailable']
+      : ['microphone_denied', 'microphone_missing', 'microphone_failed', 'session_expired',
+        'connection_failed', 'connection_lost', 'invalid_response', 'transcript_save_failed', 'transcript_limit',
+        'context_too_large', 'context_unavailable'];
+    const key = known.includes(code) ? code : camera ? 'camera_failed' : 'call_unavailable';
+    notificationStore.addNotificationWithOptions('error', {
+      message: get(text)(`voicecall.${key}`),
+      duration: 7000,
+      dedupeKey: `voice-call-${camera ? 'camera-' : ''}error-${key}`,
+    });
   }
 
   private refreshClock(): void {
@@ -262,7 +281,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.sourceReferences.clear();
     const generation = ++this.generation;
     // Preparation can refuse incomplete/oversized context before opening a
-    // socket. Keep its initiating chat bound so that error remains visible.
+    // socket. Keep its initiating chat bound for diagnostics and handset retry.
     this.update({ ...initialVoiceCallState, status: 'connecting', chatId: existingChatId ?? null });
     // The browser's audio activation must occur in the click handler. The mic is
     // captured but never transmitted until the server acknowledges readiness.

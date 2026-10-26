@@ -241,7 +241,7 @@
 		void openExampleChatNavigation(navigation, chatSurface);
 	});
 	let showGlobalVoiceCall = $derived(
-		($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' || $voiceCallController.status === 'error') &&
+		($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live') &&
 		(workspaceHashRoute.workspace !== 'chats' || settingsOverlayOpen || voiceCallReturnLookupPending ||
 			($voiceCallController.chatId !== null &&
 				(($activeChatStore ?? visibleChatReadyId) !== $voiceCallController.chatId || visibleChatReadyId !== $voiceCallController.chatId)))

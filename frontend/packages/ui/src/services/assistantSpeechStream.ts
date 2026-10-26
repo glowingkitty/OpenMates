@@ -23,6 +23,7 @@ export interface AssistantSpeechClauseTiming {
 export interface AssistantSpeechStreamSource {
   readonly url: string;
   readonly complete: boolean;
+  readonly requiresRemotePlaybackDisabled?: boolean;
   dispose(): void;
   fail(): void;
 }
@@ -49,10 +50,24 @@ export function validClauseTimings(value: unknown): value is AssistantSpeechClau
   });
 }
 
-export function supportsAssistantSpeechStream(): boolean {
-  return typeof MediaSource !== "undefined" && typeof MediaSource.isTypeSupported === "function"
-    && MediaSource.isTypeSupported("audio/mpeg") && typeof URL.createObjectURL === "function";
+/** iPhone exposes ManagedMediaSource rather than the desktop MediaSource API. */
+function speechMediaSource(): { constructor: typeof MediaSource; managed: boolean } | null {
+  if (typeof URL.createObjectURL !== "function") return null;
+  const managed = (globalThis as typeof globalThis & { ManagedMediaSource?: typeof MediaSource }).ManagedMediaSource;
+  for (const candidate of [
+    { constructor: typeof MediaSource === "undefined" ? undefined : MediaSource, managed: false },
+    { constructor: managed, managed: true },
+  ]) {
+    try {
+      if (typeof candidate.constructor?.isTypeSupported === "function" && candidate.constructor.isTypeSupported("audio/mpeg")) {
+        return { constructor: candidate.constructor, managed: candidate.managed };
+      }
+    } catch { /* Try the other native API when a codec probe is unavailable. */ }
+  }
+  return null;
 }
+
+export function supportsAssistantSpeechStream(): boolean { return speechMediaSource() !== null; }
 
 export function isAssistantSpeechAudioEvent(value: unknown): value is AssistantSpeechAudioEvent {
   if (!value || typeof value !== "object") return false;
@@ -82,7 +97,8 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
   private static retainedBytes = 0;
   readonly url: string;
   complete = false;
-  private media: MediaSource | null = new MediaSource();
+  private media: MediaSource | null;
+  readonly requiresRemotePlaybackDisabled: boolean;
   private buffer: SourceBuffer | null = null;
   private chunks: Uint8Array<ArrayBuffer>[] = [];
   private pendingBytes = 0;
@@ -98,6 +114,10 @@ export class AssistantSpeechStream implements AssistantSpeechStreamSource {
   get active(): boolean { return !this.disposed; }
 
   constructor(private readonly onFailure: () => void, turn = false) {
+    const selected = speechMediaSource();
+    if (!selected) throw new Error("Live speech playback is not supported in this browser.");
+    this.media = new selected.constructor();
+    this.requiresRemotePlaybackDisabled = selected.managed;
     this.turn = turn;
     if (turn) this.lifetimeTimer = setTimeout(() => this.fail(), MAX_TURN_LIFETIME_MS);
     const media = this.media!;

@@ -761,3 +761,61 @@ it('refuses unbound finite membership seals for a continuous response rather tha
   expect(TestMediaSource.instances).toHaveLength(1);
   await controller.close();
 });
+
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.single-owner,video-call.privacy
+it.each([false, true])("streams via iPhone ManagedMediaSource before provider completion (primed=%s)", async (primed) => {
+  class ManagedSource extends TestMediaSource {
+    static isTypeSupported = vi.fn((mime: string) => mime === "audio/mpeg");
+  }
+  vi.stubGlobal("MediaSource", undefined);
+  vi.stubGlobal("ManagedMediaSource", ManagedSource);
+  const { supportsAssistantSpeechStream } = await import("../assistantSpeechStream");
+  expect(supportsAssistantSpeechStream()).toBe(true);
+  const setSource = Object.getOwnPropertyDescriptor(TestSpeechAudio.prototype, "src")!.set!;
+  const remoteFlags: boolean[] = [];
+  vi.spyOn(TestSpeechAudio.prototype, "src", "set").mockImplementation(function (this: TestSpeechAudio & {disableRemotePlayback: boolean}, value: string) {
+    if (value.startsWith("blob:live-")) remoteFlags.push(this.disableRemotePlayback);
+    setSource.call(this, value);
+  });
+  const controller = await controllerForCall();
+  if (primed) controller.primeForAutoplay();
+  await status();
+  const media = await beginAudio();
+  const player = TestSpeechAudio.instances[0] as TestSpeechAudio & {disableRemotePlayback: boolean};
+  expect(media).toBeInstanceOf(ManagedSource);
+  expect(remoteFlags).toEqual([true]);
+  expect(player.disableRemotePlayback).toBe(true);
+  expect(media.buffer.appended.map(bytes => new TextDecoder().decode(bytes))).toEqual(["mp3-first"]);
+  expect(media.endOfStream).not.toHaveBeenCalled();
+  expect(get(controller.player).status).toBe("playing");
+  expect(player.play).toHaveBeenCalled();
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  expect(mocks.send).not.toHaveBeenCalled();
+  await controller.stop();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:live-1");
+  controller.setCallOwner(null);
+  await controller.request("chat", "manual-message", "Read the saved text later.");
+  await status({message_id: "manual-message", voice_call_id: undefined, status: "accepted", segments: [{
+    segment_id: "manual", sequence: 0, kind: "prose_paragraph", status: "ready", generated_asset_id: "manual-asset",
+  }]});
+  await vi.waitFor(() => expect(get(controller.player).status).toBe("playing"));
+  expect(player.disableRemotePlayback).toBe(false);
+  expect(player.src).toBe("blob:manual-file");
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=assistant-speech.playback.live-call-streaming,assistant-speech.failure.nonblocking-visible-resumable
+it("selects the managed API when desktop MSE rejects MP3, while rejecting browsers with neither codec", async () => {
+  const { supportsAssistantSpeechStream, AssistantSpeechStream } = await import("../assistantSpeechStream");
+  TestMediaSource.isTypeSupported.mockReturnValue(false);
+  class ManagedSource extends TestMediaSource { static isTypeSupported = vi.fn(() => true); }
+  vi.stubGlobal("ManagedMediaSource", ManagedSource);
+  expect(supportsAssistantSpeechStream()).toBe(true);
+  const source = new AssistantSpeechStream(vi.fn());
+  expect(TestMediaSource.instances.at(-1)).toBeInstanceOf(ManagedSource);
+  source.dispose();
+  ManagedSource.isTypeSupported.mockReturnValue(false);
+  expect(supportsAssistantSpeechStream()).toBe(false);
+  expect(() => new AssistantSpeechStream(vi.fn())).toThrow("not supported");
+});
