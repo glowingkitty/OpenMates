@@ -1477,6 +1477,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'refill-blank-browser-pool': {
+        'task': 'web.browse.refill',
+        'schedule': timedelta(seconds=15),
+        'options': {'queue': 'app_code', 'expires': 25},
+    },
     'sweep-idle-browser-sessions': {
         'task': 'web.browse.sweep',
         'schedule': timedelta(minutes=1),

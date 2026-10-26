@@ -18,6 +18,37 @@ from backend.shared.python_utils.private_inference_logging import (
 
 @app.task(
     bind=True,
+    name="web.browse.refill",
+    base=BaseServiceTask,
+    queue="app_code",
+    soft_time_limit=100,
+    time_limit=120,
+)
+def refill_browser_pool(self: BaseServiceTask) -> dict[str, int]:
+    async def run():
+        from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
+        from backend.core.api.app.services.web_browse_service import BrowseStore
+        from backend.shared.providers.e2b_browser import E2BBrowser
+        from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
+
+        if not pool_size():
+            return {"prepared": 0}
+        try:
+            await self.initialize_core_services()
+            store = BrowseStore(
+                self.directus_service, self.encryption_service, self.cache_service
+            )
+            driver = E2BBrowser(await get_e2b_api_key_async(self.secrets_manager))
+            with private_inference_logging():
+                return {"prepared": await BrowsePool(store, driver).refill()}
+        finally:
+            await self.cleanup_services()
+
+    return asyncio.run(run())
+
+
+@app.task(
+    bind=True,
     name="apps.web.tasks.skill_browse",
     base=BaseServiceTask,
     queue="app_code",

@@ -227,6 +227,203 @@ async def test_observed_json_is_replayable_without_new_vm_calls_or_charges(servi
     service.app.charge_user_credits.assert_not_awaited()  # Running grace is settled on confirmed pause.
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run,web-browse.cost-accounting
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pristine", [True, False])
+async def test_pool_handoff_is_owner_bound_before_resuming_and_hidden_until_verified(
+    service, monkeypatch, pristine
+):
+    import backend.core.api.app.services.web_browse_service as module
+
+    monkeypatch.setattr(module, "pool_size", lambda: 3)
+
+    class Pool:
+        def __init__(self, *args):
+            pass
+
+        async def claim(self, sid, callback):
+            provider = {
+                "sandbox_id": "prepared-vm",
+                "token": "private-token",
+                "traffic_access_token": "private-ingress",
+                "cpu_count": 2,
+                "memory_mb": 4096,
+                "created_at": time.time() - 3600,
+                "running_since": None,
+                "provider_deadline": time.time() - 10,
+                "pool_assigned": True,
+                "pool_verified": False,
+            }
+            await callback(provider)
+            return provider
+
+    monkeypatch.setattr(module, "BrowsePool", Pool)
+    original_rpc = service.driver.rpc
+
+    async def rpc(provider, body):
+        if body.get("require_pristine"):
+            assert any(
+                r.get("provider", {}).get("sandbox_id") == "prepared-vm"
+                for r in service.store.records.values()
+            )
+            return {"pristine": pristine}
+        return await original_rpc(provider, body)
+
+    service.driver.rpc = rpc
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    assert "create" not in service.driver.calls and "resume" in service.driver.calls
+    assert Decimal(result.metrics["runtime_cost_usd"]) < Decimal(
+        "0.01"
+    )  # Platform preparation is not charged.
+    if pristine:
+        assert result.status == "completed" and record["provider"]["pool_verified"]
+        with pytest.raises(HTTPException) as exc:
+            await service.frame(result.session_id, "other-owner")
+        assert exc.value.status_code == 404
+    else:
+        assert result.data is None and not result.observations
+        assert "kill" in service.driver.calls and record["provider"] is None
+        assert not any(
+            isinstance(c, dict) and c["operation"] == "observe"
+            for c in service.driver.calls
+        )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.budgets-and-stop,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
+    service, monkeypatch
+):
+    import backend.core.api.app.services.web_browse_service as module
+
+    monkeypatch.setattr(module, "pool_size", lambda: 3)
+
+    class Empty:
+        def __init__(self, *args):
+            pass
+
+        async def claim(self, *args):
+            return None
+
+    monkeypatch.setattr(module, "BrowsePool", Empty)
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    assert result.status == "failed" and "capacity" in result.reason
+    assert not record.get("provider") and not record.get("reservation")
+    assert not record.get("accounting_pending")
+    assert "create" not in service.driver.calls and "resume" not in service.driver.calls
+    assert result.metrics["charged_credits"] == 0
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
+@pytest.mark.asyncio
+async def test_unverified_pool_handoff_exposes_neither_frames_nor_manual_input(service):
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    record["provider"].update(pool_assigned=True, pool_verified=False)
+    calls = deepcopy(service.driver.calls)
+    for action in (
+        service.frame(result.session_id, "owner"),
+        service.control(
+            result.session_id, "owner", BrowseControl(operation="take_control")
+        ),
+    ):
+        with pytest.raises(HTTPException) as exc:
+            await action
+        assert exc.value.status_code == 409
+    assert service.driver.calls == calls
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
+@pytest.mark.asyncio
+@pytest.mark.parametrize("repair_verified", [True, False])
+async def test_one_metered_extraction_repair_still_requires_independent_verification(
+    service, repair_verified
+):
+    contexts = []
+
+    class RepairModels(Models):
+        async def paid(self, cost):
+            call = await self.before("test/model", "test", Decimal(cost))
+            attempt = {"complete": True, "cost_usd": cost, "usage": {}}
+            self.attempts.append(attempt)
+            await self.after(call, attempt)
+
+        async def generate(self, context):
+            contexts.append(deepcopy(context))
+            await self.paid("0.0001")
+            return {
+                "data": {
+                    "fact": "Incomplete" if len(contexts) == 1 else "Observed fact"
+                }
+            }
+
+        async def verify(self, task, observation, data):
+            await self.paid("0.00001")
+            self.verification = {"answer_coverage_score": 0.2}
+            return len(contexts) == 2 and repair_verified
+
+    service.models_factory = RepairModels
+    request = arguments(
+        output_schema={
+            "type": "object",
+            "properties": {"fact": {"type": "string"}},
+            "required": ["fact"],
+        }
+    )
+    result = await run(service, request)
+    assert result.status == ("completed" if repair_verified else "needs_user")
+    assert result.data == ({"fact": "Observed fact"} if repair_verified else None)
+    assert len(contexts) == 2
+    assert contexts[1]["correction"]["previous_candidate"] == {"fact": "Incomplete"}
+    assert contexts[1]["correction"]["verification"] == {"answer_coverage_score": 0.2}
+    assert contexts[0]["observed_page"] == contexts[1]["observed_page"]
+    assert service.store.records[result.session_id]["inference_cost_usd"] == "0.000262"
+    assert not any(
+        isinstance(c, dict) and c["operation"] == "act" for c in service.driver.calls
+    )
+    assert await run(service, request) == result
+    assert len(contexts) == 2  # Replay cannot spend again or seek a different verdict.
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.sign-in
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "candidate", [{"data": None}, {"data": {"fact": None}, "needs_user": True}]
+)
+async def test_missing_facts_or_explicit_human_input_do_not_trigger_extraction_repair(
+    service, candidate
+):
+    generated = AsyncMock(return_value=candidate)
+
+    class MissingModels(Models):
+        generate = generated
+        verify = AsyncMock(return_value=False)
+
+    service.models_factory = MissingModels
+    result = await run(service, arguments(output_schema={"type": "object"}))
+    assert result.status == "needs_user" and result.data is None
+    generated.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_unchanged_repair_cannot_seek_a_different_verification_verdict(service):
+    generated = AsyncMock(return_value={"data": {"fact": "Incomplete"}})
+    verified = AsyncMock(side_effect=[False, True])
+
+    class UnchangedModels(Models):
+        generate = generated
+        verify = verified
+
+    service.models_factory = UnchangedModels
+    result = await run(service, arguments(output_schema={"type": "object"}))
+    assert result.status == "needs_user" and result.data is None
+    assert generated.await_count == 2
+    verified.assert_awaited_once()
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.private-storage-and-api
 @pytest.mark.asyncio
 async def test_foreign_or_different_chat_cannot_observe_resume_or_spend(service):

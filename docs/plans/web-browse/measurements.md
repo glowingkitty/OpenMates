@@ -4,6 +4,37 @@ Backend qualification is in progress. These are development measurements, not a
 claim that web embeds, workflow support or general browsing acceptance are complete.
 The approved contract is `feature.app-skill.web-browse@1`.
 
+The deployed backend (`29836d6`) has a successful real CLI JSON extraction,
+successful direct npm extraction, native idle pause/resume and successful direct
+Python replay of the closed npm run. Fresh Python execution still abstains.
+The prior object-storage outage has recovered. The evidence-only correction and
+prepared-pool implementation remain local pending exact-source CI and deployment.
+The latest deployed version passed 83 isolated cases.
+
+## Startup optimization qualification
+
+Measurements below are direct E2B provider probes with no AI calls. All probe
+resources were destroyed. They are not deployed app or web-embed acceptance.
+
+| Path | Samples | Browser-ready time | Result |
+| --- | ---: | --- | --- |
+| Original cold startup | 3 | 10.196–20.316 s | Misses user limit |
+| Prestarted Chromium template, fresh allocation | 10 | 3.443–9.356 s; median 6.657 s | Preboot alone is insufficient |
+| Prepared, confirmed paused blank VM | 5 | 1.240–1.841 s | Prototype meets target; full handoff still pending |
+
+The paused measurements include native resume and an actual Chromium roundtrip
+with empty cookie/origin/IndexedDB checks. Separate blank preparation took
+2.881–9.387 s. The accepted goal is under three seconds, acceptable below four,
+and four to five seconds is the hard ceiling. Aging, simultaneous assignment,
+real database ownership, and deployed end-to-end provisioning remain to qualify.
+An IPv4-only diagnostic did not improve the cold path and was not adopted.
+
+The chosen design assigns each prepared VM once for its entire lifetime. Never-used
+VMs alone enter the pool; claimed VMs are never recycled. Immutable database
+receipts arbitrate concurrent ownership, and the owner-encrypted handoff scrubs
+platform access before user work. Unassigned preparation is platform overhead,
+not a new user fee. Pool size and lifetime must be tuned against measured demand.
+
 ## Environment and scope
 
 E2B hosts Chromium in a prepared Playwright 1.64.1 image with 2 vCPU and 4 GiB RAM.
@@ -15,6 +46,8 @@ retention flag remains disabled, so these results do not qualify the DeepSeek pr
 
 Tests use an isolated CLI profile, disposable Project and temporary SDK key with
 a daily credit limit and expiry. No account defaults or model overrides were changed.
+The temporary SDK key is now revoked and its local secret material removed;
+the non-secret revocation receipt and qualification evidence are retained.
 
 ## Initial measurements
 
@@ -33,6 +66,8 @@ a daily credit limit and expiry. No account defaults or model overrides were cha
 | Resume after automatic idle pause | 0.460 s | Latest native lifecycle probe |
 | Latest native cold readiness | 10.990 s | Same lifecycle probe |
 | Latest peak sampled VM memory | 492,797,952 bytes | Same simple-page probe |
+| Verified npm structured extraction | 28.489 s | 26.231 s inside the skill; startup 21.282 s |
+| Verified real CLI extraction | 28.910 s inside the skill | Startup 22.044 s; explicit required JSON fields |
 
 The page had no visible heading. The requested schema required one, so Browse
 returned `data: null` and declined to claim completion. This is retained as a
@@ -53,6 +88,21 @@ $0.0006905448 compute and $0.000817326 inference. Its result reported 3 accrued
 credits and 0 settled credits while the live window was still open. The final
 session charge must also include any subsequent active grace or follow-up work.
 Ordinary assistant preprocessing and response charges are separate.
+
+The successful npm extraction accrued supplier cost of $0.00210999433791351318
+($0.001171525847434997578 compute and $0.000938472 inference) at result delivery.
+The successful CLI extraction accrued $0.002244211552955627422 supplier cost,
+including $0.000952452 inference. Both reported 4 accrued credits before idle
+settlement. After idle pause and Close, the successful CLI session settled at
+**14 credits ($0.014)**. Its final supplier cost was $0.00742042491517257696:
+$0.00646797291517257696 compute plus $0.000952452 inference. An independent
+Decimal calculation confirmed the approved cumulative 2× floor/minimum rounding.
+This measured price includes the active idle allowance; outer chat charges remain
+separate. It is one simple-page task, not a general task-price estimate.
+
+That CLI run recorded 9,759 native input tokens and 238 output tokens across four
+calls. The three Jev calls took 0.218, 0.224 and 0.170 s; Gemini extraction took
+3.830 s. The remaining skill time is primarily cold browser setup and observation.
 
 E2B confirmed a paused sandbox with preserved state. [Paused compute is free](https://docs.e2b.dev/billing);
 the application deletes an idle session after 24 hours. The full 24-hour wall-clock
@@ -136,10 +186,53 @@ and Google SDK check passed 88 tests. The readiness/observation candidate passed
 The deployed readiness candidate subsequently passed 67 isolated cases (run
 40342501601). The controller-lifetime/native-receipt/information-readiness candidate
 passed 74 focused cases locally and in isolated CI (run 40349555582).
-The separated completion rubric is awaiting exact-source isolated verification
-and fresh deployed CLI/npm/Python fulfillment checks.
 Native provider probes are additional evidence;
 they do not replace CLI, SDK or web acceptance.
+
+The separated rubric subsequently passed 83 focused cases locally and in isolated
+CI (run 40356071535), and deployed as `29836d6`. A fresh npm call returned verified
+JSON containing the full English statement and source URL. A clarified real CLI
+request with two required fields also returned completed Browse data, without a
+`web.read` fallback. The broader preceding CLI request still abstained (coverage
+0.82); a Python follow-up abstained on browser state (0.92), and a fresh Python
+call omitted requested content (coverage 0.48). These failures remain part of the
+qualification; a single successful page extraction does not establish a success rate.
+
+A retained 40-credit session resumed but stopped before extraction with 15 credits
+settled. The next operation's conservative maximum inference quote exceeded its
+remaining headroom. A later session executed one required link click in 0.382 s,
+then stopped at its budget guard with 21 cumulative credits settled; that is not a
+completed navigation/extraction task. Cap admission reserves maximum operation
+cost, while settled charges use actual native usage. Six older test sessions have
+now been closed with settled charges of 12, 3, 22, 12, 15 and 21 credits, each
+without pending accounting. The separate legacy 13-credit session still retains
+its unresolved reconciliation hold.
+
+The next candidate permits one metered correction of a rejected structured
+answer using only the same observed page. Every candidate must independently
+pass the unchanged grounding/coverage/browser-state checks. An absent candidate
+or explicit request for human input stops immediately. Focused local coverage
+now passes 88 cases, including successful correction, continued rejection,
+missing facts, all extra inference charges and replay without further spending.
+An unchanged correction cannot seek a second stochastic verification verdict.
+The budget stop message now distinguishes insufficient operation headroom from
+having already spent the entire session cap.
+Exact-source isolated CI and fresh deployed Python acceptance are next.
+
+Publication of that candidate is blocked before CI submission: authenticated
+`HeadBucket` calls return 503, as do public HEAD requests from both the host and API
+container. The selected successful CLI recording upload also failed with 503;
+the original 71-second real terminal recording is retained locally. Existing
+source and successful proof were preserved during disk cleanup; the disk reserve
+recovered to 33 GiB. No check was bypassed and the correction is not deployed.
+
+On the exact deployed Browse source, direct Python replay of the completed npm
+request after Close returned the identical run, JSON and native metrics. An
+owner-scoped before/after record audit confirmed unchanged compute/inference cost,
+21 settled credits for that multi-run session, no pending accounting and no live
+provider. This is genuine closed-session idempotency and SDK transport proof;
+it does not qualify a fresh Python extraction. All known retained test browsers
+are now closed. The unresolved legacy accounting receipt remains preserved.
 
 ## Optimizations to evaluate after functional acceptance
 
@@ -158,11 +251,18 @@ they do not replace CLI, SDK or web acceptance.
    snapshot refusals. The app must report an unavailable original browser rather
    than silently substitute another session. Native lifecycle events would improve
    diagnosis and resource reconciliation. See [E2B persistence](https://docs.e2b.dev/sandbox/persistence).
+6. Reduce excessive admission headroom with provider-supported token counting and
+   schema-sized output limits, preserving valid cost upper bounds. The current
+   UTF-8 input bound plus a 2,048-token output ceiling can block a continuation
+   well before its settled spending reaches the session cap. Report insufficient
+   operation headroom distinctly from exhausted actual spend.
 
 ## Remaining acceptance
 
-Successful CLI and npm/Python JSON delivery, final settlement and idempotent retry
-are being verified. Rust parity is unavailable until the separate Rust migration
+CLI/npm extraction, final settlement and cross-SDK closed-session replay are
+verified on the deployed version. Fresh Python execution, the correction's
+isolated CI/deployment and broader permitted-task acceptance remain pending.
+Rust parity is unavailable until the separate Rust migration
 lands or the user explicitly defers that phase prerequisite. Web screenshot embeds,
 watch/takeover/private sign-in/continuation and laptop/mobile proof follow the CLI
 and required SDK gate. Workflow verification follows the regular skill and embeds.

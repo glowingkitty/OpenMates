@@ -8,6 +8,7 @@ from decimal import Decimal
 import hashlib
 import json
 import logging
+import os
 import time
 from typing import Any, AsyncIterator, Awaitable, Callable
 import uuid
@@ -22,6 +23,7 @@ from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
 )
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
+from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
 from backend.shared.python_schemas.web_browse import (
     BrowseRequest,
     BrowseResult,
@@ -110,11 +112,13 @@ class BrowseStore:
         return result
 
     @asynccontextmanager
-    async def lease(self, session_id: str) -> AsyncIterator[None]:
+    async def lease(
+        self, session_id: str, *, wait_seconds: float = 25
+    ) -> AsyncIterator[None]:
         redis = await self.cache.client
         key = "web_browse:lease:" + session_id
         token = str(uuid.uuid4())
-        deadline = time.monotonic() + 25
+        deadline = time.monotonic() + wait_seconds
         while not await redis.set(key, token, nx=True, ex=180):
             if time.monotonic() > deadline:
                 raise HTTPException(
@@ -327,7 +331,9 @@ class BrowseService:
         available = self.remaining_usd(record) - reserved_usd
         seconds = min(120, int(available / rate) - 2)
         if seconds < 5:
-            raise BrowseBudgetExceeded("The browser spending limit was reached.")
+            raise BrowseBudgetExceeded(
+                "The remaining session budget cannot cover the next browser operation."
+            )
         if abs(p.get("provider_deadline", 0) - (time.time() + seconds)) > 15:
             record["runtime_intent"] = {
                 "kind": "timeout",
@@ -703,8 +709,6 @@ class BrowseService:
                         validator = getattr(driver, "validate_creation", None)
                         if validator:
                             validator()
-                        record["startup_intent"] = {"at": time.time()}
-                        await self.store.save(record)
 
                         async def created(provider: dict[str, Any]) -> None:
                             record["provider"] = provider
@@ -712,18 +716,54 @@ class BrowseService:
                             await self.store.save(record)
 
                         try:
-                            await driver.create(
-                                session_id=session_id,
-                                owner=owner_hash(user_id),
-                                on_created=created,
+                            provisioning_started = time.monotonic()
+                            if pool_size():
+                                async with asyncio.timeout(5):
+                                    claimed = await BrowsePool(
+                                        self.store, driver
+                                    ).claim(session_id, created)
+                                    if claimed is None:
+                                        raise BrowserAdmissionRejected(
+                                            "Prepared browser capacity is temporarily unavailable. Please try again shortly."
+                                        )
+                                    await self.resume_compute(record)
+                                    checked = await driver.rpc(
+                                        record["provider"],
+                                        {
+                                            "operation": "control",
+                                            "mode": "ai",
+                                            "check_ready": True,
+                                            "require_pristine": True,
+                                        },
+                                    )
+                                    if checked.get("pristine") is not True:
+                                        raise BrowserUnavailable(
+                                            "The blank browser could not be verified."
+                                        )
+                                    record["provider"]["pool_verified"] = True
+                                    await self.store.save(record)
+                            else:
+                                record["startup_intent"] = {"at": time.time()}
+                                await self.store.save(record)
+                                await driver.create(
+                                    session_id=session_id,
+                                    owner=owner_hash(user_id),
+                                    on_created=created,
+                                )
+                            stage_times["provisioning_seconds"] = round(
+                                time.monotonic() - provisioning_started, 3
                             )
                         except BrowserAdmissionRejected:
                             record.pop("startup_intent", None)
                             await self.store.save(record)
                             raise
+                        navigation_started = time.monotonic()
                         await driver.rpc(
                             record["provider"],
                             {"operation": "navigate", "url": request.start_url},
+                        )
+                        stage_times["initial_navigation_seconds"] = round(
+                            time.monotonic() - navigation_started, 3
                         )
                     elif record["provider"].get("deleted"):
                         raise BrowserUnavailable(
@@ -816,35 +856,68 @@ class BrowseService:
                     if action["kind"] == "done":
                         with private_inference_logging():
                             if request.output_schema:
-                                phase = "extract"
-                                extracted = await models.generate(
-                                    {
-                                        "purpose": "extract",
-                                        "goal": request.task,
-                                        "output_schema": request.output_schema,
-                                        "private_account": record["private_account"],
-                                        "observed_page": {
-                                            **{
-                                                k: observation.get(k)
-                                                for k in (
-                                                    "url",
-                                                    "title",
-                                                    "tables",
-                                                    "links",
-                                                )
-                                            },
-                                            "text": observation.get(
-                                                "document_text",
-                                                observation.get("text", ""),
-                                            ),
+                                extraction_context = {
+                                    "purpose": "extract",
+                                    "goal": request.task,
+                                    "output_schema": request.output_schema,
+                                    "private_account": record["private_account"],
+                                    "observed_page": {
+                                        **{
+                                            k: observation.get(k)
+                                            for k in (
+                                                "url",
+                                                "title",
+                                                "tables",
+                                                "links",
+                                            )
                                         },
+                                        "text": observation.get(
+                                            "document_text",
+                                            observation.get("text", ""),
+                                        ),
+                                    },
+                                }
+                                # One repair can recover an incomplete answer from
+                                # already observed evidence. It never navigates,
+                                # relaxes verification or invents missing facts.
+                                for extraction_attempt in range(2):
+                                    phase = "extract"
+                                    extracted = await models.generate(
+                                        extraction_context
+                                    )
+                                    data = (
+                                        extracted.get("data")
+                                        if isinstance(extracted, dict)
+                                        else None
+                                    )
+                                    if (
+                                        extraction_attempt
+                                        and data
+                                        == extraction_context["correction"][
+                                            "previous_candidate"
+                                        ]
+                                    ):
+                                        # An unchanged answer cannot seek a
+                                        # different stochastic verifier verdict.
+                                        break
+                                    phase = "verify"
+                                    verified = await models.verify(
+                                        request.task, observation, data
+                                    )
+                                    if (
+                                        verified
+                                        or data is None
+                                        or extracted.get("needs_user")
+                                        or extraction_attempt == 1
+                                    ):
+                                        break
+                                    extraction_context["correction"] = {
+                                        "previous_candidate": data,
+                                        "verification": dict(
+                                            getattr(models, "verification", {})
+                                        ),
+                                        "instruction": "The previous candidate failed independent completion checks. Compare every part of the goal with the observed page and correct omissions or unsupported claims using only that evidence. Preserve relevant qualifications and caveats. If the requested facts are unavailable, return needs_user rather than guessing.",
                                     }
-                                )
-                                data = (
-                                    extracted.get("data")
-                                    if isinstance(extracted, dict)
-                                    else None
-                                )
                             else:
                                 data = {
                                     k: observation.get(k) for k in ("tables", "links")
@@ -852,10 +925,10 @@ class BrowseService:
                                 data["text"] = observation.get(
                                     "document_text", observation.get("text", "")
                                 )
-                            phase = "verify"
-                            verified = await models.verify(
-                                request.task, observation, data
-                            )
+                                phase = "verify"
+                                verified = await models.verify(
+                                    request.task, observation, data
+                                )
                         if verified:
                             status, reason = (
                                 ("no_results", "The page reported no matching results.")
@@ -964,7 +1037,9 @@ class BrowseService:
                 failure["rpc_status_code"] = exc.status_code
             status, reason = (
                 "failed",
-                "The browser or decision provider could not complete this task.",
+                str(exc)
+                if isinstance(exc, BrowserAdmissionRejected)
+                else "The browser or decision provider could not complete this task.",
             )
         except Exception:
             status, reason = (
@@ -991,6 +1066,12 @@ class BrowseService:
                         "failed",
                         "Browser usage is awaiting reconciliation.",
                     )
+                if (record.get("provider") or {}).get("pool_assigned") and not record[
+                    "provider"
+                ].get("pool_verified"):
+                    # No model, viewer or manual input may see a failed initial
+                    # pristine-state check. This VM is destroyed, never recycled.
+                    await self.expire(record, "closed")
                 if record["status"] == "user":
                     status, reason = "needs_user", "You have control of this browser."
                 if record["status"] in ("closed", "expired"):
@@ -1106,6 +1187,14 @@ class BrowseService:
             await self.ensure_live(record)
             driver = await self.browser()
             op = command.operation
+            if (
+                op not in ("close", "stop")
+                and (record.get("provider") or {}).get("pool_assigned")
+                and not record["provider"].get("pool_verified")
+            ):
+                raise HTTPException(
+                    409, "The browser is still completing its ownership checks."
+                )
             if op == "close":
                 await self.expire(record, "closed")
             elif op == "stop":
@@ -1220,6 +1309,12 @@ class BrowseService:
             raise HTTPException(
                 404, "The browser has not produced its first frame yet."
             )
+        if record["provider"].get("pool_assigned") and not record["provider"].get(
+            "pool_verified"
+        ):
+            raise HTTPException(
+                409, "The browser is still completing its ownership checks."
+            )
         if record["status"] == "paused":
             image = (record.get("latest_observation") or {}).get("screenshot")
         else:
@@ -1305,6 +1400,8 @@ class BrowseService:
                 # One failed provider/persistence operation cannot starve other owners' cleanup.
                 logger.warning("Browser cleanup requires retry for an owned session.")
         try:
+            if "E2B_BROWSE_POOL_SIZE" in os.environ:
+                count += await BrowsePool(self.store, await self.browser()).sweep()
             count += await self.sweep_orphans()
         except Exception:
             logger.warning("Browser provider inventory requires a cleanup retry.")
@@ -1324,6 +1421,16 @@ class BrowseService:
         count = 0
         for info in machines:
             try:
+                if info.metadata.get("openmates_owner_hash") == owner_hash(
+                    "platform-blank-pool:" + driver.scope
+                ):
+                    pool = BrowsePool(self.store, driver)
+                    if await pool.retain_native(info):
+                        continue
+                    if time.time() - info.started_at.timestamp() >= 180:
+                        await driver.kill({"sandbox_id": info.sandbox_id})
+                        count += 1
+                    continue
                 session_id = str(uuid.UUID(info.metadata["openmates_browser_session"]))
                 if time.time() - info.started_at.timestamp() < 180:
                     continue

@@ -5,6 +5,7 @@ actual socket destination and rejection behavior, rather than resolver syntax.
 """
 
 import asyncio
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -190,8 +191,10 @@ class Writer:
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run
 @pytest.mark.asyncio
+@pytest.mark.parametrize("prebooted", [False, True])
 async def test_controller_is_not_limited_to_the_sdk_default_command_lifetime(
     monkeypatch,
+    prebooted,
 ):
     from datetime import datetime, timezone
     from e2b import Sandbox
@@ -212,13 +215,51 @@ async def test_controller_is_not_limited_to_the_sdk_default_command_lifetime(
     )
     monkeypatch.setattr(Sandbox, "create", Mock(return_value=sandbox))
     monkeypatch.setenv("E2B_BROWSE_TEMPLATE", "prepared-template")
+    monkeypatch.setenv("E2B_BROWSE_PREBOOTED", "true" if prebooted else "false")
     browser = E2BBrowser("placeholder")
-    browser.rpc = AsyncMock(return_value={})
+    browser.rpc = AsyncMock(
+        return_value={"runtime_protocol": "preboot-v1", "pristine": True}
+    )
     await browser.create(session_id="session", owner="owner", on_created=AsyncMock())
     server = [
         c for c in sandbox.commands.run.call_args_list if c.kwargs.get("background")
     ]
-    assert len(server) == 1 and server[0].kwargs["timeout"] == 0
+    if prebooted:
+        sandbox.commands.run.assert_not_called()
+        assert len(sandbox.files.write.call_args_list) == 1
+        assert sandbox.files.write.call_args.args[0].endswith("/config.json")
+        assert browser.rpc.await_args.args[1]["check_ready"] is True
+        assert browser.rpc.await_args.args[1]["require_pristine"] is True
+    else:
+        assert len(server) == 1 and server[0].kwargs["timeout"] == 0
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.session-and-run
+def test_preboot_snapshot_has_no_shared_bearer_and_binding_cannot_be_replaced(tmp_path):
+    config = tmp_path / "config.json"
+    authorization = runtime.SessionAuthorization(config)
+    assert not authorization.permits("")
+    assert not authorization.permits("Bearer None")
+    token = "session-a-" * 5
+    config.write_text(json.dumps({"token": token}))
+    assert not authorization.permits("Bearer another-session")
+    assert authorization.permits("Bearer " + token)
+    config.write_text(json.dumps({"token": "session-b-" * 5}))
+    assert authorization.permits("Bearer " + token)
+    assert not authorization.permits("Bearer " + "session-b-" * 5)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api
+@pytest.mark.parametrize(
+    "content",
+    ["bad json", "[]", "{}", '{"token":null}', '{"token":""}', '{"token":"short"}'],
+)
+def test_unclaimed_or_malformed_runtime_never_accepts_a_default_bearer(
+    tmp_path, content
+):
+    config = tmp_path / "config.json"
+    config.write_text(content)
+    assert not runtime.SessionAuthorization(config).permits("Bearer ")
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop

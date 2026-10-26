@@ -21,6 +21,30 @@ READER_AGENT = "OpenMatesBrowser"
 USER_AGENT = "OpenMatesBrowser/1.0 (+https://openmates.org)"
 
 
+class SessionAuthorization:
+    """An unclaimed public snapshot rejects requests until privately configured.
+
+    No bearer secret is baked into the template. Each fresh sandbox receives its
+    own configuration through E2B's authenticated filesystem API. Once bound,
+    changing that file cannot replace the session's authorization.
+    """
+
+    def __init__(self, path=Path("/home/user/.openmates-browse/config.json")):
+        self.path = path
+        self.token = None
+
+    def permits(self, authorization):
+        if self.token is None:
+            try:
+                token = json.loads(self.path.read_text())["token"]
+                if not isinstance(token, str) or not 32 <= len(token) <= 128:
+                    return False
+            except (OSError, ValueError, KeyError, TypeError):
+                return False
+            self.token = token
+        return hmac.compare_digest(authorization, "Bearer " + self.token)
+
+
 async def capture_page_snapshot(page):
     """Retry a read destroyed by navigation; never repeat the preceding action."""
     for attempt in range(3):
@@ -191,8 +215,7 @@ SNAPSHOT = r"""() => {
 async def serve() -> None:
     from playwright.async_api import async_playwright
 
-    config = json.loads(Path("/tmp/openmates-browse/config.json").read_text())
-    token = config["token"]
+    authorization = SessionAuthorization()
     from protego import Protego
     from http.client import HTTPSConnection
     import time
@@ -369,9 +392,23 @@ async def serve() -> None:
         if op == "control":
             if body.get("mode") not in ("ai", "user", "stopped"):
                 raise ValueError("Invalid control mode")
+            if body.get("check_ready"):
+                # Prove a live Chromium round trip, not just a restored HTTP
+                # listener or a cached Playwright page URL.
+                await asyncio.wait_for(page.title(), 2)
+            if body.get("require_pristine"):
+                state = await asyncio.wait_for(
+                    context.storage_state(indexed_db=True), 2
+                )
+                if page.url != "about:blank" or state["cookies"] or state["origins"]:
+                    raise ValueError("The browser template is not pristine")
             control = body["mode"]
             observation_id = None
-            return {"control": control}
+            return {
+                "control": control,
+                "runtime_protocol": "preboot-v1",
+                **({"pristine": True} if body.get("require_pristine") else {}),
+            }
         if op == "navigate":
             url = body.get("url", "")
             if not await crawler_allowed(url):
@@ -530,9 +567,7 @@ async def serve() -> None:
             lines = header.decode("ascii").split("\r\n")
             headers = dict(line.split(":", 1) for line in lines[1:] if ":" in line)
             headers = {k.strip().lower(): v.strip() for k, v in headers.items()}
-            if not hmac.compare_digest(
-                headers.get("authorization", ""), "Bearer " + token
-            ):
+            if not authorization.permits(headers.get("authorization", "")):
                 raise ValueError("Unauthorized")
             size = int(headers.get("content-length", "0"))
             if not 0 < size <= 32000:

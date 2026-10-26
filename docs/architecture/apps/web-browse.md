@@ -33,6 +33,24 @@ Direct library requests additionally supply an owned `chat_id` and stable `messa
 
 The stock desktop currently allocates 8 CPUs and 8 GiB according to its [official build script](https://github.com/e2b-dev/desktop/blob/main/template/build_prod.py). Browse instead uses a prepared Chromium image built by `backend/scripts/build_web_browse_template.py`, with 2 CPUs and 4 GiB. The image contains public dependencies and no user browser state. Set its immutable ID as `E2B_BROWSE_TEMPLATE` in the coordinated target runtime after verification.
 
+With `E2B_BROWSE_PREBOOTED=true`, the immutable public template starts Chromium
+before snapshotting. The optional `E2B_BROWSE_POOL_SIZE` (default zero, maximum ten)
+keeps never-assigned, pristine VMs confirmed paused. Preparation and periodic
+replacement are platform overhead. A new user's metered window starts only with
+that user's admitted resume. An empty pool returns a bounded capacity failure;
+it does not fall back to a slow cold start or charge a user for preparation.
+
+Each pool slot has an immutable SQL claim receipt. Its primary-key constraint
+permits exactly one destination session; an uncertain insert response grants no
+access. Before resume, the encrypted handle is saved under the owner's Vault key
+and the platform's credential copy is removed. A claimed VM never returns to the
+pool, including after cancellation, sign-out, cleanup or a failed handoff. The
+owner may resume their original VM; closing or expiry destroys it. The pool
+janitor follows the durable claim across worker/cache restarts. A fresh blank
+check verifies the live page is `about:blank` with no cookies or stored origins
+before any page navigation or model access. There is no profile reuse or browser
+state clearing operation intended to make a used VM available to another user.
+
 The browser uses authenticated E2B ingress plus a separate RPC bearer. Neither credential enters chat embeds, model state or viewer URLs. E2B egress rules deny private networks; the browser independently checks public HTTPS destinations, DNS answers and robots exclusions for navigation and subresources. Popups and WebSockets are not alternate unguarded channels. The browser never receives OpenMates credentials.
 
 Chromium and the robots reader share a CONNECT-only loopback transport. It resolves IPv4, rejects any non-public DNS answer and connects to the validated literal IP without a second resolution. Origin TLS/SNI and certificate validation remain with the clients. QUIC, non-proxied WebRTC and Chromium's implicit loopback bypass are disabled; there is no direct transport fallback. IPv6-only destinations are currently unavailable. This transport also covers unspecified/reserved addresses that E2B's denial-list validator cannot express using an unspecified CIDR base. The reviewed provider implementation is [E2B's validation](https://github.com/e2b-dev/runtime/blob/main/packages/shared/pkg/sandbox-network/firewall.go) and [connection filtering](https://github.com/e2b-dev/runtime/blob/main/packages/orchestrator/pkg/tcpfirewall/handlers.go).

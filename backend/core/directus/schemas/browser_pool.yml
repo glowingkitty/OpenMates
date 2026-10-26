@@ -1,0 +1,38 @@
+browser_pool:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Opaque, never-reused slot identity, also used in E2B metadata."
+    scope:
+      type: string
+      note: "[Indexed] Deployment environment; server-only pool journal."
+    template_id:
+      type: string
+      note: "Immutable public blank template used to prepare this VM."
+    status:
+      type: string
+      note: "[Indexed] preparing, ready, claimed or retired. Claimed never returns to ready."
+    sandbox_id:
+      type: string
+      unique: true
+      note: "Opaque native resource ID for orphan deletion; no access credentials."
+    claimed_session_id:
+      type: uuid
+      unique: true
+      note: "Immutable destination browser session after the exclusive claim."
+    claimed_at:
+      type: integer
+      note: "Claim time; bounds recovery of an interrupted owner handoff."
+    encrypted_payload:
+      type: text
+      note: "[Encrypted] Unassigned VM credentials under the system Vault key; scrubbed before user work."
+    preparation_cost_usd:
+      type: string
+      note: "Platform preparation overhead; never debited to a user's wallet."
+    expires_at:
+      type: integer
+      note: "[Indexed] Deadline for an unclaimed blank VM; not an assigned user's retention deadline."
+    version:
+      type: integer
+      note: "Atomic claim generation."

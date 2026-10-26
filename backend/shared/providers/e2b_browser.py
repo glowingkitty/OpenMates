@@ -30,7 +30,7 @@ PRIVATE_NETWORKS = [
     "fc00::/7",
     "fe80::/10",
 ]
-RUNTIME_DIR = "/tmp/openmates-browse"
+RUNTIME_DIR = "/home/user/.openmates-browse"
 RUNTIME_PYTHON = "/opt/openmates-browser/venv/bin/python"
 
 
@@ -142,33 +142,53 @@ class E2BBrowser:
                 raise BrowserUnavailable(
                     "The browser template exceeds its admitted resource ceiling."
                 )
+            prebooted = os.environ.get("E2B_BROWSE_PREBOOTED") == "true"
             config = json.dumps({"token": token})
-            await asyncio.to_thread(
-                sandbox.commands.run, f"mkdir -p {RUNTIME_DIR}", timeout=10
-            )
+            if not prebooted:
+                await asyncio.to_thread(
+                    sandbox.commands.run, f"mkdir -p {RUNTIME_DIR}", timeout=10
+                )
             await asyncio.to_thread(
                 sandbox.files.write, f"{RUNTIME_DIR}/config.json", config
             )
-            source = Path(__file__).with_name("web_browse_runtime.py").read_text()
-            await asyncio.to_thread(
-                sandbox.files.write, f"{RUNTIME_DIR}/server.py", source
-            )
-            await asyncio.to_thread(
-                sandbox.commands.run,
-                f"{RUNTIME_PYTHON} {RUNTIME_DIR}/server.py",
-                background=True,
-                # The controller must survive the SDK's default 60-second
-                # command connection lifetime. The sandbox lifecycle bounds it.
-                timeout=0,
-            )
+            if not prebooted:
+                source = Path(__file__).with_name("web_browse_runtime.py").read_text()
+                await asyncio.to_thread(
+                    sandbox.files.write, f"{RUNTIME_DIR}/server.py", source
+                )
+                await asyncio.to_thread(
+                    sandbox.commands.run,
+                    f"{RUNTIME_PYTHON} {RUNTIME_DIR}/server.py",
+                    background=True,
+                    # The sandbox lifecycle bounds this resident controller.
+                    timeout=0,
+                )
             for _ in range(30):
                 try:
-                    await self.rpc(
-                        provider, {"operation": "control", "mode": "ai"}, timeout=2
+                    result = await self.rpc(
+                        provider,
+                        {
+                            "operation": "control",
+                            "mode": "ai",
+                            **(
+                                {"check_ready": True, "require_pristine": True}
+                                if prebooted
+                                else {}
+                            ),
+                        },
+                        timeout=2,
                     )
-                    return provider
                 except BrowserUnavailable:
                     await asyncio.sleep(0.25)
+                    continue
+                if prebooted and (
+                    result.get("runtime_protocol") != "preboot-v1"
+                    or result.get("pristine") is not True
+                ):
+                    raise BrowserUnavailable(
+                        "The prepared browser runtime is incompatible."
+                    )
+                return provider
             raise BrowserUnavailable("Browser did not become ready.")
         except BaseException:
             await asyncio.to_thread(sandbox.kill, retries=0)

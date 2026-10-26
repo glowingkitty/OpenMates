@@ -14,6 +14,8 @@ decisions:
   - Use two times effective metered supplier cost, pause idle compute after 120 seconds and delete after 86400 seconds of inactivity.
   - Reuse session d7bf and existing provider, encryption, app-skill, billing, embed and CI infrastructure.
   - OpenMates Tasks owns implementation status and dependencies; this Plan has no duplicate task ledger.
+  - On 2026-10-26 the user set a browser startup target below three seconds, acceptable below four and a hard ceiling around four to five. Measure provisioning separately from page loading, queueing and inference.
+  - The user explicitly approved a prepared paused pool conditional on no cross-user cache or login access. Each public blank VM is claimed atomically for one owner and chat for its entire lifetime, never recycled after any claim, and destroyed on a failed handoff. No template may contain user state. Pool preparation overhead is absorbed by the platform; the existing user tariff applies only after the admitted ownership resume.
 scope:
   - Regular callable skill, authenticated session controls, encrypted results, scoped provider calls and bounded usage ledger.
   - Screenshot preview and fullscreen watch, manual input, sign-in notice, AI continuation and lifecycle controls.
