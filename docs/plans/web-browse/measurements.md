@@ -6,7 +6,7 @@ The approved contract is `feature.app-skill.web-browse@1`.
 
 The deployed backend (`29836d6`) has a successful real CLI JSON extraction,
 successful direct npm extraction, native idle pause/resume and successful direct
-Python replay of the closed npm run. Fresh Python execution still abstains.
+Python replay of the closed npm run. Later fresh SDK outcomes are recorded below.
 The previous object-storage outage recovered; the retained CLI recording and new
 CI evidence uploaded successfully. Backend commit `612c62f` passed 113 focused
 cases plus the first-party HTTP authorization case in isolated CI (runs
@@ -58,34 +58,53 @@ results.
 
 ## Deployed full skill checks after pool activation
 
-Fresh direct npm and Python requests provisioned in **2.328 s** and **2.244 s**.
-Initial navigation took 4.174 s and 2.759 s respectively; total initial setup,
-including persistence and navigation, was 6.839 s and 5.776 s. Those page-loading
-costs remain visible and are not included in the browser-ready result above.
+Fresh direct npm and Python requests at the pool-only revision provisioned in
+2.328 s and 2.244 s. Initial navigation took 4.174 s and 2.759 s respectively;
+initial setup including persistence/navigation was 6.839 s and 5.776 s. Both jobs
+later failed when corrective Gemini calls exceeded 20 seconds. Those VMs are
+closed. Unknown supplier usage remains held for reconciliation and is not a zero
+bill or a successful extraction. The assistant CLI attempt also failed and then
+reached its spending guard; it settled at 22 credits.
 
-Both SDK jobs failed later when a corrective Gemini call exceeded its 20-second
-bound. Each recorded its known native usage and preserved an unresolved hold for
-the response that timed out; neither is a successful extraction. Both VMs are
-closed and their unknown usage was not charged as zero or silently forgiven.
-The assistant CLI run also failed verification and then reached its spending
-guard; it settled at 22 credits. A terminal exit of zero and a final assistant
-JSON response do not establish a successful Browse result. The retained latest
-successful CLI recording remains the older baseline run.
+After checked-quotation verification (`5d2048a`), **fresh direct npm and Python
+requests both passed**, returning the entire observed English quotation and source
+URL. No replay or CLI subprocess stood in for either library call.
 
-Native controls reproduced a false rejection of the complete observed English
-quotation (grounding 0.88, coverage 0.41), while omitted caveats, invented claims
-and unfinished navigation were rejected correctly. Shorter verdict questions
-still rejected the complete quotation. Separate extraction prompt controls both
-returned the full quotation with native usage in 1.724–3.087 s, so they did not
-establish a causal timeout fix. The candidate adds a separate proof for literal
-string-only output: code matches every value to observed text/URLs, then a small,
-metered independent review checks field meanings and complete task coverage.
-Original Jev thresholds and website-action checks remain intact. The five native
-controls passed, accepting the complete quotation and rejecting omitted caveats,
-inventions, inverted claims and unfinished navigation. The complete-quote review
-took 3.862 s and cost $0.00098025 supplier USD in addition to its Jev check. The
-updated 77 model/service cases passed isolated CI (run 40393393048). Deployment
-and fresh CLI/SDK requalification are pending.
+| SDK | Provisioning | Initial navigation | Full initial setup | In-skill total | Submit through result | Settled after Close |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| npm | 3.540 s | 4.537 s | 8.368 s | 17.289 s | 22.769 s | 8 credits ($0.008) |
+| Python | 3.762 s | 3.624 s | 8.179 s | 18.100 s | 23.331 s | 8 credits ($0.008) |
+
+Provisioning stayed below four seconds in these runs; destination loading and
+initial setup took longer and are not included in that browser-ready figure.
+At result delivery each had accrued four credits, with native usage complete and
+no reconciliation flag. The final eight-credit charges also include active time
+between result delivery and Close. These two examples do not estimate all tasks.
+
+The natural-language assistant call at that same revision omitted output_schema.
+Its different path returned raw tables/links/text as if that snapshot were the
+requested answer, then failed verification. It provisioned in 2.808 s, completed
+initial setup in 6.132 s and returned needs_user after 8.582 s; the assistant used
+web.read afterward. This is a Browse failure despite a successful terminal exit
+and a final assistant JSON response. Its VM is closed. The latest successful CLI
+recording remains the older baseline run.
+
+Native controls reproduced a false rejection of the complete English quotation
+(grounding 0.88, coverage 0.41). Shorter questions still rejected it. Standalone
+extraction controls returned the full text in 1.724–3.087 s, so they did not prove
+a causal timeout fix. The deployed quote path instead matches every string value
+to observed evidence before a separate, metered semantic review; original Jev
+thresholds, action checks and output safety remain intact. Five native positive
+and negative controls passed, as did 77 model/service cases in isolated CI (run
+40393393048). Its complete-quote helper control took 3.862 s and cost $0.00098025
+supplier USD in addition to Jev.
+
+The next candidate also extracts an answer when the caller omits output_schema,
+using a default object schema while preserving full observations separately.
+A native control of that path produced the requested statement/URL and passed
+independent verification; 42 local service cases passed, including metering,
+replay and rejection of a scalar default answer. Isolated CI and deployment of
+this correction are pending.
 
 ## Environment and scope
 

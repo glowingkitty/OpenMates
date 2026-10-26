@@ -14,7 +14,12 @@ The worker owns observe → decide → validate → act. Jev chooses compatible 
 
 Model calls execute outside the session execution lock. Manual takeover invalidates the browser observation and pending decisions; code rechecks the controller before input. Viewing frames does not grant control. Manual sign-in consent is checked against the live origin. Pages requesting passwords, MFA or card secrets produce masked saved/AI previews and no text/control observations. Live frames during manual control go only to the authenticated owner and are not persisted.
 
-The final result contains observed JSON `data`, source references, complete bounded extracted `observations`, a safe screenshot and timing/usage counters. `screenshot_ref` identifies the image inside the owner-authorized encrypted result; the binary `screenshot_base64` field is excluded from model input. Browser-job result bodies are encrypted separately from the Celery task backend. Transient results expire after 24 hours; saved encrypted chat embeds have independent retention.
+The final result contains extracted and verified JSON `data`, source references, complete bounded extracted `observations`, a safe screenshot and timing/usage counters. `screenshot_ref` identifies the image inside the owner-authorized encrypted result; the binary `screenshot_base64` field is excluded from model input. Browser-job result bodies are encrypted separately from the Celery task backend. Transient results expire after 24 hours; saved encrypted chat embeds have independent retention.
+
+Every completed information task extracts a goal-specific answer, using a default
+object schema when the caller omits `output_schema`. Raw tables, links and full
+page text remain in the separately checked observations. Snapshot metadata does
+not stand in for the requested answer.
 
 Literal string-only answers have an additional verification path when the normal
 Jev answer check abstains. Code first matches every nonempty leaf to observed

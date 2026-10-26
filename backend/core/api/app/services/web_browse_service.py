@@ -855,94 +855,80 @@ class BrowseService:
                         break
                     if action["kind"] == "done":
                         with private_inference_logging():
-                            if request.output_schema:
-                                extraction_context = {
-                                    "purpose": "extract",
-                                    "goal": request.task,
-                                    "output_schema": request.output_schema,
-                                    "private_account": record["private_account"],
-                                    "observed_page": {
-                                        **{
-                                            k: observation.get(k)
-                                            for k in (
-                                                "url",
-                                                "title",
-                                                "tables",
-                                                "links",
-                                            )
-                                        },
-                                        "text": observation.get(
-                                            "document_text",
-                                            observation.get("text", ""),
-                                        ),
+                            effective_schema = request.output_schema or {
+                                "type": "object"
+                            }
+                            extraction_context = {
+                                "purpose": "extract",
+                                "goal": request.task,
+                                "output_schema": effective_schema,
+                                "private_account": record["private_account"],
+                                "observed_page": {
+                                    **{
+                                        k: observation.get(k)
+                                        for k in (
+                                            "url",
+                                            "title",
+                                            "tables",
+                                            "links",
+                                        )
                                     },
-                                }
-                                # One repair can recover an incomplete answer from
-                                # already observed evidence. It never navigates,
-                                # relaxes verification or invents missing facts.
-                                for extraction_attempt in range(2):
-                                    phase = "extract"
-                                    extracted = await models.generate(
-                                        extraction_context
-                                    )
-                                    data = (
-                                        extracted.get("data")
-                                        if isinstance(extracted, dict)
-                                        else None
-                                    )
-                                    if (
-                                        extraction_attempt
-                                        and data
-                                        == extraction_context["correction"][
-                                            "previous_candidate"
-                                        ]
-                                    ):
-                                        # An unchanged answer cannot seek a
-                                        # different stochastic verifier verdict.
-                                        break
-                                    phase = "verify"
-                                    verified = await models.verify(
-                                        request.task, observation, data
-                                    )
-                                    if (
-                                        verified
-                                        or data is None
-                                        or extracted.get("needs_user")
-                                        or extraction_attempt == 1
-                                    ):
-                                        break
-                                    extraction_context["correction"] = {
-                                        "previous_candidate": data,
-                                        "verification": dict(
-                                            getattr(models, "verification", {})
-                                        ),
-                                        "instruction": "The previous candidate failed independent completion checks. Compare every part of the goal with the observed page and correct omissions or unsupported claims using only that evidence. Preserve relevant qualifications and caveats. If the requested facts are unavailable, return needs_user rather than guessing.",
-                                    }
-                            else:
-                                data = {
-                                    k: observation.get(k) for k in ("tables", "links")
-                                }
-                                data["text"] = observation.get(
-                                    "document_text", observation.get("text", "")
+                                    "text": observation.get(
+                                        "document_text",
+                                        observation.get("text", ""),
+                                    ),
+                                },
+                            }
+                            # One repair can recover an incomplete answer from
+                            # already observed evidence. It never navigates,
+                            # relaxes verification or invents missing facts.
+                            for extraction_attempt in range(2):
+                                phase = "extract"
+                                extracted = await models.generate(extraction_context)
+                                data = (
+                                    extracted.get("data")
+                                    if isinstance(extracted, dict)
+                                    else None
                                 )
+                                if (
+                                    extraction_attempt
+                                    and data
+                                    == extraction_context["correction"][
+                                        "previous_candidate"
+                                    ]
+                                ):
+                                    # An unchanged answer cannot seek a
+                                    # different stochastic verifier verdict.
+                                    break
                                 phase = "verify"
                                 verified = await models.verify(
                                     request.task, observation, data
                                 )
+                                if (
+                                    verified
+                                    or data is None
+                                    or extracted.get("needs_user")
+                                    or extraction_attempt == 1
+                                ):
+                                    break
+                                extraction_context["correction"] = {
+                                    "previous_candidate": data,
+                                    "verification": dict(
+                                        getattr(models, "verification", {})
+                                    ),
+                                    "instruction": "The previous candidate failed independent completion checks. Compare every part of the goal with the observed page and correct omissions or unsupported claims using only that evidence. Preserve relevant qualifications and caveats. If the requested facts are unavailable, return needs_user rather than guessing.",
+                                }
                         if verified:
                             status, reason = (
                                 ("no_results", "The page reported no matching results.")
                                 if getattr(models, "no_results", False)
                                 else ("completed", None)
                             )
-                            if request.output_schema:
-                                validator = Draft202012Validator(request.output_schema)
-                                if status == "no_results" and not validator.is_valid(
-                                    data
-                                ):
-                                    data = None  # An empty search cannot satisfy a schema demanding records.
-                                elif status == "completed":
-                                    validator.validate(data)
+                            validator = Draft202012Validator(effective_schema)
+                            if status == "no_results" and not validator.is_valid(data):
+                                data = None  # An empty search cannot satisfy a schema demanding records.
+                            elif status == "completed":
+                                validator.validate(data)
                         else:
                             status, reason = (
                                 "needs_user",

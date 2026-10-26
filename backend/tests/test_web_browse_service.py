@@ -338,6 +338,7 @@ async def test_unverified_pool_handoff_exposes_neither_frames_nor_manual_input(s
 # contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 @pytest.mark.asyncio
 @pytest.mark.parametrize("repair_verified", [True, False])
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
 async def test_one_metered_extraction_repair_still_requires_independent_verification(
     service, repair_verified
 ):
@@ -951,3 +952,57 @@ async def test_verified_empty_search_stays_no_results_when_schema_demands_record
     )
     assert result.status == "no_results" and result.data is None
     assert result.observations["text"] == "No matching records."
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_missing_schema_still_extracts_and_verifies_a_metered_answer(service):
+    expected = {"statement": "Observed fact", "source_url": "https://example.com/"}
+    contexts = []
+
+    class DefaultModels(Models):
+        async def generate(self, context):
+            contexts.append(deepcopy(context))
+            call = await self.before(
+                "google/gemini-3.8-flash", "google_ai_studio", Decimal("0.0003")
+            )
+            attempt = {
+                "complete": True,
+                "cost_usd": "0.00025",
+                "usage": {"input_tokens": 100, "output_tokens": 10},
+            }
+            self.attempts.append(attempt)
+            await self.after(call, attempt)
+            return {"data": expected}
+
+        async def verify(self, task, observation, data):
+            assert data == expected
+            assert "tables" not in data  # Snapshot metadata is not an authored answer.
+            return True
+
+    service.models_factory = DefaultModels
+    service.driver.observation["links"] = [
+        {"text": "More", "url": "https://example.com/help"}
+    ]
+    result = await run(service)
+    assert result.status == "completed" and result.data == expected
+    assert contexts[0]["output_schema"] == {"type": "object"}
+    assert result.observations["links"] == service.driver.observation["links"]
+    record = service.store.records[result.session_id]
+    assert Decimal(record["inference_cost_usd"]) == Decimal("0.000292")
+    replay = await run(service)
+    assert replay == result and len(contexts) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_default_answer_schema_rejects_a_scalar_even_after_positive_review(
+    service,
+):
+    class ScalarModels(Models):
+        async def generate(self, context):
+            return {"data": "Observed fact"}
+
+    service.models_factory = ScalarModels
+    result = await run(service)
+    assert result.status == "failed" and result.data is None
