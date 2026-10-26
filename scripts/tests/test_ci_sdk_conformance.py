@@ -1150,16 +1150,22 @@ def test_failure_diagnostics_preserves_compiler_private_retention_exit_scope_and
     assert "rustUnits" not in sdk.failure_diagnostics(private, root, "napi-build", inputs, [])
 
 
-def message_window_gate_fixture(tmp_path):
+def message_window_gate_fixture(tmp_path, *, historical=False):
     """Synthetic validator input only; never an actual library pass receipt."""
     root, report = gate_fixture(tmp_path)
     identity = "session.message-window.v1"
+    trust = sdk.load_trust()
+    if historical:
+        trust = restore_before_cache_adapter_registration(trust)
     vectors = next(
         row["vectors"]
-        for row in sdk.load_trust()["plan"]
+        for row in trust["plan"]
         if row["capability"] == identity
     )
-    assert len(vectors) == 24
+    if historical:
+        assert len(vectors) == 24
+    else:
+        assert len(vectors) == 25
     matrix_path = root / "config/sdk-capabilities.json"
     matrix = json.loads(matrix_path.read_text())
     matrix["capabilities"][0]["id"] = identity
@@ -1195,10 +1201,14 @@ def message_window_gate_fixture(tmp_path):
     return root, report
 
 
-def test_three_complete_window_validator_rows_remain_blocked_by_declared_gap(tmp_path):
-    root, report = message_window_gate_fixture(tmp_path)
+@pytest.mark.parametrize("historical", [False, True])
+def test_three_complete_window_validator_rows_remain_blocked_by_declared_gap(tmp_path, historical):
+    root, report = message_window_gate_fixture(tmp_path, historical=historical)
     result = sdk.gate_receipt(root, report, trust=synthetic_trust(root))
-    assert result["realRunCount"] == 3 and result["vectorOutcomeCount"] == 72
+    if historical:
+        assert result["realRunCount"] == 3 and result["vectorOutcomeCount"] == 72
+    else:
+        assert result["realRunCount"] == 3 and result["vectorOutcomeCount"] == 75
     assert result["openGapCount"] == 1 and result["releaseEligible"] is False
 
 
@@ -1219,8 +1229,9 @@ def test_three_complete_window_validator_rows_remain_blocked_by_declared_gap(tmp
         "release_claim",
     ],
 )
-def test_window_admission_rejects_partial_forged_or_reordered_results(tmp_path, fault):
-    root, report = message_window_gate_fixture(tmp_path)
+@pytest.mark.parametrize("historical", [False, True])
+def test_window_admission_rejects_partial_forged_or_reordered_results(tmp_path, fault, historical):
+    root, report = message_window_gate_fixture(tmp_path, historical=historical)
     if fault == "missing_adapter":
         report["conformance"].pop()
     elif fault == "duplicate_adapter":
@@ -1367,7 +1378,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "036118443e4ae84c808bb4d0e3163f6dfa97222c72a0b87a3c1eaf70bef48f6d"
+    assert sdk.sha(live_bytes) == "1fe90fffdff3feee2ddf60edfd129c6ed799a9e45b743f71e84bfa018e30bcff"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -1493,6 +1504,7 @@ def restore_before_cookie_registration(trust, approval):
 
 
 def restore_before_cache_settlement_registration(trust):
+    trust = restore_before_cache_adapter_registration(trust)
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-source-delta.json", "68c1a85b9c676b9c66c80a0d67ccd7f953f665834071e4a87c7db37305f67ad5")
     restored = copy.deepcopy(trust)
     for bucket in ("programs", "contracts"):
@@ -1510,7 +1522,7 @@ def restore_before_cache_settlement_registration(trust):
 
 def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-source-delta.json", "68c1a85b9c676b9c66c80a0d67ccd7f953f665834071e4a87c7db37305f67ad5")
-    live = sdk.load_trust()
+    live = restore_before_cache_adapter_registration(sdk.load_trust())
     assert {k: len(live[k]) for k in delta["afterCounts"]} == delta["afterCounts"]
     prior = restore_before_cache_settlement_registration(live)
     assert live["plan"] == prior["plan"] and len(prior["plan"]) == 87
@@ -1518,3 +1530,77 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
     assert {k: v for k,v in live.items() if k not in ("programs","contracts","gaps")} == {k: v for k,v in prior.items() if k not in ("programs","contracts","gaps")}
     assert delta["releaseEligible"] is False
     assert all("openmates-tui-native" not in item["path"] for item in delta["reviewedSources"])
+
+
+def restore_before_cache_adapter_registration(trust):
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-adapters-delta.json", "33506804d67aab4f5d301d756583961df30c1bf81a6930b7808bc2c9ee3b3df1")
+    actual = sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode())
+    # Known immutable predecessor is accepted solely for transitive test-data
+    # restoration; runtime load_trust/verify_programs retain one live authority.
+    if actual == delta["beforeSha256"]:
+        return copy.deepcopy(trust)
+    assert actual == delta["afterSha256"]
+    restored = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert restored[bucket][path] == change["after"]
+            if change["before"] is None:
+                del restored[bucket][path]
+            else:
+                restored[bucket][path] = change["before"]
+    for change in delta["planChanged"]:
+        assert restored["plan"][change["index"]] == change["after"]
+        restored["plan"][change["index"]] = copy.deepcopy(change["before"])
+    assert restored["plan"][-3:] == delta["planAdded"]
+    del restored["plan"][-3:]
+    assert sdk.sha((json.dumps(restored, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return restored
+
+
+def test_cache_adapters_add_exact_three_required_plans_preserve_old87_and_all_gaps():
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-adapters-delta.json", "33506804d67aab4f5d301d756583961df30c1bf81a6930b7808bc2c9ee3b3df1")
+    live = sdk.load_trust()
+    assert sdk.sha((json.dumps(live, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    assert {key: len(live[key]) for key in delta["afterCounts"]} == {"programs":276,"contracts":71,"plan":90,"gaps":177}
+    prior = restore_before_cache_adapter_registration(live)
+    assert len(prior["plan"]) == 87
+    restored_prefix = copy.deepcopy(live["plan"][:87])
+    assert len(delta["planChanged"]) == 6
+    for change in delta["planChanged"]:
+        assert restored_prefix[change["index"]] == change["after"]
+        assert change["after"]["capability"] in {"session.message-window.v1","session.saved-chat-read.v1"}
+        assert {k:v for k,v in change["before"].items() if k not in ("fixtureSha256","vectors")} == {k:v for k,v in change["after"].items() if k not in ("fixtureSha256","vectors")}
+        assert set(change["before"]["vectors"]) < set(change["after"]["vectors"])
+        assert len(change["after"]["vectors"]) == len(change["before"]["vectors"]) + 1
+        restored_prefix[change["index"]] = copy.deepcopy(change["before"])
+    assert restored_prefix == prior["plan"]
+    assert sdk.sha(json.dumps(prior["plan"], sort_keys=True).encode()) == delta["oldPlansSha256"]
+    assert live["gaps"] == prior["gaps"] and len(live["gaps"]) == 177
+    assert {k:v for k,v in live.items() if k not in ("programs","contracts","plan")} == {k:v for k,v in prior.items() if k not in ("programs","contracts","plan")}
+    added = live["plan"][87:]
+    assert [row["language"] for row in added] == ["rust","npm","python"]
+    for row in added:
+        assert row["capability"] == "session.cache-preferred-settlement.v1"
+        assert row["vectors"] == sorted({"selected-exact-ack","selected-wrong-hash","selected-wrong-revision","stale-a-active-b","discarded-stage","explicit-consent","monitor-exact-ack","selected-denied"})
+        assert row["fixture"] == "tests/sdk-conformance/fixtures/session-cache-preferred-settlement.json"
+    assert delta["releaseEligible"] is False and delta["nativeExecutions"] == 0
+    assert len(delta["reviewedSourceClosure"]) == 19
+    assert all("openmates-tui-native" not in item["path"] and "browser" not in item["path"] for item in delta["reviewedSourceClosure"])
+
+
+@pytest.mark.parametrize("capability", ["session.message-window.v1", "session.saved-chat-read.v1"])
+def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capability):
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-adapters-delta.json", "33506804d67aab4f5d301d756583961df30c1bf81a6930b7808bc2c9ee3b3df1")
+    witness = next(row for row in delta["fixtureWitnesses"] if row["capability"] == capability)
+    root = Path(__file__).resolve().parents[2]
+    raw = (root / witness["path"]).read_bytes()
+    assert sdk.sha(raw) == witness["afterRawSha256"]
+    restored = json.loads(raw)
+    suite = restored["capabilities"][capability]
+    assert suite.pop("allow_private_operations") is True
+    assert suite["vectors"].pop() == witness["addedDeniedVector"]
+    assert witness["addedDeniedVector"]["allow_private_operations"] is False
+    assert witness["addedDeniedVector"]["expected_error"] == "forbidden"
+    assert len(suite["vectors"]) == witness["priorVectorCount"] == {"session.message-window.v1":24,"session.saved-chat-read.v1":54}[capability]
+    assert sdk.sha(json.dumps(suite["vectors"], sort_keys=True).encode()) == witness["priorVectorsSha256"]
+    assert sdk.sha(json.dumps(restored, sort_keys=True).encode()) == witness["beforeSemanticSha256"]
