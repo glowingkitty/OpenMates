@@ -197,3 +197,25 @@ def test_native_bounded_read_has_exact_no_inference_classification():
     for unknown in ("cli-native-bounded-saved-read-extra.spec.ts", "nested/" + name):
         allowed, held = partition([unknown], manifest)
         assert allowed == [] and unknown in held
+
+
+def test_production_rust_browser_targets_require_exact_built_isolated_profile():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import execution_mode
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    targets = ["rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts"]
+    allowed, held = partition(targets, manifest)
+    assert allowed == targets
+    assert held == {}
+    group = manifest["groups"]["rust_core_production_saved_reads"]
+    assert group["execution"] == "e2e"
+    assert group["specs"] == targets
+    for dependency in ("runner-private accounts", "same-source locked Rust/WASM", "fresh opt-in application build", "IndexedDB CryptoKeys", "no live inference"):
+        assert dependency in group["enabling_work"]
+    assert set(targets).issubset(manifest["groups"]["ai_committed_fixtures"]["specs"])
+    assert all(execution_mode(target) == "e2e" for target in targets)
+    unknown = ["nested/" + target for target in targets] + [target.replace(".spec.ts", "-extra.spec.ts") for target in targets]
+    assert partition(unknown, manifest)[0] == []
+    assert set(partition(unknown, manifest)[1]) == set(unknown)

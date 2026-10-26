@@ -575,7 +575,9 @@
         "voice-call.spec.ts",
         "cli-recovery-fixtures.spec.ts",
         "rust-core-browser-session.spec.ts",
-        "rust-core-browser-password-entry.spec.ts"
+        "rust-core-browser-password-entry.spec.ts",
+        "rust-core-production-saved-session.spec.ts",
+        "rust-core-production-platform.spec.ts"
       ]
     },
     "external_integration": {
@@ -964,6 +966,14 @@
       "enabling_work": "Exact standalone fresh-password positive migration proof using runner-private account and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and wasm-bindgen package in the same job before Playwright. Reuses existing marker-only committed-replay profile for the owned encrypted history fixture epoch; no AI request or real inference. Worker holds refresh WebLock, uses normal password-v2 lookup/challenge/login/canonical master wrapper with Fetch Include, verifies memory-only authority, exact bounded saved-chat hashes and actual Worker close. No prior key/session import, remote-email enrollment, stored-profile/native ACK/full persistence proof or production activation. Original12case browser session suite remains separately required; known4 strong-persistence failures are not waived.",
       "specs": [
         "rust-core-browser-password-entry.spec.ts"
+      ]
+    },
+    "rust_core_production_saved_reads": {
+      "execution": "e2e",
+      "enabling_work": "Exact production-loader browser targets use fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and a fresh opt-in application build in the same job before Playwright. Genuine existing IndexedDB CryptoKeys, bounded encrypted saved-chat reads, owner verification and revocation are exercised without exporting keys or changing login/storage policy. The isolated committed-replay worker provides only the owned marker-chat fixture epoch; no live inference, provider egress, full ActiveChat acceptance, persistence ACK or default production Rust activation.",
+      "specs": [
+        "rust-core-production-saved-session.spec.ts",
+        "rust-core-production-platform.spec.ts"
       ]
     },
     "native_bounded_saved_read": {
