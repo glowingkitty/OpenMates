@@ -2924,7 +2924,7 @@
     "packages/openmates-python/openmates/sdk.py": "b70467ca2d8fda8cbacbf176e99a24dda57956add9a324b1191b3c479d159553",
     "packages/openmates-python/openmates/session_client.py": "09c9c2abe7c85488c8de7eb75fde99236b328e83096a9c3c6919c7d813abcd9c",
     "packages/openmates-python/tests/test_session_drafts.py": "6b5f500efba1a7787fd5082fe5668e51042711cdc116a7055af344b2ce758c46",
-    "packages/openmates-python/tests/test_session_full_chat_read.py": "71e5de6f86ff9ae6cc225decd7530004917e379fd1c21767e6aebcbcd7d8ce2a",
+    "packages/openmates-python/tests/test_session_full_chat_read.py": "c38b81e938994ffdcb9d72c08c67544539ec741fa5f1760b24c79788c53381dd",
     "packages/openmates-rust/examples/project-create-conformance.rs": "3edef5f06f9020ce517eabd2b884e21d2bba5bcc29648f94099bb41547a36888",
     "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs": "46028a761f6e849c72df70c874e02f170e6ae26dd6e7a8d24d2f5c2198dc85bf",
     "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs": "c8c8de57d92d69f1ea9524d17624f0def1c5bbdfa57674d5c629af810946d706",

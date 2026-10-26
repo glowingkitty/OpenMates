@@ -1383,7 +1383,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "6f35ee6b78a96a61fc9b80bf6c56d9a81b8a5927881903420979225ee0171c27"
+    assert sdk.sha(live_bytes) == "491a5e6941ce0debb5d32bb1ef5c10fc87544310144afeac41d0db3ecae68da0"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -3596,6 +3596,7 @@ def full29_arrival20_registration_delta():
 
 
 def restore_before_full29_arrival20_registration(trust):
+    trust = full29_sdk_header_history(trust)
     delta = full29_arrival20_registration_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
@@ -3615,6 +3616,7 @@ def restore_before_full29_arrival20_registration(trust):
 
 
 def full29_arrival20_history(trust):
+    trust = full29_sdk_header_history(trust)
     delta = full29_arrival20_registration_delta()
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
         return restore_before_full29_arrival20_registration(trust)
@@ -3622,6 +3624,7 @@ def full29_arrival20_history(trust):
 
 
 def full29_arrival20_historical_source_raw(path, raw):
+    raw = full29_sdk_header_historical_source_raw(path, raw)
     root = Path(__file__).resolve().parents[2]
     for change in full29_arrival20_registration_delta()["sourceInverse"]:
         if path == root / change["path"]:
@@ -3661,7 +3664,7 @@ def restore_before_full29_arrival20_fixture_raw(raw, capability):
 
 def test_full29_arrival20_registration_retains_93_plan_identities_and_all180_open_gap_rows():
     delta = full29_arrival20_registration_delta()
-    live = sdk.load_trust()
+    live = full29_sdk_header_history(sdk.load_trust())
     prior = restore_before_full29_arrival20_registration(live)
     assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == "bdd56dd6719368dc47e95a1162f95fa63ff85edecd9f36186f91389b934e489e"
     assert {key: len(live[key]) for key in delta["afterCounts"]} == delta["afterCounts"]
@@ -3754,7 +3757,7 @@ def test_full29_arrival20_source_inverse_refuses_unknown_or_stale_actual_source(
     root = Path(__file__).resolve().parents[2]
     for change in full29_arrival20_registration_delta()["sourceInverse"]:
         path = root / change["path"]
-        raw = path.read_bytes()
+        raw = full29_sdk_header_historical_source_raw(path, path.read_bytes())
         assert full29_arrival20_historical_source_raw(path, raw) == change["beforeRaw"].encode()
         for wrong in (raw + b"\n", change["beforeRaw"].encode()):
             with pytest.raises(AssertionError):
@@ -3813,3 +3816,73 @@ def test_full29_arrival20_schema_delta_retains_every_other_root_and_definition()
             assert current["$defs"][name] == definition
     assert sdk.sha((root / delta["maintainedGrammarSource"]).read_bytes()) == delta["maintainedGrammarSourceSha256"]
     assert delta["frozenSourceReadsetSha256"] and delta["schemaKnownPatchSha256"]
+
+
+def full29_sdk_header_registration_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-full29-sdk-header-delta.json", "78dae416b6a1d8d107d3081b4b6a492cccb7a07d6fcebd6e228ea1297bcb96dd")
+
+
+def restore_before_full29_sdk_header_registration(trust):
+    delta = full29_sdk_header_registration_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for change in delta["sourceInverse"]:
+        assert prior["programs"][change["path"]] == change["afterSha256"]
+        prior["programs"][change["path"]] = change["beforeSha256"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def full29_sdk_header_history(trust):
+    delta = full29_sdk_header_registration_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_full29_sdk_header_registration(trust)
+    return trust
+
+
+def full29_sdk_header_historical_source_raw(path, raw):
+    root = Path(__file__).resolve().parents[2]
+    for change in full29_sdk_header_registration_delta()["sourceInverse"]:
+        if path == root / change["path"] and sdk.sha(raw) == change["afterSha256"]:
+            prior = change["beforeRaw"].encode()
+            assert sdk.sha(prior) == change["beforeSha256"]
+            return prior
+    return raw
+
+
+def test_full29_sdk_header_registration_changes_only_one_existing_source_pin():
+    delta = full29_sdk_header_registration_delta()
+    current = sdk.load_trust()
+    old = restore_before_full29_sdk_header_registration(current)
+    assert {k: len(current[k]) for k in delta["counts"]} == delta["counts"] == {"programs": 379, "contracts": 93, "plan": 93, "gaps": 180}
+    assert current["contracts"] == old["contracts"] == delta["oldContracts"]
+    assert current["plan"] == old["plan"] == delta["oldPlans"]
+    assert current["gaps"] == old["gaps"] == delta["oldGaps"]
+    assert {k for k in current["programs"] if current["programs"][k] != old["programs"][k]} == {row["path"] for row in delta["sourceInverse"]}
+    assert len(delta["sourceInverse"]) == 1
+    assert delta["releaseEligible"] is False and delta["actualRuntimeExecutions"] == 0
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_full29_sdk_header_exact_inverse_refuses_unknown_or_scope_drift(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_full29_sdk_header_registration(wrong)
+    assert full29_sdk_header_history(wrong) == wrong
+
+
+def test_full29_sdk_header_source_changes_only_validated_surface_metadata():
+    root = Path(__file__).resolve().parents[2]
+    for change in full29_sdk_header_registration_delta()["sourceInverse"]:
+        raw = (root / change["path"]).read_bytes()
+        prior = change["beforeRaw"].encode()
+        assert sdk.sha(raw) == change["afterSha256"]
+        assert prior.count(("surface=" + change["beforeLabel"]).encode()) == 1
+        assert raw == prior.replace(("surface=" + change["beforeLabel"]).encode(), b"surface=sdks.pip", 1)
+        assert full29_sdk_header_historical_source_raw(root / change["path"], raw) == prior
+        assert full29_sdk_header_historical_source_raw(root / change["path"], raw + b"\n") == raw + b"\n"
+        assert full29_sdk_header_historical_source_raw(root / "unknown", raw) == raw
