@@ -44,6 +44,9 @@ SAVED_READ_DIAGNOSTIC_CODES = VECTOR_DIAGNOSTIC_CODES
 MESSAGE_WINDOW_DIAGNOSTIC_CAPABILITY = "session.message-window.v1"
 # Symbolic source coordinates bind to exact fixed checkpoints in the pinned example.
 MESSAGE_WINDOW_DIAGNOSTIC_PHASES = frozenset({"peer_start", "client_setup", "session_import", "cursor_preflight", "cursor_assert", "cache_preload", "window_read", "window_assert", "cache_verify", "peer_control", "peer_status", "close"})
+FIRST_PAGE_NPM_DIAGNOSTIC_CAPABILITY = "session.chat-first-page-continuation.v1"
+FIRST_PAGE_NPM_DIAGNOSTIC_PHASES = frozenset({"suite", "peer_start", "client_setup", "session_import", "session_validate", "store_io", "callback", "stale_a_b", "strict", "continuation", "negative", "vector_complete"})
+FIRST_PAGE_NPM_DIAGNOSTIC_CODES = frozenset({"assertion", "cancelled", "conflict", "forbidden", "expired", "authentication", "invalid_argument", "protocol", "offline", "unavailable", "crypto", "native_failure", "native_binding_unavailable", "storage_io", "timeout", "callback", "unclassified"})
 MAX_VECTOR_DIAGNOSTIC_BYTES = 512
 LOCKS = ("packages/openmates-rust/Cargo.lock", "packages/openmates-session-bindings/Cargo.lock",
          "frontend/packages/openmates-tui-native/Cargo.lock")
@@ -587,8 +590,20 @@ def rust_unit_diagnostics(data, root, inputs, stage):
 
 
 def project_vector_diagnostic(value, expected, failed_ids):
-    """Accept capability-specific Rust closed diagnostics for an actually failed vector."""
+    """Accept capability-specific closed diagnostics for an actually failed vector."""
     capability = expected.get("capability")
+    if capability == FIRST_PAGE_NPM_DIAGNOSTIC_CAPABILITY:
+        keys = ("vectorId", "phase", "errorCode", "sourceCoordinate")
+        if (expected.get("language") != "npm" or not isinstance(value, dict)
+                or set(value) != set(keys)
+                or any(not isinstance(value[key], str) or len(value[key]) > 160 for key in keys)
+                or value["vectorId"] not in expected["vectors"] or value["vectorId"] not in failed_ids
+                or value["phase"] not in FIRST_PAGE_NPM_DIAGNOSTIC_PHASES
+                or value["errorCode"] not in FIRST_PAGE_NPM_DIAGNOSTIC_CODES
+                or value["sourceCoordinate"] != "runner." + value["phase"]
+                or len(json.dumps(value, separators=(",", ":")).encode()) > MAX_VECTOR_DIAGNOSTIC_BYTES):
+            return None
+        return {key: value[key] for key in keys}
     if capability == VECTOR_DIAGNOSTIC_CAPABILITY:
         phases, codes = VECTOR_DIAGNOSTIC_PHASES, VECTOR_DIAGNOSTIC_CODES
     elif capability == SAVED_READ_DIAGNOSTIC_CAPABILITY:

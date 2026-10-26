@@ -1383,7 +1383,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "964f822aefd37312c53f42bc359650ff0521393d39f03d5a44ad2b03045f2180"
+    assert sdk.sha(live_bytes) == "031caae25a25d23c0fe2fe3819b02187fc8fd77620870b630094829fb2839958"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -1509,6 +1509,7 @@ def restore_before_cookie_registration(trust, approval):
 
 
 def restore_before_cache_settlement_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -1553,6 +1554,7 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
 
 
 def restore_before_cache_adapter_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -1664,6 +1666,7 @@ def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capabil
 
 
 def restore_before_cache_peer_seeding_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -1735,6 +1738,7 @@ def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_
 
 
 def restore_before_browser_local_wire_cursor_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -1810,6 +1814,7 @@ def test_browser_local_wire_cursor_registration_preserves_prior_authority_and_ex
 
 
 def restore_before_version_envelope_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -1870,6 +1875,7 @@ def message_id_registration_delta():
 
 
 def restore_before_message_id_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2049,6 +2055,7 @@ def test_current_message_id_window_rejects_each_partial_forged_or_reordered_resu
 
 
 def restore_before_message_id_constant_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2131,6 +2138,7 @@ def first_page_browser_registration_delta():
 
 
 def restore_before_first_page_browser_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2262,6 +2270,7 @@ def restore_before_opaque_read_id_fixture_raw(raw):
 
 
 def restore_before_opaque_read_id_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2354,6 +2363,7 @@ def ordinary_retention_registration_delta():
 
 
 def restore_before_ordinary_retention_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2487,6 +2497,7 @@ def legacy_webcrypto_registration_delta():
 
 
 def restore_before_legacy_webcrypto_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2536,6 +2547,7 @@ def cache_embed_registration_delta():
 
 
 def restore_before_cache_embed_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2646,6 +2658,7 @@ def ci_fixes_registration_delta():
 
 
 def restore_before_ci_fixes_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
         trust = restore_before_binding_unit_registration(trust)
@@ -2701,6 +2714,7 @@ def binding_unit_registration_delta():
 
 
 def restore_before_binding_unit_registration(trust):
+    trust = first_page_npm_diagnostic_history(trust)
     delta = binding_unit_registration_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
@@ -2712,7 +2726,7 @@ def restore_before_binding_unit_registration(trust):
 
 def test_binding_unit_pins_only_existing_test_program_and_preserves_all_runtime_gates():
     delta = binding_unit_registration_delta()
-    live = sdk.load_trust()
+    live = first_page_npm_diagnostic_history(sdk.load_trust())
     prior = restore_before_binding_unit_registration(live)
     assert {k:len(live[k]) for k in delta["counts"]} == {"programs":323,"contracts":86,"plan":93,"gaps":180}
     assert live["plan"] == prior["plan"] and len(live["plan"]) == 93
@@ -2737,3 +2751,61 @@ def test_binding_unit_history_inverse_refuses_program_or_plan_or_gap_tampering()
             changed[bucket].pop()
         with pytest.raises(AssertionError):
             restore_before_binding_unit_registration(changed)
+
+
+# Exact diagnostic-only historical inverse; runtime trust is never normalized.
+def first_page_npm_diagnostic_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-first-page-npm-diagnostic-delta.json", "23b01408c4c497debc97dc680eff97d75de47661f8e80932b809a48132bd3a50")
+
+
+def restore_before_first_page_npm_diagnostic_registration(trust):
+    delta = first_page_npm_diagnostic_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    assert prior["programs"][delta["program"]] == delta["afterProgramSha256"]
+    prior["programs"][delta["program"]] = delta["beforeProgramSha256"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def first_page_npm_diagnostic_history(trust):
+    delta = first_page_npm_diagnostic_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_first_page_npm_diagnostic_registration(trust)
+    return trust
+
+
+def test_first_page_npm_diagnostic_changes_only_exact_existing_program_pin():
+    delta = first_page_npm_diagnostic_delta()
+    live = sdk.load_trust()
+    prior = restore_before_first_page_npm_diagnostic_registration(live)
+    assert {k: len(live[k]) for k in delta["counts"]} == {"programs": 323, "contracts": 86, "plan": 93, "gaps": 180}
+    assert {k: v for k, v in live.items() if k != "programs"} == {k: v for k, v in prior.items() if k != "programs"}
+    assert set(live["programs"]) == set(prior["programs"])
+    assert {k for k in live["programs"] if live["programs"][k] != prior["programs"][k]} == {delta["program"]}
+    assert sdk.sha(json.dumps(prior["plan"], sort_keys=True).encode()) == delta["oldPlansSha256"]
+    assert sdk.sha(json.dumps(prior["gaps"], sort_keys=True).encode()) == delta["oldGapsSha256"]
+    root = Path(__file__).resolve().parents[2]
+    assert sdk.sha((root / delta["program"]).read_bytes()) == delta["afterProgramSha256"]
+    assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_first_page_npm_diagnostic_inverse_refuses_unknown_drift(bucket):
+    live = sdk.load_trust()
+    changed = copy.deepcopy(live)
+    if bucket in ("programs", "contracts"):
+        changed[bucket][next(iter(changed[bucket]))] = "0" * 64
+    else:
+        changed[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_first_page_npm_diagnostic_registration(changed)
+
+
+def test_first_page_npm_diagnostic_preserves_binding_and_old_history_prefix():
+    live = sdk.load_trust()
+    prior = first_page_npm_diagnostic_history(live)
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == "964f822aefd37312c53f42bc359650ff0521393d39f03d5a44ad2b03045f2180"
+    old = restore_before_binding_unit_registration(live)
+    assert sdk.sha((json.dumps(old, indent=2, sort_keys=True) + "\n").encode()) == binding_unit_registration_delta()["beforeSha256"]
+    assert first_page_npm_diagnostic_history(prior) == prior

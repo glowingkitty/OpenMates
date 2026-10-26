@@ -3064,7 +3064,7 @@
     "tests/sdk-conformance/runners/session-cache-preferred-settlement.py": "f4d6c0db569f65d11ded8296685628d3a6df06b1689bbf575882f5140e8b241e",
     "tests/sdk-conformance/runners/session-chat-change-monitor.mjs": "49d76424e4c89a85b8a0e7113b1793d4b23e98afc65984ec16ef13f510aef9e5",
     "tests/sdk-conformance/runners/session-chat-change-monitor.py": "6d66ed823ad9af492086c7647892868a50a91e09ffceb65df82d07db70767514",
-    "tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs": "e066bc11de1446f2d9c58cbafe83978ad042ace40b2386682532472e4d7c7508",
+    "tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs": "8e00097353a4161dfbcc5c4cee2342b694bd6233dd270b42ac6ab2f7539c6733",
     "tests/sdk-conformance/runners/session-chat-first-page-continuation.py": "5ad233c8abf7b37863a957a0469eccdd9872e1ff93bb351495aa6b5e883a4a13",
     "tests/sdk-conformance/runners/session-drafts.mjs": "f0fafc5e1438cef0830ef47471bc710e6acd5e6d558f4645b74436f982479f8e",
     "tests/sdk-conformance/runners/session-drafts.py": "6ef458bf893fbcc3b5558c8aad77f126fccd261aa2de93d7fea2ba55c61aab23",
