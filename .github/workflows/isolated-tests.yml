@@ -141,7 +141,7 @@ jobs:
               output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
           PYSELFHOST
       - name: Start bounded same-source browser package clock
-        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]')
+        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]'))
         working-directory: ${{ github.workspace }}
         run: |
           python3 - <<'PYBROWSER'
@@ -421,11 +421,15 @@ jobs:
            (((inputs.preparation_key != '' && inputs.prepare_upload == 'true') ||
              (inputs.preparation_key == '' && steps.profile.outputs.uploads == 'true')) &&
             steps.images.outputs.upload != 'true'))
+      - name: Prepare exact production-loader browser package
+        if: inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]')
+        timeout-minutes: 30
+        run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
-           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true'))
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]')))
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
@@ -506,13 +510,17 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]')))
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
           node frontend/apps/web_app/scripts/process-docs.js
-          pnpm --dir frontend/apps/web_app exec vite build
+          case "$CI_TEST_MODE:$CI_SPECS_JSON" in
+            'e2e:["rust-core-production-saved-session.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]'|'e2e:["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]')
+              python3 ../tooling/scripts/ci_production_rust_browser.py build ;;
+            *) pnpm --dir frontend/apps/web_app exec vite build ;;
+          esac
           pnpm --dir frontend/apps/web_app exec node scripts/audit-example-seo.js
       - name: Build local CLI only when consumed
         if: >-
@@ -673,7 +681,7 @@ jobs:
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
-        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]')))
+        if: always() && (inputs.mode == 'rust-wasm' || (inputs.mode == 'e2e' && (inputs.specs_json == '["rust-core-browser-session.spec.ts"]' || inputs.specs_json == '["rust-core-browser-password-entry.spec.ts"]' || (inputs.specs_json == '["rust-core-production-saved-session.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]' || inputs.specs_json == '["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]'))))
         uses: actions/upload-artifact@v4
         with:
           name: isolated-rust-wasm-private-diagnostics

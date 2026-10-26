@@ -792,7 +792,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs), fault)
 
     def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC):
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC):
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             report["runtime_profile"] = job["mode"] = "e2e"
             job["specs"] = json.dumps([target])
@@ -809,7 +809,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
 
     def test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC):
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC):
             _, receipt, _, kwargs = WasmReceiptTests().fixture()
             receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
             receipt["workerProof"] = None
@@ -891,7 +891,7 @@ class BrowserPackagingTests(SyntheticPinTests):
                     self.assertEqual(hashlib.sha256(manifest_path.read_bytes()).hexdigest(), result["browser_package"]["manifestSha256"])
 
     def test_browser_package_selector_is_exact_for_both_reviewed_specs(self):
-        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC])
+        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC], [lane.PRODUCTION_BROWSER_SPEC], [lane.PRODUCTION_BROWSER_PLATFORM_SPEC], [lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC], [lane.PRODUCTION_BROWSER_PLATFORM_SPEC,lane.PRODUCTION_BROWSER_SPEC])
         for targets in accepted:
             self.assertTrue(lane.browser_e2e_targets(targets))
             self.assertTrue(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
@@ -922,7 +922,7 @@ class BrowserPackagingTests(SyntheticPinTests):
         self.assertIn(lane.BROWSER_SPEC, ast.literal_eval(private.value.args[0]))
         steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
         clock = next(step for step in steps if step.get("name") == "Start bounded same-source browser package clock")
-        self.assertEqual(clock["if"], 'inputs.mode == \'e2e\' && (inputs.specs_json == \'["rust-core-browser-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-browser-password-entry.spec.ts"]\')')
+        self.assertEqual(clock["if"], 'inputs.mode == \'e2e\' && (inputs.specs_json == \'["rust-core-browser-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-browser-password-entry.spec.ts"]\' || (inputs.specs_json == \'["rust-core-production-saved-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]\'))')
         self.assertIn("started + 1800", clock["run"])
         self.assertEqual(lane.BUDGET, 2700)
         upload = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")

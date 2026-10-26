@@ -67,6 +67,7 @@ TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
 RUST_BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 RUST_BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
 RUST_BROWSER_SPECS = frozenset({RUST_BROWSER_SPEC, RUST_BROWSER_PASSWORD_SPEC})
+RUST_PRODUCTION_BROWSER_SPECS = frozenset({"rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts"})
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
 APPROVED_RECOVERY_CASES = frozenset({
@@ -81,6 +82,8 @@ MARKER_CHAT_EPOCH_SPECS = frozenset({
     "stop-new-chat-draft.spec.ts",
     "rust-core-browser-session.spec.ts",
     "rust-core-browser-password-entry.spec.ts",
+    "rust-core-production-saved-session.spec.ts",
+    "rust-core-production-platform.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "cli-recovery-fixtures.spec.ts",
     "cli-recovery-discovery.spec.ts",
@@ -1371,6 +1374,11 @@ def run_e2e(
             raise ValueError("Invalid spec selection")
     if any(name in RUST_BROWSER_SPECS for name in specs) and (len(specs) != 1 or artifact or component or visual_smoke or case_title):
         raise ValueError("Rust browser package requires its exact unfiltered E2E selector")
+    production_browser = any(name in RUST_PRODUCTION_BROWSER_SPECS for name in specs)
+    if production_browser:
+        from ci_rust_wasm import production_browser_e2e_targets
+        if not production_browser_e2e_targets(specs) or artifact or component or visual_smoke or case_title:
+            raise ValueError("Production Rust browser package requires its closed unfiltered E2E subset")
     if artifact:
         verify_artifact_profile(specs)
     if component:
@@ -1391,6 +1399,9 @@ def run_e2e(
     if len(specs) == 1 and specs[0] in RUST_BROWSER_SPECS:
         from ci_rust_wasm import prepare_browser_e2e_package
         browser_package_env = prepare_browser_e2e_package(ROOT)
+    if production_browser:
+        from ci_production_rust_browser import verify_for_e2e
+        browser_package_env = verify_for_e2e(ROOT)
     billing_fixtures: list[tuple[Path, Path]] = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None
@@ -1452,7 +1463,7 @@ def run_e2e(
                 identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
                 env = performance_environment(os.environ, name, performance_metadata)
-                if name in RUST_BROWSER_SPECS:
+                if name in RUST_BROWSER_SPECS or name in RUST_PRODUCTION_BROWSER_SPECS:
                     env.update(browser_package_env)
                 env["PLAYWRIGHT_TEST_API_URL"] = API
                 recovery_epoch_receipt = None

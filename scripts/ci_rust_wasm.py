@@ -30,6 +30,8 @@ TARGET = "rust-wasm"
 BUDGET = 2700
 BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
+PRODUCTION_BROWSER_SPEC = "rust-core-production-saved-session.spec.ts"
+PRODUCTION_BROWSER_PLATFORM_SPEC = "rust-core-production-platform.spec.ts"
 BROWSER_BUDGET = 1800
 WASM_NAME = "openmates_browser_bindings.wasm"
 WASM_PATH = "wasm32-unknown-unknown/release/" + WASM_NAME
@@ -177,9 +179,16 @@ DIAGNOSTIC_ARTIFACT = "isolated-rust-wasm-private-diagnostics"
 FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "toolchain", "compile", "packaging", "outputs", "cleanup", "worker", "unclassified"})
 
 
+def production_browser_e2e_targets(targets):
+    """Closed nonempty, deduplicated subset of the two reviewed production specs."""
+    return (type(targets) is list and 1 <= len(targets) <= 2
+            and all(type(name) is str and name in {PRODUCTION_BROWSER_SPEC, PRODUCTION_BROWSER_PLATFORM_SPEC} for name in targets)
+            and len(set(targets)) == len(targets))
+
+
 def browser_e2e_targets(targets):
-    """Exactly one reviewed literal spec; no prefixes, mixed batches or paths."""
-    return targets in ([BROWSER_SPEC], [BROWSER_PASSWORD_SPEC])
+    """Legacy singleton selectors or the exact closed production subset."""
+    return targets in ([BROWSER_SPEC], [BROWSER_PASSWORD_SPEC]) or production_browser_e2e_targets(targets)
 
 
 def validate_targets(targets):

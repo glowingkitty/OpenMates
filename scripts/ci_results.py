@@ -427,7 +427,19 @@ def _browser_package_job(job):
 
 
 def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, artifact, package_manifest=None, package_files=None):
-    """Credit one exact locked compiler invocation, without browser/runtime proof."""
+    """Credit compiler evidence only within its actual completed run report."""
+    browser_e2e = _browser_package_job(job)
+    expected_mode = "e2e" if browser_e2e else "rust-wasm"
+    if (report.get("runtime_profile") != expected_mode
+            or (not browser_e2e and report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}])):
+        return False
+    return valid_rust_wasm_compiler_receipt(receipt, job, harness,
+        expected_inputs=expected_inputs, expected_tree=expected_tree, artifact=artifact,
+        package_manifest=package_manifest, package_files=package_files)
+
+
+def valid_rust_wasm_compiler_receipt(receipt, job, harness, *, expected_inputs, expected_tree, artifact, package_manifest=None, package_files=None):
+    """Validate only complete compiler/packager evidence; no downstream report exists yet."""
     try:
         from scripts.ci_rust_wasm import LOCKS, STAGES, STAGE_SECONDS, commands, wasm_metadata
     except ModuleNotFoundError:
@@ -448,8 +460,6 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
             or receipt.get("requestedMode") != expected_mode or receipt.get("requestedTargets") != expected_targets
             or any(job.get(key) for key in (("capacity_configuration", "case_title") if browser_e2e else
                    ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title")))
-            or report.get("runtime_profile") != expected_mode
-            or (not browser_e2e and report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}])
             or receipt.get("schemaVersion") != 1 or receipt.get("status") != "passed" or receipt.get("code") is not None
             or receipt.get("runtime_profile") != expected_profile or receipt.get("compilationProof") is not True
             or receipt.get("packagingProof") is not True
