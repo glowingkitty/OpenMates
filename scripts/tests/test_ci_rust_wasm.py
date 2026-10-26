@@ -141,6 +141,34 @@ class WasmReceiptTests(unittest.TestCase):
         self.assertEqual(lane.commands()[1], ["rustup", "target", "add", "--toolchain", "1.98.1", "wasm32-unknown-unknown"])
         self.assertTrue(self.valid(self.fixture()))
 
+    def test_completed_report_rejects_missing_null_and_wrong_types(self):
+        for mode in ("rust-wasm", "e2e"):
+            report, receipt, job, kwargs = self.fixture()
+            if mode == "e2e":
+                report["runtime_profile"] = job["mode"] = mode
+                job["specs"] = json.dumps([lane.BROWSER_SPEC])
+                receipt.update(runtime_profile="rust-browser-package-for-e2e",
+                               requestedMode=mode, requestedTargets=[lane.BROWSER_SPEC])
+                receipt["workerProof"] = None
+                receipt["steps"] = receipt["steps"][:len(lane.STAGES)]
+                manifest = json.loads(kwargs["package_manifest"])
+                manifest.update(requestedMode=mode, requestedTargets=[lane.BROWSER_SPEC])
+                kwargs["package_manifest"] = json.dumps(manifest).encode()
+                receipt["package"]["manifestSha256"] = hashlib.sha256(kwargs["package_manifest"]).hexdigest()
+            self.assertTrue(self.valid((report, receipt, job, kwargs)), mode)
+            # Retrieval uses None when ci-results.json is missing or JSON null.
+            for invalid in (None, {}, [], [report], "", "report", False, True, 0, 1,
+                            {"results": report["results"]}, {"runtime_profile": None}):
+                with self.subTest(mode=mode, report=invalid):
+                    self.assertFalse(self.valid((invalid, receipt, job, kwargs)))
+            # A valid report still cannot bypass compiler identity/cleanup/provenance.
+            for key, value in (("source_commit", "0" * 40), ("sourceHeld", False),
+                               ("cleanupVerified", False)):
+                with self.subTest(mode=mode, receipt_field=key):
+                    self.assertFalse(self.valid((report, {**receipt, key: value}, job, kwargs)))
+            receipt["package"]["toolProvenance"]["binarySha256"] = "0" * 64
+            self.assertFalse(self.valid((report, receipt, job, kwargs)), mode)
+
     def test_worker_runner_provenance_is_same_install_and_exact_executed_binary(self):
         valid = self.fixture()
         self.assertNotEqual(valid[1]["workerProof"]["runnerProvenance"]["binarySha256"],

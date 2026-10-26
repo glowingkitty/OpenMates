@@ -14,6 +14,10 @@ CORE_SPECS = frozenset({
     # Exact-source paired performance only; private core auth/state, no inference.
     "cli-rust-cli-performance.spec.ts",
     "cli-rust-tui-performance.spec.ts",
+    # Inactive Rust saved-view component previews use synthetic ports only; no account or inference.
+    "components/rust-saved-chat-history.spec.ts",
+    "components/rust-resolved-embed-body.spec.ts",
+    "components/rust-saved-chat-view.spec.ts",
     # Home galleries/filters use local preview fixtures; no account or inference.
     "components/home-search-details.spec.ts",
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.

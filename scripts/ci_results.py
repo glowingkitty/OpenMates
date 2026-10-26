@@ -430,7 +430,7 @@ def valid_rust_wasm_receipt(report, receipt, job, harness, *, expected_inputs, e
     """Credit compiler evidence only within its actual completed run report."""
     browser_e2e = _browser_package_job(job)
     expected_mode = "e2e" if browser_e2e else "rust-wasm"
-    if (report.get("runtime_profile") != expected_mode
+    if (not isinstance(report, dict) or report.get("runtime_profile") != expected_mode
             or (not browser_e2e and report.get("results") != [{"suite": "rust-wasm", "exit_code": 0, "failure_code": None}])):
         return False
     return valid_rust_wasm_compiler_receipt(receipt, job, harness,
