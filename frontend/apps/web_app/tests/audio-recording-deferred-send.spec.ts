@@ -7,6 +7,7 @@
  */
 import { test, expect } from './helpers/cookie-audit';
 import type { Page } from '@playwright/test';
+import { allowFixtureMicrophone } from './helpers/recording-permission';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 const { withMockMarker } = require('./signup-flow-helpers');
@@ -74,6 +75,7 @@ async function expectEditableTranscript(page: Page): Promise<void> {
 	await expect(editor).toContainText(CORRECTED_TRANSCRIPT);
 	await expect(editor).not.toContainText(RAW_TRANSCRIPT);
 	await expect(editor).toBeFocused();
+	await expect(page.getByTestId('message-field').last()).toHaveAttribute('data-focused', 'true');
 	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
 	await expect(editor.locator('audio, video, [data-embed-id]')).toHaveCount(0);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
@@ -113,6 +115,8 @@ async function expectDirectTranscriptSent(page: Page): Promise<void> {
 	await expect(message).toHaveCount(1);
 	await expect(message.getByTestId('recording-preview')).toHaveCount(0);
 	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText('');
+	await expect(page.getByTestId('message-field').last()).toHaveAttribute('data-focused', 'false');
+	await expect(page.getByTestId('new-chat-button')).toBeVisible();
 }
 
 test.use({
@@ -120,6 +124,10 @@ test.use({
 		args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
 	},
 	permissions: ['microphone']
+});
+
+test.beforeEach(async ({ page }) => {
+	await allowFixtureMicrophone(page, '**/*');
 });
 
 for (const phase of ['recording', 'correction']) {
@@ -132,15 +140,26 @@ for (const phase of ['recording', 'correction']) {
 		await mockRealtimeRecording(page, { correctionRelease });
 		await openAuthenticatedRecording(page);
 		const overlay = page.getByTestId('record-overlay');
+		const field = page.getByTestId('message-field').last();
+		await expect(field).toHaveCSS('height', /^(48|60)px$/);
 		if (phase === 'correction') {
 			await overlay.getByTestId('record-finish-button').click();
 			await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+			await expect(field).toHaveCSS('height', /^(48|60)px$/);
 		}
 		const send = overlay.getByTestId('record-send-button');
 		await expect(send).toHaveAccessibleName('Send');
 		await expect(send).toBeEnabled();
 		await send.click();
 		await expect(send).toBeDisabled();
+		await expect(field).toHaveAttribute('data-focused', 'false');
+		await expect(page.getByTestId('new-chat-button')).toBeHidden();
+		await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
+		await expect(field).toHaveCSS('height', /^(48|60)px$/);
+		await expect(overlay).toHaveCSS('height', /^(48|60)px$/);
+		await expect(overlay.getByTestId('recording-processing-text')).toBeVisible();
+		await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+		await expect(overlay.getByTestId('record-finish-button')).toBeHidden();
 		await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
 		await expect(page.getByTestId('message-user')).toHaveCount(0);
 		await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);

@@ -386,6 +386,8 @@
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
     let recordingDraftGeneration = $state(0);
     let recordingCorrectionPending = $state(false);
+    let recordingLayoutPending = $state(false);
+    let recordingLayoutActive = $derived(recordingLayoutPending || $recordingState.showRecordAudioUI || $recordingState.isRecordingActive);
     let recordingContext = $state.raw<{
         generation: number;
         editor: Editor;
@@ -659,7 +661,6 @@
 
     const MESSAGE_FIELD_MAX_HEIGHT = 350;
     const MESSAGE_FIELD_MAPS_HEIGHT = 400;
-    const MESSAGE_FIELD_RECORDING_HEIGHT = 220;
     const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
     const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
     const FULLSCREEN_TOP_GUTTER_PX = 20;
@@ -890,7 +891,7 @@
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
     let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousUsageExhausted);
-    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI);
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -900,7 +901,7 @@
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
-        !startNewChatOnClick && !isDraftPreview && (
+        !startNewChatOnClick && !isDraftPreview && !recordingLayoutActive && (
             isFullscreen ||
             showActionButtons ||
             anonymousUsageExhausted ||
@@ -2233,6 +2234,10 @@
      * to initialise in a zero-height container (making the map invisible).
      */
     let messagePanelStyle = $derived((() => {
+        if (recordingLayoutActive) {
+            const height = inlineCompact ? '48px' : 'var(--composer-compact-height, 60px)';
+            return `height: ${height}; max-height: ${height};`;
+        }
         // Fullscreen checks run first so that opening maps/camera while the field
         // is expanded does NOT collapse it back to 400px. The map/camera overlays
         // use `position:absolute; inset:0` and fill whatever height the field has,
@@ -2273,9 +2278,6 @@
         // which correctly restores `height: auto` without affecting fullscreen state.
         if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
-        }
-        if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
-            return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
         }
         if (isInlineCompact) {
             return 'height: 48px; max-height: 48px;';
@@ -2905,6 +2907,9 @@
         // or when clicking on UI elements that should maintain focus
         blurTimeoutId = setTimeout(() => {
             blurTimeoutId = null; // Clear the timeout ID
+            // Recording owns the compact panel while the user browses the chat.
+            // Keep its width expanded without stealing DOM focus back.
+            if (recordingLayoutActive) return;
             if (preserveComposerFocusForThisBlur) {
                 isMessageFieldFocused = true;
                 isFocused = true;
@@ -4732,8 +4737,8 @@
             return;
         }
         
-        // Recording and text entry are mutually exclusive. Blur TipTap without
-        // collapsing the expanded composer while the recording overlay opens.
+        // Recording keeps a compact height and the full composer width while
+        // the overlay owns text entry.
         if (target.closest('[data-record-audio-trigger="true"], [data-testid="record-audio-button"]')) {
             event.preventDefault();
             prepareEditorForRecording();
@@ -5024,6 +5029,7 @@
         recordRecordingDiagnostic('invalidate', recordingContext, reason);
         recordingDraftGeneration += 1;
         recordingCorrectionPending = false;
+        recordingLayoutPending = false;
         const context = recordingContext;
         recordingContext = null;
         context?.releaseEmptyDraftProtection();
@@ -5100,11 +5106,15 @@
 
     function handleRecordingSendRequested() {
         const context = recordingContext;
-        if (context && isCurrentRecordingContext(context)) context.sendRequested = true;
+        if (!context || !isCurrentRecordingContext(context)) return;
+        context.sendRequested = true;
+        isMessageFieldFocused = false;
+        isFocused = true;
     }
 
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
     async function handleAudioRecorded(event: CustomEvent<{ realtime?: AudioRealtimeTranscriptionHandle }>) {
+        const overlayAtRecording = recordAudioComponent;
         const context = recordingContext;
         const realtime = event.detail.realtime;
         recordRecordingDiagnostic('audio-recorded', context, realtime ? 'realtime-present' : 'realtime-absent');
@@ -5112,6 +5122,7 @@
             realtime?.cancel();
             if (context && isCurrentRecordingContext(context)) notificationStore.error($text('common.try_again'));
             invalidateRecordingContext('audio-recorded-guard');
+            void overlayAtRecording?.completeSend();
             return;
         }
         context.realtime = realtime;
@@ -5146,22 +5157,33 @@
                 { updateSelection: true },
             );
             recordRecordingDiagnostic('transcript-inserted', context);
-            // The recording overlay remains mounted during its outro. Restore
-            // focus only after the component signals that the overlay is gone.
-            await context.overlayRemoved;
-            recordRecordingDiagnostic('post-frame', context);
-            if (!isCurrentRecordingContext(context)) return;
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
             lastEditorUpdateText = context.editor.getText();
             if (context.sendRequested) {
-                // Release the correction gate before using the normal send path.
-                // The same-context check above also rejects cancelled/stale sends.
+                // Keep the compact overlay and full width through normal send
+                // preparation; it closes only after the submission is admitted.
+                const chatAtSend = currentChatId;
                 context.realtime = null;
-                invalidateRecordingContext('correction-ready-to-send');
-                await handleSendMessage();
+                recordingCorrectionPending = false;
+                let accepted: boolean | void;
+                try {
+                    accepted = await handleSendMessage();
+                } finally {
+                    await overlayAtRecording?.completeSend();
+                }
+                if (!accepted && editor === context.editor && !editor.isDestroyed && currentChatId === chatAtSend) {
+                    isMessageFieldFocused = true;
+                    isFocused = true;
+                    await tick();
+                    if (editor === context.editor && !editor.isDestroyed && currentChatId === chatAtSend) editor.view.focus();
+                }
                 return;
             }
+            // Finish reveals the corrected editor only after the overlay outro.
+            await context.overlayRemoved;
+            recordRecordingDiagnostic('post-frame', context);
+            if (!isCurrentRecordingContext(context)) return;
             context.editor.view.focus();
             recordRecordingDiagnostic('focus-restored', context);
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
@@ -5171,6 +5193,9 @@
                 notificationStore.error($text('common.try_again'));
             }
         } finally {
+            // Context switches and failed admission must also release this
+            // recording's retained overlay, never a newer component instance.
+            if (context.sendRequested) await overlayAtRecording?.completeSend();
             if (recordingContext === context) {
                 context.realtime = null;
                 invalidateRecordingContext('correction-finished');
@@ -6226,13 +6251,16 @@
 
     function handleStopRecordingCleanup() {
         recordRecordingDiagnostic('recording-close', recordingContext);
+        const revealCorrectedDraft = !!recordingContext && !recordingContext.sendRequested &&
+            !!recordingContext.realtime && isCurrentRecordingContext(recordingContext);
         if (recordingContext && !recordingContext.realtime) invalidateRecordingContext('recording-close-without-realtime');
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
+        recordingLayoutPending = false;
         cleanupRecordingState();
-        isMessageFieldFocused = false;
-        isFocused = false;
+        isMessageFieldFocused = revealCorrectedDraft;
+        isFocused = revealCorrectedDraft;
     }
 
     export function stopRecordingForVoiceCall(): void {
@@ -6245,6 +6273,9 @@
         if (!context || context.generation !== event.detail.recordingGeneration) return;
         try {
             if (!isCurrentRecordingContext(context)) return;
+            // Direct Send keeps the composer collapsed through the overlay outro.
+            // Finish still restores the editor for review and editing.
+            if (context.sendRequested) return;
             // The collapsed composer hides TipTap, so view.focus() cannot work
             // until its expanded DOM has rendered after the overlay outro.
             isMessageFieldFocused = true;
@@ -6274,8 +6305,13 @@
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
         }
-        isMessageFieldFocused = true;
+        recordingLayoutPending = $authStore.isAuthenticated;
+        isMessageFieldFocused = false;
         isFocused = true;
+        if (isFullscreen) {
+            isFullscreen = false;
+            dispatch('fullscreenToggle', false);
+        }
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
@@ -7216,7 +7252,7 @@
     {/if}
 
     <div
-        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
         data-editor-ready={!isInitialMount}
@@ -7526,6 +7562,8 @@
                 initialPosition={$recordingState.recordStartPosition}
                 enableRealtime={$authStore.isAuthenticated}
                 retainUntilCorrection={true}
+                retainUntilSend={true}
+                compact={true}
                 allowSend={true}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
                 on:sendrequested={handleRecordingSendRequested}

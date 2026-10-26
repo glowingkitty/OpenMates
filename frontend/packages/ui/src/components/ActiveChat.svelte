@@ -15463,7 +15463,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     firstTurnSendContext={firstTurnSourceReason === 'eligible_shell' || firstTurnSourceReason === 'eligible_draft'}
                                     preserveChatIdOnNewChatCancellation={isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
-                                    inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
+                                    inlineCompact={showNewChatButtonBesideInput}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
@@ -15526,7 +15526,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
                              that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if messageInputFocused}
+                        {#if messageInputFocused && !$recordingState.showRecordAudioUI}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"

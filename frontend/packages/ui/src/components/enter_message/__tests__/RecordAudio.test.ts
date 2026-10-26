@@ -65,7 +65,7 @@ async function flushMount() {
     await tick();
 }
 
-function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean; allowSend?: boolean } = {}) {
+function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean; retainUntilSend?: boolean; allowSend?: boolean } = {}) {
     const close = vi.fn();
     const cancel = vi.fn();
     const audioRecorded = vi.fn();
@@ -79,6 +79,7 @@ function mountRecorder(options: { externalStream?: MediaStream; realtime?: boole
             externalStream: options.externalStream,
             enableRealtime: options.realtime ?? false,
             retainUntilCorrection: options.retainUntilCorrection ?? true,
+            retainUntilSend: options.retainUntilSend ?? false,
             previewTranscript: null,
             allowSend: options.allowSend ?? false,
         },
@@ -261,6 +262,40 @@ describe('RecordAudio finalization', () => {
             await flushMount();
             expect(mounted.close).toHaveBeenCalledTimes(1);
             await unmount(mounted.component, { outro: false });
+        });
+    }
+
+    for (const directSend of [false, true]) {
+        // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+        it(`${directSend ? 'Send retains processing through admission' : 'Finish closes after correction'} with send retention enabled`, async () => {
+            let resolveCorrection!: (value: unknown) => void;
+            realtimeMocks.correction = new Promise((resolve) => { resolveCorrection = resolve; });
+            const mounted = mountRecorder({ realtime: true, retainUntilSend: true, allowSend: true });
+            await flushMount();
+            const recorder = FakeMediaRecorder.instances[0];
+            recorder.emitData('recorded-audio');
+            if (directSend) mounted.target.querySelector<HTMLButtonElement>('[data-testid="record-send-button"]')!.click();
+            else mounted.component.stop();
+            recorder.emitStop();
+            resolveCorrection({ transcript: 'Corrected text' });
+            await flushMount();
+            if (directSend) {
+                expect(mounted.close).not.toHaveBeenCalled();
+                expect(mounted.target.querySelector('[data-testid="recording-processing-text"]')).not.toBeNull();
+                const cancel = mounted.target.querySelector<HTMLButtonElement>('[data-testid="record-cancel-button"]')!;
+                expect(cancel.disabled).toBe(true);
+                cancel.click();
+                mounted.component.cancel();
+                expect(mounted.close).not.toHaveBeenCalled();
+                const completed = mounted.component.completeSend();
+                expect(mounted.close).toHaveBeenCalledTimes(1);
+                await unmount(mounted.component, { outro: false });
+                await completed;
+            } else {
+                expect(mounted.close).toHaveBeenCalledTimes(1);
+                await unmount(mounted.component, { outro: false });
+            }
+            expect(realtimeMocks.cancel).not.toHaveBeenCalled();
         });
     }
 

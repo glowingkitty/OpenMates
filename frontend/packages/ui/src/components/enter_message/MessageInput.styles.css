@@ -283,9 +283,12 @@
   padding: 0;
 }
 
+/* Capture and correction share the inactive composer height. */
 .message-field.recording-active {
-  min-height: 220px;
+  min-height: 0;
   padding: 0;
+  overflow: hidden;
+  transition: none;
 }
 
 /* When a focus pill is visible, add top padding so the pill partially overlaps the field top.

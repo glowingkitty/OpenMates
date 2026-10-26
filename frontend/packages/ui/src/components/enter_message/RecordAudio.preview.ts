@@ -10,6 +10,8 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+    compact: { ...defaultProps, compact: true },
+    compactProcessing: { ...defaultProps, compact: true, previewProcessing: true },
     processing: {
         ...defaultProps,
         previewProcessing: true,
