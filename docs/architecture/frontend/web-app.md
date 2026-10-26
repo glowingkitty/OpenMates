@@ -2,6 +2,9 @@
 status: active
 last_verified: 2026-06-15
 key_files:
+- frontend/apps/web_app/src/hooks.server.ts
+- frontend/apps/web_app/src/lib/server/publicMetadataFetch.mjs
+- frontend/apps/web_app/src/lib/server/webNodeRuntimeSecurity.mjs
 - frontend/apps/web_app/src/routes/+layout.svelte
 - frontend/apps/web_app/src/routes/+page.svelte
 - frontend/packages/ui/src/legal/documents/privacy-policy.ts
@@ -56,6 +59,31 @@ claims:
 A single web app reduces development effort and gives visitors immediate exposure to product capabilities. Unauthenticated visitors see demo chats that showcase features; authenticated users get the full experience.
 
 ## How It Works
+
+### Hosted Node and Brotli security
+
+Vercel manages Node minor and patch versions; choosing `24.x` does not let the
+project force `24.22.1`. While a hosted process lacks the CVE-2026-111497 fix,
+`handleFetch` rejects every ordinary server fetch, including same-origin fetches
+that SvelteKit could send over the network. The patched build runtime remains
+required, including for docs prerendering. Hook initialization must not throw:
+SvelteKit loads hooks before serving the environment scripts needed for startup.
+
+The three public share metadata handlers use `publicMetadataFetch.mjs`. On an
+unpatched runtime it uses raw HTTPS to fixed first-party metadata endpoints,
+sends no credentials, requests identity encoding and rejects any encoded response
+before consuming its body. It never invokes a content decoder or follows a
+redirect; response size, total duration and cancellation are bounded. A patched
+runtime uses the existing SvelteKit fetch path. Encoded incoming request bodies
+are rejected before application handlers consume them.
+
+This is an application mitigation, not a runtime upgrade. Vercel's WAF covers
+inbound traffic but not responses fetched by functions. The current server has
+no direct global-fetch renderer or universal reroute hook; adding either requires
+reviewing this boundary. Browser and native-model decoder protection remains
+separate. See the [Vercel bulletin](https://vercel.com/kb/bulletin/node-js-security-advisory),
+[Node advisory](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases),
+and [implementation Plan](../../plans/web-brotli-runtime-protection/plan.yml).
 
 ### Temporary marketing landing page
 

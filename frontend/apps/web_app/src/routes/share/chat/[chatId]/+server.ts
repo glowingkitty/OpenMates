@@ -5,6 +5,7 @@
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { getBackendUrl } from '$lib/backendUrl';
+import { fetchPublicMetadata } from '$lib/server/publicMetadataFetch.mjs';
 
 function escapeHtml(value: string): string {
 	return value
@@ -43,11 +44,9 @@ export const GET: RequestHandler = async ({ params, url, fetch, request }) => {
 	try {
 		// Add cache-busting timestamp to ensure we get fresh data
 		const cacheBuster = Date.now();
-		const response = await fetch(
-			`${backendUrl}/v1/share/chat/${chatId}/og-metadata?t=${cacheBuster}`,
-			{
-				cache: 'no-store' // Prevent any caching of the API response
-			}
+		const response = await fetchPublicMetadata(
+			`${backendUrl}/v1/share/chat/${encodeURIComponent(chatId)}/og-metadata?t=${cacheBuster}`,
+			fetch, { signal: request.signal }
 		);
 
 		if (response.ok) {

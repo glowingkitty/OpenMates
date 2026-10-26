@@ -5,6 +5,7 @@
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { getBackendUrl } from '$lib/backendUrl';
+import { fetchPublicMetadata } from '$lib/server/publicMetadataFetch.mjs';
 
 /**
  * Server route handler for /share/embed/[embedId]
@@ -18,7 +19,7 @@ import { getBackendUrl } from '$lib/backendUrl';
  * 2. Generate HTML with proper OG tags using the fetched metadata
  * 3. Client-side JavaScript redirects to main app if key fragment is present
  */
-export const GET: RequestHandler = async ({ params, url, fetch }) => {
+export const GET: RequestHandler = async ({ params, url, fetch, request }) => {
 	const embedId = params.embedId;
 
 	if (!embedId) {
@@ -34,11 +35,9 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	try {
 		// Add cache-busting timestamp to ensure we get fresh data
 		const cacheBuster = Date.now();
-		const response = await fetch(
-			`${backendUrl}/v1/share/embed/${embedId}/og-metadata?t=${cacheBuster}`,
-			{
-				cache: 'no-store' // Prevent any caching of the API response
-			}
+		const response = await fetchPublicMetadata(
+			`${backendUrl}/v1/share/embed/${encodeURIComponent(embedId)}/og-metadata?t=${cacheBuster}`,
+			fetch, { signal: request.signal }
 		);
 
 		if (response.ok) {

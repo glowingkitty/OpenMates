@@ -1,0 +1,48 @@
+schema_version: 2
+profile: concise
+id: web-brotli-runtime-protection
+title: Protect hosted web Brotli decoding without breaking startup
+status: implementing
+goal: >
+  Research and implement the necessary security fix so the Brotli protection is
+  implemented without breaking the web app.
+scope:
+  in:
+    - Keep environment bootstrap, app hydration, reload and login available.
+    - Require the patched Node runtime before ordinary SvelteKit server fetches.
+    - Preserve the three public share metadata flows with fixed-origin HTTPS,
+      identity-only responses, no redirects or credentials, and bounded reads.
+    - Reject compressed request bodies before application handlers consume them.
+    - Preserve build and native-model decoder checks.
+  out:
+    - Production deployment, platform migration or a custom Vercel runtime.
+    - Redact licensing, telemetry, model activation and console-log cleanup.
+decisions:
+  - Vercel manages Node minor and patch versions; a project cannot pin 24.22.1.
+  - Vercel's automatic WAF protection covers inbound traffic but not responses
+    fetched by functions. Accept-Encoding identity with ordinary fetch alone
+    is insufficient because fetch can decode a nonconforming Brotli response.
+  - A raw HTTPS metadata client never invokes a content decoder and rejects
+    nonidentity response headers before body consumption. Existing metadata
+    fallback remains available for unavailable or nonconforming upstreams.
+  - SvelteKit serves public environment scripts before handle; hook module
+    initialization must remain safe on an unpatched hosted Node runtime.
+  - All event.fetch calls, including same-origin ones, require patched Node.
+    The patched builder preserves docs prerendering. The app has no universal
+    reroute hook and no other server global-fetch call sites.
+  - This is a verified application mitigation while Vercel rolls out the runtime
+    patch, not a claim that the managed runtime itself has been upgraded.
+research:
+  - https://vercel.com/kb/bulletin/node-js-security-advisory
+  - https://vercel.com/docs/functions/runtimes/node-js/node-js-versions
+  - https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
+  - https://nodejs.org/docs/latest-v24.x/api/http.html
+verification:
+  - Focused unit checks prove unpatched normal fetch performs no network call;
+    identity metadata succeeds while encoded, redirected, oversized and timed
+    out responses fail without decoder use; bootstrap remains available.
+  - Scoped lint, Specification metadata and plan validation.
+  - Isolated GitHub browser coverage for bootstrap, reload, login, public share
+    routes and compressed-request rejection, using exact candidate source.
+  - Scoped dev deployment and exact-version live verification; retain any
+    pre-existing LiteRT diagnostic console failure separately.

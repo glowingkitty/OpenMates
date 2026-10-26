@@ -7,6 +7,7 @@
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { getBackendUrl } from '$lib/backendUrl';
+import { fetchPublicMetadata } from '$lib/server/publicMetadataFetch.mjs';
 
 function escapeHtml(value: string): string {
 	return value
@@ -17,7 +18,7 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, '&#39;');
 }
 
-export const GET: RequestHandler = async ({ params, url, fetch }) => {
+export const GET: RequestHandler = async ({ params, url, fetch, request }) => {
 	const token = params.token;
 	if (!token || !/^[A-Za-z0-9]{6,12}$/.test(token)) {
 		return new Response('Not found', { status: 404 });
@@ -30,9 +31,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	let image = '/images/og-image.jpg';
 
 	try {
-		const response = await fetch(`${backendUrl}/v1/share/short-url/${token}/metadata`, {
-			cache: 'no-store'
-		});
+		const response = await fetchPublicMetadata(`${backendUrl}/v1/share/short-url/${token}/metadata`, fetch, { signal: request.signal });
 		if (response.ok) {
 			const metadata = await response.json();
 			title = metadata.title || title;

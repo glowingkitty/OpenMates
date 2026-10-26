@@ -245,6 +245,7 @@
         "components/chat-message-results-width.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
+        "web-runtime-security.spec.ts",
         "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",
         "assistant-speech-player.spec.ts",
