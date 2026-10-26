@@ -489,10 +489,27 @@ def gate_receipt(root, report, *, trust):
 def compiler_diagnostics(data, root, inputs):
     report = {"compiler": []}
     text = data[-65536:].decode("utf-8", errors="replace")
-    codes = list(dict.fromkeys(re.findall(r"(?m)^error\[(E[0-9]{4})\]:", text)))[:16]
-    locations = []
-    for match in re.finditer(r"(?m)^\s*--> ([^\n]{1,512}):([0-9]{1,8}):([0-9]{1,8})\s*$", text):
-        path, line, column = match.groups()
+    # Plain Cargo/rustc output: spans belong to the current diagnostic only.
+    # Keep primary arrows ahead of secondary context, even across repeated codes.
+    errors = {}
+    current = None
+    for row in text.splitlines():
+        header = re.match(r"^error\[(E[0-9]{4})\]:", row)
+        if header:
+            code = header.group(1)
+            if code not in errors and len(errors) < 16:
+                errors[code] = {"primary": [], "secondary": []}
+            current = errors.get(code)
+            continue
+        if re.match(r"^(?:error|warning)(?:\[[^\]\r\n]*\])?:", row):
+            current = None
+            continue
+        if current is None:
+            continue
+        span = re.fullmatch(r"\s*(-->|:::) ([^\n]{1,512}):([0-9]{1,8}):([0-9]{1,8})\s*", row)
+        if not span:
+            continue
+        arrow, path, line, column = span.groups()
         candidates = [Path(path)] if Path(path).is_absolute() else [base / path for base in
             (root, root / "packages/openmates-session-bindings", root / "packages/openmates-rust")]
         for candidate in candidates:
@@ -501,9 +518,19 @@ def compiler_diagnostics(data, root, inputs):
             except ValueError:
                 continue
             location = {"path": relative, "line": int(line), "column": int(column)}
-            if relative in inputs and location not in locations:
-                locations.append(location)
-    report["compiler"] = [{"kind": "rustc", "code": code, "locations": locations[:16]} for code in codes]
+            if relative not in inputs:
+                continue
+            primary, secondary = current["primary"], current["secondary"]
+            if arrow == "-->":
+                if location not in primary and len(primary) < 16:
+                    primary.append(location)
+                if location in secondary:
+                    secondary.remove(location)
+            elif location not in primary and location not in secondary and len(secondary) < 16:
+                secondary.append(location)
+    report["compiler"] = [{"kind": "rustc", "code": code,
+                           "locations": (spans["primary"] + spans["secondary"])[:16]}
+                          for code, spans in errors.items()]
     for match in re.finditer(r"(?m)^([^\n]{1,512})\(([0-9]{1,8}),([0-9]{1,8})\): error (TS[0-9]{4,5}):", text):
         path, line, column, code = match.groups()
         for candidate in (root / path, root / "frontend/packages/openmates-cli" / path):

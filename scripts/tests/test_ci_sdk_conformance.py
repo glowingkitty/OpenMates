@@ -1383,7 +1383,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "491a5e6941ce0debb5d32bb1ef5c10fc87544310144afeac41d0db3ecae68da0"
+    assert sdk.sha(live_bytes) == "f85685a2b2fab7db3a6c0373e1a87b641dbfd70f687b6497668c67d6d19f37d6"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -3624,6 +3624,7 @@ def full29_arrival20_history(trust):
 
 
 def full29_arrival20_historical_source_raw(path, raw):
+    raw = binding_compile2_historical_source_raw(path, raw)
     raw = full29_sdk_header_historical_source_raw(path, raw)
     root = Path(__file__).resolve().parents[2]
     for change in full29_arrival20_registration_delta()["sourceInverse"]:
@@ -3757,7 +3758,7 @@ def test_full29_arrival20_source_inverse_refuses_unknown_or_stale_actual_source(
     root = Path(__file__).resolve().parents[2]
     for change in full29_arrival20_registration_delta()["sourceInverse"]:
         path = root / change["path"]
-        raw = full29_sdk_header_historical_source_raw(path, path.read_bytes())
+        raw = binding_compile2_historical_source_raw(path, full29_sdk_header_historical_source_raw(path, path.read_bytes()))
         assert full29_arrival20_historical_source_raw(path, raw) == change["beforeRaw"].encode()
         for wrong in (raw + b"\n", change["beforeRaw"].encode()):
             with pytest.raises(AssertionError):
@@ -3823,6 +3824,7 @@ def full29_sdk_header_registration_delta():
 
 
 def restore_before_full29_sdk_header_registration(trust):
+    trust = binding_compile2_history(trust)
     delta = full29_sdk_header_registration_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
@@ -3834,6 +3836,7 @@ def restore_before_full29_sdk_header_registration(trust):
 
 
 def full29_sdk_header_history(trust):
+    trust = binding_compile2_history(trust)
     delta = full29_sdk_header_registration_delta()
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
         return restore_before_full29_sdk_header_registration(trust)
@@ -3852,7 +3855,7 @@ def full29_sdk_header_historical_source_raw(path, raw):
 
 def test_full29_sdk_header_registration_changes_only_one_existing_source_pin():
     delta = full29_sdk_header_registration_delta()
-    current = sdk.load_trust()
+    current = binding_compile2_history(sdk.load_trust())
     old = restore_before_full29_sdk_header_registration(current)
     assert {k: len(current[k]) for k in delta["counts"]} == delta["counts"] == {"programs": 379, "contracts": 93, "plan": 93, "gaps": 180}
     assert current["contracts"] == old["contracts"] == delta["oldContracts"]
@@ -3886,3 +3889,93 @@ def test_full29_sdk_header_source_changes_only_validated_surface_metadata():
         assert full29_sdk_header_historical_source_raw(root / change["path"], raw) == prior
         assert full29_sdk_header_historical_source_raw(root / change["path"], raw + b"\n") == raw + b"\n"
         assert full29_sdk_header_historical_source_raw(root / "unknown", raw) == raw
+
+
+def binding_compile2_registration_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-binding-compile2-delta.json", "c857aa26c18b5259c71c8c864274472367cfdf42dee98c652cecf6fa8252199c")
+
+
+def restore_before_binding_compile2_registration(trust):
+    delta = binding_compile2_registration_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for change in delta["sourceInverse"]:
+        assert prior["programs"][change["path"]] == change["afterSha256"]
+        prior["programs"][change["path"]] = change["beforeSha256"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def binding_compile2_history(trust):
+    delta = binding_compile2_registration_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_binding_compile2_registration(trust)
+    return trust
+
+
+def binding_compile2_historical_source_raw(path, raw):
+    root = Path(__file__).resolve().parents[2]
+    for change in binding_compile2_registration_delta()["sourceInverse"]:
+        if path == root / change["path"] and sdk.sha(raw) == change["afterSha256"]:
+            prior = change["beforeRaw"].encode()
+            assert sdk.sha(prior) == change["beforeSha256"]
+            return prior
+    return raw
+
+
+def test_binding_compile2_registration_updates_only_two_existing_test_pins():
+    delta = binding_compile2_registration_delta()
+    live = sdk.load_trust()
+    prior = restore_before_binding_compile2_registration(live)
+    assert {k: len(live[k]) for k in delta["counts"]} == delta["counts"] == {"programs": 379, "contracts": 93, "plan": 93, "gaps": 180}
+    assert live["contracts"] == prior["contracts"] == delta["oldContracts"]
+    assert live["plan"] == prior["plan"] == delta["oldPlans"]
+    assert live["gaps"] == prior["gaps"] == delta["oldGaps"]
+    assert {k: v for k, v in live.items() if k != "programs"} == {k: v for k, v in prior.items() if k != "programs"}
+    assert set(live["programs"]) == set(prior["programs"])
+    assert {path for path in live["programs"] if live["programs"][path] != prior["programs"][path]} == {row["path"] for row in delta["sourceInverse"]}
+    assert len(delta["sourceInverse"]) == 2
+    assert all(row["path"].startswith("packages/openmates-session-bindings/src/") and row["path"].endswith("tests.rs") for row in delta["sourceInverse"])
+    assert delta["releaseEligible"] is False
+    assert delta["actualNewCargoOrRuntimeExecutions"] == delta["newPublicApis"] == 0
+    assert delta["frozenSourceManifestSha256"] == "3dd00cb1c3c01168e10f3154a55cecb22da151680489e00390ad9aaa69dc57e3"
+    assert delta["frozenSourcePatchSha256"] == "bf86ca9d8756a2ab6e6cba90284f664bf5679440eaa597b1afdfa431cd0b085d"
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_binding_compile2_inverse_refuses_unknown_authority_and_scope_drift(bucket):
+    wrong = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        wrong[bucket][next(iter(wrong[bucket]))] = "0" * 64
+    else:
+        wrong[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_binding_compile2_registration(wrong)
+    assert binding_compile2_history(wrong) == wrong
+
+
+def test_binding_compile2_exact_source_views_do_not_relabel_unknown_or_wrong_path():
+    root = Path(__file__).resolve().parents[2]
+    for change in binding_compile2_registration_delta()["sourceInverse"]:
+        path = root / change["path"]
+        raw = path.read_bytes()
+        assert sdk.sha(raw) == change["afterSha256"]
+        assert binding_compile2_historical_source_raw(path, raw) == change["beforeRaw"].encode()
+        assert binding_compile2_historical_source_raw(path, raw + b"\n") == raw + b"\n"
+        assert binding_compile2_historical_source_raw(root / "unknown.rs", raw) == raw
+
+
+@pytest.mark.parametrize("index", [0, 1])
+def test_binding_compile2_unchanged_runtime_loader_rejects_wrong_and_stale_source(tmp_path, index):
+    change = binding_compile2_registration_delta()["sourceInverse"][index]
+    root = Path(__file__).resolve().parents[2]
+    path = tmp_path / change["path"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    raw = (root / change["path"]).read_bytes()
+    trust = {"programs": {change["path"]: change["afterSha256"]}, "contracts": {}}
+    path.write_bytes(raw)
+    sdk.verify_programs(tmp_path, trust)
+    for wrong in (raw + b"\n", change["beforeRaw"].encode()):
+        path.write_bytes(wrong)
+        with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
+            sdk.verify_programs(tmp_path, trust)
