@@ -38,6 +38,12 @@ test('app root loads without console errors', async ({ page }) => {
 
 	attachErrorListeners(page);
 
+	// The HTML can return 200 while this required server request crashes before
+	// hydration (for example, when the hosted Node patch trails the build image).
+	const environment = await page.request.get('/_app/env.js');
+	expect(environment.ok(), `Environment bootstrap returned ${environment.status()}`).toBe(true);
+	expect(environment.headers()['content-type']).toMatch(/(?:java|ecma)script/);
+
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
 	// HTTP 200 also describes an empty shell after a bootstrap exception.

@@ -4,9 +4,9 @@
  * See: deployment/dev_server/Caddyfile lines 28-40
  */
 import type { Handle } from '@sveltejs/kit';
-import { assertWebNodeRuntimeSecurity } from './lib/server/webNodeRuntimeSecurity.mjs';
-
-assertWebNodeRuntimeSecurity();
+// The optional Redact model runs in a browser worker, never in this server.
+// Enforce its Node/Brotli floor during model preparation and native evaluation;
+// a hosted runtime patch lag must not take down SvelteKit's /_app/env.js.
 
 const SEO_ROUTE_PREFIXES = ['/example', '/intro', '/legal', '/events', '/announcements', '/tips'];
 
