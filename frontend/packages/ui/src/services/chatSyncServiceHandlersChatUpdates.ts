@@ -1,3 +1,4 @@
+import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
@@ -36,6 +37,7 @@ import { draftEditorUIState } from "./drafts/draftState";
 import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 // Resolve only for incoming Team keys; static loading re-enters chat sync via
 // DB/auth modules before active-chat stores initialize during preview SSR.
 async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
@@ -1909,6 +1911,46 @@ export async function handleChatDeletedImpl(
 
   if (payload.tombstone === true) {
     const contextVersion = chatListCache.getContextVersion();
+    if (payload.empty_call_cleanup) {
+      const authority = payload.empty_call_cleanup;
+      const identity = getWorkspaceCacheIdentity(); const epoch = getWorkspaceCacheEpoch();
+      const current = () => Boolean(identity) && identity === getWorkspaceCacheIdentity() && epoch === getWorkspaceCacheEpoch()
+        && contextVersion === chatListCache.getContextVersion();
+      try {
+        const helper = await import('./voiceCallEmptyChatCleanup');
+        const { voiceCallLifecycleMessageId } = await import('./voiceCallLifecycleEvent');
+        const expected = authority.call_id === null ? [] : [
+          voiceCallLifecycleMessageId(authority.call_id, 'started'), voiceCallLifecycleMessageId(authority.call_id, 'ended')];
+        if (!/^[0-9a-f-]{36}$/.test(authority.cleanup_attempt_id) ||
+            (authority.call_id !== null && !/^[a-f0-9]{32}$/.test(authority.call_id)) ||
+            !Number.isSafeInteger(authority.expected_messages_v) || authority.expected_messages_v < 0 ||
+            !Array.isArray(authority.lifecycle_message_ids) ||
+            JSON.stringify([...authority.lifecycle_message_ids].sort()) !== JSON.stringify(expected.sort())) return;
+        const input = {chatId:payload.chat_id,cleanupAttemptId:authority.cleanup_attempt_id,
+          callId:authority.call_id,expectedMessagesVersion:authority.expected_messages_v};
+        const localGuard = await helper.prepareEmptyVoiceCallLocalDraftGuard(payload.chat_id);
+        // A sibling tab may already have removed the shared IDB row. Its
+        // tombstone still needs to clear this tab's stale selected-chat object.
+        if (!await chatDB.getChat(payload.chat_id)) {
+          if (!current() || !localGuard() || (serviceInstance.activeAITasks.has(payload.chat_id)||hasPendingPersonalChatTurn(payload.chat_id))) return;
+          chatListCache.markChatDeleted(payload.chat_id);
+          serviceInstance.dispatchEvent(new CustomEvent('chatDeleted',{detail:{chat_id:payload.chat_id}}));
+          return;
+        }
+        const snapshot = await helper.readEmptyVoiceCallCleanupSnapshot(input, {
+          hasLocalOrdinaryText:false,hasPendingTurn:(serviceInstance.activeAITasks.has(payload.chat_id)||hasPendingPersonalChatTurn(payload.chat_id)),isCurrent:current,
+        });
+        if (!current() || !localGuard() || !helper.isEmptyVoiceCallCleanupEligible(input,snapshot)) return;
+        const result = await chatDB.deleteEmptyVoiceCallChat(payload.chat_id, {
+          callId:authority.call_id,expectedMessagesVersion:authority.expected_messages_v,
+          isCurrent:()=>current()&&localGuard()&&!(serviceInstance.activeAITasks.has(payload.chat_id)||hasPendingPersonalChatTurn(payload.chat_id)),
+        });
+        if (!result.deleted || !current()) return;
+        chatListCache.markChatDeleted(payload.chat_id);
+        serviceInstance.dispatchEvent(new CustomEvent('chatDeleted',{detail:{chat_id:payload.chat_id}}));
+      } catch { /* A conditional tombstone must preserve newer or unreadable local work. */ }
+      return;
+    }
     try {
       // Clean up pending deletion entry if this chat was queued for offline deletion.
       // The server has now confirmed the deletion, so we can remove it from the queue.

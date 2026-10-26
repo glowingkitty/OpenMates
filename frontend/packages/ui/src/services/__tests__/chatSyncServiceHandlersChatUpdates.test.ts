@@ -1,3 +1,4 @@
+vi.mock('../personalChatTurnBarrier',()=>({hasPendingPersonalChatTurn:()=>emptyCleanup.pending}));
 // frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
 // Regression coverage for cross-device chat update handlers.
 // New-chat shells created from websocket broadcasts must carry the local user
@@ -24,6 +25,14 @@ import {
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
 
+const emptyCleanup = vi.hoisted(()=>({safe:true,eligible:true,pending:false}));
+vi.mock('../workspaceQueryCache',()=>({getWorkspaceCacheIdentity:()=> 'owner'}));
+vi.mock('../workspaceCacheLifecycle',()=>({getWorkspaceCacheEpoch:()=> 1}));
+vi.mock('../voiceCallEmptyChatCleanup',()=>({
+  prepareEmptyVoiceCallLocalDraftGuard:async()=>()=>emptyCleanup.safe,
+  readEmptyVoiceCallCleanupSnapshot:async(_input:unknown,signals:{hasPendingTurn:boolean})=>({chat:{chat_id:'remote-deleted'},hasPendingTurn:signals.hasPendingTurn}),
+  isEmptyVoiceCallCleanupEligible:(_input:unknown,snapshot:{hasPendingTurn:boolean})=>emptyCleanup.eligible&&!snapshot.hasPendingTurn,
+}));
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
@@ -33,6 +42,7 @@ const mocks = vi.hoisted(() => ({
     addChat: vi.fn(),
     updateChat: vi.fn(),
     deleteChat: vi.fn(),
+    deleteEmptyVoiceCallChat: vi.fn(),
     saveMessage: vi.fn(),
     getMessage: vi.fn(),
     getMessageWindowForChat: vi.fn(),
@@ -941,6 +951,33 @@ describe("handleChatDeletedImpl", () => {
     vi.clearAllMocks();
     mocks.chatListCache.getContextVersion.mockReturnValue(1);
     mocks.chatDB.deleteChat.mockResolvedValue(undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it.each(['empty','new-draft','new-message','atomic-race','pending-send'])('conditionally handles empty-call fanout without erasing %s state',async state=>{
+    emptyCleanup.safe=state!=='new-draft';emptyCleanup.eligible=state!=='new-message';emptyCleanup.pending=state==='pending-send';
+    mocks.chatDB.getChat.mockResolvedValue({chat_id:'remote-deleted'});
+    mocks.chatDB.deleteEmptyVoiceCallChat.mockResolvedValue({deleted:state==='empty',deletedEmbedIds:[]});
+    const service={activeAITasks:new Map(),dispatchEvent:vi.fn()} as unknown as ChatSynchronizationService;
+    await handleChatDeletedImpl(service,{chat_id:'remote-deleted',tombstone:true,empty_call_cleanup:{
+      cleanup_attempt_id:'00000000-1111-4222-8333-000000000000',call_id:null,expected_messages_v:0,lifecycle_message_ids:[],
+    }});
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledTimes(state==='empty'?1:0);
+    expect(service.dispatchEvent).toHaveBeenCalledTimes(state==='empty'?1:0);
+    emptyCleanup.safe=true;emptyCleanup.eligible=true;emptyCleanup.pending=false;
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('clears a sibling tab selection when shared storage already removed the empty shell',async()=>{
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    const service={activeAITasks:new Map(),dispatchEvent:vi.fn()} as unknown as ChatSynchronizationService;
+    await handleChatDeletedImpl(service,{chat_id:'remote-deleted',tombstone:true,empty_call_cleanup:{
+      cleanup_attempt_id:'00000000-1111-4222-8333-000000000000',call_id:null,expected_messages_v:0,lifecycle_message_ids:[],
+    }});
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith('remote-deleted');
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({type:'chatDeleted'}));
   });
 
   // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative

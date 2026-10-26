@@ -1,3 +1,4 @@
+vi.mock('../personalChatTurnBarrier',()=>({hasPendingPersonalChatTurn:()=>false}));
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { notificationStore } from '../../stores/notificationStore';
@@ -8,8 +9,16 @@ vi.mock('../../i18n/translations', async () => {
 
 const persistence = vi.hoisted(() => ({
   persist: vi.fn(async (_callId: string, _chatId: string, _id: string, _text: string, _createdAt: number) => {}), rollback: vi.fn(async () => {}),
-  lifecycle: vi.fn(async (_event:unknown) => {}), upsert: vi.fn(async () => {}), artifact: vi.fn(async () => {}), prepare: vi.fn(async () => ({ chatId: 'chat-1', history: [] })),
+  lifecycle: vi.fn(async (_event:unknown) => {}), upsert: vi.fn(async () => {}), artifact: vi.fn(async () => {}), prepare: vi.fn(async (): Promise<{chatId:string;history:never[];cleanupAttemptId?:string}> => ({ chatId: 'chat-1', history: [] })),
 }));
+const cleanup = vi.hoisted(() => ({
+  identity: 'owner' as string | null, epoch: 1,
+  remove: vi.fn(async (_input:unknown, _read:unknown) => ({accepted:true,localEligible:true})),
+  snapshot: vi.fn(async (input:{chatId:string;callId:string|null}, _signals:unknown) => ({chat:{chat_id:input.chatId,messages_v:input.callId?2:0}})),
+}));
+vi.mock('../voiceCallEmptyChatCleanup', () => ({cleanupEmptyVoiceCallChat:cleanup.remove,readEmptyVoiceCallCleanupSnapshot:cleanup.snapshot}));
+vi.mock('../workspaceQueryCache', () => ({getWorkspaceCacheIdentity:()=>cleanup.identity}));
+vi.mock('../workspaceCacheLifecycle', () => ({getWorkspaceCacheEpoch:()=>cleanup.epoch}));
 const heard = vi.hoisted(() => ({ value: null as {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number}|null }));
 const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true), cancel: vi.fn(async () => {}), tasks: new Map<string,{taskId:string;userMessageId:string}>() }));
 vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn() }));
@@ -151,6 +160,7 @@ async function submittedId(socket: { send: ReturnType<typeof vi.fn> }): Promise<
 describe('integrated voice call typed turns', () => {
   beforeEach(() => {
     notificationStore.clearAllNotifications();
+    cleanup.identity='owner';cleanup.epoch=1;cleanup.remove.mockClear();cleanup.snapshot.mockClear();
     vi.stubGlobal('WebSocket', { OPEN: 1, CLOSING: 2 });
     vi.stubGlobal('crypto', { getRandomValues: (bytes: Uint8Array) => bytes.fill(0x2a) });
     heard.value=null;
@@ -191,6 +201,63 @@ describe('integrated voice call typed turns', () => {
     vi.stubGlobal('WebSocket', Socket);
     return { controller: new VoiceCallController(), sockets };
   }
+
+  const cleanupToken='00000000-1111-4222-8333-000000000000';
+  const readyCall='0123456789abcdef0123456789abcdef';
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it('cleans a late new-shell receipt after microphone denial without rebinding the failed UI', async () => {
+    let complete!:(value:{chatId:string;history:never[];cleanupAttemptId:string})=>void;
+    persistence.prepare.mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;}));
+    capture.start.mockRejectedValueOnce(Object.assign(new Error('denied'),{name:'NotAllowedError'}));
+    const {controller}=startingController();const bound=vi.fn();
+    await controller.start(undefined,bound);
+    expect(get(controller)).toMatchObject({status:'error',chatId:null,error:'microphone_denied'});
+    expect(cleanup.remove).not.toHaveBeenCalled();
+    complete({chatId:'late-shell',history:[],cleanupAttemptId:cleanupToken});
+    await vi.waitFor(()=>expect(cleanup.remove).toHaveBeenCalledWith({chatId:'late-shell',cleanupAttemptId:cleanupToken,
+      callId:null,expectedMessagesVersion:0},expect.any(Function)));
+    expect(bound).not.toHaveBeenCalled();expect(get(controller).chatId).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('waits for its ended lifecycle receipt before requesting conditional cleanup once',async()=>{
+    let end! :()=>void;
+    persistence.lifecycle.mockImplementationOnce(async()=>{}).mockImplementationOnce(()=>new Promise(resolve=>{end=resolve;}));
+    persistence.prepare.mockResolvedValueOnce({chatId:'empty-shell',history:[],cleanupAttemptId:cleanupToken});
+    const {controller,sockets}=startingController();await controller.start();sockets[0].onopen!();
+    expect(JSON.parse(sockets[0].send.mock.calls[0][0])).toMatchObject({cleanup_attempt_id:cleanupToken});
+    sockets[0].onmessage!({data:JSON.stringify({type:'ready',call_id:readyCall,speech_output_transport:'mp3_turn_stream_v2'})});
+    controller.hangup();controller.hangup();await Promise.resolve();expect(cleanup.remove).not.toHaveBeenCalled();
+    end();await vi.waitFor(()=>expect(cleanup.remove).toHaveBeenCalledOnce());
+    expect(cleanup.remove.mock.calls[0][0]).toMatchObject({chatId:'empty-shell',callId:readyCall,expectedMessagesVersion:2});
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it.each(['existing','no-authority','text','scope-changed'])('preserves %s calls without requesting cleanup',async(reason)=>{
+    persistence.prepare.mockResolvedValueOnce({chatId:'preserved',history:[],...(reason==='no-authority'?{}:{cleanupAttemptId:cleanupToken})});
+    const {controller,sockets}=startingController();await controller.start(reason==='existing'?'preserved':undefined);
+    sockets[0].onmessage!({data:JSON.stringify({type:'ready',call_id:readyCall,speech_output_transport:'mp3_turn_stream_v2'})});
+    let typed:Promise<boolean>|undefined;
+    if(reason==='text') typed=controller.submitText('preserved','Keep this attempted text');
+    if(reason==='scope-changed') cleanup.epoch++;
+    controller.hangup();if(typed)await typed;
+    await Promise.resolve();await Promise.resolve();await Promise.resolve();
+    expect(cleanup.remove).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('retires the old late-prepared shell after hangup without changing a newer existing call',async()=>{
+    let complete!:(value:{chatId:string;history:never[];cleanupAttemptId:string})=>void;
+    persistence.prepare.mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;}));
+    const {controller,sockets}=startingController();const first=controller.start();
+    await vi.waitFor(()=>expect(persistence.prepare).toHaveBeenCalledOnce());controller.hangup();
+    await controller.start('chat-1');
+    complete({chatId:'old-late-shell',history:[],cleanupAttemptId:cleanupToken});await first;
+    await vi.waitFor(()=>expect(cleanup.remove).toHaveBeenCalledOnce());
+    expect(cleanup.remove.mock.calls[0][0]).toMatchObject({chatId:'old-late-shell',callId:null});
+    expect(get(controller)).toMatchObject({status:'connecting',chatId:'chat-1'});expect(sockets).toHaveLength(1);
+    controller.hangup();
+  });
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.lifecycle.recovery-and-billing,video-call.privacy
   it('rejects unsupported live speech before microphone, socket, context preparation, or canonical work', async () => {

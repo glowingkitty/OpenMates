@@ -24,6 +24,11 @@ export function observePersonalChatCanonicalVersion(chatId: string, version: num
   settledVersions.set(chatId, Math.max(settledVersions.get(chatId) ?? 0, version));
 }
 
+/** Includes reservations that have not reached their durable preflight journal. */
+export function hasPendingPersonalChatTurn(chatId: string): boolean {
+  return [...turns.values()].some(turn => turn.chatId === chatId);
+}
+
 function key(chatId: string, messageId: string): string {
   return `${chatId}:${messageId}`;
 }

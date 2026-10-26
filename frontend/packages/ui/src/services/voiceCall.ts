@@ -1,3 +1,4 @@
+import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
 /** A single browser-owned voice call, fixed to the chat selected at launch. */
 import { get, writable, type Readable } from 'svelte/store';
 import { text } from '../i18n/translations';
@@ -17,6 +18,9 @@ import { callArtifactReferencesInText, type VoiceArtifactReference } from './voi
 import { CallAudio } from '../components/videocall/callAudio';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { recordCallLifecycle } from './voiceCallLifecycle';
+import { cleanupEmptyVoiceCallChat, readEmptyVoiceCallCleanupSnapshot } from './voiceCallEmptyChatCleanup';
+import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
+import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
 import { VoiceCallCamera, type VoiceCallCameraFacing } from './voiceCallCamera';
@@ -142,7 +146,30 @@ function sampleEnvelope(samples: Float32Array): number[] {
 /** Bounded RMS envelope only: no raw microphone/playback PCM enters the store. */
 export function voicePcmEnvelope(data: string): number[] { return sampleEnvelope(pcmSamples(data)); }
 
+/** Local bounded decision evidence; contains no tokens, text, audio or ciphertext. */
+function reportEmptyCallCleanup(phase: 'not_call_created' | 'prerequisites' | 'snapshot' | 'completed' | 'unavailable',
+  flags: Record<string, boolean | number>): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('voiceCallEmptyChatCleanupDecision', {
+    detail: { phase, ...flags },
+  }));
+}
+
+interface NewCallCleanupAttempt {
+  identity: ReturnType<typeof getWorkspaceCacheIdentity>;
+  epoch: ReturnType<typeof getWorkspaceCacheEpoch>;
+  chatId: string | null;
+  cleanupAttemptId?: string;
+  callId: string | null;
+  terminated: boolean;
+  contentAttempted: boolean;
+  scheduled: boolean;
+  preparation?: Promise<void>;
+  lifecycleWrites: Promise<void>[];
+  turnWrites: Promise<unknown>[];
+}
+
 export class VoiceCallController implements VoiceCallControllerLike {
+  private cleanupAttempt: NewCallCleanupAttempt | null = null;
   private store = writable<VoiceCallState>({ ...initialVoiceCallState });
   subscribe = this.store.subscribe;
   private state: VoiceCallState = { ...initialVoiceCallState };
@@ -245,8 +272,62 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private recordLifecycle(type: 'started' | 'ended'): void {
     const { chatId, callId, activeElapsedSeconds } = this.state;
     if (!chatId || !callId) return;
-    void recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000) })
-      .catch(() => console.warn('[VoiceCall] Call event could not be saved'));
+    const pending = recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000) });
+    if (this.cleanupAttempt?.chatId === chatId) this.cleanupAttempt.lifecycleWrites.push(pending);
+    void pending.catch(() => console.warn('[VoiceCall] Call event could not be saved'));
+  }
+
+  /** Only server-issued authority can retire this attempt's lifecycle-only shell. */
+  private cleanupFinishedAttempt(attempt: NewCallCleanupAttempt): void {
+    if (attempt.scheduled) return;
+    attempt.scheduled = true;
+    void (async () => {
+      await attempt.preparation;
+      const writes = await Promise.allSettled([...attempt.lifecycleWrites, ...attempt.turnWrites]);
+      const current = () => Boolean(attempt.identity) && attempt.identity === getWorkspaceCacheIdentity()
+        && attempt.epoch === getWorkspaceCacheEpoch();
+      reportEmptyCallCleanup('prerequisites', { current:current(), terminated:attempt.terminated,
+        contentAttempted:attempt.contentAttempted, hasChat:!!attempt.chatId, hasAuthority:!!attempt.cleanupAttemptId,
+        hasCall:!!attempt.callId, rejectedWrites:writes.filter(result=>result.status==='rejected').length });
+      if (!current() || !attempt.terminated || attempt.contentAttempted || !attempt.chatId ||
+          !attempt.cleanupAttemptId || writes.some(result => result.status === 'rejected')) return;
+      const input = { chatId: attempt.chatId, cleanupAttemptId: attempt.cleanupAttemptId,
+        callId: attempt.callId, expectedMessagesVersion: 0 };
+      const readSnapshot = async () => {
+        const snapshot = await readEmptyVoiceCallCleanupSnapshot(input, {
+        hasLocalOrdinaryText: attempt.contentAttempted,
+        hasPendingTurn: hasPendingPersonalChatTurn(input.chatId) || this.pendingTyped.size > 0 ||
+          (this.state.chatId === attempt.chatId && (this.state.status === 'connecting' || this.state.status === 'live')),
+        isCurrent: current,
+        });
+        const chat = snapshot.chat;
+        reportEmptyCallCleanup('snapshot', { chatPresent:!!chat,
+          messagesVersion:Number.isSafeInteger(chat?.messages_v)?chat!.messages_v:-1,
+          draftVersion:Number.isSafeInteger(chat?.draft_v)?chat!.draft_v!:-1,
+          messageCount:snapshot.messages?.length??-1, artifactCount:snapshot.artifactCount,
+          pendingOperationCount:snapshot.pendingOperationCount, hasDraft:snapshot.hasDraft,
+          hasOrdinaryText:snapshot.hasOrdinaryText, hasPendingTurn:snapshot.hasPendingTurn,
+          hasTitle:!!(chat?.title||chat?.encrypted_title), hasSummary:!!chat?.encrypted_chat_summary,
+          hasOlderMessages:!!chat?.message_window_has_more_before,hasOlderEmbeds:!!chat?.embed_window_has_more_before,
+          allMessagesSynced:snapshot.messages?.every(row=>row.status==='synced')??false,
+        });
+        return snapshot;
+      };
+      let snapshot = await readSnapshot();
+      // System-message receipts and their normal metadata handler complete in
+      // separate microtasks. Wait briefly for the exact lifecycle version;
+      // never ask the server to delete a partial or stale local projection.
+      const lifecycleVersion = attempt.callId === null ? 0 : 2;
+      for (let retry = 0; retry < 3 && current() && snapshot.chat &&
+          snapshot.chat.messages_v < lifecycleVersion; retry++) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        snapshot = await readSnapshot();
+      }
+      if (!current() || !snapshot.chat || !Number.isSafeInteger(snapshot.chat.messages_v) || snapshot.chat.messages_v < lifecycleVersion) return;
+      input.expectedMessagesVersion = snapshot.chat.messages_v;
+      const result = await cleanupEmptyVoiceCallChat(input, readSnapshot);
+      reportEmptyCallCleanup('completed',result);
+    })().catch(() => { reportEmptyCallCleanup('unavailable',{}); /* Preserve uncertain local work. */ });
   }
 
   private send(message: Record<string, unknown>): boolean {
@@ -280,6 +361,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.callTurnIds.clear();
     this.sourceReferences.clear();
     const generation = ++this.generation;
+    const attempt: NewCallCleanupAttempt | null = existingChatId ? null : {
+      identity: getWorkspaceCacheIdentity(), epoch: getWorkspaceCacheEpoch(), chatId: null, callId: null,
+      terminated: false, contentAttempted: false, scheduled: false, lifecycleWrites: [], turnWrites: [],
+    };
+    this.cleanupAttempt = attempt;
     // Preparation can refuse incomplete/oversized context before opening a
     // socket. Keep its initiating chat bound for diagnostics and handset retry.
     this.update({ ...initialVoiceCallState, status: 'connecting', chatId: existingChatId ?? null });
@@ -337,12 +423,18 @@ export class VoiceCallController implements VoiceCallControllerLike {
       if (savedDraft && !await savedDraft) throw new VoiceCallStartError('call_unavailable');
       if (!current()) return;
       const capture = audio.start().catch((error: unknown) => { throw new VoiceCallStartError(microphoneError(error)); });
-      const [prepared] = await Promise.all([
-        prepareVoiceCallChat(existingChatId, true).catch((error) => {
-          throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
-        }),
-        capture,
-      ]);
+      // Keep preparation independently observed: microphone denial/hangup may
+      // finish first, but its late receipt must still retire the exact new shell.
+      const preparation = prepareVoiceCallChat(existingChatId, true).then(prepared => {
+        if (attempt) { attempt.chatId = prepared.chatId; attempt.cleanupAttemptId = prepared.cleanupAttemptId; }
+        return prepared;
+      }).catch((error) => {
+        throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
+      });
+      if (attempt) attempt.preparation = preparation.then(() => {});
+      // Observe now, even if capture rejects before the receipt arrives.
+      void attempt?.preparation?.catch(() => {});
+      const [prepared] = await Promise.all([preparation, capture]);
       if (generation !== this.generation) return;
       this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
@@ -363,6 +455,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       socket.onopen = () => {
         if (generation !== this.generation) return;
         this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000,
+          ...(prepared.cleanupAttemptId ? { cleanup_attempt_id: prepared.cleanupAttemptId } : {}),
           speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
       };
       socket.onmessage = (event: MessageEvent<string>) => {
@@ -383,6 +476,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
   }
 
   private handleMessage(message: Record<string, unknown>): void {
+    if (this.cleanupAttempt && this.state.status === 'live' && message.call_id === this.state.callId &&
+        ((message.type === 'transcript' && typeof message.text === 'string' && !!message.text.trim()) ||
+          message.type === 'voice_source_frame')) this.cleanupAttempt.contentAttempted = true;
     switch (message.type) {
       case 'ready': {
         if (this.state.status !== 'connecting' || typeof message.call_id !== 'string') return;
@@ -391,6 +487,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
+        if (this.cleanupAttempt) this.cleanupAttempt.callId = message.call_id;
         this.update({ status: 'live', callId: message.call_id, error: null,
           cameraAvailable: message.camera_available === true,
 
@@ -501,6 +598,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           return false;
         }).finally(() => { this.sourceReferences.delete(id); });
         this.turnWrites.set(id, pending);
+        this.cleanupAttempt?.turnWrites.push(pending);
         this.turnAdmission = pending.then(() => {});
         // Completed IDs remain for the call lifetime: a late final must never
         // invoke the canonical inference pipeline twice.
@@ -599,6 +697,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   }
 
   async submitText(chatId: string, text: string): Promise<boolean> {
+    if (this.cleanupAttempt?.chatId === chatId && text.trim()) this.cleanupAttempt.contentAttempted = true;
     const callId = this.state.callId;
     if (this.state.status !== 'live' || this.state.chatId !== chatId || !callId ||
         !text.trim() || text.length > 8_000 || this.socket?.readyState !== WebSocket.OPEN) return false;
@@ -763,9 +862,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.recordLifecycle('ended');
       this.cues.play('ended');
     } else if (this.state.status === 'connecting') this.cues.stop();
+    const attempt = this.cleanupAttempt;
+    if (attempt) attempt.terminated = true;
     this.closeResources();
     this.update({ status, error, audioLevels: zeroLevels(), inputIdle: false, userSpeaking: false, assistantSpeaking: false,
       billingActivity: { inputListening: false, processing: false } });
+    if (attempt) this.cleanupFinishedAttempt(attempt);
+    else reportEmptyCallCleanup('not_call_created',{});
   }
 
   private closeResources(): void {

@@ -130,7 +130,7 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
 }
 
 /** Atomically create or confirm the same encrypted personal chat before admission. */
-export async function prepareVoiceCallChat(existingChatId?: string, transportOnly = false): Promise<{ chatId: string } & VoiceCallContext> {
+export async function prepareVoiceCallChat(existingChatId?: string, transportOnly = false): Promise<{ chatId: string; cleanupAttemptId?: string } & VoiceCallContext> {
   const identity = getWorkspaceCacheIdentity();
   const epoch = getWorkspaceCacheEpoch();
   const assertCurrent = () => {
@@ -144,6 +144,8 @@ export async function prepareVoiceCallChat(existingChatId?: string, transportOnl
   const profile = await userDB.getUserProfile();
   assertCurrent();
   if (!profile?.user_id) throw new Error("Sign in to start a voice call");
+  const cleanupAttemptId = existingChatId ? undefined : crypto.randomUUID();
+  let verifiedCleanupAttemptId: string | undefined;
   let chatId: string;
   let chatKey: Uint8Array;
   let encryptedChatKey: string | null | undefined;
@@ -195,8 +197,10 @@ export async function prepareVoiceCallChat(existingChatId?: string, transportOnl
   try {
     await webSocketService.sendMessage("voice_call_chat_prepare", {
       chat_id: chatId, encrypted_chat_key: encryptedChatKey, created_at: createdAt, voice_call_bootstrap: true,
+      ...(cleanupAttemptId ? { cleanup_attempt_id: cleanupAttemptId } : {}),
     }, { expectedConnection });
-    await stored.promise;
+    const receipt = await stored.promise;
+    if (cleanupAttemptId && receipt.cleanup_attempt_id === cleanupAttemptId) verifiedCleanupAttemptId = cleanupAttemptId;
     await assertChatCurrent();
   } catch (error) {
     stored.cancel();
@@ -204,7 +208,7 @@ export async function prepareVoiceCallChat(existingChatId?: string, transportOnl
   }
   if (!existingChatId) await emitChatUpdate(chatId);
   assertCurrent();
-  return { chatId, ...(transportOnly ? { history: [] } : await loadCallContext(chatId, Boolean(existingChatId))) };
+  return { chatId, ...(verifiedCleanupAttemptId ? { cleanupAttemptId: verifiedCleanupAttemptId } : {}), ...(transportOnly ? { history: [] } : await loadCallContext(chatId, Boolean(existingChatId))) };
 }
 
 export async function loadCallContext(chatId: string, canonical = true): Promise<VoiceCallContext> {

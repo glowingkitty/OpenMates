@@ -74,10 +74,58 @@ export async function deleteDraftOnlyChat(
   return deleteChatConditionally(dbInstance, chatId, true);
 }
 
+export interface EmptyCallLocalDeletionGuard {
+  callId: string | null;
+  expectedMessagesVersion: number;
+  isCurrent: () => boolean;
+}
+
+/** Prove lifecycle ciphertext before the lock, then compare it again atomically. */
+export async function deleteEmptyVoiceCallChat(
+  dbInstance: ChatDatabaseInstance, chatId: string, guard: EmptyCallLocalDeletionGuard,
+): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+  await dbInstance.init();
+  if (!guard.isCurrent()) return { deleted: false, deletedEmbedIds: [] };
+  const tx = await dbInstance.getTransaction([dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME], 'readonly');
+  const header = tx.objectStore(dbInstance.CHATS_STORE_NAME).get(chatId);
+  const originalChat = new Promise<Chat | undefined>((resolve, reject) => {
+    header.onsuccess = () => resolve(header.result); header.onerror = () => reject(header.error);
+  });
+  const request = tx.objectStore(MESSAGES_STORE_NAME).index('chat_id').getAll(chatId, 3);
+  const rowsPromise = new Promise<Message[]>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+  });
+  const [rows, expectedChat] = await Promise.all([rowsPromise, originalChat]);
+  if (!expectedChat) return {deleted:false,deletedEmbedIds:[]};
+  const { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId } = await import('../voiceCallLifecycleEvent');
+  const expected = guard.callId === null ? [] : ['started', 'ended'].map(action =>
+    voiceCallLifecycleMessageId(guard.callId!, action as 'started' | 'ended'));
+  if (rows.length !== expected.length) return { deleted: false, deletedEmbedIds: [] };
+  const ciphertexts = new Map<string, string>();
+  if (rows.length) {
+    const key = await chatKeyManager.getKey(chatId);
+    if (!key) return { deleted: false, deletedEmbedIds: [] };
+    const { decryptWithChatKey } = await import('../encryption/MessageEncryptor');
+    for (const row of rows) {
+      if (!row.encrypted_content || !expected.includes(row.message_id) || ciphertexts.has(row.message_id))
+        return { deleted: false, deletedEmbedIds: [] };
+      const event = parseVoiceCallHistoryEvent(await decryptWithChatKey(row.encrypted_content, key) ?? '');
+      if (!event || event.call_id !== guard.callId || voiceCallLifecycleMessageId(event.call_id, event.action) !== row.message_id)
+        return { deleted: false, deletedEmbedIds: [] };
+      ciphertexts.set(row.message_id, row.encrypted_content);
+    }
+  }
+  return deleteChatConditionally(dbInstance, chatId, true, { ...guard, ciphertexts, expectedChat });
+}
+
+const EMPTY_CALL_ARTIFACT_STORES = ['chat_compression_checkpoints', 'message_highlights', 'code_run_outputs', 'notebook_run_outputs', 'pending_og_metadata_updates'];
+const EMPTY_CALL_QUEUE_STORES = ['pending_sync_changes', 'pending_embed_operations', 'pending_embed_share_updates'];
+
 async function deleteChatConditionally(
   dbInstance: ChatDatabaseInstance,
   chatId: string,
   requireDraftOnly: boolean,
+  emptyCall?: EmptyCallLocalDeletionGuard & { ciphertexts: Map<string, string>; expectedChat: Chat },
 ): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
   await dbInstance.init();
   const hashedChatId = await computeSHA256(chatId);
@@ -90,7 +138,7 @@ async function deleteChatConditionally(
     candidateRequest.onsuccess = () => resolve(candidateRequest.result as Array<Record<string, unknown>>);
     candidateRequest.onerror = () => reject(candidateRequest.error);
   });
-  if (candidates.length > MAX_INFERRED_DELETE_EMBEDS ||
+  if ((emptyCall && candidates.length > 0) || candidates.length > MAX_INFERRED_DELETE_EMBEDS ||
       candidates.some((head) => typeof head.embed_id !== "string" ||
         typeof head.contentRef !== "string")) {
     return { deleted: false, deletedEmbedIds: [] };
@@ -103,7 +151,8 @@ async function deleteChatConditionally(
   }
 
   const tx = await dbInstance.getTransaction(
-    [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME, EMBEDS_STORE_NAME, EMBED_KEYS_STORE_NAME],
+    [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME, EMBEDS_STORE_NAME, EMBED_KEYS_STORE_NAME,
+      ...(emptyCall ? [...EMPTY_CALL_ARTIFACT_STORES, ...EMPTY_CALL_QUEUE_STORES] : [])],
     "readwrite",
   );
   const messages = tx.objectStore(MESSAGES_STORE_NAME);
@@ -147,13 +196,35 @@ async function deleteChatConditionally(
       request.onerror = () => tx.abort();
       request.onsuccess = () => {
         const chat = request.result as Chat | undefined;
-        if (!isDraftOnlyChatSurface(chat, true)) return;
+        if (emptyCall) {
+          if (!chat || !emptyCall.isCurrent() || chat.messages_v !== emptyCall.expectedMessagesVersion ||
+              chat.user_id !== emptyCall.expectedChat.user_id || chat.encrypted_chat_key !== emptyCall.expectedChat.encrypted_chat_key ||
+              chat.created_at !== emptyCall.expectedChat.created_at ||
+              chat.team_id || chat.chat_visibility === 'direct' || chat.is_incognito || chat.is_anonymous ||
+              chat.pinned || chat.is_shared || (chat as Chat & {title_is_manual?:boolean}).title_is_manual ||
+              chat.encrypted_title || chat.title || chat.encrypted_chat_summary || chat.chat_summary ||
+              (chat.title_v ?? 0) > 0 || chat.encrypted_category || chat.category || chat.encrypted_icon || chat.icon ||
+              chat.message_window_has_more_before || chat.embed_window_has_more_before ||
+              (chat.draft_v ?? 0) !== 0 || chat.encrypted_draft_md || chat.encrypted_draft_preview) return;
+        } else if (!isDraftOnlyChatSurface(chat, true)) return;
         // Header and first-message writes are separate transactions. Either
         // one establishes that an empty-editor cleanup no longer owns the row.
         const messageRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));
         messageRequest.onerror = () => tx.abort();
+        const seen = new Set<string>();
         messageRequest.onsuccess = () => {
-          if (!messageRequest.result) verifyHeads();
+          const cursor = messageRequest.result;
+          if (!cursor) {
+            if (!emptyCall || seen.size === emptyCall.ciphertexts.size) verifyHeads();
+            return;
+          }
+          if (!emptyCall) return;
+          const row = cursor.value as Message & Record<string, unknown>;
+          const outbox = row.call_persistence_v1 as {entries?: unknown[]; typed_pending?: boolean} | undefined;
+          if (row.role !== 'system' || row.status !== 'synced' || row.encrypted_content !== emptyCall.ciphertexts.get(row.message_id) ||
+              row.pending_turn_preflight_v1 || row.pending_encrypted_turn_preflight_v1 || row.pending_encrypted_embed_bundle_v1 ||
+              outbox?.typed_pending || outbox?.entries?.length) return;
+          seen.add(row.message_id); cursor.continue();
         };
       };
     }
@@ -206,6 +277,24 @@ async function deleteChatConditionally(
     }
 
     function deleteChatAndMessages(): void {
+      if (emptyCall) { verifyExtraStore(0); return; }
+      performDeletion();
+    }
+
+    function verifyExtraStore(index: number): void {
+      const stores = [...EMPTY_CALL_ARTIFACT_STORES, ...EMPTY_CALL_QUEUE_STORES, EMBED_KEYS_STORE_NAME];
+      if (index === stores.length) { if (emptyCall!.isCurrent()) performDeletion(); return; }
+      const name = stores[index];
+      const store = tx.objectStore(name);
+      // Unknown-scope queued changes conservatively retain this shell.
+      const request = EMPTY_CALL_QUEUE_STORES.includes(name) ? store.count()
+        : store.index(name === EMBED_KEYS_STORE_NAME ? 'hashed_chat_id' : 'chat_id')
+          .count(name === EMBED_KEYS_STORE_NAME ? hashedChatId : chatId);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => { if (request.result === 0) verifyExtraStore(index + 1); };
+    }
+
+    function performDeletion(): void {
       for (const contentRef of headsToDelete) embeds.delete(contentRef);
       for (const id of keysToDelete) keys.delete(id);
       chats.delete(chatId);

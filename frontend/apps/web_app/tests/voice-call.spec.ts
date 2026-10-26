@@ -977,6 +977,20 @@ async function chooseAppsHome(page: Page): Promise<void> {
   await expect(page.getByTestId('apps-route-header').getByTestId('voice-call-pill')).toHaveAccessibleName('Return to chat');
 }
 
+/** Meaningful drafts and ordinary conversation history must survive call end. */
+async function assertCallChatPreserved(page: Page, chatId: string): Promise<void> {
+  expect((await evidence(page)).sent.filter(frame=>frame.type==='delete_empty_call_chat'&&frame.chatId===chatId)).toHaveLength(0);
+  expect(await page.evaluate(async id=>{
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+      const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+    });
+    try { return await new Promise<boolean>((resolve,reject)=>{
+      const request=db.transaction('chats','readonly').objectStore('chats').get(id);
+      request.onsuccess=()=>resolve(Boolean(request.result));request.onerror=()=>reject(request.error);
+    }); } finally { db.close(); }
+  },chatId)).toBe(true);
+}
+
 /** Canonical owned ciphertext durability, including events, before any local eviction. */
 async function assertCallHistoryDurable(page: Page, chatId: string, callId: string, transcriptIds: string[] = [], expectedTimes?: string[], expectedDuration?:number): Promise<void> {
   const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;
@@ -1562,6 +1576,8 @@ test.describe('Voice mode through ordinary chat', () => {
       expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
       expect(protocol.received.filter(frame=>frame.type==='error'&&frame.path==='/v1/voice-call')).toHaveLength(0);
       await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+      await assertCallHistoryDurable(page,chatId,ready[0].callId!);
+      await assertCallChatPreserved(page,chatId);
     }catch(error){
       primaryFailed=true;throw error;
     }finally{
@@ -2008,10 +2024,55 @@ test.describe('Voice mode through ordinary chat', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
-  test('keeps lifecycle-only calls neutral in another authenticated tab',async({page})=>{
+  test('keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await page.addInitScript(()=>{
+      const decisions:Array<Record<string,boolean|number|string>>=[];
+      Object.assign(window,{__voiceCallCleanupDecisions:decisions});
+      window.addEventListener('voiceCallEmptyChatCleanupDecision',event=>{
+        if(decisions.length<16)decisions.push((event as CustomEvent).detail);
+      });
+    });
+    const authority={guardedConnection:false,requested:false,echoed:false,matched:false,startMatched:false};
+    const lifecycleVersions:number[]=[];
+    let cleanupToken:string|undefined;
+    page.on('websocket',socket=>{
+      const connection=new URL(socket.url());
+      if(connection.pathname==='/v1/ws')authority.guardedConnection=connection.searchParams.get('empty_call_cleanup_guard')==='1';
+      socket.on('framesent',frame=>{
+        try {
+          const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+          if(event.type==='voice_call_chat_prepare'){
+            cleanupToken=typeof payload.cleanup_attempt_id==='string'?payload.cleanup_attempt_id:undefined;
+            authority.requested=!!cleanupToken;
+          }
+          if(event.type==='start')authority.startMatched=!!cleanupToken&&payload.cleanup_attempt_id===cleanupToken;
+        } catch { /* Only bounded booleans are retained from these frames. */ }
+      });
+      socket.on('framereceived',frame=>{
+        try {
+          const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+          if(event.type==='encrypted_metadata_stored'&&payload.voice_call_bootstrap===true){
+            authority.echoed=typeof payload.cleanup_attempt_id==='string';
+            authority.matched=!!cleanupToken&&payload.cleanup_attempt_id===cleanupToken;
+          }
+          if(event.type==='system_message_confirmed'&&Number.isSafeInteger(payload.messages_v))lifecycleVersions.push(payload.messages_v);
+        } catch { /* No payload text, token or ciphertext is attached. */ }
+      });
+    });
+    const cleanupResults:Array<{chat_id:string;accepted:boolean}>=[];
+    const deletedByPage=new Map<Page,string[]>([[page,[]]]);
+    const trackDeletion=(target:Page)=>target.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));const payload=event.payload??event;
+        if(event.type==='empty_call_chat_cleanup_result') cleanupResults.push(payload);
+        if(event.type==='chat_deleted') deletedByPage.get(target)!.push(payload.chat_id);
+      } catch { /* Other frame kinds do not acknowledge cleanup. */ }
+    }));
+    trackDeletion(page);
     await installNativeVoiceInput(page);await observeRealTransport(page);
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
-    const other=await page.context().newPage();
+    const other=await page.context().newPage();deletedByPage.set(other,[]);trackDeletion(other);
     const systemEvents:Array<{chat_id:string;data:{message_id:string;status?:string}}>=[];
     other.on('websocket',socket=>socket.on('framereceived',frame=>{
       try {
@@ -2022,6 +2083,10 @@ test.describe('Voice mode through ordinary chat', () => {
     try {
       await other.goto(page.url());
       await expect(other.locator('[data-testid="voice-call-start"]:visible')).toBeVisible();
+      // Opening the observer tab changes the browser's foreground page. Select
+      // the caller for its real activation gesture, just as a user would.
+      await page.bringToFront();
+      await expect.poll(()=>page.evaluate(()=>document.visibilityState==='visible'&&document.hasFocus())).toBe(true);
       await page.locator('[data-testid="voice-call-start"]:visible').click();
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
       const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
@@ -2029,6 +2094,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect.poll(()=>systemEvents.find(event=>event.data?.message_id===startedId)).toBeTruthy();
       const started=systemEvents.find(event=>event.data?.message_id===startedId)!;
       expect(started.data.status).toBe('synced');
+      await other.bringToFront();
       await other.goto(`/#chat-id=${started.chat_id}`);
       await expect(other.getByText('Credits needed...', {exact:true})).toHaveCount(0);
       await expect(other.getByText('Not enough credits', {exact:true})).toHaveCount(0);
@@ -2041,9 +2107,31 @@ test.describe('Voice mode through ordinary chat', () => {
           request.onsuccess=()=>resolve(request.result?.status);request.onerror=()=>reject(request.error);
         }); } finally { db.close(); }
       },started.data.message_id)).toBe('synced');
+      await page.bringToFront();
+      await expect.poll(()=>page.evaluate(()=>document.visibilityState==='visible'&&document.hasFocus())).toBe(true);
       await page.getByTestId('voice-call-hangup').click();
       await assertVoiceInputCleanup(page);
-    } finally { await other.close(); }
+      // Empty-call retirement waits for durable lifecycle persistence and final
+      // billing settlement. This budget covers completion, not call startup.
+      await expect.poll(()=>cleanupResults.some(result=>result.chat_id===started.chat_id&&result.accepted),
+        {timeout:30_000}).toBe(true);
+      for(const tab of [page,other]) {
+        await expect.poll(()=>deletedByPage.get(tab)!.includes(started.chat_id),{timeout:30_000}).toBe(true);
+        await expect.poll(()=>tab.evaluate(async chatId=>{
+          const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+            const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+          });
+          try { return await new Promise<boolean>((resolve,reject)=>{
+            const request=db.transaction('chats','readonly').objectStore('chats').get(chatId);
+            request.onsuccess=()=>resolve(!request.result);request.onerror=()=>reject(request.error);
+          }); } finally { db.close(); }
+        },started.chat_id),{timeout:30_000}).toBe(true);
+      }
+    } finally {
+      const decisions=await page.evaluate(()=>(window as unknown as {__voiceCallCleanupDecisions?:unknown[]}).__voiceCallCleanupDecisions??[]);
+      await testInfo.attach('empty-call-cleanup-decisions',{body:JSON.stringify({authority,lifecycleVersions,decisions}),contentType:'application/json'});
+      await other.close();
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
@@ -2108,6 +2196,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
     await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
+    await assertCallChatPreserved(page,chatId);
     await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);

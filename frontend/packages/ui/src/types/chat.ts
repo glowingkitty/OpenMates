@@ -1010,6 +1010,13 @@ export interface TeamAIResponseCompletedPayload {
 export interface ChatDeletedPayload {
   chat_id: string;
   tombstone: boolean;
+  /** Server-owned authority; generic delete_chat requests cannot supply this. */
+  empty_call_cleanup?: {
+    cleanup_attempt_id: string;
+    call_id: string | null;
+    expected_messages_v: number;
+    lifecycle_message_ids: string[];
+  };
 }
 
 export interface MessageDeletedPayload {

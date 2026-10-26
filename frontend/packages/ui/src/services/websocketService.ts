@@ -700,7 +700,11 @@ class WebSocketService extends EventTarget {
       );
     }
 
-    this.url = getWebSocketUrl(sessionId, authToken || undefined);
+    const connectionUrl = new URL(getWebSocketUrl(sessionId, authToken || undefined));
+    // Advertise only with the matching guarded chat_deleted handler. The server
+    // preserves empty-call shells while any connected recipient lacks this guard.
+    connectionUrl.searchParams.set('empty_call_cleanup_guard', '1');
+    this.url = connectionUrl.toString();
     console.info(
       `[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ""}`,
     );
@@ -1572,7 +1576,7 @@ class WebSocketService extends EventTarget {
               // their data with an unbound _traceparent field.
               if (!voiceCallBootstrap && !["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
                 "chat_turn_context_failed", "personal_send_context_snapshot",
-                "voice_metadata_request", "voice_metadata_commit"].includes(type)) {
+                "voice_metadata_request", "voice_metadata_commit", "delete_empty_call_chat"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {

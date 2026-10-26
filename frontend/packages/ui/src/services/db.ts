@@ -2085,6 +2085,10 @@ class ChatDatabase {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
   }
 
+  async deleteEmptyVoiceCallChat(chatId: string, guard: chatCrudOps.EmptyCallLocalDeletionGuard): Promise<{deleted:boolean;deletedEmbedIds:string[]}> {
+    return chatCrudOps.deleteEmptyVoiceCallChat(this, chatId, guard);
+  }
+
   async deleteDraftOnlyChat(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
     const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId);
     if (result.deleted && result.deletedEmbedIds.length > 0) {

@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
   const chats = new Map<string, Record<string, unknown>>();
   const scope = { identity: "owner-scope" as string | null };
   const pendingDeletes = new Set<string>();
-  const bootstrap = { autoReceipt: true, rejectCode: null as string | null };
+  const bootstrap = { echoCleanup: false, autoReceipt: true, rejectCode: null as string | null };
   const connection = { current: {} as object | null };
   const emit = (type: string, payload: Record<string, unknown>) => {
     for (const handler of handlers.get(type) ?? []) handler(payload);
@@ -106,6 +106,7 @@ const mocks = vi.hoisted(() => {
           if (bootstrap.rejectCode) emit("error", { chat_id: payload.chat_id, voice_call_bootstrap: true, code: bootstrap.rejectCode });
           else if (bootstrap.autoReceipt) emit("encrypted_metadata_stored", {
             chat_id: payload.chat_id, ...(payload.voice_call_bootstrap === true ? { voice_call_bootstrap: true } : {}),
+            ...(bootstrap.echoCleanup ? { cleanup_attempt_id: payload.cleanup_attempt_id } : {}),
           });
         }
       });
@@ -178,6 +179,7 @@ beforeEach(() => {
   mocks.socket.getConnectionForSend.mockReset().mockImplementation(() => mocks.connection.current);
   mocks.db.getChat.mockReset().mockImplementation(async (id?: string) => id && mocks.chats.get(id) || mocks.chat);
   mocks.db.getEncryptedChatKey.mockReset().mockImplementation(async (id: string) => (mocks.chats.get(id) ?? mocks.chat).encrypted_chat_key as string | null);
+  mocks.bootstrap.echoCleanup = false;
   mocks.db.addChat.mockClear();
   mocks.socket.sendMessage.mockClear();
   vi.mocked(chatKeyManager.getKey).mockReset().mockResolvedValue(new Uint8Array(32));
@@ -260,8 +262,27 @@ describe("atomic voice call chat bootstrap", () => {
     expect(chatKeyManager.createAndPersistKeyLocked).toHaveBeenCalledOnce();
     expect(mocks.sent[0]).toEqual({ type: "voice_call_chat_prepare", payload: {
       chat_id: result.chatId, encrypted_chat_key: "wrapped-key", created_at: expect.any(Number), voice_call_bootstrap: true,
+      cleanup_attempt_id: expect.any(String),
     } });
     expect(mocks.chats.get(result.chatId)).toMatchObject({ messages_v: 0, title_v: 0, metadata_v: 0, draft_v: 0 });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it.each([true,false])('returns new-shell cleanup authority only for an exact bootstrap echo %s',async echo=>{
+    vi.spyOn(crypto, "randomUUID").mockReturnValueOnce("00000000-1111-4222-8333-000000000000");
+    mocks.bootstrap.echoCleanup=echo;
+    const result=await prepareVoiceCallChat(undefined,true);
+    const sent=mocks.sent[0].payload.cleanup_attempt_id;
+    expect(sent).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.cleanupAttemptId).toBe(echo?sent:undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing
+  it('does not request cleanup authority when preparing an existing chat',async()=>{
+    mocks.bootstrap.echoCleanup=true;
+    const result=await prepareVoiceCallChat(mocks.chat.chat_id,true);
+    expect(mocks.sent[0].payload).not.toHaveProperty('cleanup_attempt_id');
+    expect(result.cleanupAttemptId).toBeUndefined();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.lifecycle.recovery-and-billing

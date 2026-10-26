@@ -277,6 +277,46 @@ describe("webSocketService message dispatch", () => {
     }
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it("keeps the exact six-key conditional call-cleanup payload unchanged while tracing its send", async () => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    let spanActive = false;
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn((_data: string) => {
+      expect(spanActive).toBe(true);
+    }) };
+    service.ws = socket;
+    const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => {
+      spanActive = true;
+      try { return await callback(); } finally { spanActive = false; }
+    });
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation(payload => {
+      payload._traceparent = "unbound-test-trace";
+    });
+    const callId = "0123456789abcdef0123456789abcdef";
+    const payload = {
+      request_id: "e052d617-907e-45ba-b9bd-6471e865047a",
+      chat_id: "a052d617-907e-45ba-b9bd-6471e865047a",
+      cleanup_attempt_id: "b052d617-907e-45ba-b9bd-6471e865047a",
+      call_id: callId, expected_messages_v: 2,
+      lifecycle_message_ids: [`00000000-voice-call-${callId}-started`, `ffffffff-voice-call-${callId}-ended`],
+    };
+    const original = structuredClone(payload);
+    try {
+      await webSocketService.sendMessage("delete_empty_call_chat", payload, {
+        expectedConnection: webSocketService.getConnectionForSend(),
+      });
+      expect(span).toHaveBeenCalledExactlyOnceWith("send.delete_empty_call_chat", expect.any(Function));
+      expect(inject).not.toHaveBeenCalled();
+      expect(payload).toEqual(original);
+      expect(socket.send).toHaveBeenCalledOnce();
+      const message = JSON.parse(socket.send.mock.calls[0][0]);
+      expect(message).toEqual({ type: "delete_empty_call_chat", payload: original });
+      expect(Object.keys(message.payload)).toHaveLength(6);
+    } finally { service.ws = null; }
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("preserves distributed trace decoration for ordinary messages", async () => {
     const service = webSocketService as unknown as {
@@ -419,7 +459,7 @@ describe("webSocketService connection preparation", () => {
       onclose: (() => void) | null = null;
       send = vi.fn();
       close = vi.fn(() => { this.readyState = 3; });
-      constructor(_url: string) { sockets.push(this); }
+      constructor(readonly url: string) { sockets.push(this); }
       open() { this.readyState = FakeSocket.OPEN; this.onopen?.(); }
     }
     vi.stubGlobal("WebSocket", FakeSocket);
@@ -443,6 +483,9 @@ describe("webSocketService connection preparation", () => {
 
     finishRefresh();
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    const connectionUrl = new URL(sockets[0].url);
+    expect(connectionUrl.pathname).toBe('/v1/ws');
+    expect(connectionUrl.searchParams.get('empty_call_cleanup_guard')).toBe('1');
     expect(sent).toBe(false);
     sockets[0].open();
     await sending;
