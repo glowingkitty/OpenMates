@@ -49,7 +49,13 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
         return 75.0
     if (app_id, skill_id) == ("web", "browse"):
         from backend.shared.python_schemas.web_browse import BrowseRequest
-        return float(BrowseRequest.model_validate(arguments).timeout_seconds + 120)
+        # Main processing attaches private dispatch context before selecting the
+        # timeout. Validate the public request without treating that context as
+        # model-supplied Browse parameters; unknown public fields still fail.
+        request_arguments = {
+            key: value for key, value in arguments.items() if not key.startswith("_")
+        }
+        return float(BrowseRequest.model_validate(request_arguments).timeout_seconds + 120)
     # Public class search spans up to fourteen dates plus venue enrichment.
     if (app_id, skill_id) == ("fitness", "search_classes"):
         return 60.0

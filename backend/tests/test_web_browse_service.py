@@ -166,7 +166,12 @@ def service():
     browser = Browser()
     app = SimpleNamespace(
         _make_internal_api_request=AsyncMock(return_value={}),
-        charge_user_credits=AsyncMock(return_value={}),
+        charge_user_credits=AsyncMock(
+            side_effect=lambda **kwargs: {
+                "state": "committed",
+                "charged_credits": kwargs["credits_to_charge"],
+            }
+        ),
     )
     result = BrowseService(
         app=app,
@@ -300,6 +305,73 @@ async def test_insufficient_cap_does_not_start_paid_compute(service):
     assert "create" not in service.driver.calls
     assert not service.store.records[result.session_id]["reservation"]
     service.app.charge_user_credits.assert_not_awaited()
+    release = service.app._make_internal_api_request.await_args.kwargs["payload"]
+    assert release["reason"] == "definite_no_cost"
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_followup_reconciles_native_idle_pause_before_resuming(service):
+    first = await run(service)
+    record = service.store.records[first.session_id]
+    record["provider"]["provider_deadline"] = time.time() - 1
+    request = arguments(session_id=first.session_id)
+    job = await service.run(
+        request,
+        user_id="owner",
+        chat_id="chat",
+        message_id="followup",
+        vault_key_id="vault-key",
+        prepare_only=True,
+    )
+    assert service.store.records[first.session_id]["provider"]["running_since"] is None
+    result = await service.run(
+        request,
+        user_id="owner",
+        chat_id="chat",
+        message_id="followup",
+        vault_key_id="vault-key",
+        prepared_run_id=job.run_id,
+    )
+    assert result.status == "completed" and result.session_id == first.session_id
+    assert service.driver.calls.count("create") == 1
+    assert service.driver.calls.index("pause") < service.driver.calls.index("resume")
+    assert all(
+        call.args[1] != "/internal/billing/reservation/release"
+        for call in service.app._make_internal_api_request.await_args_list
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_pending_charge_keeps_same_intent_and_reservation_until_committed(
+    service,
+):
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    reservation = record["reservation"]
+    charge = service.app.charge_user_credits
+    charge.side_effect = None
+    charge.return_value = {"state": "retry_scheduled", "charged_credits": 0}
+    with pytest.raises(HTTPException) as exc:
+        await service.pause(record)
+    assert exc.value.status_code == 503
+    assert record["reservation"] == reservation and record["settlement"]["delta"] > 0
+    assert record["charged_credits"] == 0
+    charge.return_value = {
+        "state": "committed",
+        "charged_credits": record["settlement"]["delta"],
+    }
+    await service.settle(record)
+    assert record["reservation"] is None and record["charged_credits"] > 0
+    assert charge.await_count == 2
+    assert all(
+        call.kwargs["idempotency_key"] == reservation for call in charge.await_args_list
+    )
+    assert all(
+        call.args[1] != "/internal/billing/reservation/release"
+        for call in service.app._make_internal_api_request.await_args_list
+    )
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting

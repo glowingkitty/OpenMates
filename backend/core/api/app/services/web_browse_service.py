@@ -372,7 +372,7 @@ class BrowseService:
         intent = record["settlement"]
         delta = intent["delta"]
         if delta:
-            await self.app.charge_user_credits(
+            charge = await self.app.charge_user_credits(
                 user_id=record["user_id"],
                 user_id_hash=owner_hash(record["user_id"]),
                 credits_to_charge=delta,
@@ -388,17 +388,26 @@ class BrowseService:
                     "chat_id": record["chat_id"],
                 },
             )
-        await self.app._make_internal_api_request(
-            "POST",
-            "/internal/billing/reservation/release",
-            payload={
-                "subject_kind": "personal",
-                "user_id": record["user_id"],
-                "user_id_hash": owner_hash(record["user_id"]),
-                "idempotency_key": reservation,
-                "reason": "browser_window_settled",
-            },
-        )
+            # The charge atomically settles its reservation. An outbox receipt
+            # is still pending; retain the exact intent and hold for retry.
+            if (
+                charge.get("state") != "committed"
+                or charge.get("charged_credits") != delta
+            ):
+                raise HTTPException(503, "Browser billing settlement is pending.")
+        else:
+            # No additional metered cost remains to charge in this window.
+            await self.app._make_internal_api_request(
+                "POST",
+                "/internal/billing/reservation/release",
+                payload={
+                    "subject_kind": "personal",
+                    "user_id": record["user_id"],
+                    "user_id_hash": owner_hash(record["user_id"]),
+                    "idempotency_key": reservation,
+                    "reason": "definite_no_cost",
+                },
+            )
         record["charged_credits"] = intent["total"]
         record.pop("settlement", None)
         record["reservation"] = None
@@ -553,6 +562,15 @@ class BrowseService:
                     410,
                     "This browser is unavailable; start a new Browse request without its session_id.",
                 )
+            provider = record.get("provider") or {}
+            if (
+                provider.get("running_since") is not None
+                and provider.get("provider_deadline", 0) <= time.time()
+            ):
+                # The native idle timeout can pause compute before our sweeper
+                # updates the record. Confirm/settle that window before replacing
+                # last_activity and admitting the owner's paid resume.
+                await self.pause(record)
             # Hold the complete user-authorized cap; credits are debited only on settlement.
             await self.claim_slot(record)
             if not record.get("reservation"):
