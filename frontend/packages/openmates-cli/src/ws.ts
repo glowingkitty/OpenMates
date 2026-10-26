@@ -1251,6 +1251,8 @@ export class OpenMatesWsClient {
     messageId: string | null;
     taskId: string | null;
     content: string;
+    /** True only when content came from the completed response, not a recovery handoff. */
+    responseFinal: boolean;
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
@@ -1287,6 +1289,7 @@ export class OpenMatesWsClient {
     return new Promise((resolve, reject) => {
       const collectorStartedAt = Date.now();
       let latestContent = "";
+      let responseFinal = false;
       let thinkingContent = "";
       let messageId: string | null = null;
       let taskId: string | null = null;
@@ -1473,6 +1476,7 @@ export class OpenMatesWsClient {
             messageId,
             taskId,
             content: latestContent,
+            responseFinal,
             category,
             modelName,
             followUpSuggestions,
@@ -1511,7 +1515,8 @@ export class OpenMatesWsClient {
               status: "completed",
               messageId,
               taskId,
-              content: latestContent,
+              content: responseFinal ? latestContent : "",
+              responseFinal,
               category,
               modelName,
               followUpSuggestions,
@@ -1545,7 +1550,8 @@ export class OpenMatesWsClient {
           status: "completed",
           messageId,
           taskId,
-          content: latestContent,
+          content: responseFinal ? latestContent : "",
+          responseFinal,
           category,
           modelName,
           followUpSuggestions,
@@ -1659,7 +1665,7 @@ export class OpenMatesWsClient {
 
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
-      const scheduleResolve = (content: string) => {
+      const scheduleResolve = (content: string, finalResponse = true) => {
         if (pendingProjectOperations.size > 0 || awaitingUnidentifiedAsyncContinuation) {
           latestContent = content;
           return;
@@ -1676,7 +1682,8 @@ export class OpenMatesWsClient {
           return;
         }
         aiResponseDone = true;
-        if (!responseTerminalEmitted) onStream?.({ kind: "done", responseTerminal: true, content, category, modelName,
+        responseFinal = finalResponse;
+        if (!responseTerminalEmitted) onStream?.({ kind: "done", responseTerminal: finalResponse, content, category, modelName,
           taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
         if (options?.waitForPostProcessing === false) postProcessingDone = true;
         latestContent = content;
@@ -1712,6 +1719,7 @@ export class OpenMatesWsClient {
           recoveryAssistantId = null;
         }
         aiResponseDone = false;
+        responseFinal = false;
         postProcessingDone = false;
         latestContent = "";
         if (postProcessingTimer) {
@@ -1727,6 +1735,7 @@ export class OpenMatesWsClient {
         awaitingFocusModeContinuation = false;
         subChatContinuationMessageId = null;
         aiResponseDone = false;
+        responseFinal = false;
         postProcessingDone = false;
         latestContent = "";
         if (postProcessingTimer) {
@@ -1746,6 +1755,7 @@ export class OpenMatesWsClient {
         activeProjectContinuation = payload.async_skill_task_id;
         subChatContinuationMessageId = null;
         aiResponseDone = false;
+        responseFinal = false;
         postProcessingDone = false;
         recoveryJobId = null;
         recoveryFinal = null;
@@ -1919,7 +1929,9 @@ export class OpenMatesWsClient {
               clearTimeout(timeout);
               maybeResolve();
             }
-            else scheduleResolve(latestContent);
+            // A job announcement hands off to sealed recovery. It cannot make
+            // the latest provisional chunk an authoritative completed reply.
+            else scheduleResolve("", false);
             return;
           }
 
@@ -1962,6 +1974,10 @@ export class OpenMatesWsClient {
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
+            // Completion may still be waiting for embeds or metadata. A late
+            // provisional replay must not replace the authoritative final text.
+            // Admitted continuations above explicitly reset that authority.
+            if (responseFinal && p.is_final_chunk !== true) return;
             capture(p);
             if (typeof p.message_id === "string" && p.message_id) streamMessageId = p.message_id;
             if (typeof p.full_content_so_far === "string") {
@@ -2171,7 +2187,8 @@ export class OpenMatesWsClient {
             status: "completed",
             messageId,
             taskId,
-            content: latestContent,
+            content: responseFinal ? latestContent : "",
+            responseFinal,
             category,
             modelName,
             followUpSuggestions,

@@ -179,4 +179,22 @@ settings_and_memories:
       required:
         - title
         - type
+# Backend authoring admission precedes web renderer registration (CLI-first).
+embed_types:
+  - id: movie
+    category: direct
+    frontend_type: ""
+    backend_type: tv_movie
+    has_children: false
+    authoring:
+      kind: tv.movie
+      schema_id: tv.movie
+  - id: series
+    category: direct
+    frontend_type: ""
+    backend_type: tv_series
+    has_children: false
+    authoring:
+      kind: tv.series
+      schema_id: tv.series
 skills: []

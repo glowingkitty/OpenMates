@@ -3290,6 +3290,7 @@ async def _async_process_ai_skill_ask_task(
     # SECURITY: Only works when SERVER_ENVIRONMENT != "production".
     _test_marker = None  # None or (mode, fixture_id, speed_override)
     _fixture_recorder = None  # FixtureRecorder instance for record mode
+    _fixture_postprocessing_result: Optional[PostProcessingResult] = None
     if os.getenv("SERVER_ENVIRONMENT", "production") != "production":
         from backend.apps.ai.testing.mock_replay import detect_marker, strip_marker
         if request_data.message_history:
@@ -3380,6 +3381,7 @@ async def _async_process_ai_skill_ask_task(
         aggregated_final_response = mock_result["aggregated_final_response"]
         thinking_content = mock_result.get("thinking_content", [])
         main_processor_debug_metadata = mock_result.get("main_processor_debug_metadata", {})
+        _fixture_postprocessing_result = mock_result.get("postprocessing_result")
         revoked_in_consumer = False
         soft_limited_in_consumer = False
         task_was_revoked = False
@@ -4978,37 +4980,42 @@ async def _async_process_ai_skill_ask_task(
 
             with ai_phase_span("postprocess"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "started")
-                postprocessing_result = await handle_postprocessing(
-                    task_id=task_id,
-                    user_message=last_user_message,
-                    assistant_response=postprocessing_response,
-                    chat_summary=chat_summary,
-                    chat_tags=chat_tags,
-                    message_history=postprocessing_message_history,
-                    base_instructions=base_instructions,
-                    secrets_manager=secrets_manager,
-                    cache_service=cache_service_instance,
-                    available_app_ids=available_app_ids,
+                # A committed dev-only replay can supply the validated metadata
+                # result too; deterministic fixture checks must not call a provider.
+                if isinstance(_fixture_postprocessing_result, PostProcessingResult):
+                    postprocessing_result = _fixture_postprocessing_result.model_copy(deep=True)
+                else:
+                    postprocessing_result = await handle_postprocessing(
+                        task_id=task_id,
+                        user_message=last_user_message,
+                        assistant_response=postprocessing_response,
+                        chat_summary=chat_summary,
+                        chat_tags=chat_tags,
+                        message_history=postprocessing_message_history,
+                        base_instructions=base_instructions,
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service_instance,
+                        available_app_ids=available_app_ids,
 
-                    available_skills=available_skills_for_postproc,
-                    is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
-                    is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
-                    output_language=chat_output_language,
-                    user_system_language=user_system_language,
-                    current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
-                    follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                    quick_tips_enabled=quick_tips_enabled,
-                    learning_mode_context=effective_learning_mode_context,
-                    learning_focus_context=(
-                        {"focus_id": request_data.active_focus_id,
-                         "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
-                        if request_data.active_focus_id in {
-                            "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
-                        } else None
-                    ),
-                    decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
-                    voice_mode=request_data.voice_mode,
-                )
+                        available_skills=available_skills_for_postproc,
+                        is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                        is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
+                        output_language=chat_output_language,
+                        user_system_language=user_system_language,
+                        current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
+                        follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                        quick_tips_enabled=quick_tips_enabled,
+                        learning_mode_context=effective_learning_mode_context,
+                        learning_focus_context=(
+                            {"focus_id": request_data.active_focus_id,
+                             "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
+                            if request_data.active_focus_id in {
+                                "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
+                            } else None
+                        ),
+                        decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
+                        voice_mode=request_data.voice_mode,
+                    )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):

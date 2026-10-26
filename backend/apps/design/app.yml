@@ -46,6 +46,9 @@ embed_types:
       - name: preview_results
         type: object
   - id: icon_result
+    authoring:
+      kind: design.icon_result
+      schema_id: design.icon_result
     category: direct
     frontend_type: design-icon-result
     backend_type: icon_result

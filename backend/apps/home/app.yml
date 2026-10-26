@@ -57,6 +57,9 @@ settings_and_memories:
 # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
 embed_types:
   - id: search
+    authoring:
+      kind: home.listing
+      schema_id: home.listing
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use

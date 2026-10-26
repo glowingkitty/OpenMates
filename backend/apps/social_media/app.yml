@@ -70,6 +70,9 @@ embed_types:
       - name: comments
         type: array
   - id: search
+    authoring:
+      kind: social_media.social_post
+      schema_id: social_media.social_post
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use

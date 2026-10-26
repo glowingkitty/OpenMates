@@ -8,7 +8,7 @@ version = "0.28.0"
 description = "OpenMates Python SDK"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["requests>=2.31", "cryptography>=41", "PyNaCl>=1.5,<2", "cairosvg>=2.9", "toon-format==0.9.0b1", "tzdata>=2024.1"]
+dependencies = ["requests>=2.31", "cryptography>=41", "PyNaCl>=1.5,<2", "cairosvg>=2.9", "toon-format==1.0.0", "tzdata>=2024.1"]
 license = "MIT"
 
 [project.urls]

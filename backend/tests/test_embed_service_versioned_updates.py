@@ -499,6 +499,14 @@ async def test_versioned_finished_code_update_publishes_same_embed_snapshot():
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,code-run.artifacts.encrypted-indexed,chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_application_thumbnail_update_publishes_versioned_finished_parent():
+    class VaultEncryption(FakeEncryptionService):
+        async def encrypt_with_user_key(self, content: str, vault_key_id: str):
+            return f"vault:v1:test:{content}", "test-key-version"
+
+        async def decrypt_with_user_key(self, encrypted_content: str, vault_key_id: str):
+            assert encrypted_content.startswith("vault:v1:test:")
+            return encrypted_content.removeprefix("vault:v1:test:")
+
     initial_toon = encode(
         {
             "type": "application",
@@ -518,7 +526,7 @@ async def test_application_thumbnail_update_publishes_versioned_finished_parent(
         {
             "embed_id": "embed-1",
             "type": "application",
-            "encrypted_content": initial_toon,
+            "encrypted_content": f"vault:v1:test:{initial_toon}",
             "status": "finished",
             "message_id": "message-1",
             "version_number": 1,
@@ -528,7 +536,7 @@ async def test_application_thumbnail_update_publishes_versioned_finished_parent(
             "updated_at": 1760000000,
         }
     )
-    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service = EmbedService(cache, directus_service=object(), encryption_service=VaultEncryption())
     service._schedule_embed_persistence_fallback = lambda embed_id: None
 
     ok = await service.update_application_embed_thumbnail(

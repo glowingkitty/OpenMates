@@ -83,6 +83,9 @@ settings_and_memories:
 embed_types:
   # Web search results — composite embed with child website embeds
   - id: search
+    authoring:
+      kind: web.website
+      schema_id: web.website
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use

@@ -1,0 +1,712 @@
+{
+  "fixture_id": "authored_results",
+  "recorded_at": "2026-10-26T10:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Create rich cards from my supplied records and label my proposed drafts.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Supplied rich records and labelled drafts",
+    "icon_names": [
+      "cards"
+    ],
+    "selected_model_id": "automatic",
+    "selected_model_name": "Assistant",
+    "mate_id": "default",
+    "chat_summary": "Supplied records across eligible result kinds, with explicit draft proposals.",
+    "chat_tags": [
+      "authored-results"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Assistant",
+    "provider_name": "Fixture",
+    "server_region": "EU"
+  },
+  "response": "Here are your supplied records and explicitly requested drafts. These test sources describe supplied facts; no search, booking, purchase, publication, or provider enrichment was performed.\n\n```json\n{\"type\": \"authored_results\", \"embed_id\": \"2ec7de35-30cd-4f8d-8e25-339a12ab5de9\"}\n```\n\nThe draft recipe and social post remain proposals.",
+  "embeds": {
+    "2ec7de35-30cd-4f8d-8e25-339a12ab5de9": {
+      "type": "authored_results",
+      "document": {
+        "schemaVersion": 1,
+        "title": "Supplied records and draft proposals",
+        "items": [
+          {
+            "id": "record-01",
+            "kind": "events.event",
+            "title": "Supplied: events.event",
+            "origin": "user_provided",
+            "details": {
+              "date_start": "2027-01-30",
+              "date_end": "2027-01-31",
+              "timezone": "Europe/Brussels",
+              "venue": {
+                "name": "ULB",
+                "city": "Brussels",
+                "lat": 50.813,
+                "lon": 4.382
+              },
+              "organizer": {
+                "name": "Community organizers"
+              },
+              "fee": {
+                "amount": 0,
+                "currency": "EUR"
+              },
+              "url": "https://example.org/conference",
+              "image_url": "https://example.org/conference.jpg"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-02",
+            "kind": "home.listing",
+            "title": "Supplied: home.listing",
+            "origin": "user_provided",
+            "details": {
+              "price_label": "EUR 1,400 / month",
+              "size_sqm": 62,
+              "rooms": 2,
+              "city": "Berlin",
+              "location_precision": "approximate",
+              "location_approximate": true,
+              "location_area": {
+                "name": "Moabit",
+                "lat": 52.532,
+                "lon": 13.34,
+                "radius_m": 500
+              },
+              "rent_components": {
+                "base_rent": 1200,
+                "utilities": 200,
+                "currency": "EUR",
+                "period": "month"
+              },
+              "available_from": "2027-02-01",
+              "amenities": [
+                "Balcony"
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-03",
+            "kind": "health.appointment",
+            "title": "Supplied: health.appointment",
+            "origin": "user_provided",
+            "details": {
+              "doctor_name": "Dr Example",
+              "speciality": "Dermatology",
+              "telehealth": true,
+              "slot_datetime": "2027-02-01T09:00:00+01:00",
+              "timezone": "Europe/Berlin",
+              "booking_url": "https://example.org/clinic"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-04",
+            "kind": "travel.connection",
+            "title": "Supplied: travel.connection",
+            "origin": "user_provided",
+            "details": {
+              "origin": {
+                "name": "Berlin Hbf",
+                "lat": 52.525,
+                "lon": 13.369
+              },
+              "destination": {
+                "name": "Brussels Midi",
+                "lat": 50.836,
+                "lon": 4.336
+              },
+              "departure": "2027-01-29T07:00:00+01:00",
+              "arrival": "2027-01-29T14:00:00+01:00",
+              "transport_method": "train",
+              "price": 120,
+              "currency": "EUR",
+              "legs": [
+                {
+                  "origin": "Berlin Hbf",
+                  "destination": "Cologne Hbf",
+                  "departure": "2027-01-29T07:00:00+01:00",
+                  "arrival": "2027-01-29T11:00:00+01:00"
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-05",
+            "kind": "travel.stay",
+            "title": "Supplied: travel.stay",
+            "origin": "user_provided",
+            "details": {
+              "name": "Example guesthouse",
+              "check_in": "2027-01-29",
+              "check_out": "2027-02-01",
+              "currency": "EUR",
+              "rate_per_night": {
+                "amount": 90
+              },
+              "amenities": [
+                "Wi-Fi"
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-06",
+            "kind": "maps.place",
+            "title": "Supplied: maps.place",
+            "origin": "user_provided",
+            "details": {
+              "display_name": "Example cafe",
+              "coordinates": {
+                "lat": 50.85,
+                "lon": 4.35
+              },
+              "category": "cafe"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-07",
+            "kind": "fitness.location",
+            "title": "Supplied: fitness.location",
+            "origin": "user_provided",
+            "details": {
+              "name": "Example studio",
+              "city": "Brussels",
+              "disciplines": [
+                "Yoga"
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-08",
+            "kind": "fitness.class",
+            "title": "Supplied: fitness.class",
+            "origin": "user_provided",
+            "details": {
+              "name": "Morning yoga",
+              "date": "2027-01-30",
+              "time_range": "08:00–09:00",
+              "venue_name": "Example studio",
+              "spots_left": 3
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-09",
+            "kind": "shopping.product",
+            "title": "Supplied: shopping.product",
+            "origin": "user_provided",
+            "details": {
+              "title": "Example kettle",
+              "brand": "Example",
+              "price_cents": 2499,
+              "currency_symbol": "€",
+              "specifications": [
+                {
+                  "name": "Capacity",
+                  "value": "1.5 L"
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-10",
+            "kind": "jobs.job_result",
+            "title": "Supplied: jobs.job_result",
+            "origin": "user_provided",
+            "details": {
+              "title": "Software engineer",
+              "company": "Example",
+              "remote": true,
+              "work_arrangement": "Remote",
+              "salary": {
+                "min": 60000,
+                "max": 80000,
+                "currency": "EUR",
+                "basis": "annual"
+              }
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-11",
+            "kind": "nutrition.recipe",
+            "title": "Draft: nutrition.recipe",
+            "origin": "draft",
+            "details": {
+              "title": "Lentil soup",
+              "servings": 2,
+              "total_time_minutes": 30,
+              "ingredients": [
+                {
+                  "name": "Red lentils",
+                  "amount": 150,
+                  "unit": "g"
+                }
+              ],
+              "instructions": [
+                "Rinse lentils.",
+                "Simmer until tender."
+              ]
+            }
+          },
+          {
+            "id": "record-12",
+            "kind": "code.repo",
+            "title": "Supplied: code.repo",
+            "origin": "user_provided",
+            "details": {
+              "url": "https://github.com/example/project",
+              "full_name": "example/project",
+              "primary_language": "Rust",
+              "license_spdx_id": "MIT",
+              "stars": 42
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-13",
+            "kind": "web.website",
+            "title": "Supplied: web.website",
+            "origin": "user_provided",
+            "details": {
+              "url": "https://example.org/reference",
+              "description": "Reference supplied by the user."
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-14",
+            "kind": "news.website",
+            "title": "Supplied: news.website",
+            "origin": "user_provided",
+            "details": {
+              "url": "https://example.org/news",
+              "published_at": "2026-10-26T10:00:00Z",
+              "description": "Dated announcement."
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-15",
+            "kind": "electronics.component",
+            "title": "Supplied: electronics.component",
+            "origin": "user_provided",
+            "details": {
+              "title": "Example buck regulator",
+              "part_number": "EX123",
+              "topology": "Buck",
+              "efficiency_percent": 92,
+              "bom_count": 8
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-16",
+            "kind": "business.company_financial_result",
+            "title": "Supplied: business.company_financial_result",
+            "origin": "user_provided",
+            "details": {
+              "company": "Example plc",
+              "fiscal_year": 2025,
+              "period_type": "annual",
+              "currency": "EUR",
+              "revenue": 2000000,
+              "net_income": -20000,
+              "filed": "2026-03-01"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-17",
+            "kind": "weather.weather_day",
+            "title": "Supplied: weather.weather_day",
+            "origin": "user_provided",
+            "details": {
+              "date": "2026-10-27",
+              "location_name": "Brussels",
+              "temperature_min_c": 8,
+              "temperature_max_c": 14,
+              "hourly": [
+                {
+                  "time": "09:00",
+                  "temperature_c": 10
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-18",
+            "kind": "hosting.hosting_domain",
+            "title": "Supplied: hosting.hosting_domain",
+            "origin": "user_provided",
+            "details": {
+              "domain_ascii": "example.org",
+              "availability": "registered",
+              "checked_at": "2026-10-26T10:00:00Z",
+              "registration_tiers": [
+                {
+                  "years": 1,
+                  "price": 12,
+                  "currency": "EUR"
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-19",
+            "kind": "social_media.social_post",
+            "title": "Draft: social_media.social_post",
+            "origin": "draft",
+            "details": {
+              "body": "Draft proposal: join our community workshop.",
+              "platform": "Mastodon"
+            }
+          },
+          {
+            "id": "record-20",
+            "kind": "design.icon_result",
+            "title": "Supplied: design.icon_result",
+            "origin": "user_provided",
+            "details": {
+              "icon_id": "mdi:calendar",
+              "prefix": "mdi",
+              "name": "calendar",
+              "license_spdx": "Apache-2.0"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-21",
+            "kind": "images.image_result",
+            "title": "Supplied: images.image_result",
+            "origin": "user_provided",
+            "details": {
+              "image_url": "https://example.org/real-image.jpg",
+              "thumbnail_url": "https://example.org/thumb.jpg",
+              "attribution": "Photographer supplied by user"
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-22",
+            "kind": "videos.video",
+            "title": "Supplied: videos.video",
+            "origin": "user_provided",
+            "details": {
+              "url": "https://example.org/video",
+              "video_id": "supplied-video",
+              "channel": "Example",
+              "duration_seconds": 120
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-23",
+            "kind": "models3d.model_result",
+            "title": "Supplied: models3d.model_result",
+            "origin": "user_provided",
+            "details": {
+              "source_page_url": "https://example.org/model",
+              "provider": "User source",
+              "creator_name": "Example",
+              "license": "CC BY 4.0",
+              "files_count": 2
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-24",
+            "kind": "tv.movie",
+            "title": "Supplied: tv.movie",
+            "origin": "user_provided",
+            "details": {
+              "synopsis": "A supplied film synopsis.",
+              "release_date": "2026-09-15",
+              "year": 2026,
+              "runtime_minutes": 112,
+              "genres": [
+                "Drama"
+              ],
+              "directors": [
+                "Example Director"
+              ],
+              "cast": [
+                "Example Actor"
+              ],
+              "original_language": "en",
+              "country_codes": [
+                "GB"
+              ],
+              "content_rating": "12A",
+              "poster_url": "https://example.org/movie-poster.jpg",
+              "source_url": "https://example.org/movie",
+              "score": {
+                "value": 8.2,
+                "scale": 10,
+                "source_url": "https://example.org/movie-score",
+                "source_label": "Supplied score",
+                "votes": 1200,
+                "observed_at": "2026-10-26T10:00:00Z"
+              }
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          },
+          {
+            "id": "record-25",
+            "kind": "tv.series",
+            "title": "Supplied: tv.series",
+            "origin": "user_provided",
+            "details": {
+              "synopsis": "A supplied series synopsis.",
+              "first_air_date": "2023-03-01",
+              "start_year": 2023,
+              "last_air_date": "2026-10-01",
+              "end_year": 2026,
+              "series_status": "Ended",
+              "genres": [
+                "Comedy"
+              ],
+              "creators": [
+                "Example Creator"
+              ],
+              "cast": [
+                "Example Actor"
+              ],
+              "original_language": "en",
+              "content_rating": "TV-14",
+              "episode_runtime_minutes": 25,
+              "season_count": 4,
+              "episode_count": 30,
+              "poster_url": "https://example.org/series-poster.jpg",
+              "source_url": "https://example.org/series",
+              "seasons": [
+                {
+                  "season_number": 0,
+                  "title": "Specials",
+                  "episode_count": 2
+                },
+                {
+                  "season_number": 1,
+                  "title": "Season one",
+                  "synopsis": "Supplied first-season synopsis.",
+                  "first_air_date": "2023-03-01",
+                  "episode_count": 8,
+                  "poster_url": "https://example.org/season-one.jpg"
+                }
+              ]
+            },
+            "sources": [
+              {
+                "url": "https://example.org/reference",
+                "label": "Supplied test reference"
+              }
+            ],
+            "observed_at": "2026-10-26T10:00:00Z"
+          }
+        ],
+        "view": {
+          "mode": "cards",
+          "items": [
+            "record-01",
+            "record-02",
+            "record-03",
+            "record-04",
+            "record-05",
+            "record-06",
+            "record-07",
+            "record-08",
+            "record-09",
+            "record-10",
+            "record-11",
+            "record-12",
+            "record-13",
+            "record-14",
+            "record-15",
+            "record-16",
+            "record-17",
+            "record-18",
+            "record-19",
+            "record-20",
+            "record-21",
+            "record-22",
+            "record-23",
+            "record-24",
+            "record-25"
+          ]
+        }
+      }
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 65,
+    "total_credits": 5,
+    "model_name": "Assistant"
+  },
+  "postprocessing": {
+    "follow_up_request_suggestions": [],
+    "new_chat_request_suggestions": [],
+    "harmful_response": 0.0,
+    "top_recommended_apps_for_user": [],
+    "chat_summary": "Supplied typed records and explicitly labelled drafts retain their saved details and provenance.",
+    "chat_tags": [
+      "authored-results"
+    ],
+    "share_cta_text": "Review supplied records and draft proposals.",
+    "updated_chat_title": null,
+    "daily_inspiration_topic_suggestions": [],
+    "quick_tip_slugs": [],
+    "task_proposals": [],
+    "task_update_proposals": []
+  }
+}

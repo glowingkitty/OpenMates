@@ -15,16 +15,17 @@ SOURCE = json.dumps({
     "openmatesType": "calendar_event", "schemaVersion": 1,
     "primary_event": {"title": "FOSDEM 2027", "start": "2027-01-30", "end": "2027-02-01"},
     "context_events": [{"title": "Travel", "start": "2027-01-29"}],
-})
+}, indent=2)
 
 
-@pytest.mark.parametrize("variant", ["single", "multi", "bare"])
+@pytest.mark.parametrize("variant", ["single", "multi", "bare", "lines"])
 # contract-test: direct surface=rest_api assertions=calendar-event.streaming.saved-lifecycle
 def test_calendar_fence_streams_one_event_reference(monkeypatch, variant):
     chunks = {
         "single": [f"```openmates_calendar_event\n{SOURCE}\n```\n\n"],
         "multi": ["```openmates_calendar_event\n", SOURCE[:65], SOURCE[65:] + "\n```\n\n"],
         "bare": ["```", "openmates_calendar_event\n", SOURCE[:65], SOURCE[65:] + "\n```\n\n"],
+        "lines": ["```openmates_calendar_event\n", *SOURCE.splitlines(keepends=True), "\n```\n\n"],
     }[variant]
 
     async def main_stream(**_kwargs):
@@ -38,6 +39,7 @@ def test_calendar_fence_streams_one_event_reference(monkeypatch, variant):
         })
         update_json_content_embed_content = AsyncMock(return_value=True)
         create_code_embed_placeholder = AsyncMock()
+        update_code_embed_content = AsyncMock()
 
         def __init__(self, *_args):
             pass
@@ -58,6 +60,7 @@ def test_calendar_fence_streams_one_event_reference(monkeypatch, variant):
     FakeEmbedService.create_json_content_embed_placeholder.assert_awaited_once()
     assert FakeEmbedService.create_json_content_embed_placeholder.await_args.kwargs["source_language"] == "openmates_calendar_event"
     FakeEmbedService.create_code_embed_placeholder.assert_not_awaited()
+    FakeEmbedService.update_code_embed_content.assert_not_awaited()
     finished = [call.kwargs for call in FakeEmbedService.update_json_content_embed_content.await_args_list
                 if call.kwargs.get("status") == "finished"]
     assert len(finished) == 1

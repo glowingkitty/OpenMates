@@ -714,6 +714,7 @@ class EmbedService:
             "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
             "calendar_event": ("calendar", "event"),
+            "authored_results": ("ai", "authored_results"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -3626,7 +3627,7 @@ class EmbedService:
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
-            next_title = title or ("Calendar event" if embed_type == "calendar_event" else "Mind Map")
+            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results"}.get(embed_type, "Mind Map")
             embed_ref = self._generate_direct_embed_ref(
                 embed_type,
                 embed_id,
@@ -3643,7 +3644,8 @@ class EmbedService:
                 "embed_ref": embed_ref,
                 "status": "processing",
                 **({"primary_event": None, "context_events": []} if embed_type == "calendar_event"
-                   else {"node_count": 0, "edge_count": 0}),
+                   else {"items": [], "embed_ids": [], "view": {"mode": "auto", "embeds": []}}
+                   if embed_type == "authored_results" else {"node_count": 0, "edge_count": 0}),
                 "validation": {"status": "processing", "warnings": []},
                 "version_number": 1,
             }
@@ -3696,6 +3698,8 @@ class EmbedService:
                 "embed_id": embed_id,
                 "embed_reference": json.dumps({"type": embed_type, "embed_id": embed_id}),
             }
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error creating JSON content embed placeholder: {e}", exc_info=True)
             return None
@@ -3721,6 +3725,14 @@ class EmbedService:
             embed_type = json_content_embed_type(source_language)
             if embed_type is None:
                 raise ValueError("Unsupported JSON content fence")
+            if embed_type == "authored_results":
+                from backend.core.api.app.services.authored_result_service import update_authored_results_embed
+                return await update_authored_results_embed(
+                    self, embed_id=embed_id, source_json=source_json, chat_id=chat_id,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id, status=status, title=title,
+                    version_number=version_number, log_prefix=log_prefix,
+                )
             app_id, skill_id = self._direct_embed_app_skill(embed_type)
             cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             if not cached_embed:
@@ -4537,6 +4549,36 @@ class EmbedService:
             logger.error(f"{log_prefix} Error extracting code blocks from user message: {e}", exc_info=True)
             return content, []  # Return original content on error
 
+    async def _get_embed_record(self, embed_id: str, log_prefix: str = "") -> Optional[Dict[str, Any]]:
+        """Read encrypted metadata from cache, then its normal durable store.
+
+        This never decrypts durable client ciphertext or grants access. Callers
+        must authorize the outer owner/chat before consuming plaintext content.
+        """
+        client = None
+        try:
+            client = await self.cache_service.client
+            cached = await client.get(f"embed:{embed_id}") if client else None
+            if cached:
+                record = cached if isinstance(cached, dict) else json.loads(cached)
+                if isinstance(record, dict):
+                    return record
+        except Exception as exc:
+            logger.warning("%s Embed cache read failed (%s); checking durable metadata", log_prefix, type(exc).__name__)
+        try:
+            record = await self.directus_service.embed.get_embed_by_id(embed_id)
+        except Exception as exc:
+            logger.warning("%s Embed durable metadata unavailable (%s)", log_prefix, type(exc).__name__)
+            return None
+        if not isinstance(record, dict):
+            return None
+        if client:
+            try:
+                await client.set(f"embed:{embed_id}", json.dumps(record), ex=EMBED_CACHE_TTL_SECONDS)
+            except Exception as exc:
+                logger.warning("%s Embed metadata cache refill failed (%s)", log_prefix, type(exc).__name__)
+        return record
+
     async def _get_cached_embed_toon(
         self,
         embed_id: str,
@@ -4558,23 +4600,13 @@ class EmbedService:
             Decrypted TOON string or None if not found
         """
         try:
-            cache_key = f"embed:{embed_id}"
-            client = await self.cache_service.client
-            if not client:
-                logger.warning(f"{log_prefix} Redis client not available")
+            embed_data = await self._get_embed_record(embed_id, log_prefix)
+            if not embed_data:
                 return None
-                
-            embed_json = await client.get(cache_key)
-            if not embed_json:
-                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
-                return None
-                
-            import json as json_lib
-            embed_data = json_lib.loads(embed_json)
             
             # Decrypt content using vault key
             encrypted_content = embed_data.get("encrypted_content")
-            if not encrypted_content:
+            if not isinstance(encrypted_content, str) or not encrypted_content.startswith("vault:v"):
                 logger.debug(f"{log_prefix} Embed {embed_id} has no encrypted_content")
                 return None
                 
@@ -4693,23 +4725,14 @@ class EmbedService:
             Decrypted embed data dictionary or None if not found
         """
         try:
-            cache_key = f"embed:{embed_id}"
-            client = await self.cache_service.client
-            if not client:
-                logger.warning(f"{log_prefix} Redis client not available")
+            embed_data = await self._get_embed_record(embed_id, log_prefix)
+            if not embed_data:
                 return None
-                
-            embed_json = await client.get(cache_key)
-            if not embed_json:
-                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
-                return None
-                
-            import json as json_lib
-            embed_data = json_lib.loads(embed_json)
+            embed_data = dict(embed_data)
             
             # Decrypt content using vault key if present
             encrypted_content = embed_data.get("encrypted_content")
-            if encrypted_content:
+            if isinstance(encrypted_content, str) and encrypted_content.startswith("vault:v"):
                 plaintext_content = await self.encryption_service.decrypt_with_user_key(
                     encrypted_content,
                     user_vault_key_id
@@ -4733,7 +4756,13 @@ class EmbedService:
                             )
                             # Merge decoded content into embed_data for easy access
                             # The decoded content contains the actual data (query, provider, etc.)
+                            authority = {key: embed_data[key] for key in (
+                                "embed_id", "type", "chat_id", "message_id", "hashed_user_id",
+                                "hashed_chat_id", "hashed_message_id", "parent_embed_id", "embed_ids",
+                                "encrypted_content", "encryption_mode", "status", "is_private", "is_shared",
+                            ) if key in embed_data}
                             embed_data.update(decoded_content)
+                            embed_data.update(authority)
                             logger.debug(
                                 f"{log_prefix} After merge, embed_data has 'query': {'query' in embed_data}, "
                                 f"'provider': {'provider' in embed_data}"
@@ -4768,6 +4797,7 @@ class EmbedService:
     # aes_key (used only by the client for local decryption) from ever entering
     # the LLM context.
     _TOON_LLM_STRIP_FIELDS = frozenset({
+        "authored_media",        # Selected image keys remain encrypted presentation data.
         "aes_key",               # Plaintext AES key — client-only, never for LLM
         "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
         "aes_nonce",             # AES-GCM nonce — resolved server-side
@@ -4846,6 +4876,14 @@ class EmbedService:
             app_id = decoded.get("app_id")
             skill_id = decoded.get("skill_id")
             embed_type = decoded.get("type")
+
+            if embed_type == "authored_results":
+                # The actual typed children are expanded separately. Never repeat
+                # the raw authoring envelope or expose transport-only UUIDs.
+                filtered = {key: decoded[key] for key in ("type", "title", "status", "validation") if key in decoded}
+                filtered["items"] = [{key: item[key] for key in ("kind", "title", "embed_ref") if key in item}
+                                     for item in decoded.get("items", []) if isinstance(item, dict)]
+                return encode(filtered), None
 
             if embed_type == "audio-recording":
                 # Audio recording embeds: the LLM only needs the transcript for context
@@ -5601,6 +5639,18 @@ class EmbedService:
 
                 try:
                     decoded_for_type = decode(toon_content)
+                    if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "authored_results":
+                        from backend.core.api.app.services.authored_result_service import authored_children_for_context
+                        children = await authored_children_for_context(
+                            self, embed_id, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+                        )
+                        for child_id, child_toon in children:
+                            child_filtered, child_ref = self._filter_toon_for_llm(
+                                child_toon, child_id, log_prefix, seen_embed_refs,
+                            )
+                            if child_ref:
+                                file_path_index[child_ref] = child_id
+                            resolved_text += f"\n\n```toon\n{child_filtered}\n```"
                     if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "code":
                         code_run_output_toon = await self._get_cached_code_run_output_toon(
                             embed_id,
@@ -6590,7 +6640,7 @@ class EmbedService:
         embed_id, chat_id, message_id = data["embed_id"], data["chat_id"], data["message_id"]
         user_id, status, embed_type = data["user_id"], data["status"], data["type"]
         if finished_cache_data is not None and (
-            status == "finished" or (status == "error" and embed_type == "app_skill_use")
+            status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})
         ):
             if (finished_cache_data.get("embed_id") != embed_id
                     or finished_cache_data.get("status") != status
@@ -6615,7 +6665,7 @@ class EmbedService:
             )
 
             # Track finished embeds as pending client encryption
-            if (status == "finished" or (status == "error" and embed_type == "app_skill_use")) and chat_id and message_id and not self._volatile_incognito_publication_required():
+            if (status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})) and chat_id and message_id and not self._volatile_incognito_publication_required():
                 await self._track_pending_embed(user_id, embed_id, log_prefix)
 
             return True
@@ -6860,7 +6910,7 @@ class EmbedService:
         required_delivery = False
         try:
             required_delivery = (
-                (status == "finished" or (status == "error" and embed_type == "app_skill_use"))
+                (status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"}))
                 and encryption_mode == "client" and self._finished_recovery_required()
             ) or self._volatile_incognito_publication_required()
             await self._require_finished_publication_authority(user_id_hash)
@@ -6972,7 +7022,7 @@ class EmbedService:
                 return True
 
             if encryption_mode == "client" and (
-                status == "finished" or (status == "error" and embed_type == "app_skill_use")
+                status == "finished" or (status == "error" and embed_type in {"app_skill_use", "authored_results"})
             ):
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,

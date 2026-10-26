@@ -40,6 +40,7 @@ async function fixture() {
   const waiters = new Map<string, { predicate: (payload: unknown) => boolean;
     resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   const enrichment = { race: null as "version" | "cipher" | "metadata" | "receipt" | "reread" | "missing-wrapper" | "unreadable-wrapper" | "changed-wrapper" | "fresh-wrapper" | "changed-app" | "changed-skill" | "changed-children" | "changed-root" | "changed-workspace" | "normalized-children" | null };
+  const rejection = { code: "embed_write_denied" };
   const ws = {
     waitForMessage: (type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve, reject) => {
       waiters.set(type, { predicate, resolve, reject });
@@ -78,11 +79,11 @@ async function fixture() {
         if (enrichment.race === "changed-workspace") head.workspace_origin = "other-workspace";
         if (enrichment.race === "normalized-children") head.embed_ids = JSON.stringify(head.embed_ids);
       } else if (type === "store_embed") {
-        const error = { request_id: payload.request_id, code: "embed_write_denied" };
+        const error = { request_id: payload.request_id, code: rejection.code };
         // The real error frame omits embed_id; matching it must not wait for timeout.
         assert.equal(waiter.predicate({ ...error, request_id: "other-writer" }), false);
         assert.equal(waiter.predicate(error), true);
-        waiter.reject(new WebSocketProtocolError("embed_write_denied", "Not authorized to store embed"));
+        waiter.reject(new WebSocketProtocolError(rejection.code, "Canonical write rejected"));
       } else {
         waiter.resolve({ payload: { created_count: 2, failed_count: 0 } });
       }
@@ -110,10 +111,49 @@ async function fixture() {
       ws, embeds: [frame], chatId, chatKeyBytes: chatKey, ownerId, fallbackMessageId: "canonical-message",
     });
   };
-  return { client, head, wrapper, frames, reads, ws, run, key, enrichment };
+  return { client, head, wrapper, frames, reads, ws, run, key, enrichment, rejection };
 }
 
 describe("CLI streamed canonical heads", () => {
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,authored-results.lifecycle.encrypted-and-stable
+  it("reads the exact persisted assistant after another device completed a job without a final frame", async () => {
+    const state = await fixture();
+    const message = { id: "server-row", clientMessageId: "canonical-assistant", chatId,
+      role: "assistant", content: "Card reference\n\nThe complete trailing explanation. 🗓️",
+      category: "events", modelName: null };
+    state.client.getChatMessages = async (id: string, options: unknown) => {
+      assert.equal(id, chatId);
+      assert.deepEqual(options, { freshChatOnly: true, maxHistoryPages: 1, personal: true, teamId: null });
+      return { chat: { id: chatId }, messages: [message], historyIncomplete: true };
+    };
+    const read = state.client.readTerminalRecoveryResponse as (...args: unknown[]) => Promise<unknown>;
+    assert.deepEqual(await read.call(state.client, chatId, "canonical-assistant", null), message);
+    assert.equal(state.frames.length, 0);
+  });
+
+  for (const mismatch of ["chat", "message-chat", "role", "assistant", "duplicate", "missing", "content", "unreadable", "account"] as const) {
+    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`rejects a persisted recovery assistant with mismatched ${mismatch}`, async () => {
+      const state = await fixture();
+      state.client.getChatMessages = async () => {
+        const message: Record<string, unknown> = { id: "canonical-assistant", chatId, role: "assistant", content: "Complete reply" };
+        if (mismatch === "message-chat") message.chatId = "other-chat";
+        if (mismatch === "role") message.role = "user";
+        if (mismatch === "assistant") message.clientMessageId = "other-assistant";
+        if (mismatch === "content") message.content = null;
+        // The existing message decoder represents failed decryption as ''.
+        if (mismatch === "unreadable") message.content = "";
+        if (mismatch === "account") state.client.session = null;
+        return { chat: { id: mismatch === "chat" ? "other-chat" : chatId },
+          messages: mismatch === "missing" ? [] : mismatch === "duplicate" ? [message, { ...message }] : [message] };
+      };
+      const read = state.client.readTerminalRecoveryResponse as (...args: unknown[]) => Promise<unknown>;
+      await assert.rejects(read.call(state.client, chatId, "canonical-assistant", null),
+        /Persisted recovery assistant|Not logged in|Recovery account, Team or key changed/);
+      assert.equal(state.frames.length, 0);
+    });
+  }
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("rejects a logged-out canonical fixture before reading or writing", async () => {
     const state = await fixture();
@@ -247,6 +287,18 @@ describe("CLI streamed canonical heads", () => {
     assert.deepEqual(state.reads, [`/v1/embeds/chats/${chatId}/embeds/${embedId}`]);
   });
 
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,authored-results.lifecycle.encrypted-and-stable
+  it("reuses an identical revision after another client has made its ciphertext immutable", async () => {
+    const state = await fixture();
+    state.rejection.code = "embed_revision_conflict";
+    const head = structuredClone(state.head), wrapper = structuredClone(state.wrapper);
+    await state.run();
+    assert.deepEqual(state.head, head);
+    assert.deepEqual(state.wrapper, wrapper);
+    assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed"]);
+    assert.deepEqual(state.reads, [`/v1/embeds/chats/${chatId}/embeds/${embedId}`]);
+  });
+
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("accepts an authorized Personal master wrapper when the chat wrapper is absent", async () => {
     const state = await fixture();
@@ -304,27 +356,30 @@ describe("CLI streamed canonical heads", () => {
   });
 
   for (const mismatch of ["owner", "chat", "team", "parent", "version", "message", "task", "children", "app", "skill", "type", "content", "wrapper"] as const) {
-    // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
-    it(`rejects a denied head with different ${mismatch} without rewriting or acknowledging it`, async () => {
-      const state = await fixture();
-      if (mismatch === "owner") state.head.hashed_user_id = hash("other-owner");
-      if (mismatch === "chat") state.head.hashed_chat_id = hash("other-chat");
-      if (mismatch === "team") state.head.hashed_team_id = hash("other-team");
-      if (mismatch === "parent") state.head.parent_embed_id = "other-parent";
-      if (mismatch === "version") state.head.version_number = 2;
-      if (mismatch === "message") state.head.hashed_message_id = hash("other-message");
-      if (mismatch === "task") state.head.hashed_task_id = hash("other-task");
-      if (mismatch === "children") state.head.embed_ids = ["other-child"];
-      if (mismatch === "app") state.head.app_id = "other-app";
-      if (mismatch === "skill") state.head.skill_id = "other-skill";
-      if (mismatch === "type") state.head.encrypted_type = await encryptWithAesGcmCombined("code", state.key);
-      if (mismatch === "content") state.head.encrypted_content = await encryptWithAesGcmCombined("changed source", state.key);
-      if (mismatch === "wrapper") state.wrapper.encrypted_embed_key = await encryptBytesWithAesGcm(new Uint8Array(32).fill(8), chatKey);
-      const original = state.head.encrypted_content;
-      await assert.rejects(state.run(), /no matching canonical head|does not match streamed source/);
-      assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed"]);
-      assert.equal(state.head.encrypted_content, original);
-    });
+    for (const code of ["embed_write_denied", "embed_revision_conflict"]) {
+      // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+      it(`rejects ${code} with different ${mismatch} without rewriting or acknowledging it`, async () => {
+        const state = await fixture();
+        state.rejection.code = code;
+        if (mismatch === "owner") state.head.hashed_user_id = hash("other-owner");
+        if (mismatch === "chat") state.head.hashed_chat_id = hash("other-chat");
+        if (mismatch === "team") state.head.hashed_team_id = hash("other-team");
+        if (mismatch === "parent") state.head.parent_embed_id = "other-parent";
+        if (mismatch === "version") state.head.version_number = 2;
+        if (mismatch === "message") state.head.hashed_message_id = hash("other-message");
+        if (mismatch === "task") state.head.hashed_task_id = hash("other-task");
+        if (mismatch === "children") state.head.embed_ids = ["other-child"];
+        if (mismatch === "app") state.head.app_id = "other-app";
+        if (mismatch === "skill") state.head.skill_id = "other-skill";
+        if (mismatch === "type") state.head.encrypted_type = await encryptWithAesGcmCombined("code", state.key);
+        if (mismatch === "content") state.head.encrypted_content = await encryptWithAesGcmCombined("changed source", state.key);
+        if (mismatch === "wrapper") state.wrapper.encrypted_embed_key = await encryptBytesWithAesGcm(new Uint8Array(32).fill(8), chatKey);
+        const original = state.head.encrypted_content;
+        await assert.rejects(state.run(), /no matching canonical head|does not match streamed source/);
+        assert.deepEqual(state.frames.map(frame => frame.type), ["store_embed"]);
+        assert.equal(state.head.encrypted_content, original);
+      });
+    }
   }
 
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted

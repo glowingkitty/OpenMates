@@ -16,6 +16,9 @@ category: personal
 last_updated: "2026-06-02"
 embed_types:
   - id: forecast
+    authoring:
+      kind: weather.weather_day
+      schema_id: weather.weather_day
     category: app-skill-use
     skill_id: forecast
     frontend_type: app-skill-use

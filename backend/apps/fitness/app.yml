@@ -9,6 +9,9 @@ category: personal
 last_updated: '2025-11-12'
 embed_types:
   - id: search_locations
+    authoring:
+      kind: fitness.location
+      schema_id: fitness.location
     category: app-skill-use
     skill_id: search_locations
     frontend_type: app-skill-use
@@ -25,6 +28,9 @@ embed_types:
     gradient_var: "--color-app-fitness"
     i18n_namespace: embeds.fitness.search_locations
   - id: search_classes
+    authoring:
+      kind: fitness.class
+      schema_id: fitness.class
     category: app-skill-use
     skill_id: search_classes
     frontend_type: app-skill-use

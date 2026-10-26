@@ -14,10 +14,14 @@ goal: >
 
 specification: feature.assistant-authored-result-embeds@1
 approved_fingerprint: 357f1fc43c04948d41da770abed8dd9d67ecb7a4048d726ab4b9f11954115fc8
+additional_specifications:
+  - specification: feature.tv-title-embeds@1
+    approved_fingerprint: afad08fbc2b26f87115ae8e5ecca8b1fc756d72ad093bd2e1cb0ab38942b3362
+    scope: Two new TV movie/series result kinds with posters and supplied seasons; wiki excluded.
 approval_source: Explicit user approval in the linked Codex chat on 2026-10-26.
 scope:
   in:
-    - Every informational and real-asset result registration in the approved Specification's eligibility inventory, in the first release.
+    - Every informational and real-asset result registration in the approved Specification's eligibility inventory plus the two separately approved TV movie/series kinds, in the first release.
     - Explicitly requested fictional/proposed records labelled as drafts in both previews and details.
     - Shared authoring, encrypted lifecycle, same-response groups, existing rich UI, sources, images, maps, sharing, and applicable explicit actions.
     - API, native Rust CLI/TUI and Rust/npm/Python SDK semantics, followed by verified web behavior.
@@ -84,6 +88,10 @@ delivery:
     - task: TASK-5964
       outcome: A real sourced FOSDEM research chat with a working event card is admitted, sanitized, published and verified as an example.
       assertion_groups: [demonstrations]
+    - task: TASK-9910
+      outcome: TV movie and series cards show posters, supplied metadata and seasons, preserve sources/drafts/sharing, and leave watched history/watchlist unchanged.
+      specification: feature.tv-title-embeds@1
+      assertion_ids: [tv-titles.authoring.relevant-and-flexible, tv-titles.presentation.posters-and-details, tv-titles.series.supplied-seasons, tv-titles.lifecycle.groups-and-actions]
   implementation_order:
     - Establish an event vertical slice internally, then complete every eligible type before the first release; the release scope is not limited to the four originally named types.
     - Prove API/native CLI/SDK semantics, then integrate and verify web presentation and actions.

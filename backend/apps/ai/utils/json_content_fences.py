@@ -5,6 +5,8 @@ from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
 
 
 def json_content_embed_type(language: str | None) -> str | None:
+    if language and language.strip().lower() == "openmates_embeds":
+        return "authored_results"
     if is_calendar_event_fence(language):
         return "calendar_event"
     if is_mindmap_fence(language):

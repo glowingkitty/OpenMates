@@ -4,7 +4,8 @@
 # When a user message contains <<<TEST_MOCK:fixture_id>>> or <<<TEST_MOCK:fixture_id:speed>>>,
 # the Celery task skips real LLM inference and skill API calls, replaying pre-recorded
 # fixture data through the same Redis pub/sub channels. Everything else (WebSocket,
-# encryption, billing preflight, postprocessing, persistence) remains real.
+# encryption, billing preflight, persistence) remains real. Explicit committed
+# postprocessing metadata replaces that inference stage when provided.
 #
 # Security: All functions return None / no-op when SERVER_ENVIRONMENT == "production".
 #
@@ -18,13 +19,16 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
+
+if TYPE_CHECKING:
+    from backend.apps.ai.processing.postprocessor import PostProcessingResult
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +217,22 @@ def build_preprocessing_result(fixture_data: Dict[str, Any]) -> PreprocessingRes
     )
 
 
+def build_fixture_postprocessing_result(fixture_data: Dict[str, Any]) -> Optional["PostProcessingResult"]:
+    """Validate explicitly committed metadata without invoking a decision model.
+
+    Fixtures without this section retain their existing postprocessing behavior.
+    Reject unknown keys instead of silently accepting misspelled fixture fields.
+    """
+    if "postprocessing" not in fixture_data:
+        return None
+    from backend.apps.ai.processing.postprocessor import PostProcessingResult
+
+    metadata = fixture_data["postprocessing"]
+    if not isinstance(metadata, dict) or set(metadata) - set(PostProcessingResult.model_fields):
+        raise ValueError("Invalid fixture postprocessing metadata fields")
+    return PostProcessingResult.model_validate(metadata, strict=True)
+
+
 def _split_response_into_chunks(response: str) -> List[str]:
     """
     Split a full response into progressive cumulative chunk strings.
@@ -288,11 +308,13 @@ async def replay_fixture(
     those embeds are recreated in the database with fresh IDs so the frontend can
     resolve and render them. The response text is updated with the new IDs.
 
-    Everything downstream (billing preflight, postprocessing, persistence) still runs
-    with the synthetic PreprocessingResult and aggregated response from the fixture.
+    Downstream billing and persistence still run with the synthetic preprocessing
+    and response. Explicit postprocessing metadata is validated for the caller to
+    use instead of provider inference; fixtures without it keep the normal stage.
     """
     fixture_data = load_fixture(fixture_id)
     preprocessing_result = build_preprocessing_result(fixture_data)
+    postprocessing_result = build_fixture_postprocessing_result(fixture_data)
 
     # --- 0. Recreate embeds from fixture data ---
     # Fixtures recorded after stream_consumer processing contain embed references
@@ -478,7 +500,14 @@ async def replay_fixture(
 
         # Publish chunk to Redis
         channel = f"chat_stream::{request_data.chat_id}"
-        await cache_service.publish_event(channel, payload)
+        if is_final and os.getenv("OPENMATES_CI_ISOLATED") == "1":
+            logger.info("Fixture final publication stage=begin success=none")
+        published = await cache_service.publish_event(channel, payload)
+        if is_final and os.getenv("OPENMATES_CI_ISOLATED") == "1":
+            logger.info(
+                "Fixture final publication stage=complete success=true"
+                if published is True else "Fixture final publication stage=complete success=false"
+            )
 
         # Simulate streaming delay between chunks (not after the last one)
         if not is_final and chunk_delay > 0:
@@ -522,7 +551,7 @@ async def replay_fixture(
         f"{total_chunks} chunks published."
     )
 
-    return {
+    result = {
         "preprocessing_result": preprocessing_result,
         "aggregated_final_response": full_response,
         "thinking_content": thinking_content_list,
@@ -530,6 +559,9 @@ async def replay_fixture(
         "revoked_in_consumer": False,
         "soft_limited_in_consumer": False,
     }
+    if postprocessing_result is not None:
+        result["postprocessing_result"] = postprocessing_result
+    return result
 
 
 async def _persist_mock_replay_recovery_job(
@@ -750,10 +782,16 @@ async def _recreate_fixture_embeds(
                     logger.info(
                         f"[MOCK] Recreated {embed_type} embed: {old_embed_id} → {embed_data['embed_id']}"
                     )
-            elif embed_type == "calendar_event":
+            elif embed_type in {"calendar_event", "authored_results"}:
                 # Exercise the production encrypted JSON-content lifecycle.
+                # Authored children must be materialized by the real finalizer;
+                # fixtures contain source documents, never prebuilt child cards.
+                source_language = (
+                    "openmates_embeds" if embed_type == "authored_results"
+                    else "openmates_calendar_event"
+                )
                 embed_data = await embed_service.create_json_content_embed_placeholder(
-                    source_language="openmates_calendar_event",
+                    source_language=source_language,
                     chat_id=request_data.chat_id,
                     message_id=request_data.message_id,
                     user_id=request_data.user_id,
@@ -764,7 +802,7 @@ async def _recreate_fixture_embeds(
                 )
                 if embed_data:
                     updated = await embed_service.update_json_content_embed_content(
-                        source_language="openmates_calendar_event",
+                        source_language=source_language,
                         embed_id=embed_data["embed_id"],
                         source_json=json.dumps(embed_meta["document"]),
                         chat_id=request_data.chat_id,
@@ -775,7 +813,7 @@ async def _recreate_fixture_embeds(
                         log_prefix=log_prefix,
                     )
                     if not updated:
-                        raise RuntimeError("Calendar fixture could not be finalized")
+                        raise RuntimeError(f"{embed_type} fixture could not be finalized")
                     new_block = f"```json\n{embed_data['embed_reference']}\n```"
                     response = response[:match.start()] + new_block + response[match.end():]
             elif embed_type == "mail":

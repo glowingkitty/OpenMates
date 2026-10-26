@@ -51,6 +51,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
+from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
@@ -1436,7 +1437,7 @@ class PreprocessingResult(BaseModel):
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (low, medium, high, or max).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app memories keys to load (e.g., ['app_id:item_key']).")
-    relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
+    relevant_embedded_previews: Optional[List[str]] = Field(None, description="Relevant legacy preview types and app-qualified authored-result kinds; several kinds may be relevant.")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="Concise summary (max 20 words) of the full conversation so far.")
@@ -2663,6 +2664,7 @@ async def handle_preprocessing(
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 message_history=sanitized_message_history,
                 voice_heard_context=voice_heard_context,
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=list(discovered_apps_metadata or {}),
                 available_skills=public_skills, available_focus_modes=public_focuses,
                 project_candidates=request_data.project_focus_candidates,
@@ -3162,6 +3164,7 @@ async def handle_preprocessing(
                     telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                     message_history=sanitized_message_history,
                     voice_heard_context=voice_heard_context,
+                    authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                     available_apps=list(discovered_apps_metadata or {}),
                     available_skills=available_skills_list,
                     available_focus_modes=available_focus_modes_list,
@@ -3333,6 +3336,7 @@ async def handle_preprocessing(
                 is_first_message=is_first_message, skip_mate_routing=explicit_mate is not None,
                 available_rules=[], available_workflows=[], effective_focus={},
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=[], selected_app_ids=[], early_decisions=early_routing["early_decisions"],
                 candidate_discovery_complete=True,
                 related_discovery_complete=True,
@@ -3430,6 +3434,7 @@ async def handle_preprocessing(
                 available_workflows=initial_workflow_metadata,
                 effective_focus={"id": request_data.active_focus_id,
                                  "phase": ((request_data.focus_phase_state or {}).get(request_data.active_focus_id or "") or {}).get("phase_id")},
+                authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
                 available_apps=available_app_ids,
                 forced_app_ids=forced_app_ids,
                 selected_app_ids=selected_app_ids,

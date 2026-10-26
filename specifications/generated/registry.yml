@@ -783,6 +783,18 @@ specifications:
     fingerprint: c3501a1dc8a2465d7a270236acfd377a003a35f152e3390d78a70cb3855904fd
     required_applies_to:
     - cli
+  feature.tv-title-embeds:
+    version: 1
+    status: draft
+    path: features/tv-title-embeds
+    fingerprint: afad08fbc2b26f87115ae8e5ecca8b1fc756d72ad093bd2e1cb0ab38942b3362
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.video-call:
     version: 12
     status: approved
@@ -10181,6 +10193,54 @@ assertions:
     fingerprint: 0d645c3cb8a58415510113da57dad9847f99dfb08df3dd814ba57fae82ccda39
     required_applies_to:
     - cli
+  tv-titles.authoring.relevant-and-flexible:
+    specification: feature.tv-title-embeds@1
+    specification_id: feature.tv-title-embeds
+    type: behavior
+    fingerprint: 854588ae678dd334f553b4252ce359cdebec6279f1c4b571944d8b7a4fe6c9b6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tv-titles.presentation.posters-and-details:
+    specification: feature.tv-title-embeds@1
+    specification_id: feature.tv-title-embeds
+    type: behavior
+    fingerprint: aade062aff8ee7a314216e436ea376034cb38ca4b1a44e46d13a2c22ac48d49b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tv-titles.series.supplied-seasons:
+    specification: feature.tv-title-embeds@1
+    specification_id: feature.tv-title-embeds
+    type: validation
+    fingerprint: 073bc263a95d089df86d90b01b1d6359de2b81639d2d92938cdd65b6685eff36
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tv-titles.lifecycle.groups-and-actions:
+    specification: feature.tv-title-embeds@1
+    specification_id: feature.tv-title-embeds
+    type: parity
+    fingerprint: e3b5410ca731481d4f98ebbb1f20e2097dc20314d3cdb33681ab7bc50d18ad5f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   video-call.chat.launch-and-provider:
     specification: feature.video-call@12
     specification_id: feature.video-call

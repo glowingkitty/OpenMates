@@ -213,6 +213,9 @@ embed_types:
     i18n_namespace: embeds.images.generate
   # Individual image search result — child embed of images.search
   - id: image_result
+    authoring:
+      kind: images.image_result
+      schema_id: images.image_result
     category: direct
     frontend_type: images-image-result
     backend_type: image_result

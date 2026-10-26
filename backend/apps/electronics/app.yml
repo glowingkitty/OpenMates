@@ -79,6 +79,9 @@ embed_types:
       - name: artifact_manifest
         type: object
   - id: search_components
+    authoring:
+      kind: electronics.component
+      schema_id: electronics.component
     category: app-skill-use
     skill_id: search_components
     frontend_type: app-skill-use

@@ -49,6 +49,7 @@ from backend.apps.ai.processing.model_routing import (
 from backend.apps.ai.utils.instruction_loader import (
     REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
 )
+from backend.apps.ai.utils.authored_result_instructions import build_authored_result_instructions
 from backend.apps.ai.utils.mate_utils import MateConfig, select_mate_system_prompt
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
 from backend.apps.ai.utils.app_skill_result_groups import (
@@ -4761,6 +4762,11 @@ async def handle_main_processing(
                 normalized_previews.add(PREVIEW_TO_EMBED_TYPE[p])
 
         workflow_presentation_only = (request_data.user_preferences or {}).get("workflow_ai") is True
+        authored_result_guidance = build_authored_result_instructions(
+            relevant_previews, discovered_apps_metadata, presentation_only=workflow_presentation_only,
+        )
+        if authored_result_guidance:
+            prompt_parts.append(authored_result_guidance)
         workflow_known_sources = {
             source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
             if isinstance(source, str) and "-" in source

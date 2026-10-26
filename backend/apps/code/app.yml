@@ -223,6 +223,9 @@ embeds:
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_repos
+    authoring:
+      kind: code.repo
+      schema_id: code.repo
     category: app-skill-use
     skill_id: search_repos
     frontend_type: app-skill-use

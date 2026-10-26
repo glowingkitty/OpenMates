@@ -291,3 +291,40 @@ no provider call. Native Rust export integration is explicitly deferred; shared
 fixtures live in `shared/test-fixtures/calendar-event-export.json`. See
 [verification](../../plans/calendar-event-embeds/verification.md) for the approved
 scope and evidence.
+
+### Assistant-authored results
+
+`shared/config/authored_result_types.json` defines the validated informational and
+real-resource result kinds. Each app explicitly admits its kinds through
+`embed_types[].authoring`. This admission is independent of an enabled search
+skill: it permits presentation of supplied or researched facts, never execution
+of a removed provider or an operation such as booking or publication.
+
+Jev receives compact discovery hints. Only the relevant kinds' schemas enter the
+assistant prompt, through the existing preview-selection gate. The assistant
+emits a versioned `openmates_embeds` JSON fence with `schemaVersion: 1`, `items`,
+and an optional `view`. Each item has a block-local `id`, canonical `kind`,
+`title`, `origin`, and typed `details`; sources, observation time and images are
+optional. Origins distinguish researched facts, user-provided facts and explicitly
+requested drafts. Unknown optional facts remain absent.
+
+The ordinary JSON-content lifecycle persists one internal `authored_results`
+carrier and ordered, ordinary typed children. It assigns child identities before
+publishing them; local labels never become public embed identities. Each child
+retains its real app/type and encrypted provenance. Independent invalid items
+do not discard valid siblings. The carrier records validation, actual child IDs,
+and the resolved cards/map request. It is not an `app_skill_use` execution record.
+
+Existing image references resolve only through the current authorized context.
+Selected encrypted-image descriptors are copied into the child's encrypted
+content as `authored_media`; the source upload keeps its original ownership and
+parent. HTTP image URLs use the existing image delivery path. Neither validation
+nor rendering grants source access or performs provider enrichment.
+
+API history hydration validates owner, chat, parent, membership and registered
+type before expanding carrier children. Durable client ciphertext stays opaque
+to server-only readers. The normalized content and transport fixtures are shared
+by CLI and SDK coverage; native Rust migration evidence remains separately
+required. See the approved
+[Plan](../../plans/assistant-authored-result-embeds/plan.yml) for delivery order
+and the source-bound verification requirements.

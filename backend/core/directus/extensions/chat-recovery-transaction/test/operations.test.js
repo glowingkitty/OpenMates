@@ -38,6 +38,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   const shareLocks = [];
   const rawStatements = [];
   const lockEvents = [];
+  const firstReads = [];
   const failureCounts = new Map();
   const compare = (left, operator, right) => {
     const a = left instanceof Date ? left.getTime() : left;
@@ -125,7 +126,11 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
         forShare() { shareLocks.push(table); return query; },
         orderBy(field, direction = 'asc') { orders.push([field, direction]); return query; },
         limit(value) { limitCount = value; return query; },
-        async first() { return matching()[0]; },
+        async first() {
+          const row = matching()[0];
+          firstReads.push({ table, id: row?.id });
+          return row;
+        },
         async select(fields) {
           return matching().map((row) => Object.fromEntries(fields.map((field) => [field, row[field]])));
         },
@@ -190,6 +195,7 @@ function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   Object.defineProperty(database, 'shareLocks', { get: () => [...shareLocks] });
   Object.defineProperty(database, 'rawStatements', { get: () => [...rawStatements] });
   Object.defineProperty(database, 'lockEvents', { get: () => [...lockEvents] });
+  Object.defineProperty(database, 'firstReads', { get: () => [...firstReads] });
   database.transaction = async (callback) => {
     const run = transactionTail.then(async () => {
       transactions += 1;
@@ -2656,6 +2662,84 @@ test('account deletion refuses active legacy Team job or unpublished preflight',
     inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
     chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
   }), /account_recovery_fenced/);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.completion.recovery-takeover
+test('same-chat typed discovery authorizes each row once and rechecks the next request', async () => {
+  const seed = preparedSeed();
+  seed.chat_recovery_outputs = Array.from({ length: 26 }, (_, index) => ({
+    id: `018f8888-8888-7888-8888-${index.toString(16).padStart(12, '0')}`,
+    hashed_user_id: OWNER, state: 'PENDING', deleted_at: null,
+    created_at: new Date(1_862_000_000_000 + index * 1000),
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, root_hashed_team_id: null,
+    turn_id: TURN_ID, subject_id: `subject-${index}`, output_kind: 'embed',
+    output_version: 1, chat_key_version: 1, payload_storage: 'inline',
+  }));
+  const database = fakeDatabase(seed);
+  const discovery = { protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a' };
+  const listed = await executeOperation(database, 'list_pending_outputs', discovery);
+  assert.deepEqual(listed.outputs.map(row => row.record_id), seed.chat_recovery_outputs.map(row => row.id));
+  assert.equal(database.firstReads.filter(row => row.table === 'chats').length, 26,
+    'same identity needs one current authority query per output, with no cross-row cache');
+  assert.equal(listed.next_cursor, null);
+
+  database.rows.chats[0].hashed_user_id = 'e'.repeat(64);
+  assert.deepEqual((await executeOperation(database, 'list_pending_outputs', discovery)).outputs, []);
+  assert.equal(database.firstReads.filter(row => row.table === 'chats').length, 52,
+    'a later request must independently recheck current ownership for every row');
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.completion.recovery-takeover
+test('distinct-target typed discovery separately authorizes owned and foreign target chats', async () => {
+  const seed = preparedSeed();
+  const ownedTarget = '018f8888-8888-7888-8888-111111111111';
+  const foreignTarget = '018f8888-8888-7888-8888-222222222222';
+  seed.chats.push({ id: ownedTarget, hashed_user_id: OWNER },
+    { id: foreignTarget, hashed_user_id: 'e'.repeat(64) });
+  seed.chat_recovery_outputs = [CHAT_ID, ownedTarget, foreignTarget].map((target, index) => ({
+    id: `018f8888-8888-7888-8888-${index.toString(16).padStart(12, '0')}`,
+    hashed_user_id: OWNER, state: 'PENDING', deleted_at: null,
+    created_at: new Date(1_862_000_000_000 + index * 1000),
+    root_chat_id: CHAT_ID, target_chat_id: target, root_hashed_team_id: null,
+    turn_id: TURN_ID, subject_id: `subject-${index}`, output_kind: 'message',
+    output_version: 1, chat_key_version: 1, message_role: 'assistant', payload_storage: 'inline',
+  }));
+  const database = fakeDatabase(seed);
+  const listed = await executeOperation(database, 'list_pending_outputs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+  });
+  assert.deepEqual(listed.outputs.map(row => row.target_chat_id), [CHAT_ID, ownedTarget]);
+  assert.deepEqual(database.firstReads.filter(row => row.table === 'chats').map(row => row.id),
+    [CHAT_ID, CHAT_ID, ownedTarget, CHAT_ID, foreignTarget]);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.workspace.surface-parity
+test('distinct-target typed discovery retains independent Team role and workspace admission', async () => {
+  for (const role of ['member', 'viewer', 'revoked']) {
+    const seed = preparedSeed();
+    const otherTeam = 'e'.repeat(64);
+    const target = '018f8888-8888-7888-8888-333333333333';
+    seed.chats[0].hashed_team_id = TEAM_HASH;
+    seed.chats.push({ id: target, hashed_team_id: otherTeam });
+    seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }, { hashed_team_id: otherTeam, status: 'active' }];
+    seed.team_memberships = [
+      { hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' },
+      { hashed_team_id: otherTeam, hashed_user_id: OWNER, status: role === 'revoked' ? 'revoked' : 'active', role },
+    ];
+    seed.chat_recovery_outputs = [{
+      id: JOB_ID, hashed_user_id: OWNER, state: 'PENDING', deleted_at: null,
+      created_at: new Date(), root_chat_id: CHAT_ID, target_chat_id: target, root_hashed_team_id: TEAM_HASH,
+      turn_id: TURN_ID, subject_id: TASK_ID, output_kind: 'message', output_version: 1,
+      chat_key_version: 1, message_role: 'assistant', payload_storage: 'inline',
+    }];
+    const database = fakeDatabase(seed);
+    const listed = await executeOperation(database, 'list_pending_outputs', {
+      protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+    });
+    assert.deepEqual(listed.outputs, [], `${role}: a distinct target cannot reuse the root Team authority`);
+    assert.equal(database.firstReads.filter(row => row.table === 'chats').length, 2);
+    assert.equal(database.firstReads.filter(row => row.table === 'team_memberships').length, 2);
+  }
 });
 
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,teams.workspace.surface-parity

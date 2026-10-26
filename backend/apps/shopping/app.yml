@@ -19,6 +19,9 @@ instructions:
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_products
+    authoring:
+      kind: shopping.product
+      schema_id: shopping.product
     category: app-skill-use
     skill_id: search_products
     frontend_type: app-skill-use

@@ -10,6 +10,9 @@ last_updated: "2026-10-01"
 # Parent search and independently openable checked-domain children.
 embed_types:
   - id: search_domains
+    authoring:
+      kind: hosting.hosting_domain
+      schema_id: hosting.hosting_domain
     category: app-skill-use
     skill_id: search_domains
     frontend_type: app-skill-use

@@ -1681,7 +1681,7 @@ def test_searches_decrypted_chat_metadata_locally(monkeypatch):
     ]
 
 
-# contract-test: supporting surface=sdks.pip assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+# contract-test: supporting surface=sdks.pip assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity,authored-results.lifecycle.encrypted-and-stable,authored-results.surfaces.shared-semantics
 def test_load_decrypts_chat_messages_client_side(monkeypatch):
     api_key = "sk-api-python-load"
     master_key = os.urandom(32)
@@ -1707,6 +1707,11 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
                   "    price_including_tax: 13.09\n"
                   "  - unit: year\n    min_duration: 2\n    max_duration: 2\n"
                   "    price_including_tax: 26.18\nrenewal_tiers[0]:")
+    # Fixed wire input from the backend's current TOON format: bare [] is an
+    # empty array while quoted "[]" and source_json remain literal strings.
+    authored_toon = ('type: authored_results\nembed_ids[0]:\nvalidation:\n'
+                     '  status: valid\n  warnings: []\nliteral: "[]"\n'
+                     'source_json: "{\\"items\\": []}"')
     own_child_key = os.urandom(32)
     own_child = {
         "embed_id": "own-child", "parent_embed_id": "hosting-parent",
@@ -1748,9 +1753,14 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
                 "embed_id": "hosting-parent",
                 "encrypted_type": _encrypt_combined(b"app_skill_use", embed_key),
                 "encrypted_content": _encrypt_combined(parent_toon.encode(), embed_key),
-            }, own_child, blocked_child],
+            }, own_child, blocked_child, {
+                "embed_id": "authored-parent",
+                "encrypted_type": _encrypt_combined(b"authored_results", embed_key),
+                "encrypted_content": _encrypt_combined(authored_toon.encode(), embed_key),
+            }],
             "embed_keys": [{"hashed_embed_id": hashed_id, "key_type": "master", "encrypted_embed_key": encrypted_embed_key}
-                           for hashed_id in (hashed_embed_id, hashlib.sha256(b"hosting-parent").hexdigest())] + [
+                           for hashed_id in (hashed_embed_id, hashlib.sha256(b"hosting-parent").hexdigest(),
+                                             hashlib.sha256(b"authored-parent").hexdigest())] + [
                 {"hashed_embed_id": hashlib.sha256(b"own-child").hexdigest(), "key_type": "master",
                  "encrypted_embed_key": _encrypt_combined(own_child_key, master_key)},
                 {"hashed_embed_id": hashlib.sha256(b"blocked-child").hexdigest(), "key_type": "master",
@@ -1789,6 +1799,11 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     assert loaded["embeds"][1]["type"] == "hosting_domain"
     assert loaded["embeds"][3]["content"] == child
     assert loaded["embeds"][4] == blocked_child, "Failed own wrapper must not fall back to parent"
+    assert loaded["embeds"][5]["content"] == {
+        "type": "authored_results", "embed_ids": [],
+        "validation": {"status": "valid", "warnings": []},
+        "literal": "[]", "source_json": '{"items": []}',
+    }
     assert requests_seen == [
         ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
@@ -1804,6 +1819,24 @@ def test_embed_decoder_preserves_plain_text_and_invalid_toon():
     assert _parse_embed_content("ordinary embed text") == "ordinary embed text"
     assert _parse_embed_content('{"type":"hosting_domain"}') == {"type": "hosting_domain"}
     assert _parse_maybe_json("type: hosting_domain") == "type: hosting_domain"
+
+
+@pytest.mark.parametrize("wire,expected", [
+    ('validation:\n  warnings: []\n  literal: "[]"',
+     {"validation": {"warnings": [], "literal": "[]"}}),
+    ('authoring:\n  sources: []\nimages: []\nsource_json: "{\\"items\\": []}"',
+     {"authoring": {"sources": []}, "images": [], "source_json": '{"items": []}'}),
+    ('items[2]:\n  - warnings: []\n    literal: "[]"\n  - warnings: []\n    literal: "[]"',
+     {"items": [{"warnings": [], "literal": "[]"}, {"warnings": [], "literal": "[]"}]}),
+    ('values[3]:\n  - [0]:\n  - "[]"\n  - [0]:', {"values": [[], "[]", []]}),
+    ('"quoted:key": []\n"[]": "[]"', {"quoted:key": [], "[]": "[]"}),
+    ('warnings[0]:\nliteral: "[]"', {"warnings": [], "literal": "[]"}),
+])
+# contract-test: supporting surface=sdks.pip assertions=authored-results.content.typed-and-useful,authored-results.lifecycle.encrypted-and-stable,authored-results.surfaces.shared-semantics
+def test_embed_decoder_distinguishes_empty_arrays_from_quoted_literals(wire, expected):
+    from openmates.sdk import _parse_embed_content
+
+    assert _parse_embed_content(wire) == expected
 
 
 def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monkeypatch):

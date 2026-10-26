@@ -5014,7 +5014,7 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  for (const missingChild of [false, true, "unavailable"]) {
+  for (const missingChild of [false, true, "unavailable", "no-final"]) {
   it(`persists terminal recovery embeds including missing children: ${missingChild}`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -5097,12 +5097,19 @@ describe("CLI saved-chat recovery preflight", () => {
                   chat_id: frame.payload.chat_id,
                   user_message_id: message.message_id,
                   message_id: assistantMessageId,
-                  full_content_so_far: "ok",
-                  is_final_chunk: true,
+                  full_content_so_far: missingChild === "no-final" ? "Provisional prefix" : "ok",
+                  is_final_chunk: missingChild !== "no-final",
                   recovery_job_id: recoveryJobId,
                   recovery_protocol_version: 1,
                 },
               }));
+              if (missingChild === "no-final") {
+                ws.send(JSON.stringify({ type: "recovery_jobs_available", payload: { jobs: [{
+                  job_id: recoveryJobId, chat_id: frame.payload.chat_id,
+                  turn_id: captured.preflightPayload?.turn_id,
+                  assistant_message_id: assistantMessageId, chat_key_version: 1,
+                }] } }));
+              }
               ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: frame.payload.chat_id } }));
             }, 10);
           }
@@ -5156,14 +5163,29 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      let canonicalReads = 0;
+      if (missingChild === "no-final") {
+        client.getChatMessages = async (id, options) => {
+          canonicalReads += 1;
+          assert.equal(id, captured.preflightPayload?.chat_id);
+          assert.deepEqual(options, { freshChatOnly: true, maxHistoryPages: 1, personal: true, teamId: null });
+          return { chat: { id } as any, messages: [{ id: assistantMessageId, chatId: id,
+            role: "assistant", content: "ok", category: "general_knowledge", modelName: "test-model" } as any] };
+        };
+      }
       if (missingChild === "unavailable") {
         await assert.rejects(client.sendMessage({ message: "Make HTML from this screenshot" }), /original finished child data is unavailable/);
         assert.deepEqual(storedIds, []);
         return;
       }
-      const result = await client.sendMessage({ message: "Make HTML from this screenshot" });
+      const streamEvents: Array<{ content: string; responseTerminal?: boolean }> = [];
+      const result = await client.sendMessage({ message: "Make HTML from this screenshot", onStream: event => streamEvents.push(event) });
 
       assert.equal(result.assistant, "ok");
+      if (missingChild === "no-final") {
+        assert.equal(canonicalReads, 1);
+        assert.deepEqual(streamEvents.filter(event => event.responseTerminal).map(event => event.content), ["ok"]);
+      }
       assert.deepEqual(storedIds, missingChild ? [embedId, childId, grandchildId] : [embedId]);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), false);
       assert.equal(captured.storeEmbedPayload?.embed_id, embedId);

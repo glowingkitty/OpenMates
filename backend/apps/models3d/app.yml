@@ -38,6 +38,9 @@ embed_types:
       - name: preview_results
         type: object
   - id: model_result
+    authoring:
+      kind: models3d.model_result
+      schema_id: models3d.model_result
     category: direct
     frontend_type: models3d-model-result
     backend_type: model_result

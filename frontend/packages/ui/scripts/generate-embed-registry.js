@@ -157,6 +157,61 @@ function buildTypeNormalizationMap(allEmbedTypes) {
 }
 
 /**
+ * Resolve explicitly admitted authored kinds without relying on renderer maps.
+ * Composite declarations author their result child, never their execution card.
+ * Backend-only admissions retain a null frontendType until web registration.
+ *
+ * @param {Array<Object>} appEmbedTypes - App declarations enriched with app_id
+ * @returns {Readonly<Record<string, Readonly<{appId: string, registrationId: string, skillId: string | null, backendType: string, frontendType: string | null}>>>}
+ */
+export function buildAuthoredResultKindMap(appEmbedTypes) {
+  const kinds = {};
+  const identifier = /^[a-z][a-z0-9_-]*$/;
+  const requireIdentifier = (value, field, kind) => {
+    if (typeof value !== "string" || value.trim() !== value || !identifier.test(value)) {
+      throw new Error(`Invalid authored result ${field} for ${kind}`);
+    }
+    return value;
+  };
+
+  for (const def of appEmbedTypes) {
+    if (def.authoring == null) continue;
+    const admission = def.authoring;
+    if (typeof admission !== "object" || Array.isArray(admission)
+      || Object.keys(admission).sort().join(",") !== "kind,schema_id") {
+      throw new Error("Authored result admission requires kind and schema_id");
+    }
+    const { kind, schema_id: schemaId } = admission;
+    const appId = requireIdentifier(def.app_id, "app_id", kind);
+    const composite = def.has_children === true;
+    if (!composite && def.category !== "direct") {
+      throw new Error(`Authored result ${kind} must declare a direct record or composite child`);
+    }
+    const registrationId = requireIdentifier(def.id, "registration identity", kind);
+    const resultId = requireIdentifier(composite ? def.child_type : registrationId, "result identity", kind);
+    if (kind !== `${appId}.${resultId}` || schemaId !== kind) {
+      throw new Error(`Authored result identity mismatch for ${appId}:${def.id}`);
+    }
+    if (Object.hasOwn(kinds, kind)) {
+      throw new Error(`Duplicate authored result kind ${kind}`);
+    }
+    const backendType = requireIdentifier(composite ? def.child_type : def.backend_type, "backend type", kind);
+    const skillId = def.skill_id == null ? null : requireIdentifier(def.skill_id, "skill identity", kind);
+    if (composite && skillId === null) {
+      throw new Error(`Authored result ${kind} requires its declared composite skill identity`);
+    }
+    const declaredFrontendType = composite ? def.child_frontend_type : def.frontend_type;
+    const frontendType = declaredFrontendType == null || declaredFrontendType === ""
+      ? null : requireIdentifier(declaredFrontendType, "frontend type", kind);
+    kinds[kind] = Object.freeze({ appId, registrationId, skillId, backendType, frontendType });
+  }
+
+  return Object.freeze(Object.fromEntries(
+    Object.entries(kinds).sort(([left], [right]) => left.localeCompare(right)),
+  ));
+}
+
+/**
  * Build the child embed type resolution map for frontend routing.
  * Backend child_type values are persistence types like "location"; frontend
  * click/fullscreen routing needs child_frontend_type such as "fitness-location".
@@ -550,6 +605,7 @@ function generateTypeScript(maps) {
   const {
     typeNormalizationMap,
     childTypeMap,
+    authoredResultKindMap,
     componentMaps,
     rendererMap,
     embedMetadataMap,
@@ -615,6 +671,23 @@ function generateTypeScript(maps) {
   lines.push(
     `export const EMBED_CHILD_TYPE_MAP: Record<string, string> = ${JSON.stringify(childTypeMap, null, 2)};`,
   );
+  lines.push(``);
+
+  // Authored identity metadata is independent of web renderer readiness.
+  lines.push(`/** Explicit app-qualified authored result identity and optional web presentation. */`);
+  lines.push(`export interface AuthoredResultKindDefinition {`);
+  lines.push(`  readonly appId: string;`);
+  lines.push(`  readonly registrationId: string;`);
+  lines.push(`  readonly skillId: string | null;`);
+  lines.push(`  readonly backendType: string;`);
+  lines.push(`  readonly frontendType: string | null;`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(`export const AUTHORED_RESULT_KIND_MAP: Readonly<Record<string, AuthoredResultKindDefinition>> = Object.freeze(`);
+  lines.push(`  Object.fromEntries(`);
+  lines.push(`    Object.entries(${JSON.stringify(authoredResultKindMap, null, 2)}).map(([kind, definition]) => [kind, Object.freeze(definition)]),`);
+  lines.push(`  ),`);
+  lines.push(`);`);
   lines.push(``);
 
   // Preview component paths
@@ -824,6 +897,7 @@ function main() {
   // Build all maps
   const typeNormalizationMap = buildTypeNormalizationMap(allEmbedTypes);
   const childTypeMap = buildChildTypeMap(allEmbedTypes);
+  const authoredResultKindMap = buildAuthoredResultKindMap(appEmbedTypes);
   const componentMaps = buildComponentMaps(allEmbedTypes);
   const rendererMap = buildRendererMap(allEmbedTypes);
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
@@ -842,6 +916,7 @@ function main() {
   const tsCode = generateTypeScript({
     typeNormalizationMap,
     childTypeMap,
+    authoredResultKindMap,
     componentMaps,
     rendererMap,
     embedMetadataMap,
@@ -1143,5 +1218,6 @@ function main() {
   // for the remaining provider-specific aliases.
 }
 
-// Run
-main();
+// Run when invoked as a build script; importing the pure metadata builder has
+// no filesystem mutations or renderer-validation side effects.
+if (process.argv[1] && resolve(process.argv[1]) === __filename) main();

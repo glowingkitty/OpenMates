@@ -1,0 +1,34 @@
+schema_version: 1
+specification: feature.tv-title-embeds@1
+authoring:
+  - id: researched-movie-without-tv-provider
+    given: Alice asks about a film, and permitted research finds its official synopsis, release year and poster.
+    when: The assistant answers with a useful movie card.
+    then: Only movie-authoring guidance is loaded; the sourced TV card opens its details without inventing a TV search skill or fetching streaming availability.
+  - id: explicit-fictional-series-and-unrelated-answer
+    given: Alice asks for a fictional series concept, while Bob asks an unrelated arithmetic question.
+    when: Their assistants answer.
+    then: Alice can receive a visibly labelled series draft; Bob receives no movie or series authoring instructions.
+presentation:
+  - id: poster-credits-and-sourced-score
+    given: A film record supplies a portrait poster, synopsis, runtime, director and a sourced score of 8.2 out of 10.
+    when: Alice opens its card and fullscreen.
+    then: The complete poster and supplied facts are usable; the score keeps its source and scale and is not confused with Alice's personal watched-movie rating.
+  - id: missing-poster-and-unknown-metadata
+    given: A series record has a title and synopsis but no working poster, runtime or score.
+    when: Its preview and details render.
+    then: A deliberate poster fallback appears, the known text stays readable, and no runtime or rating is invented or fetched automatically.
+seasons:
+  - id: partial-season-guide-with-specials
+    given: A series source says there are four seasons but supplies details only for season one and specials numbered zero.
+    when: Alice opens the series details.
+    then: The supplied total and two supplied rows remain distinct; specials remain season zero and missing seasons or episode counts are not fabricated.
+  - id: malformed-or-conflicting-seasons
+    given: A series payload contains duplicate season numbers, a negative episode count, an impossible air date, or a total smaller than its supplied regular seasons.
+    when: It is validated.
+    then: The conflicting or malformed facts produce a clear validation outcome rather than silently repaired totals.
+lifecycle:
+  - id: mixed-movies-and-series-after-reload-and-sharing
+    given: Alice requests two movies and one series from supplied sources.
+    when: The assistant groups them, Alice reloads, then explicitly shares a selected title.
+    then: API and client records preserve the three identities and their order; the correct details and intended poster remain available to the recipient, without changing watched history or watchlist state.

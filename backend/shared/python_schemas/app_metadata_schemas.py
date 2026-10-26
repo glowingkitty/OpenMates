@@ -362,6 +362,22 @@ class EmbedTypeDefinition(BaseModel):
             "a durable browsable content type."
         ),
     )
+    authoring: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Explicit authored-result admission: canonical app-qualified kind and schema_id.",
+    )
+
+    @field_validator('authoring')
+    @classmethod
+    def validate_authoring_metadata(cls, value):
+        if value is not None and (
+            set(value) != {'kind', 'schema_id'}
+            or any(part.count('.') != 1 or any(not segment or not segment.replace('_', '').replace('-', '').isalnum()
+                                              for segment in part.split('.'))
+                   for part in value.values())
+        ):
+            raise ValueError("authoring requires app-qualified kind and schema_id")
+        return value
 
     @model_validator(mode='after')
     def validate_category_fields(self):

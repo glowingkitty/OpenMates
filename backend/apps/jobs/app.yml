@@ -33,6 +33,9 @@ embed_types:
       - {name: embed_ids, type: object}
       - {name: preview_results, type: object}
   - id: job_result
+    authoring:
+      kind: jobs.job_result
+      schema_id: jobs.job_result
     category: direct
     frontend_type: jobs-job-result
     backend_type: job_result

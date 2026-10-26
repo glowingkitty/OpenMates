@@ -221,7 +221,7 @@ preprocess_request_tool:
             type: "string"
         relevant_embedded_previews:
           type: "array"
-          description: "Useful supported embedded-preview types; otherwise []."
+          description: "Relevant supported preview types or app-qualified authored-result kinds from the public catalogue. Select every relevant kind for mixed result sets, independently of discovery skill availability; otherwise []."
           items:
             type: "string"
         topic_area:

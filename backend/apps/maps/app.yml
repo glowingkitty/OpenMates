@@ -10,6 +10,9 @@ last_updated: "2025-01-27"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search
+    authoring:
+      kind: maps.place
+      schema_id: maps.place
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use

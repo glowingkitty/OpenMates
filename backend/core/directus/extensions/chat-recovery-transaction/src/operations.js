@@ -4600,7 +4600,8 @@ async function listPendingOutputs(database, raw) {
   for (const row of rows) {
     try {
       const root = await authorizedOutputChat(database, row.root_chat_id, ownerHash, false);
-      const target = await authorizedOutputChat(database, row.target_chat_id, ownerHash, false);
+      const target = row.target_chat_id === row.root_chat_id
+        ? root : await authorizedOutputChat(database, row.target_chat_id, ownerHash, false);
       if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
         || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) continue;
       const { id, created_at: _createdAt, ...metadata } = row;

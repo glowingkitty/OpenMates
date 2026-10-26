@@ -10,6 +10,9 @@ last_updated: "2026-03-06"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_connections
+    authoring:
+      kind: travel.connection
+      schema_id: travel.connection
     category: app-skill-use
     skill_id: search_connections
     frontend_type: app-skill-use
@@ -26,6 +29,9 @@ embed_types:
     gradient_var: "--color-app-travel"
     i18n_namespace: embeds.travel.search_connections
   - id: search_stays
+    authoring:
+      kind: travel.stay
+      schema_id: travel.stay
     category: app-skill-use
     skill_id: search_stays
     frontend_type: app-skill-use

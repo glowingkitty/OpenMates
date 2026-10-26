@@ -2032,6 +2032,31 @@ def _full_replacement_history_rows(
     return rows
 
 
+async def _finalize_json_content_embed(embed_service: Any, **content_fields: Any) -> bool:
+    """Finalize once, then attempt one empty error snapshot on storage failure."""
+    log_prefix = content_fields.get("log_prefix", "")
+    embed_id = content_fields.get("embed_id")
+    try:
+        if await embed_service.update_json_content_embed_content(**content_fields):
+            return True
+        logger.error(f"{log_prefix} Final JSON content update failed for embed {embed_id}")
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception:
+        logger.error(f"{log_prefix} Error finalizing JSON content embed {embed_id}", exc_info=True)
+
+    try:
+        if not await embed_service.update_json_content_embed_content(
+            **{**content_fields, "status": "error", "source_json": ""},
+        ):
+            logger.error(f"{log_prefix} Error snapshot could not be saved for JSON content embed {embed_id}")
+    except RequiredRecoveryOutputError:
+        raise
+    except Exception:
+        logger.error(f"{log_prefix} Error saving failed JSON content snapshot {embed_id}", exc_info=True)
+    return False
+
+
 async def _finalize_diagram_html_embed(
     embed_service: Any, embed_id: str, source: str, request_data: AskSkillRequest,
     user_vault_key_id: str, log_prefix: str,
@@ -6655,6 +6680,8 @@ async def _consume_main_processing_stream(
     # Structured JSON tracking: Mind Maps and Calendar Event fences produce
     # direct embeds instead of generic Code embeds during incremental streaming.
     in_json_content_block = False
+    response_only_fence_prefix = ""
+    response_only_json_block = False
 
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
@@ -7117,7 +7144,14 @@ async def _consume_main_processing_stream(
                 was_revoked_during_stream = True
                 # Include the current chunk before breaking - don't discard it
                 # This ensures we return the partial response and bill for all generated tokens
-                if isinstance(chunk, str):
+                if isinstance(chunk, str) and not (
+                    in_json_content_block
+                    or response_only_json_block
+                    or bool(response_only_fence_prefix)
+                    or (waiting_for_code_language and is_json_content_fence(chunk.split('\n', 1)[0]))
+                    or (chunk.lstrip().startswith('```')
+                        and is_json_content_fence(chunk.lstrip()[3:].split('\n', 1)[0]))
+                ):
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
                     
@@ -7200,6 +7234,23 @@ async def _consume_main_processing_stream(
                     # Anonymous fences are converted to response-only embeds by
                     # the API adapter. Neither path may create persisted embeds.
                     # Preserve server-issued references as ordinary message text.
+                    # Explicit authoring envelopes require the encrypted lifecycle;
+                    # these response-only paths cannot expose their source instead.
+                    if response_only_json_block:
+                        if '```' in chunk:
+                            response_only_json_block = False
+                        continue
+                    if response_only_fence_prefix:
+                        chunk = response_only_fence_prefix + chunk
+                        response_only_fence_prefix = ""
+                    if chunk.lstrip().startswith('```'):
+                        if '\n' not in chunk:
+                            response_only_fence_prefix = chunk
+                            continue
+                        fence_language, _, fence_body = chunk.lstrip()[3:].partition('\n')
+                        if is_json_content_fence(fence_language):
+                            response_only_json_block = '```' not in fence_body
+                            continue
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
                     if cache_service:
@@ -7343,6 +7394,11 @@ async def _consume_main_processing_stream(
                                     content_lines = content_lines[1:]
                                     logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content")
                         code_content = '\n'.join(content_lines)
+                        # Explicit structured output belongs only in encrypted embeds.
+                        # A failed placeholder or unavailable service must never turn
+                        # its authoring envelope into visible code/JSON.
+                        if is_json_content_fence(current_code_language):
+                            chunk = ""
                         
                         # DEBUG: Log extracted code metadata only (never code content)
                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
@@ -7445,6 +7501,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 # Check if this is a math plot block (```plot ... ```)
                                 is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
@@ -7532,7 +7589,8 @@ async def _consume_main_processing_stream(
                                     )
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
-                                        await embed_service.update_json_content_embed_content(
+                                        json_content_finished = await _finalize_json_content_embed(
+                                            embed_service,
                                             source_language=current_code_language,
                                             embed_id=current_code_embed_id,
                                             source_json=code_content,
@@ -7546,8 +7604,8 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(
-                                            f"{log_prefix} Created and finalized JSON content embed {current_code_embed_id} "
-                                            f"for complete JSON content block"
+                                            f"{log_prefix} Processed complete JSON content embed {current_code_embed_id} "
+                                            f"(finished={json_content_finished})"
                                         )
 
                                         in_code_block = False
@@ -8123,6 +8181,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = True
                         elif is_json_content_block_multi:
                             in_json_content_block = True
+                            chunk = ""
                         elif is_mermaid_block_multi:
                             in_mermaid_block = True
                         elif is_diagram_html_block_multi:
@@ -8132,6 +8191,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if is_plot_block_multi:
                                     # Create math-plot embed placeholder (expression arrives in subsequent chunks)
@@ -8428,6 +8488,8 @@ async def _consume_main_processing_stream(
                                             embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                             chunk = embed_reference_code
                                             logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed placeholder: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
@@ -8567,6 +8629,7 @@ async def _consume_main_processing_stream(
                             in_pcb_schematic_block = True
                         elif is_json_content_block_post_bare:
                             in_json_content_block = True
+                            chunk = ""
                         elif is_mermaid_block_post_bare:
                             in_mermaid_block = True
                         elif is_diagram_html_block_post_bare:
@@ -8576,6 +8639,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if is_plot_block_post_bare:
                                     # Create math-plot embed placeholder (expression will arrive in subsequent chunks)
@@ -8866,16 +8930,18 @@ async def _consume_main_processing_stream(
                                             raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
                                             chunk = raw_fence
                                             # Keep in_code_block=True so closing fence is handled normally
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
                                 # Fall back to raw markdown so code is not silently lost
                                 raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
-                                chunk = raw_fence
+                                chunk = "" if in_json_content_block else raw_fence
                         else:
                             # No encryption services available — fall back to raw markdown
                             logger.warning(f"{log_prefix} No encryption services for code embed — falling back to raw markdown")
                             raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
-                            chunk = raw_fence
+                            chunk = "" if in_json_content_block else raw_fence
                     # Check if this chunk contains closing fence
                     elif '```' in chunk:
                         # Extract content before closing fence
@@ -9258,15 +9324,16 @@ async def _consume_main_processing_stream(
                         elif not current_code_embed_id and current_code_language:
                             logger.warning(
                                 f"{log_prefix} Code block closed but no embed was created — "
-                                f"emitting {len(current_code_content)} chars as raw markdown "
-                                f"(language={current_code_language or 'none'})"
+                                f"{'suppressing structured source' if in_json_content_block else 'emitting raw markdown'} "
+                                f"({len(current_code_content)} chars, "
+                                f"language={current_code_language or 'none'})"
                             )
                             capped_code_content, _ = _cap_code_for_learning_mode(
                                 request_data,
                                 current_code_content,
                             )
                             raw_block = f"```{current_code_language or ''}\n{capped_code_content}```\n\n"
-                            chunk = raw_block
+                            chunk = "" if in_json_content_block else raw_block
 
                             in_code_block = False
                             in_plot_block = False
@@ -9326,6 +9393,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if in_plot_block:
                                     # Finalize math-plot embed with the accumulated expression
@@ -9425,7 +9493,8 @@ async def _consume_main_processing_stream(
 
                                     logger.info(f"{log_prefix} Finalized PCB schematic embed {current_code_embed_id}")
                                 elif in_json_content_block:
-                                    await embed_service.update_json_content_embed_content(
+                                    json_content_finished = await _finalize_json_content_embed(
+                                        embed_service,
                                         source_language=current_code_language,
                                         embed_id=current_code_embed_id,
                                         source_json=current_code_content,
@@ -9437,7 +9506,10 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
 
-                                    logger.info(f"{log_prefix} Finalized JSON content embed {current_code_embed_id}")
+                                    logger.info(
+                                        f"{log_prefix} Processed closing JSON content embed {current_code_embed_id} "
+                                        f"(finished={json_content_finished})"
+                                    )
                                 elif in_diagram_html_block:
                                     await _finalize_diagram_html_embed(
                                         embed_service, current_code_embed_id, current_code_content,
@@ -9633,7 +9705,8 @@ async def _consume_main_processing_stream(
                         # Accumulate content (code or document HTML)
                         current_code_content += chunk
                         is_deferred_protocol_block = (
-                            _is_application_preview_combined_language(current_code_language)
+                            in_json_content_block
+                            or _is_application_preview_combined_language(current_code_language)
                             or _is_remotion_video_fence(current_code_language, current_code_filename)
                             or toon_pending_validation
                             or bool(current_code_language and current_code_language.lower() == 'tool_code')
@@ -9659,6 +9732,7 @@ async def _consume_main_processing_stream(
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
                                 
                                 if in_document_block:
                                     capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
@@ -9714,6 +9788,18 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
                                     logger.debug(f"{log_prefix} Updated PCB schematic embed {current_code_embed_id} (per-line update)")
+                                elif in_json_content_block:
+                                    await embed_service.update_json_content_embed_content(
+                                        source_language=current_code_language,
+                                        embed_id=current_code_embed_id,
+                                        source_json=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix,
+                                    )
                                 elif in_mermaid_block:
                                     mermaid_metadata = _extract_mermaid_metadata(
                                         current_code_language,
@@ -9750,6 +9836,8 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix
                                     )
                                     logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
                         
@@ -9980,6 +10068,8 @@ async def _consume_main_processing_stream(
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
         was_soft_limited_during_stream = True
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
         stream_exception = e
@@ -10008,6 +10098,7 @@ async def _consume_main_processing_stream(
         try:
             from backend.core.api.app.services.embed_service import EmbedService
             embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            embed_service.authoring_reference_index = getattr(request_data, "embed_file_path_index", None) or {}
             
             if in_document_block:
                 # Finalize document embed with partial HTML content (interrupted)
@@ -10044,6 +10135,20 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
+            elif in_json_content_block:
+                # An unclosed authoring envelope is never a finished artifact.
+                # Clear its partial source instead of materializing typed children.
+                await embed_service.update_json_content_embed_content(
+                    source_language=current_code_language,
+                    embed_id=current_code_embed_id,
+                    source_json="",
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="error",
+                    log_prefix=log_prefix,
+                )
             elif in_diagram_html_block:
                 await _finalize_diagram_html_embed(
                     embed_service, current_code_embed_id, current_code_content,
@@ -10087,6 +10192,8 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error finalizing interrupted embed: {e}", exc_info=True)
 

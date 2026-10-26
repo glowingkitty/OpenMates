@@ -544,6 +544,7 @@
       "specs": [
         "draft-embed-preview.spec.ts",
         "calendar-event-embed.spec.ts",
+        "cli-authored-results.spec.ts",
         "ai-response-language.spec.ts",
         "apps-workspace.spec.ts",
         "audio-recording-deferred-send.spec.ts",

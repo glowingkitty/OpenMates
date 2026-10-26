@@ -10,6 +10,9 @@ last_updated: "2026-08-06"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_appointments
+    authoring:
+      kind: health.appointment
+      schema_id: health.appointment
     category: app-skill-use
     skill_id: search_appointments
     frontend_type: app-skill-use

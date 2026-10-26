@@ -76,6 +76,9 @@ embed_types:
       - name: embed_ids
         type: string
   - id: company_financial_result
+    authoring:
+      kind: business.company_financial_result
+      schema_id: business.company_financial_result
     category: direct
     frontend_type: business-company-financial-result
     backend_type: company_financial_result

@@ -11246,9 +11246,21 @@ export class OpenMatesClient {
             && claim.chat_id === chatId
             && claim.turn_id === savedTurnId;
           if (claim.state === "TERMINAL" && claimMatchesExpectedTerminal) {
-            assistant = resp.content;
-            category = resp.category;
-            modelName = resp.modelName;
+            if (resp.responseFinal) {
+              assistant = resp.content;
+              category = resp.category;
+              modelName = resp.modelName;
+            } else {
+              // A recovery offer identifies a completed job, not its text.
+              // Another device has already persisted this exact assistant;
+              // read its authorized ciphertext instead of returning a prefix.
+              const canonical = await this.readTerminalRecoveryResponse(chatId, assistantId, teamId);
+              assistant = canonical.content;
+              category = canonical.category;
+              modelName = canonical.modelName;
+              onTurnStream({ kind: "done", responseTerminal: true, content: assistant,
+                category, modelName, taskId: resp.taskId ?? undefined });
+            }
             assistantMessageId = assistantId;
             await this.persistRecoveredTerminalEmbeds({
               ws,
@@ -11359,6 +11371,10 @@ export class OpenMatesClient {
           assistant = recovered.content;
           category = recovered.category as string | null;
           modelName = recovered.model_name as string | null;
+          if (!resp.responseFinal) {
+            onTurnStream({ kind: "done", responseTerminal: true, content: assistant,
+              category, modelName, taskId: resp.taskId ?? undefined });
+          }
 
           // The matched final stream marker uses the AI-cache timestamp. A client
           // that missed it can still persist the encrypted reply with a cold cache boundary.
@@ -11816,6 +11832,24 @@ export class OpenMatesClient {
     return handledJobIds;
   }
 
+  private async readTerminalRecoveryResponse(
+    chatId: string, assistantId: string, teamId: string | null | undefined,
+  ): Promise<DecryptedMessage> {
+    const assertOwner = this.captureRecoveryOwner();
+    assertOwner();
+    const saved = await this.getChatMessages(chatId, {
+      freshChatOnly: true, maxHistoryPages: 1, personal: !teamId, teamId,
+    });
+    assertOwner();
+    const matching = saved.messages.filter(message => canonicalSavedChatMessageId(message) === assistantId);
+    if (saved.chat.id !== chatId || matching.length !== 1
+      || matching[0].chatId !== chatId || matching[0].role !== "assistant"
+      || typeof matching[0].content !== "string" || matching[0].content.length === 0) {
+      throw new Error("Persisted recovery assistant is unavailable or does not match the terminal job.");
+    }
+    return matching[0];
+  }
+
   private async persistRecoveredTerminalEmbeds(
     params: Parameters<OpenMatesClient["persistStreamedEmbeds"]>[0],
     recoverCurrentTurnOutputs: () => Promise<void>,
@@ -12184,7 +12218,11 @@ export class OpenMatesClient {
         await storeConfirmed;
         assertOwner();
       } catch (error) {
-        if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
+        // Another client may have ACKed the same sealed revision while this
+        // terminal stream was in flight. Reuse only the fully verified head;
+        // its immutable ciphertext must never be replaced with fresh nonces.
+        if (!(error instanceof WebSocketProtocolError)
+          || !["embed_write_denied", "embed_revision_conflict"].includes(error.code)) throw error;
         await reuseCanonical();
       }
 
