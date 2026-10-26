@@ -1378,7 +1378,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "63a5825c03614ce50c1a2e9060aad2cc8659023d0c869791e47f3892110d6320"
+    assert sdk.sha(live_bytes) == "28de5b31194c45e8e4f29f35ac92ac0767395927f252f4e65e0a20712b649a10"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -1533,6 +1533,9 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
 
 
 def restore_before_cache_adapter_registration(trust):
+    browser = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == browser["afterSha256"]:
+        trust = restore_before_browser_local_wire_cursor_registration(trust)
     seeding = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == seeding["afterSha256"]:
         trust = restore_before_cache_peer_seeding_registration(trust)
@@ -1610,6 +1613,9 @@ def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capabil
 
 
 def restore_before_cache_peer_seeding_registration(trust):
+    browser = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == browser["afterSha256"]:
+        trust = restore_before_browser_local_wire_cursor_registration(trust)
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     restored = copy.deepcopy(trust)
@@ -1625,7 +1631,7 @@ def restore_before_cache_peer_seeding_registration(trust):
 
 def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_or_gap_change():
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
-    live = sdk.load_trust()
+    live = restore_before_browser_local_wire_cursor_registration(sdk.load_trust())
     assert {k:len(live[k]) for k in delta["afterCounts"]} == {"programs":277,"contracts":71,"plan":90,"gaps":177}
     prior = restore_before_cache_peer_seeding_registration(live)
     assert set(delta["programPinDeltas"]) == {
@@ -1645,3 +1651,47 @@ def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_
     assert len(live["plan"]) == 90 and len(live["gaps"]) == 177
     assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
     assert all(row["sourceProposalSha256"] == "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3" for row in delta["reviewedSourceClosure"])
+
+
+def restore_before_browser_local_wire_cursor_registration(trust):
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    restored = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert restored[bucket][path] == change["after"]
+            if change["before"] is None:
+                del restored[bucket][path]
+            else:
+                restored[bucket][path] = change["before"]
+    for change in delta["gapChanged"]:
+        assert restored["gaps"][change["index"]] == change["after"]
+        restored["gaps"][change["index"]] = change["before"]
+    assert sdk.sha((json.dumps(restored, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return restored
+
+
+def test_browser_local_wire_cursor_registration_preserves_prior_authority_and_explicit_sdk_gaps():
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
+    live = sdk.load_trust()
+    prior = restore_before_browser_local_wire_cursor_registration(live)
+    assert {key:len(live[key]) for key in delta["afterCounts"]} == {"programs":283,"contracts":73,"plan":90,"gaps":177}
+    assert live["plan"] == prior["plan"] and len(live["plan"]) == 90
+    assert sdk.sha(json.dumps(prior["plan"], sort_keys=True).encode()) == delta["oldPlansSha256"]
+    assert len(delta["gapChanged"]) == 3 and len(live["gaps"]) == len(prior["gaps"]) == 177
+    for change in delta["gapChanged"]:
+        assert change["before"].startswith("sdk.session-client [")
+        assert change["after"] == change["before"] + "; " + delta["matrixDelta"]["gapAddedEachLanguage"]
+    assert {k:v for k,v in live.items() if k not in ("programs","contracts","gaps")} == {k:v for k,v in prior.items() if k not in ("programs","contracts","gaps")}
+    assert len(delta["reviewedSourceClosure"]) == 13
+    assert all("openmates-tui-native" not in item["path"] and "workerHost" not in item["path"] and "workerRuntime" not in item["path"] for item in delta["reviewedSourceClosure"])
+    assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
+    root = Path(__file__).resolve().parents[2]
+    raw = (root / "config/sdk-capabilities.json").read_bytes()
+    assert sdk.sha(raw) == delta["matrixDelta"]["afterSha256"]
+    matrix = json.loads(raw)
+    row = next(row for row in matrix["capabilities"] if row["id"] == "sdk.session-client")
+    assert row["languages"]["rust"]["api"].count(delta["matrixDelta"]["rustApiAdded"]) == 1
+    for value in row["languages"].values():
+        assert value["status"] == "partial" and value["conformance"] is False
+        assert value["gaps"][-1] == delta["matrixDelta"]["gapAddedEachLanguage"]
