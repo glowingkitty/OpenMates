@@ -1,0 +1,278 @@
+schema_version: 2
+profile: concise
+id: cloud-project-development
+title: Cloud-first agentic project development
+status: implementing
+goal: >-
+  Create a proper plan for implementing all the remaining needed changes so we
+  can really get the agentic coding and Specification-driven development flow
+  completely working and tested. Start with creating a new cloud Project;
+  also support features, log-driven bug fixes and smaller UI or other fixes
+  without requiring the full planning flow.
+
+tracking:
+  authority: OpenMates Tasks
+  delivery_task: TASK-3542
+  delivery_task_id: a36c4245-116b-4c4a-8c17-6b1c7b02ca5c
+  external_chat: codex:01a1797e-71db-7313-bd27-ab520f0f8060
+  project: openmates
+  session: 9de5
+  policy: Task status and dependency changes live in OpenMates Tasks; the packages below describe deliverables, not a second live ledger.
+
+authorization:
+  product_scope: User approved proceeding after the lifecycle discussion on 2026-10-26; no unanswered product questions remain.
+  implementation: Authorized within this scope, including focused checks and scoped dev deployment.
+  small_fixes: User explicitly permits the short path, with useful Specification documentation at chat completion rather than an upfront full Specification/Plan ceremony.
+  exact_contract_reviews: Reuse existing approved semantics. Present any genuinely new or amended product contract through the repository review mechanism; never fabricate exact-fingerprint approval.
+  separate_actions: Production changes, public publishing and new provider spending require their own authorization.
+
+first_slice_review:
+  specification: feature.specifications@1
+  fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
+  artifact: /tmp/openmates/specification-approvals/feature.specifications-94e759734d3d78ae.approval.json
+  changes: Two explicit requirements for shared chat/direct authoring and conflict-preserving revision saves, each with two readable examples.
+  approval: Pending explicit confirmation of the presented exact review artifact; general product scope is already authorized.
+  evidence: Specification validation and Plan validation pass; generated Specification indexes were refreshed. Product behavior and E2E have not been implemented or verified by this planning work.
+
+scope:
+  in:
+    - Existing cloud-hosted encrypted Projects and Project creation, with no remote-host prerequisite.
+    - Persistent human-readable Specifications, direct/chat editing, immutable revisions, review, approval, history and Project/chat links.
+    - Plans with goal, optional assumptions and criteria, linked executable Tasks, required Check references and visible execution state.
+    - Assumption research in linked Tasks/subchats, encrypted evidence and corrections, dependent-work gates and the no-assumption path.
+    - Research, test-writing and implementation/debugging roles on the existing subchat and Task infrastructure.
+    - Reusable deterministic, structured AI/Jev and human-confirmation Checks with revision-bound Runs and encrypted artifacts.
+    - Exact hosted snapshots, isolated cloud build/test/preview, proposed changes and conflict-safe encrypted save-back.
+    - Relevant logs, source, existing failure evidence and focused verification for bug fixes.
+    - Short paths for small UI and other fixes, with no mandatory new Specification, Plan, assumption or subchat when unnecessary.
+    - Live Plan, Task, assumption, subchat, Check and blocker projections in chat settings and Project views.
+    - Stop, scope changes, missing context, reconnect, recovery, duplicate events and truthful completion.
+    - Existing-stack preference; Rust backend and React web defaults for a new project without user constraints; relevant Rules/Memories.
+  out:
+    - Replacing the existing Project, Task, workflow scheduler, focus lifecycle or encryption model.
+    - Requiring repository YAML files, terminal recovery or remote-access installation from product users.
+    - A new model/provider integration, model-name guarantees, paid model benchmarks or customer cache-pricing changes.
+    - Public publishing, production deployment or new third-party account/credential authority from ordinary Plan approval.
+    - Retiring the installed CLI, replacing existing stores, or bypassing the shared Rust client architecture.
+
+architecture:
+  project: Container for related chats, files, Specifications, Plans, Tasks and Checks.
+  specification: Durable required behavior, boundaries, models and user flows; requirement ids and exact revisions are referenced rather than copied.
+  plan: A bounded delivery/change record that owns assumptions, success criteria and references to Tasks and required Checks.
+  assumption: An uncertain claim discovered while planning; its investigation belongs to the Plan and records sources, correction and affected work.
+  task: The only executable work unit and authority for assignment, status, ordering, dependency and activity.
+  check: An independently reusable proof definition; a Run evaluates one exact definition and subject revision and owns its result/artifacts.
+  subchat: An execution context for an authorized assignment, with a validated role packet, scoped authority, bounded context and structured report.
+  focus: Guidance and phases for clarification/planning/execution; it does not become another scheduler or grant authority.
+  reusable_client_logic: Shared Rust owns headless operations, crypto, persistence policy and recovery; web/Apple retain thin UI/platform adapters and Rust/npm/pip SDKs remain synchronized.
+  automation: Deterministic code owns known states, permissions, gates, dispatch/retry and completion. Jev handles bounded semantic judgments; generative models write plans, code, explanations and improvements.
+  routing: All OpenMates chats and inference tests use current default automatic routing without model/provider overrides. Role hints are routing inputs, not pinned model promises.
+
+source_findings:
+  existing:
+    - Project creation, encrypted hosted file revisions, expected-base writes, history and focus authorization.
+    - A read-only Specification fullscreen reader and draft Specification/Check product contracts.
+    - Encrypted Plan records, revisions, assumptions, criteria, verifications, Task links, admission and evidence blockers.
+    - General parallel/sequential subchats and Task-triggered AI execution.
+    - Chat-settings Plan/Tasks tabs and a task-count progress display.
+    - E2B Code Run, terminal output, artifacts, cancellation and preview building blocks.
+  gaps:
+    - Persistent Specification identity/revision APIs, authoring and trusted chat integration.
+    - Complete reusable Check/Run storage and execution linkage; existing Plan verifications must be adapted without losing history.
+    - Automatic assumption dispatch, validated result merge and event-driven dependent-work continuation.
+    - Hosted-project snapshot/build/test/save-back receipts and authoritative coding completion.
+    - Failed required verification currently blocks the Plan; this service path does not itself create repair work.
+    - Plan UI confirmation supplies a summary without the source evidence required by the backend; corrected assumptions are also counted inconsistently.
+    - Existing completion code requires one to five learnings despite the draft Plan contract making non-required fields optional.
+    - Current chat-settings Plan cards show title/goal/status rather than the complete linked execution/proof projection.
+  evidence_limit: Source inspection and existing tests are evidence of implementation shape, not a new passing product journey.
+  prior_work:
+    - docs/plans/native-agentic-coding-readiness/plan.yml: Project/file foundation; preserve its later checkpoints rather than the historical overview alone.
+    - docs/plans/jev-agentic-project-work/plan.yml: Existing context, Focus/Rule/Workflow selection, direction assessment and improvement recommendations.
+    - TASK-4636: Earlier cloud-first proposal retained in /home/superdev/.codex/artifacts/agentic-coding-01a16eba; no new provider work is implied by reusing that proposal.
+
+specification_refs:
+  - {id: feature.specifications, path: specifications/features/specifications, role: durable_intent_and_authoring}
+  - {id: feature.plans, path: specifications/features/plans, role: coordination_assumptions_and_completion}
+  - {id: feature.checks, path: specifications/features/checks, role: proof_definitions_runs_and_artifacts}
+  - {id: feature.tasks, path: specifications/features/tasks, role: executable_units_admission_and_activity}
+  - {id: feature.projects, path: specifications/features/projects, role: encrypted_hosted_files_and_authorization}
+  - {id: feature.focus-modes, path: specifications/features/focus-modes, role: planning_phases_and_handoffs}
+  - {id: feature.app-skill.code-run, path: specifications/features/app-skills/code-run, role: cloud_execution_and_preview}
+  - {id: surface.cli, path: specifications/surfaces/cli, role: native_client_operations}
+  - {id: surface.sdk, path: specifications/surfaces/sdk, role: cross_sdk_conformance}
+
+scenarios:
+  - id: S-1
+    title: New hosted recipe-planning project
+    given: A user requests a recipe-planning app, with no existing files or specified stack.
+    when: The assistant clarifies scope, creates the hosted Project and presents an editable Specification and linked Plan.
+    then: Approved work creates meaningful tests and implementation, runs checks, repairs failures, saves the tested encrypted revision and presents its preview; the user can inspect progress and reopen the records.
+    acceptance: [AC-1, AC-2, AC-3, AC-5, AC-6, AC-7, AC-8]
+  - id: S-2
+    title: Existing-project feature with uncertain assumptions
+    given: A feature depends on an unverified claim about the existing API or a documented external capability.
+    when: A linked research Task/subchat inspects authorized source or permitted public documentation.
+    then: Sources and corrections are recorded, dependent implementation waits, and material scope changes return for review before work resumes.
+    acceptance: [AC-2, AC-3, AC-6, AC-7, AC-8]
+  - id: S-3
+    title: Log-driven bug repair
+    given: A user supplies a bug with relevant existing logs or a known failure in an accessible Project.
+    when: The assistant inspects bounded relevant logs/source, links existing governing requirements and applies a focused fix.
+    then: The repair is verified against the changed revision without requiring a fresh reproduction, full new Plan or new Specification; unresolved assumptions get targeted research only when necessary.
+    acceptance: [AC-4, AC-5, AC-6, AC-7, AC-8]
+  - id: S-4
+    title: Small UI or other fix
+    given: The user requests a bounded UI correction or another simple change.
+    when: The assistant uses a short Task or current chat assignment and the relevant existing contract.
+    then: It makes and checks the change, shows the result, and optionally records useful Specification documentation at chat completion without imposing the full planning lifecycle.
+    acceptance: [AC-4, AC-5, AC-6, AC-7]
+  - id: S-5
+    title: Qualitative marketing Check
+    given: A Project requires marketing text to satisfy an explicit style rubric.
+    when: A Jev-backed structured Check evaluates a specific text revision and the text is later revised.
+    then: The result identifies rubric/evaluator/input, a failure leads to correction work, and the earlier result becomes stale until the revised text is evaluated.
+    acceptance: [AC-5, AC-6, AC-7, AC-8]
+  - id: S-6
+    title: Stop, interruption and conflicting edits
+    given: Coding or checks are in flight while the user stops, reconnects or edits a newer file revision.
+    when: An old worker report, duplicate event or late save arrives.
+    then: Stop remains effective, recovery reconciles ownership, newer changes survive and stale proof cannot report completion.
+    acceptance: [AC-1, AC-5, AC-6, AC-7, AC-8]
+
+acceptance_criteria:
+  - {id: AC-1, required: true, text: Specifications survive reload with encrypted private content, immutable revision identity, exact approval, history and visible optimistic conflicts.}
+  - {id: AC-2, required: true, text: Direct and chat edits affect the same authoritative Specification; Plans reference its requirements and revision without owning a second editable copy.}
+  - {id: AC-3, required: true, text: Each required assumption has a tracked investigation and source-backed outcome before dependent work starts; no assumptions means no invented research gate.}
+  - {id: AC-4, required: true, text: Bug and small-fix paths run without a mandatory full Specification/Plan lifecycle; relevant existing evidence is reused and useful documentation may follow the fix.}
+  - {id: AC-5, required: true, text: Required Checks have validated revision-bound Runs and private evidence; failed or stale evidence cannot satisfy completion.}
+  - {id: AC-6, required: true, text: Authorized Tasks and subchats write tests, implement and repair within scope, preserve dependencies and stop/recovery, and cannot claim completion from a finished chat response alone.}
+  - {id: AC-7, required: true, text: Chat and Project views show current Plan progress, task/subchat state, assumptions, Checks and explicit blockers with functioning detail links and reload.}
+  - {id: AC-8, required: true, text: The displayed preview, test receipts and final encrypted saved content identify the same revision; conflicts preserve newer edits and sandboxes receive no Project/chat keys.}
+
+delivery_packages:
+  - id: P1
+    task: TASK-1989
+    outcome: Persist and revise encrypted Project Specifications.
+    ownership: Specification storage/routes, shared Rust operations, CLI and Rust/npm/pip SDK contracts; preserve existing records and client stores.
+    contract_assertions: [contracts.revision.exact-approval, contracts.project.encrypted-embed, contracts.links.revision-traceable, contracts.surface.semantic-parity]
+    acceptance: [AC-1, AC-2]
+    verification_ids: [V-1]
+    deployability: Additive storage/client capability behind the existing authorized entry points; no automatic launch of coding work.
+  - id: P2
+    task: TASK-6697
+    outcome: Enable Specification editing and linked Plan creation in Project chat.
+    ownership: Existing Specification fullscreen/preview, Project item wiring, Plan UI/service, Project Planner Focus and thin web adapter.
+    contract_assertions: [contracts.ui.human-readable-default, contracts.project.encrypted-embed, plans.ui.edit-approve-resume, plans.contract-links.contextual, plans.execution.gates-evidence]
+    acceptance: [AC-1, AC-2, AC-4]
+    verification_ids: [V-1, V-2]
+    deployability: Read/edit/review works independently of autonomous execution; align optional Plan fields without erasing history.
+  - id: P3
+    task: TASK-8672
+    outcome: Investigate Plan assumptions through tracked research subchats.
+    ownership: Plan/work-control services, Task admission, subchat dispatch/results and assumption detail UI.
+    contract_assertions: [plans.assumptions.investigated-before-work, plans.tasks.only-execution-units, plans.active-context.vault-boundary]
+    acceptance: [AC-3, AC-6]
+    verification_ids: [V-2, V-3]
+    deployability: Research can run before coding; replayed results cannot create duplicate investigations or bypass approval.
+  - id: P4
+    task: TASK-3
+    outcome: Persist reusable Checks and deterministic/AI Runs.
+    ownership: Check definition/revision/run/result/artifact services, Plan-verification compatibility, shared Rust/client operations and Check detail views.
+    contract_assertions: [checks.definition.reusable-revisioned, checks.runs.revision-bound, checks.types.explicit, checks.ai.structured-bounded, checks.artifacts.private-traceable]
+    acceptance: [AC-5, AC-8]
+    verification_ids: [V-1, V-4]
+    deployability: New Check records and old Plan verifications coexist through an explicit adapter/migration with no lost history or guessed proof.
+  - id: P5
+    task: TASK-7689
+    outcome: Build/test exact hosted Project snapshots and show cloud previews.
+    ownership: Project snapshot/save protocol, E2B Code Run extension, encrypted recovery/artifact plumbing and preview wiring.
+    contract_assertions: [contracts.revision.exact-approval, checks.runs.revision-bound, plans.execution.gates-evidence]
+    acceptance: [AC-5, AC-8]
+    verification_ids: [V-4, V-5]
+    deployability: One authorized run and integrating writer first; explicit supported toolchains/manifests and bounded file semantics.
+  - id: P6
+    task: TASK-6943
+    outcome: Coordinate test-writing/implementation Tasks and the repair/recovery loop.
+    ownership: Task admission/execution, subchat role packets/results, Project grants, coding focus instructions and event-driven continuation.
+    contract_assertions: [plans.tasks.only-execution-units, plans.dependencies.done-only, plans.execution.gates-evidence, plans.active-context.vault-boundary]
+    acceptance: [AC-3, AC-4, AC-5, AC-6, AC-8]
+    verification_ids: [V-3, V-4, V-5, V-6]
+    deployability: Parallel research and scoped test work precede concurrent coding; admit coding writers only after disjoint ownership and conflict/integration checks pass.
+  - id: P7
+    task: TASK-9537
+    outcome: Show live Plan and development progress in chat settings.
+    ownership: ChatSettingsPage, Plan detail, Project views and bounded event/query projections.
+    contract_assertions: [plans.lifecycle.visible, plans.tasks.only-execution-units, checks.project.encrypted-embed]
+    acceptance: [AC-7]
+    verification_ids: [V-2, V-4, V-6]
+    deployability: Project canonical records without duplicating status or treating counts as proof; visible failure and stale states survive reload.
+  - id: P8
+    task: TASK-3620
+    outcome: Verify all accepted cloud development journeys end to end.
+    ownership: Focused API/client/component/E2E coverage and disposable live-inference acceptance; evidence receipts and user-facing recordings.
+    contract_assertions: [plans.lifecycle.visible, plans.execution.gates-evidence, checks.runs.revision-bound, contracts.project.encrypted-embed]
+    acceptance: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    verification_ids: [V-1, V-2, V-3, V-4, V-5, V-6]
+    deployability: Release only exact-source verified slices through sessions.py; no production or public publishing implied.
+
+milestones:
+  - id: M-1
+    outcome: The user can create, reopen, edit and approve a real Specification linked to a hosted Project and Plan.
+    packages: [P1, P2]
+  - id: M-2
+    outcome: One complete cloud coding flow researches assumptions when needed, writes tests/code, repairs a failure and presents a verified saved preview with progress.
+    packages: [P3, P4, P5, P6, P7]
+  - id: M-3
+    outcome: New-project, feature, bug-fix, small-UI and qualitative-check journeys all pass, including stop/recovery/conflict cases.
+    packages: [P8]
+
+verification:
+  rules:
+    - Keep meaningful regression/contract metadata; no weakened assertions or invented tests for purely mechanical documentation.
+    - Run focused pure/unit/lint/build checks locally. Product REST/WebSocket, native CLI/SDK and browser checks use immutable source in existing isolated GitHub CI.
+    - Real-inference acceptance runs only on dev in disposable Projects/state using default automatic routing, with no model/provider override.
+    - Never use the engineering Project or real user files as mutable test fixtures. Logs and tool results remain permission-scoped, bounded and private.
+    - Use the shared Rust capability/conformance mechanisms as they land; coordinate with the active migration rather than creating a competing core or hidden Node/Python fallback.
+    - Capture and deliver only the latest relevant successful recording per accepted flow, or the latest failure when no success exists; run each receipt's evidence command.
+  checks:
+    - id: V-1
+      required: true
+      proof: REST/CLI/SDK encrypted Specification and Check lifecycle, access denial, immutable revisions, conflicts, reload and executable conformance.
+      coverage: Extend existing Plans/Projects client tests and add focused Specification/Check integration coverage in isolated CI.
+    - id: V-2
+      required: true
+      proof: Specification/Plan direct edits, review/approval/history, optional-field semantics and mobile/desktop detail navigation.
+      coverage: specification-fullscreen.spec.ts component baseline; plans-flow.spec.ts; plan-acceptance-checks-flow.spec.ts; Project and chat-settings tests plus focused authoring cases.
+    - id: V-3
+      required: true
+      proof: Assumption investigation dispatch, source/correction merge, no-assumption fast path, duplicate events, missing context and dependent-work blocking/resume.
+      coverage: test_plan_assumption_workflow.py; test_user_work_control.py; test_user_task_admission.py; plan-assumptions-flow.spec.ts; sub-chats-flow.spec.ts.
+    - id: V-4
+      required: true
+      proof: Deterministic failure/repair/pass, Jev rubric result validation, stale subject/definition rejection and encrypted result/artifact history.
+      coverage: Existing Plan verification/unit and code-run-languages tests extended with real Check/Run integration; direct Jev only in dev acceptance.
+    - id: V-5
+      required: true
+      proof: Hosted snapshot/build/preview/save identity, supported Rust/React toolchain, no leaked keys/private paths, concurrent-edit preservation, stop and replay/reconnect recovery.
+      coverage: projects-chat-file-executor.spec.ts; cli-project-file-chat.spec.ts; Code Run and Project authorization tests plus hosted-run integration.
+    - id: V-6
+      required: true
+      proof: Real automatically routed conversations for S-1 through S-6, including bounded log investigation and a small UI fix without full planning.
+      coverage: New focused agentic-project lifecycle browser/CLI acceptance with isolated dev test state; deterministic mechanics remain in CI.
+
+follow_on_architecture:
+  sequencing: Deliver the usable cloud lifecycle first; retain these mindmap items as explicit later packages rather than silently counting them as implemented.
+  items:
+    - Bounded deterministic/Jev supervision from Task/check telemetry; useful correction proposals without model polling for known state.
+    - Unified Improvements suggestions with concrete Focus/Workflow/Rule references and selected user-triggered Apply; reuse existing Project recommendation jobs.
+    - Dependency-version discovery, reproducible lockfiles and vulnerability checks with scoped tested updates rather than blind latest-version upgrades.
+    - Optimize role/model/cache choices using measured quality/cost after the default-routed loop works; new provider access, credits and processing-region choices remain separate.
+    - Verify remote-access parity against the same contract after cloud acceptance, preserving confinement, existing files and exact command approval.
+    - Apple adapter/UI parity follows verified web behavior through the coordinated Mac workflow; reuse shared Rust operations.
+
+handoff:
+  first_implementation_task: TASK-1989
+  first_action: Validate the current Specification contract and design the minimal encrypted record/revision operations against the existing Project storage and shared Rust core boundary; implement the smallest reviewable slice with focused coverage.
+  blocker_policy: Preserve the patch and pause only dependent work for a material unresolved decision or exact-contract review; do not repeat product clarification already answered here.
+  completion_policy: The delivery Task remains open until required acceptance passes; this Plan and Task creation alone do not mean the product lifecycle is implemented.
