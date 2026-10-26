@@ -28,6 +28,7 @@ decisions:
   - Existing feature.pii-protection@2 placeholder, exclusion and owner-only restoration assertions remain the privacy boundary. A permanent browser-model contract is deferred to the production decision.
   - Existing public URL handling remains supported; Redact's blanket URL and organization labels are excluded from the trial.
   - The user explicitly requested checking CVE-2026-111497. Source and loader checks distinguish patched backports from version strings; native SDK loads cannot fall back to the old host decoder. Shared system package updates remain separate.
+  - Hosted verification remains blocked because Vercel serves Node 24.21.0 without the patch marker, including after a fresh build without cache. The static app works, but the new guard intentionally rejects server-rendered requests until Vercel patches the managed runtime. Keep this Plan implementing until that live check succeeds.
 verification:
   - Focused local model-adapter and send-lifecycle unit tests, component compilation, translation build and scoped lint.
   - Isolated GitHub bare component checks for normal notifications/retry and real browser inference, current-draft ownership, exclusions and mounted-page offline classification.

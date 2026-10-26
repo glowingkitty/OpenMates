@@ -212,6 +212,23 @@ reported the deployed runtime family as 24.x, without exposing an exact patch;
 the new guard checks the actual executing runtime rather than assuming its patch
 from the platform alias or WAF status.
 
+Hosted verification on 2026-10-26 **did not pass**. The function logs for
+development commit `929203c4454c663eec131f084da011dcb3761dce` reported Node
+**24.21.0**, with the patch marker missing. The startup guard therefore rejects
+server-rendered requests with HTTP 500. The static app root and the tested worker
+still return HTTP 200; the worker hash matches the candidate above. A fresh
+deployment of the same commit explicitly skipped the build cache and again
+reported Node 24.21.0 in the hosted function. No malformed Brotli input was sent.
+
+The remaining blocker is Vercel's managed runtime patch rollout. Its documented
+project setting selects only a major version, and its security advisory still
+describes the rollout as in progress. Keep the guard enforced and do not call
+hosted verification complete until a real server request succeeds on the patched
+runtime. Production model activation remains disabled. The sanitized
+[hosted receipt](evaluations/2026-10-26-redact/security-web-brotli-2026-10-26/manifest.json)
+and [unsent support draft](vercel-brotli-runtime-support-draft-2026-10-26.md)
+record the exact affected deployments without user content or credentials.
+
 Playwright 1.60.0 pins Chromium 148.0.7778.96. Inspection of that Chromium tag's
 vendored Brotli source confirmed the block-switch rejection, error -17, and
 error propagation at all three switch call sites. This is a source/provenance

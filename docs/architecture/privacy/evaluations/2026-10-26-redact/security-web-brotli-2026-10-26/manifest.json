@@ -1,0 +1,52 @@
+{
+  "status": "blocked-on-managed-runtime-patch",
+  "date": "2026-10-26",
+  "task": "TASK-6119",
+  "session": "678f",
+  "vulnerability": "CVE-2026-111497",
+  "sourceCommit": "929203c4454c663eec131f084da011dcb3761dce",
+  "guardSourceSha256": "ab77cad0fe696e04d2835c87acac98fce93a3105f5571c8eda612a7d784cf195",
+  "requiredNode": "24.22.1 or later within 24.x",
+  "requiredPatchMarker": -17,
+  "hostedObservations": [
+    {
+      "observedAt": "2026-10-26T12:18:06.684Z",
+      "deploymentId": "dpl_2okfGmyt2vcQEznzBMGx3mSYHXWd",
+      "region": "arn1",
+      "configuredRuntime": "nodejs24.x",
+      "executingNode": "24.21.0",
+      "patchMarker": "missing",
+      "guardRejected": true
+    },
+    {
+      "observedAt": "2026-10-26T12:10:18.858Z",
+      "deploymentId": "dpl_FBPweV9NJF1ZfVeBoUKba2h8qRhg",
+      "region": "arn1",
+      "configuredRuntime": "nodejs24.x",
+      "executingNode": "24.21.0",
+      "patchMarker": "missing",
+      "guardRejected": true
+    },
+    {
+      "observedAt": "2026-10-26T12:10:08.378Z",
+      "deploymentId": "dpl_FBPweV9NJF1ZfVeBoUKba2h8qRhg",
+      "region": "arn1",
+      "configuredRuntime": "nodejs24.x",
+      "executingNode": "24.21.0",
+      "patchMarker": "missing",
+      "guardRejected": true
+    }
+  ],
+  "freshBuildCacheSkipped": true,
+  "mainStaticRootStatus": 200,
+  "workerStatus": 200,
+  "workerSha256": "87886e4e686b17e99596552667006cac5a8a78fa172dbb98d6f502efa791cc20",
+  "serverRenderedProbeStatus": 500,
+  "malformedCompressedInputSent": false,
+  "productionModelEnabled": false,
+  "resolution": "Vercel must provide the patched managed runtime; do not relax the startup guard.",
+  "sources": [
+    "https://vercel.com/kb/bulletin/node-js-security-advisory",
+    "https://vercel.com/docs/functions/runtimes/node-js/node-js-versions"
+  ]
+}
