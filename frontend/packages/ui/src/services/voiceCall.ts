@@ -211,10 +211,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
       ? ['camera_denied', 'camera_missing', 'camera_failed', 'source_frame_failed', 'media_unavailable']
       : ['microphone_denied', 'microphone_missing', 'microphone_failed', 'session_expired',
         'connection_failed', 'connection_lost', 'invalid_response', 'transcript_save_failed', 'transcript_limit',
-        'context_too_large', 'context_unavailable'];
+        'context_too_large', 'context_unavailable', 'insufficient_credits'];
     const key = known.includes(code) ? code : camera ? 'camera_failed' : 'call_unavailable';
     notificationStore.addNotificationWithOptions('error', {
-      message: get(text)(`voicecall.${key}`),
+      message: get(text)(key === 'insufficient_credits' ? 'settings.billing.insufficient_credits_error' : `voicecall.${key}`),
       duration: 7000,
       dedupeKey: `voice-call-${camera ? 'camera-' : ''}error-${key}`,
     });
@@ -573,6 +573,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
         if ((detail?.chat_id ?? detail?.chatId) !== this.state.chatId) return;
         if (event.type === 'aiTaskEnded') { this.publishAssistantState(); return; }
         if (!this.callTurnIds.has(detail?.user_message_id)) return;
+        // A real canonical credit refusal must stop paid listening and notify
+        // immediately, even when the bound chat is not currently visible.
+        if (event.type === 'aiMessageChunk' && detail.is_final_chunk === true &&
+            detail.rejection_reason === 'insufficient_credits') {
+          this.fail('insufficient_credits');
+          return;
+        }
         const taskId = detail.task_id ?? detail.ai_task_id;
         if (typeof taskId === 'string' && typeof detail.message_id === 'string') {
           this.assistantMessagesByTask.set(taskId, detail.message_id);

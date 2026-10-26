@@ -696,7 +696,7 @@ async function sendCallLifecycleCiphertext(row: CallRow): Promise<void> {
   try {
     await webSocketService.sendMessage("chat_system_message_added", { chat_id: row.chat_id,
       message: { message_id: row.message_id, role: "system", encrypted_content: row.encrypted_content,
-        created_at: row.created_at } });
+        status: "synced", created_at: row.created_at } });
     await receipt.promise;
     if (identity !== getWorkspaceCacheIdentity()) throw new Error("Call event account changed");
     await chatDB.updateMessageStatus(row.message_id, "synced");

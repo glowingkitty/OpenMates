@@ -1876,11 +1876,10 @@ export async function handleNewSystemMessageImpl(
   // Preserve the status from the originating device (e.g., "waiting_for_user" for
   // credits-rejection messages).  This is critical for the sidebar to show
   // "Credits needed..." instead of falling back to "Untitled Chat" on reload.
-  // Default to "waiting_for_user" for system messages since that's the most common
-  // cross-device case (credits rejection). Regular app-settings/memories responses
-  // can override with a different status via the payload.
+  // An omitted status is an ordinary stored system message, including call
+  // lifecycle notices. Only an explicit rejection may request user action.
   const messageStatus =
-    (data.status as Message["status"]) || "waiting_for_user";
+    (data.status as Message["status"]) || "synced";
 
   // Build the system message object.
   // NOTE: Do NOT call chatDB.saveMessage() yet — it calls encryptMessageFields()

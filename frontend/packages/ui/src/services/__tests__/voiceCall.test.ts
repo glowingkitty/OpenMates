@@ -906,4 +906,24 @@ describe('integrated voice call typed turns', () => {
     expect(persistence.upsert).not.toHaveBeenCalled();controller.hangup();
   });
 
+// contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.chat.fixed-binding
+it('notifies an exact call-turn credit rejection immediately and ignores unrelated chat or turn refusals', async () => {
+  const controller=new VoiceCallController();const harness=controller as unknown as Harness;
+  harness.update({status:'live',chatId:'chat-1',callId:'call-1'});
+  harness.callTurnIds.add('voice-turn');harness.bindCanonicalChat();
+  await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+  const emit=(detail:Record<string,unknown>)=>{
+    for(const callback of [...visual.listeners])callback(new CustomEvent('aiMessageChunk',{detail}));
+  };
+  notificationStore.clearAllNotifications();
+  emit({chat_id:'other',user_message_id:'voice-turn',is_final_chunk:true,rejection_reason:'insufficient_credits'});
+  emit({chat_id:'chat-1',user_message_id:'not-call-turn',is_final_chunk:true,rejection_reason:'insufficient_credits'});
+  expect(get(controller).status).toBe('live');
+  expect(get(notificationStore).notifications).toHaveLength(0);
+  emit({chat_id:'chat-1',user_message_id:'voice-turn',is_final_chunk:true,rejection_reason:'insufficient_credits'});
+  expect(get(controller)).toMatchObject({status:'error',error:'insufficient_credits'});
+  expect(get(notificationStore).notifications).toMatchObject([{type:'error',message:'settings.billing.insufficient_credits_error'}]);
+  notificationStore.clearAllNotifications();
+});
+
 });

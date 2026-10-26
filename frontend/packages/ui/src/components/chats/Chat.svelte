@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isCreditRejection } from '../../utils/creditRejection';
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy, tick } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -817,9 +818,11 @@
     displayText = '';
 
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
-    // Check lastMessage for waiting_for_user status (credit rejection, etc.)
-    // The last message can be either the system rejection message or the user message (both get waiting_for_user)
-    hasWaitingForUser = lastMessage?.status === 'waiting_for_user';
+    // Only explicit credit evidence, or its exact linked user row, gets the
+    // credit label. Lifecycle notices and ordinary questions remain neutral.
+    const relatedRejections = lastMessage?.role === 'user' && lastMessage.status === 'waiting_for_user'
+      ? await chatDB.getMessagesForChat(currentChat.chat_id) : [];
+    hasWaitingForUser = isCreditRejection(lastMessage, relatedRejections);
     if (hasWaitingForUser && lastMessage) {
       // Show "Credits needed..." label with user message content as preview
       // using draft-like design in the sidebar

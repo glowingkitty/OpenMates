@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   chatKeyManager: {
     createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
+    getKeySync: vi.fn(),
     injectKey: vi.fn(),
     onKeyReady: vi.fn(() => () => undefined),
   },
@@ -138,6 +139,7 @@ import {
   handleWorkflowChatDeliveryAcknowledgedImpl,
   notifyCommittedWorkflowDelivery,
   handlePendingAIResponseImpl,
+  handleNewSystemMessageImpl,
   handleAppSettingsMemoriesSyncReadyImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import {
@@ -1620,4 +1622,27 @@ describe("recovery output discovery after durable ACK", () => {
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(2);
     expect(mocks.chatDB.updateChat).toHaveBeenCalledTimes(1);
   });
+});
+
+
+describe('cross-device system message status', () => {
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: 'chat-1', messages_v: 0 });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array(32));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  it.each([undefined, 'synced', 'waiting_for_user'])(
+    'uses neutral status for an omitted lifecycle status and preserves explicit status %s', async status => {
+      const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+      await handleNewSystemMessageImpl(service, {
+        event: 'new_system_message', chat_id: 'chat-1',
+        data: { message_id: 'call-event', role: 'system', encrypted_content: 'ciphertext', created_at: 1700000000,
+          ...(status ? { status } : {}) }, versions: { messages_v: 1 },
+      });
+      expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
+        message_id: 'call-event', status: status ?? 'synced',
+      }));
+    });
 });

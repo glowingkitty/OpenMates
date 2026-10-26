@@ -715,6 +715,7 @@ describe("encrypted call lifecycle history", () => {
       type: "voice_call", action: "started", created_at: event.occurredAt });
     expect(mocks.sent.map((entry) => entry.type)).toEqual(["chat_system_message_added"]);
     expect(mocks.sent[0].payload.message).not.toHaveProperty("content");
+    expect(mocks.sent[0].payload.message).toHaveProperty("status", "synced");
     await retryPendingCallMessages();
     expect(mocks.sent).toHaveLength(1);
     // A normal server history reload restores ciphertext, without local outbox fields.

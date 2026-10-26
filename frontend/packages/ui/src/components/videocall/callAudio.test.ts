@@ -26,7 +26,7 @@ class FakeContext {
   gains: Array<FakeNode & { gain: { value: number } }> = [];
   sources: FakeSource[] = [];
   close = vi.fn(async () => { this.state = 'closed'; });
-  resume = vi.fn(async () => {});
+  resume = vi.fn(async () => { this.state = 'running'; });
   createMediaStreamSource = vi.fn(() => this.source);
   createScriptProcessor = vi.fn(() => this.processor);
   createGain = vi.fn(() => { const gain = Object.assign(new FakeNode(), { gain: { value: 1 } }); this.gains.push(gain); return gain; });
@@ -140,6 +140,62 @@ describe('call audio lifecycle', () => {
     expect(context.sources[2].stop).toHaveBeenCalledTimes(1);
     expect(context.sources[3].stop).toHaveBeenCalledTimes(1);
     audio.stop();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.audio.startup-buffer,video-call.lifecycle.recovery-and-billing
+  it.each(['suspended', 'interrupted'])('resumes %s microphone capture again after permission before delivering nonzero PCM', async (state) => {
+    let grant!: (stream: {getTracks: () => {stop: typeof trackStop}[]}) => void;
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementationOnce(() => new Promise(resolve => { grant = resolve as typeof grant; }));
+    const onMic = vi.fn();
+    const audio = new CallAudio(onMic, vi.fn());
+    context.state = 'suspended';
+    audio.unlock();
+    await Promise.resolve(); await Promise.resolve();
+    expect(context.state).toBe('running');
+    const starting = audio.start();
+    context.state = state;
+    let resume!: () => void;
+    context.resume.mockImplementationOnce(() => new Promise<void>(resolve => { resume = () => {context.state = 'running'; resolve();}; }));
+    grant({getTracks: () => [{stop: trackStop}]});
+    await Promise.resolve();
+    expect(context.resume).toHaveBeenCalledTimes(2);
+    expect(context.createMediaStreamSource).not.toHaveBeenCalled();
+    expect(onMic).not.toHaveBeenCalled();
+    resume(); await starting;
+    context.processor.onaudioprocess?.({inputBuffer:{getChannelData:()=>new Float32Array([.4,-.4]),sampleRate:16000}});
+    expect(onMic).toHaveBeenCalledOnce();
+    expect(Array.from(decodePcm16(onMic.mock.calls[0][0]))).toEqual(expect.arrayContaining([expect.any(Number)]));
+    expect(decodePcm16(onMic.mock.calls[0][0])[0]).toBeGreaterThan(.3);
+    audio.stop();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+  it('releases the microphone and rejects capture when post-permission resume fails', async () => {
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementationOnce(async () => {
+      context.state = 'interrupted';
+      context.resume.mockRejectedValueOnce(new Error('Audio interrupted'));
+      return {getTracks: () => [{stop: trackStop}]} as unknown as MediaStream;
+    });
+    const audio = new CallAudio(vi.fn(),vi.fn());
+    await expect(audio.start()).rejects.toThrow('Audio interrupted');
+    expect(trackStop).toHaveBeenCalledOnce();
+    expect(context.close).toHaveBeenCalledOnce();
+    expect(context.createMediaStreamSource).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+  it('never attaches a late resumed capture after hangup', async () => {
+    let resume!: () => void;
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementationOnce(async () => {
+      context.state = 'interrupted';
+      context.resume.mockImplementationOnce(() => new Promise<void>(resolve => { resume = resolve; }));
+      return {getTracks: () => [{stop: trackStop}]} as unknown as MediaStream;
+    });
+    const onMic=vi.fn();const audio = new CallAudio(onMic,vi.fn());
+    const starting=audio.start();await Promise.resolve();
+    audio.stop();resume();await starting;
+    expect(trackStop).toHaveBeenCalledOnce();expect(context.createMediaStreamSource).not.toHaveBeenCalled();
+    expect(onMic).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.experiment.privacy,video-call.experiment.user-stop

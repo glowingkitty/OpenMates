@@ -53,7 +53,7 @@ export interface CallAudioPlaybackSchedule {
 
 export class CallAudio {
   private context: AudioContext | null = null;
-  private resumeRequested = false;
+  private resumePending: Promise<void> | null = null;
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private processor: ScriptProcessorNode | null = null;
@@ -85,10 +85,18 @@ export class CallAudio {
     if (this.stopped) return;
     const context = this.context ?? new AudioContext();
     this.context = context;
-    if (context.state === 'suspended' && !this.resumeRequested) {
-      this.resumeRequested = true;
-      void context.resume().catch(() => { this.resumeRequested = false; });
+    if (context.state !== 'running' && context.state !== 'closed' && !this.resumePending) {
+      void this.requestResume(context).catch(() => {});
     }
+  }
+
+  private requestResume(context: AudioContext): Promise<void> {
+    const pending = context.resume();
+    this.resumePending = pending;
+    void pending.catch(() => {}).finally(() => {
+      if (this.resumePending === pending) this.resumePending = null;
+    });
+    return pending;
   }
 
   async start(): Promise<void> {
@@ -105,6 +113,27 @@ export class CallAudio {
     }
     this.stream = stream;
     const context = this.context!;
+    // A native microphone permission prompt can suspend/interrupt the context
+    // after the Start gesture already unlocked it. That earlier resume is not
+    // capture readiness: request it again after permission, including Safari's
+    // interrupted state, before accepting any input frames.
+    try {
+      if (context.state !== 'running') {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            this.requestResume(context),
+            new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Microphone audio could not resume')), 3000); }),
+          ]);
+        } finally { clearTimeout(timer); }
+      }
+      if (this.stopped || generation !== this.generation) return;
+      if (context.state !== 'running') throw new Error('Microphone audio is not running');
+    } catch (error) {
+      if (this.stopped || generation !== this.generation) return;
+      this.stop();
+      throw error;
+    }
     this.source = context.createMediaStreamSource(stream);
     this.processor = context.createScriptProcessor(2048, 1, 1);
     this.silentGain = context.createGain();

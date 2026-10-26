@@ -566,6 +566,8 @@ interface NativeVoiceInputEvidence {
   capturedSpeech: boolean;
   capturedQuietSamples: number;
   captureRequests: number;
+  interruptOnPermission: boolean;
+  permissionInterruptions: number;
   speechReady: boolean;
   playing: boolean;
   workersCreated: number;
@@ -583,7 +585,7 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
       speechPrimes: [], speechAcknowledgementPosts: [], speechAudioId: () => 0,
       nativeTracks: [], outputTracks: [], contexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
-      captureRequests: 0, speechReady: false, playing: false, workersCreated: 0,
+      captureRequests: 0, interruptOnPermission: false, permissionInterruptions: 0, speechReady: false, playing: false, workersCreated: 0,
       workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
     };
     Object.assign(window, { __nativeVoiceInput: state });
@@ -677,6 +679,14 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
       // Camera capture remains the genuine video-only device stream.
       if (!constraints?.audio) return nativeCapture(constraints);
       const microphone = await nativeCapture(constraints);
+      if (state.interruptOnPermission) {
+        state.interruptOnPermission = false;
+        // Reproduce a permission sheet suspending the real, gesture-created
+        // contexts. Native resume/processing remain production-owned.
+        const contexts = state.contexts.filter(context => context.state !== 'closed');
+        await Promise.all(contexts.map(context => context.suspend()));
+        state.permissionInterruptions += contexts.length;
+      }
       state.captureRequests++;
       state.nativeTracks.push(...microphone.getTracks());
       // Keep the fixture meter separate from production capture observations.
@@ -1817,6 +1827,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await installNativeVoiceInput(page);
     await observeRealTransport(page, true);
     await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    await page.evaluate(() => { (window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.interruptOnPermission = true; });
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.readyHeld),
       { timeout: 30_000 }).toBe(true);
@@ -1824,6 +1835,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('assistant-speech-player')).toHaveCount(0);
     await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
     const waiting = await evidence(page);
+    expect(await page.evaluate(() => (window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.permissionInterruptions)).toBeGreaterThan(0);
     const start = voiceFrames(waiting, 'start')[0];
     expect(start.startupAllowanceMs).toBe(10_000);
     expect(voiceFrames(waiting, 'mic_audio')).toHaveLength(0);
@@ -1993,6 +2005,45 @@ test.describe('Voice mode through ordinary chat', () => {
       expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(mutedCount);
       await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
     } finally {release();}
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.call-events,video-call.lifecycle.recovery-and-billing
+  test('keeps lifecycle-only calls neutral in another authenticated tab',async({page})=>{
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    const other=await page.context().newPage();
+    const systemEvents:Array<{chat_id:string;data:{message_id:string;status?:string}}>=[];
+    other.on('websocket',socket=>socket.on('framereceived',frame=>{
+      try {
+        const event=JSON.parse(String(frame.payload));
+        if(event.type==='new_system_message') systemEvents.push(event.payload??event);
+      } catch { /* Non-JSON transport frames do not carry system messages. */ }
+    }));
+    try {
+      await other.goto(page.url());
+      await expect(other.locator('[data-testid="voice-call-start"]:visible')).toBeVisible();
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+      const startedId=`00000000-voice-call-${ready.callId}-started`;
+      await expect.poll(()=>systemEvents.find(event=>event.data?.message_id===startedId)).toBeTruthy();
+      const started=systemEvents.find(event=>event.data?.message_id===startedId)!;
+      expect(started.data.status).toBe('synced');
+      await other.goto(`/#chat-id=${started.chat_id}`);
+      await expect(other.getByText('Credits needed...', {exact:true})).toHaveCount(0);
+      await expect(other.getByText('Not enough credits', {exact:true})).toHaveCount(0);
+      await expect.poll(()=>other.evaluate(async messageId=>{
+        const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+          const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+        });
+        try { return await new Promise<string|undefined>((resolve,reject)=>{
+          const request=db.transaction('messages','readonly').objectStore('messages').get(messageId);
+          request.onsuccess=()=>resolve(request.result?.status);request.onerror=()=>reject(request.error);
+        }); } finally { db.close(); }
+      },started.data.message_id)).toBe('synced');
+      await page.getByTestId('voice-call-hangup').click();
+      await assertVoiceInputCleanup(page);
+    } finally { await other.close(); }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent

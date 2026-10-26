@@ -137,6 +137,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
+    import { hasCreditRejectionEvidence, isCreditRejection } from '../utils/creditRejection';
     import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, isComposerLookupChatCurrent, canActivatePersistedComposerDraft } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed, resolveExampleFullscreenTarget } from '../demo_chats';
@@ -4182,11 +4183,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return false;
             }
 
-            // Detect credits-rejection state: the last message is 'waiting_for_user'.
-            // This happens when the user sent a message but had insufficient credits.
+            // Require explicit rejection evidence; ordinary system notices and
+            // assistant questions may also carry waiting_for_user.
             // In this case show "Credits needed..." + user message preview instead of
             // the category circle + title (which would show a misleading "Untitled Chat").
-            const isCreditsError = lastMessage?.status === 'waiting_for_user';
+            const relatedRejections = lastMessage?.role === 'user' && lastMessage.status === 'waiting_for_user'
+                ? await chatDB.getMessagesForChat(chat.chat_id) : [];
+            const isCreditsError = isCreditRejection(lastMessage, relatedRejections);
 
             if (isCreditsError) {
                 // Extract the user message preview from the last message.
@@ -11287,18 +11290,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // fixed in shouldUpdateMessage), but messages already stored with the wrong status
         // must be repaired here on load.
         //
-        // Defensive fallback: also detect from a user message with waiting_for_user alone,
-        // for cases where the system message's IDB save failed.
+        // A waiting user row needs its matching canonical credit rejection.
         if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && newMessages.length > 0) {
-            const hasCreditsRejectionEvidence = (m: ChatMessageModel) => {
-                if (m.rejection_reason === 'insufficient_credits') return true;
-                const content = typeof m.content === 'string' ? m.content.toLowerCase() : '';
-                return content.includes('insufficient credit') || content.includes('not enough credits') || content.includes('credits needed');
-            };
             const hasSystemRejection = newMessages.some(m =>
                 m.status === 'waiting_for_user' &&
                 (m.role === 'system' || m.role === 'assistant') &&
-                hasCreditsRejectionEvidence(m)
+                hasCreditRejectionEvidence(m)
             );
             // Detect system messages whose status was corrupted by phased sync:
             // In a credits-rejected chat (no title/category), only repair system
@@ -11308,12 +11305,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 ? newMessages.filter(m =>
                     m.role === 'system' &&
                     (m.status === 'delivered' || m.status === 'synced') &&
-                    hasCreditsRejectionEvidence(m)
+                    hasCreditRejectionEvidence(m)
                 )
                 : [];
-            // Fallback: detect from user message alone (system message may be missing from IDB)
+            // A user row may inherit credit state only from its linked rejection.
             const hasUserWaitingAlone = !hasSystemRejection && corruptedSystemMessages.length === 0 && newMessages.some(m =>
-                m.status === 'waiting_for_user' && m.role === 'user'
+                m.role === 'user' && isCreditRejection(m, newMessages)
             );
             if (hasSystemRejection || corruptedSystemMessages.length > 0 || hasUserWaitingAlone) {
                 isNewChatCreditsError = true;
