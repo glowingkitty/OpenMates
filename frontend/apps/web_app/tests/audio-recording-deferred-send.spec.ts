@@ -141,11 +141,11 @@ for (const phase of ['recording', 'correction']) {
 		await openAuthenticatedRecording(page);
 		const overlay = page.getByTestId('record-overlay');
 		const field = page.getByTestId('message-field').last();
-		await expect(field).toHaveCSS('height', /^(48|60)px$/);
+		await expect(field).toHaveCSS('height', '180px');
 		if (phase === 'correction') {
 			await overlay.getByTestId('record-finish-button').click();
 			await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
-			await expect(field).toHaveCSS('height', /^(48|60)px$/);
+			await expect(field).toHaveCSS('height', '180px');
 		}
 		const send = overlay.getByTestId('record-send-button');
 		await expect(send).toHaveAccessibleName('Send');
@@ -155,7 +155,7 @@ for (const phase of ['recording', 'correction']) {
 		await expect(field).toHaveAttribute('data-focused', 'false');
 		await expect(page.getByTestId('new-chat-button')).toBeHidden();
 		await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
-		await expect(field).toHaveCSS('height', /^(48|60)px$/);
+		await expect(field).toHaveCSS('height', '180px');
 		await expect(overlay).toHaveCSS('height', /^(48|60)px$/);
 		await expect(overlay.getByTestId('recording-processing-text')).toBeVisible();
 		await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();

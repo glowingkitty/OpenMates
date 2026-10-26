@@ -657,6 +657,9 @@
 
     // --- Keyboard shortcuts ---
     function handleKeyDown(event: KeyboardEvent) {
+        // An open embed viewer owns its keyboard shortcuts while capture
+        // continues behind it. Also respect native editor/control handling.
+        if (event.defaultPrevented || document.querySelector('.unified-embed-fullscreen-overlay')) return;
         if (event.key === 'Enter') {
             // Let focused controls perform their native keyboard activation.
             if (event.target instanceof Element && event.target.closest('button')) return;

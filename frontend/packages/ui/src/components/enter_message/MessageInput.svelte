@@ -392,6 +392,8 @@
     let recordingCorrectionPending = $state(false);
     let recordingLayoutPending = $state(false);
     let recordingLayoutActive = $derived(recordingLayoutPending || $recordingState.showRecordAudioUI || $recordingState.isRecordingActive);
+    let recordingStartedWithDraft = $state(false);
+    let recordingShowsDraft = $derived(recordingLayoutActive && recordingStartedWithDraft);
     let recordingContext = $state.raw<{
         generation: number;
         editor: Editor;
@@ -910,8 +912,8 @@
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousUsageExhausted);
-    let isInlineCompact = $derived(inlineCompact && !isFullscreen && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -933,7 +935,7 @@
         )
     );
     let showBaseEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !recordingLayoutActive && !shouldShowActionButtons && !isFullscreen && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -2271,7 +2273,7 @@
      * to initialise in a zero-height container (making the map invisible).
      */
     let messagePanelStyle = $derived((() => {
-        if (recordingLayoutActive) {
+        if (recordingLayoutActive && !recordingShowsDraft) {
             const height = inlineCompact ? '48px' : 'var(--composer-compact-height, 60px)';
             return `height: ${height}; max-height: ${height};`;
         }
@@ -2324,7 +2326,9 @@
 
     // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
     let messagePanelScrollableStyle = $derived(
-        isFullscreen
+        isFullscreen && recordingShowsDraft
+            ? 'max-height: 100%;'
+            : isFullscreen
             ? 'max-height: calc(100% - 120px);'
             : 'max-height: 250px;'
     );
@@ -2695,6 +2699,10 @@
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
                     keydown: (_view, event) => {
+                        // Skip ProseMirror's built-in Enter/Escape capture so
+                        // the open viewer can receive the original event.
+                        if ((event.key === 'Enter' || event.key === 'Escape') &&
+                            document.querySelector('.unified-embed-fullscreen-overlay')) return true;
                         if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
                             handleMessageWrapperKeyDown(event);
                             return true;
@@ -4411,6 +4419,7 @@
         });
     }
     function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && document.querySelector('.unified-embed-fullscreen-overlay')) return;
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
@@ -4780,6 +4789,7 @@
     }
 
     function handleMessageWrapperKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && document.querySelector('.unified-embed-fullscreen-overlay')) return;
         if (event.target === editor?.view.dom || editor?.view.dom.contains(event.target as Node)) {
             if (event.key === 'Escape' && visibleGhostSuggestion) {
                 event.preventDefault();
@@ -5129,6 +5139,7 @@
         recordingDraftGeneration += 1;
         recordingCorrectionPending = false;
         recordingLayoutPending = false;
+        recordingStartedWithDraft = false;
         const context = recordingContext;
         recordingContext = null;
         context?.releaseEmptyDraftProtection();
@@ -6398,6 +6409,10 @@
     // These now extract the original event from the detail payload
     function prepareEditorForRecording() {
         captureRecordingContext();
+        // Freeze the layout choice at capture start; corrected text must not
+        // expand a recording that began with an empty editor.
+        recordingStartedWithDraft = !!editor && !editor.isDestroyed &&
+            inspectDraftContent(editor.getJSON()).hasMeaningfulContent;
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
@@ -6412,7 +6427,7 @@
         recordingLayoutPending = $authStore.isAuthenticated;
         isMessageFieldFocused = false;
         isFocused = true;
-        if (isFullscreen) {
+        if (isFullscreen && !recordingStartedWithDraft) {
             isFullscreen = false;
             dispatch('fullscreenToggle', false);
         }
@@ -7356,17 +7371,19 @@
     {/if}
 
     <div
-        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
+        class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {recordingLayoutActive ? 'recording-active' : ''} {!shouldShowActionButtons && !recordingShowsDraft ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
         data-editor-ready={!isInitialMount}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={isInlineCompact}
+        class:recording-with-draft={recordingShowsDraft}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         class:has-ghost-suggestion={visibleGhostSuggestion}
         style={containerStyle}
+        style:--recording-controls-height={inlineCompact ? '48px' : 'var(--composer-compact-height, 60px)'}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
         ondrop={handleDrop}
@@ -7506,7 +7523,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || (hasSendableDraft && isScrollable)) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !recordingLayoutActive && !startNewChatOnClick && (isFullscreen || (hasSendableDraft && isScrollable)) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
@@ -7624,7 +7641,7 @@
             </div>
         {/if}
 
-        {#if hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
+        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
             <CompactSendButton
                 floating={true}
                 disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
@@ -7642,7 +7659,7 @@
 
         <!-- Stop Processing Icon - shown when AI task is active -->
         <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if showStopProcessingButton}
+        {#if showStopProcessingButton && !recordingLayoutActive}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 data-testid="stop-processing-button"
@@ -7660,6 +7677,7 @@
         {/if}
 
         {#if $recordingState.showRecordAudioUI}
+            <div class="recording-controls-overlay">
             <!-- Pass the required initialPosition from the store -->
             <RecordAudio
                 bind:this={recordAudioComponent}
@@ -7678,6 +7696,7 @@
                 on:recordingStateChange={handleRecordingLayoutChange}
                 on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />
+            </div>
         {/if}
 
         {#if showMaps}

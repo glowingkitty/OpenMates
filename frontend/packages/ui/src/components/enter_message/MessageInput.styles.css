@@ -283,12 +283,28 @@
   padding: 0;
 }
 
-/* Capture and correction share the inactive composer height. */
+/* Empty capture and correction retain the inactive composer height. */
 .message-field.recording-active {
   min-height: 0;
   padding: 0;
   overflow: hidden;
   transition: none;
+}
+
+/* Existing draft content remains readable above the recording controls. */
+.message-field.recording-active.recording-with-draft {
+  min-height: var(--composer-focused-height, 180px);
+  padding-bottom: var(--recording-controls-height);
+}
+
+.message-field.recording-active .action-buttons-fade-wrapper {
+  display: none;
+}
+
+.recording-controls-overlay {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--recording-controls-height);
 }
 
 /* When a focus pill is visible, add top padding so the pill partially overlaps the field top.

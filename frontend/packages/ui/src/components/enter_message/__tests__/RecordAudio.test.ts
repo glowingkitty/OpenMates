@@ -350,6 +350,30 @@ describe('RecordAudio finalization', () => {
         await unmount(mounted.component, { outro: false });
     });
 
+    // contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
+    it('leaves viewer shortcuts and handled editor keys alone while capture continues', async () => {
+        const mounted = mountRecorder({ realtime: true });
+        await flushMount();
+        const recorder = FakeMediaRecorder.instances[0];
+        const viewer = document.createElement('div');
+        viewer.className = 'unified-embed-fullscreen-overlay';
+        document.body.appendChild(viewer);
+        for (const key of ['Enter', 'Escape']) {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+            document.dispatchEvent(event);
+            expect(event.defaultPrevented).toBe(false);
+            expect(recorder.state).toBe('recording');
+        }
+        expect(realtimeMocks.finish).not.toHaveBeenCalled();
+        expect(realtimeMocks.cancel).not.toHaveBeenCalled();
+        viewer.remove();
+        const handled = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+        handled.preventDefault();
+        document.dispatchEvent(handled);
+        expect(recorder.state).toBe('recording');
+        await unmount(mounted.component, { outro: false });
+    });
+
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
     it('Escape cancels processing and a late correction cannot close twice', async () => {
         let resolveCorrection!: (value: unknown) => void;

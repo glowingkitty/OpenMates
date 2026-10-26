@@ -35,6 +35,8 @@
      * preventDefault() to try to override them, but success depends on the browser.
      */
     const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === 'Enter' || event.key === 'Escape') &&
+          document.querySelector('.unified-embed-fullscreen-overlay')) return;
       const isMac = isMacPlatform();
       // Improved check for focused input: look for textarea, contenteditable, or ProseMirror class
       // This catches TipTap editors which create contenteditable divs
