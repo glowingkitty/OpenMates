@@ -51,7 +51,8 @@ def test_failed_authored_case_extracts_listener_cause_before_private_byte_cap(tm
     report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE,
                                     "tests": [{"results": [failed, {**failed, "status": "passed"}]}]}]}]}
     summaries = runner.capture_recovery_receipt_api_diagnostics(report, 2)
-    assert summaries == [{"exception_class": "ValueError", "function": "send_available_recovery_outputs", "line": 590}]
+    assert summaries == [{"exception_class": "ValueError", "function": "send_available_recovery_outputs", "line": 590,
+                          "final_delivery_stages": [], "final_delivery_truncated": False}]
     assert calls == [(("logs", "--no-color", "--since", "2026-10-26T11:44:58+00:00",
                        "--until", "2026-10-26T11:47:05+00:00", "--tail", "8000", "api"),
                       {"capture": True, "timeout": 90})]
@@ -66,6 +67,66 @@ def test_failed_authored_case_extracts_listener_cause_before_private_byte_cap(tm
     public = json.dumps(summaries)
     assert "private-" not in public and "11111111-1111-4111-8111-111111111111" not in public
     assert "connector" not in public
+
+
+def test_authored_delivery_stages_and_protocol_warnings_need_no_traceback(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    websocket_logger = "backend.core.api.app.routes.websockets"
+    messages = [
+        (websocket_logger, "Final stream delivery stage=final_received device=0 success=none exception=none code=none"),
+        (websocket_logger, "Final stream delivery stage=outputs_result device=1 success=false exception=ChatRecoveryProtocolError code=forbidden"),
+        (websocket_logger, "Final stream delivery stage=final_send device=2 success=true exception=private_sentinel code=private_sentinel"),
+        (websocket_logger, "Final stream delivery stage=private_sentinel device=1 success=true exception=none code=none"),
+        (websocket_logger, "Final stream delivery stage=final_send device=129 success=true exception=none code=none"),
+        ("private_logger", "Final stream delivery stage=final_send device=2 success=true exception=none code=none"),
+        ("backend.core.api.app.services.chat_recovery_service",
+         "Chat recovery transaction rejected: operation=list_pending_outputs code=chat_not_found status=404"),
+        ("backend.core.api.app.services.chat_recovery_service",
+         "Chat recovery transaction rejected: operation=list_available_jobs code=private_sentinel status=500"),
+        ("backend.core.api.app.services.chat_recovery_service",
+         "Chat recovery transaction rejected: operation=private_sentinel code=chat_not_found status=404"),
+    ]
+    output = "\n".join("api-1 | " + json.dumps({"name": name, "message": message,
+        "private_unknown_field": "private_sentinel"}) for name, message in messages)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(stdout=output))
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE, "tests": [{"results": [
+        {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000},
+    ]}]}]}]}
+    summaries = runner.capture_recovery_receipt_api_diagnostics(report, 0)
+    assert summaries == [{"exception_class": "none", "function": "none", "line": 0,
+        "final_delivery_stages": [
+            {"stage": "final_received", "device": 0, "success": None, "exception_class": "none", "code": "none"},
+            {"stage": "outputs_result", "device": 1, "success": False, "exception_class": "ChatRecoveryProtocolError", "code": "forbidden"},
+            {"stage": "final_send", "device": 2, "success": True, "exception_class": "other", "code": "other"},
+        ], "final_delivery_truncated": False,
+        "recovery_protocol_rejections": [
+            {"operation": "list_pending_outputs", "code": "chat_not_found", "status": 404},
+            {"operation": "list_available_jobs", "code": "other", "status": 500},
+        ]}]
+    assert "private_sentinel" not in json.dumps(summaries)
+    assert "private_logger" not in json.dumps(summaries)
+
+
+def test_authored_delivery_diagnostics_bound_exported_event_counts(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    stage = json.dumps({"name": "backend.core.api.app.routes.websockets",
+        "message": "Final stream delivery stage=jobs_begin device=1 success=none exception=none code=none"})
+    rejection = json.dumps({"name": "backend.core.api.app.services.chat_recovery_service",
+        "message": "Chat recovery transaction rejected: operation=list_available_jobs code=transaction_failed status=500"})
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(stdout="\n".join([stage] * 65 + [rejection] * 17)))
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE, "tests": [{"results": [
+        {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000},
+    ]}]}]}]}
+    summary = runner.capture_recovery_receipt_api_diagnostics(report, 0)[0]
+    assert len(summary["final_delivery_stages"]) == 64
+    assert summary["final_delivery_truncated"] is True
+    assert len(summary["recovery_protocol_rejections"]) == 16
 
 
 @pytest.mark.parametrize("title", [

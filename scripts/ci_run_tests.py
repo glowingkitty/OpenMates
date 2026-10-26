@@ -1829,6 +1829,16 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                     if spec.get("title") == authored_title:
                         structured = None
                         recovery_failure = None
+                        delivery_stages = []
+                        delivery_truncated = False
+                        protocol_rejections = []
+                        stage_names = {"final_received", "jobs_begin", "jobs_result", "outputs_begin", "outputs_result", "final_send"}
+                        exception_names = {"none", "other", "RuntimeError", "ValueError", "TypeError", "PermissionError",
+                                           "TimeoutError", "ConnectionError", "WebSocketDisconnect", "ChatRecoveryProtocolError"}
+                        stage_codes = {"none", "other", "forbidden", "not_found", "invalid_request", "lease_conflict", "transaction_failed"}
+                        rejection_codes = stage_codes | {"internal_error", "invalid_operation", "chat_not_found",
+                                                         "recovery_job_not_found", "recovery_output_not_found",
+                                                         "invalid_owner", "invalid_device", "invalid_protocol"}
                         for row in diagnostic_lines:
                             # Container JSON rows escape traceback newlines/quotes.
                             # Decode only bounded rows; never return their messages.
@@ -1839,7 +1849,36 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                                 record = json.loads(row[json_start:])
                             except (ValueError, TypeError):
                                 continue
-                            if not isinstance(record, dict) or not isinstance(record.get("exc_info"), str):
+                            if not isinstance(record, dict):
+                                continue
+                            message = record.get("message")
+                            if isinstance(message, str):
+                                stage_match = re.fullmatch(
+                                    r"Final stream delivery stage=([a-z_]{1,32}) device=([0-9]{1,3}) "
+                                    r"success=(true|false|none) exception=([A-Za-z_][A-Za-z_0-9]{0,79}) code=([a-z_]{1,80})",
+                                    message,
+                                )
+                                if (record.get("name") == "backend.core.api.app.routes.websockets"
+                                        and stage_match and stage_match[1] in stage_names
+                                        and int(stage_match[2]) <= 128):
+                                    if len(delivery_stages) < 64:
+                                        event = {"stage": stage_match[1], "device": int(stage_match[2]),
+                                                 "success": {"true": True, "false": False, "none": None}[stage_match[3]]}
+                                        event["exception_class"] = stage_match[4] if stage_match[4] in exception_names else "other"
+                                        event["code"] = stage_match[5] if stage_match[5] in stage_codes else "other"
+                                        delivery_stages.append(event)
+                                    else:
+                                        delivery_truncated = True
+                                rejection = re.fullmatch(
+                                    r"Chat recovery transaction rejected: operation=(list_available_jobs|list_pending_outputs) "
+                                    r"code=([a-z_]{1,100}) status=([45][0-9]{2})", message,
+                                )
+                                if (record.get("name") == "backend.core.api.app.services.chat_recovery_service"
+                                        and rejection and len(protocol_rejections) < 16):
+                                    protocol_rejections.append({"operation": rejection[1],
+                                        "code": rejection[2] if rejection[2] in rejection_codes else "other",
+                                        "status": int(rejection[3])})
+                            if not isinstance(record.get("exc_info"), str):
                                 continue
                             trace = record["exc_info"]
                             trace_frames = re.findall(
@@ -1864,6 +1903,10 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         # Recovery/listener failures take precedence over later
                         # unrelated exporter/DNS errors in the same bounded tail.
                         summary = recovery_failure or structured or summary
+                        summary["final_delivery_stages"] = delivery_stages
+                        summary["final_delivery_truncated"] = delivery_truncated
+                        if protocol_rejections:
+                            summary["recovery_protocol_rejections"] = protocol_rejections
                     # Raw windows stay runner-private. Boolean cache failures
                     # have no traceback, so deliver only fixed stage names.
                     cache_stages = []
