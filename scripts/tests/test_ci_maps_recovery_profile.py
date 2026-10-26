@@ -108,6 +108,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     ({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}, True),
 ])
 @pytest.mark.parametrize("spec_name", [
+    "cli-authored-results.spec.ts",
     "stop-new-chat-draft.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "rust-core-browser-session.spec.ts",
