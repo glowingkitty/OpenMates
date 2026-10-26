@@ -62,7 +62,7 @@ def proof():
         "requiredTests": sorted(
             "browser::browser_crypto_tests::" + n for n in worker.REQUIRED_TESTS
         ),
-        "passed": 8,
+        "passed": len(worker.REQUIRED_TESTS),
         "failed": 0,
         "ignored": 0,
         "filteredOut": 0,
@@ -108,14 +108,14 @@ def proof():
 
 def test_real_compiler_export_inventory_requires_dedicated_worker_and_all_authored_cases():
     actual = worker.wasm_tests(wasm())
-    assert len(actual) == 8
+    assert len(actual) == len(worker.REQUIRED_TESTS)
     assert (
         len(
             worker.wasm_tests(
                 wasm(names=[*worker.REQUIRED_TESTS, "future_ninth_handoff"])
             )
         )
-        == 9
+        == len(worker.REQUIRED_TESTS) + 1
     )
     for raw in [
         wasm(mode=b"\x01"),
@@ -330,7 +330,7 @@ def test_all_source_authored_tests_must_be_held_and_compiled(tmp_path):
     with pytest.raises(worker.sdk.Refused):
         worker.authored_tests(tmp_path, inputs)
     inputs[path] = worker.sdk.sha(file.read_bytes())
-    assert len(worker.authored_tests(tmp_path, inputs)) == 9
+    assert len(worker.authored_tests(tmp_path, inputs)) == len(worker.REQUIRED_TESTS) + 1
 
 
 def private_lane():
@@ -410,3 +410,30 @@ def test_second_official_runner_binary_keeps_original_pin_and_single_inode_guard
             after["binarySha256"] == before["binarySha256"]
             and binary.stat().st_nlink == 1
         )
+
+
+def test_legacy_primitive_exports_and_receipt_each_require_all_three_new_cases():
+    required = (
+        "real_webcrypto_equals_native_rust_and_independent_vectors_without_export",
+        "every_original_scope_checkpoint_refuses_before_plaintext_publication",
+        "dropped_consumer_wipes_late_real_decrypt_output",
+    )
+    original = (
+        "cloned_nonextractable_key_preserves_nist_aes256_vector_and_never_exports",
+        "extractable_key_uses_same_primitive_without_export_or_attribute_change",
+        "wrong_key_tag_nonce_and_short_tag_fail_closed",
+        "wrong_algorithm_length_usage_and_key_type_are_rejected",
+        "capability_cancellation_denies_late_encrypt_and_decrypt_results",
+        "same_material_new_capability_is_distinct_and_invalidated_old_result_cannot_publish",
+        "dropped_consumer_still_wipes_real_webcrypto_plaintext_at_settlement",
+        "shared_eleven_codec_cases_match_actual_webcrypto_for_both_extractability_values",
+    )
+    assert worker.REQUIRED_TESTS == original + required
+    assert worker.wasm_tests(wasm())
+    for name in required:
+        with pytest.raises(worker.sdk.Refused):
+            worker.wasm_tests(wasm(names=[n for n in worker.REQUIRED_TESTS if n != name]))
+        receipt = proof()
+        receipt["requiredTests"] = [n for n in receipt["requiredTests"] if not n.endswith("::" + name)]
+        receipt["passed"] -= 1
+        assert not worker.valid_proof(receipt)

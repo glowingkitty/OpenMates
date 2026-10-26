@@ -49,6 +49,9 @@ REQUIRED_TESTS = (
     "same_material_new_capability_is_distinct_and_invalidated_old_result_cannot_publish",
     "dropped_consumer_still_wipes_real_webcrypto_plaintext_at_settlement",
     "shared_eleven_codec_cases_match_actual_webcrypto_for_both_extractability_values",
+    "real_webcrypto_equals_native_rust_and_independent_vectors_without_export",
+    "every_original_scope_checkpoint_refuses_before_plaintext_publication",
+    "dropped_consumer_wipes_late_real_decrypt_output",
 )
 
 

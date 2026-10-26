@@ -38,7 +38,7 @@ def worker_proof_fixture():
     w = lane.worker
     return {"schemaVersion": 1, "workerRuntimeProof": True, "context": "dedicated-worker",
         "requiredTests": sorted("browser::browser_crypto_tests::" + name for name in w.REQUIRED_TESTS),
-        "passed": 8, "failed": 0, "ignored": 0, "filteredOut": 0, "testWasmSha256": "1" * 64,
+        "passed": len(w.REQUIRED_TESTS), "failed": 0, "ignored": 0, "filteredOut": 0, "testWasmSha256": "1" * 64,
         "controllerSha256": lane.sdk.sha(lane.sdk.regular(Path(w.__file__).with_suffix(".mjs"))),
         "runnerProvenance": {"package": "wasm-bindgen-cli", "version": "0.2.129", "registry": "crates.io",
             "url": "https://crates.io/crates/wasm-bindgen-cli/0.2.129",
@@ -792,7 +792,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs), fault)
 
     def test_same_job_manifest_uses_honest_e2e_identity_and_never_claims_browser_execution(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC):
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC, lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC, lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC):
             report, receipt, job, kwargs = WasmReceiptTests().fixture()
             report["runtime_profile"] = job["mode"] = "e2e"
             job["specs"] = json.dumps([target])
@@ -809,7 +809,7 @@ class BrowserPackagingTests(SyntheticPinTests):
             self.assertFalse(retrieval.valid_rust_wasm_receipt(report, receipt, job, "f" * 40, **kwargs))
 
     def test_local_same_job_handoff_accepts_only_verified_fixed_package_bytes(self):
-        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC):
+        for target in (lane.BROWSER_SPEC, lane.BROWSER_PASSWORD_SPEC, lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC, lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC, lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC):
             _, receipt, _, kwargs = WasmReceiptTests().fixture()
             receipt.update(runtime_profile="rust-browser-package-for-e2e", requestedMode="e2e", requestedTargets=[target])
             receipt["workerProof"] = None
@@ -890,8 +890,10 @@ class BrowserPackagingTests(SyntheticPinTests):
                     manifest_path = Path(result["directory"]) / result["browser_package"]["manifest"]
                     self.assertEqual(hashlib.sha256(manifest_path.read_bytes()).hexdigest(), result["browser_package"]["manifestSha256"])
 
-    def test_browser_package_selector_is_exact_for_both_reviewed_specs(self):
-        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC], [lane.PRODUCTION_BROWSER_SPEC], [lane.PRODUCTION_BROWSER_PLATFORM_SPEC], [lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC], [lane.PRODUCTION_BROWSER_PLATFORM_SPEC,lane.PRODUCTION_BROWSER_SPEC])
+    def test_browser_package_selector_is_exact_for_all_reviewed_specs(self):
+        from itertools import permutations
+        production_specs = sorted(lane.PRODUCTION_BROWSER_SPECS)
+        accepted = ([lane.BROWSER_SPEC], [lane.BROWSER_PASSWORD_SPEC]) + tuple([name] for name in production_specs) + tuple(list(pair) for pair in permutations(production_specs, 2))
         for targets in accepted:
             self.assertTrue(lane.browser_e2e_targets(targets))
             self.assertTrue(retrieval._browser_package_job({"mode":"e2e","specs":json.dumps(targets)}))
@@ -922,7 +924,17 @@ class BrowserPackagingTests(SyntheticPinTests):
         self.assertIn(lane.BROWSER_SPEC, ast.literal_eval(private.value.args[0]))
         steps = next(iter(yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
         clock = next(step for step in steps if step.get("name") == "Start bounded same-source browser package clock")
-        self.assertEqual(clock["if"], 'inputs.mode == \'e2e\' && (inputs.specs_json == \'["rust-core-browser-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-browser-password-entry.spec.ts"]\' || (inputs.specs_json == \'["rust-core-production-saved-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]\'))')
+        from itertools import permutations
+        production_specs = [lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+                            lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC]
+        production_targets = [[name] for name in production_specs[:2]] + [list(pair) for pair in permutations(production_specs[:2], 2)]
+        production_targets += [[production_specs[2]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[2] in pair]
+        production_specs.append(lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC)
+        production_targets += [[production_specs[3]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[3] in pair]
+        production_specs.append(lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC)
+        production_targets += [[production_specs[4]]] + [list(pair) for pair in permutations(production_specs, 2) if production_specs[4] in pair]
+        predicate = "(" + " || ".join("inputs.specs_json == '" + json.dumps(targets, separators=(",", ":")) + "'" for targets in production_targets) + ")"
+        self.assertEqual(clock["if"], "inputs.mode == 'e2e' && (inputs.specs_json == '[\"rust-core-browser-session.spec.ts\"]' || inputs.specs_json == '[\"rust-core-browser-password-entry.spec.ts\"]' || " + predicate + ")")
         self.assertIn("started + 1800", clock["run"])
         self.assertEqual(lane.BUDGET, 2700)
         upload = next(step for step in steps if step.get("with", {}).get("name") == "isolated-test-results")

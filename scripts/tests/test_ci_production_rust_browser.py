@@ -4,6 +4,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+from itertools import permutations
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -119,7 +120,7 @@ def test_workflow_forces_fresh_build_and_preserves_ordinary_supplier_order_and_l
     steps = next(iter(yaml.safe_load((ROOT/".github/workflows/isolated-tests.yml").read_text())["jobs"].values()))["steps"]
     named = {step.get("name"):step for step in steps}
     prepare = named["Prepare exact production-loader browser package"]
-    assert prepare["if"] == 'inputs.mode == \'e2e\' && (inputs.specs_json == \'["rust-core-production-saved-session.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-saved-session.spec.ts","rust-core-production-platform.spec.ts"]\' || inputs.specs_json == \'["rust-core-production-platform.spec.ts","rust-core-production-saved-session.spec.ts"]\')'
+    assert prepare["if"] == "inputs.mode == 'e2e' && " + production_workflow_predicate()
     assert steps.index(prepare) < steps.index(named["Build local web app"])
     assert supplier.SPEC in named["Build local web app"]["if"]
     assert supplier.SPEC in named["Generate UI build inputs once"]["if"]
@@ -328,15 +329,41 @@ def test_build_refuses_postbuild_compiler_validation_failure_without_returning_p
         command.assert_called_once()
 
 
-PRODUCTION_SUBSETS = [
+ORIGINAL_PRODUCTION_SUBSETS = [
     [lane.PRODUCTION_BROWSER_SPEC], [lane.PRODUCTION_BROWSER_PLATFORM_SPEC],
     [lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC],
     [lane.PRODUCTION_BROWSER_PLATFORM_SPEC,lane.PRODUCTION_BROWSER_SPEC],
 ]
 
+THREE_PRODUCTION_SUBSETS = ORIGINAL_PRODUCTION_SUBSETS + [[lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC]] + [
+    list(pair) for pair in permutations([lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+                                   lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC], 2)
+    if lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC in pair
+]
+
+
+FOUR_PRODUCTION_SUBSETS = THREE_PRODUCTION_SUBSETS + [[lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC]] + [
+    list(pair) for pair in permutations([lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+                                        lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC], 2)
+    if lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC in pair
+]
+
+
+PRODUCTION_SUBSETS = FOUR_PRODUCTION_SUBSETS + [[lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC]] + [
+    list(pair) for pair in permutations([lane.PRODUCTION_BROWSER_SPEC, lane.PRODUCTION_BROWSER_PLATFORM_SPEC,
+                                        lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC,
+                                        lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC], 2)
+    if lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC in pair
+]
+
+
+def production_workflow_predicate():
+    return "(" + " || ".join("inputs.specs_json == '" + json.dumps(targets, separators=(",", ":")) + "'"
+                            for targets in PRODUCTION_SUBSETS) + ")"
+
 
 @pytest.mark.parametrize("targets", PRODUCTION_SUBSETS)
-def test_two_production_selectors_share_one_package_and_keep_full_receipt_target_binding(targets):
+def test_five_production_selectors_share_one_package_and_keep_full_receipt_target_binding(targets):
     assert lane.production_browser_e2e_targets(targets) and lane.browser_e2e_targets(targets)
     supplier.require_selector({**environment(),"CI_SPECS_JSON":json.dumps(targets,separators=(",",":"))})
     receipt,job,kwargs = compiler_values()
@@ -353,7 +380,13 @@ def test_two_production_selectors_share_one_package_and_keep_full_receipt_target
 
 
 @pytest.mark.parametrize("targets", [[], [lane.PRODUCTION_BROWSER_SPEC]*2,
-    [lane.PRODUCTION_BROWSER_PLATFORM_SPEC]*2, [lane.PRODUCTION_BROWSER_SPEC,lane.BROWSER_SPEC],
+    [lane.PRODUCTION_BROWSER_PLATFORM_SPEC]*2, [lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC]*2,
+    [lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC]*2, [lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC]*2,
+    [lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC,lane.BROWSER_PASSWORD_SPEC], ["nested/"+lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC],
+    [lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC+".extra"], [lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC,None], sorted({lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC,lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC}),
+    [lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC,lane.BROWSER_PASSWORD_SPEC], ["nested/"+lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC],
+    sorted(lane.PRODUCTION_BROWSER_SPECS), [lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC,lane.BROWSER_PASSWORD_SPEC],
+    ["nested/"+lane.PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC], [lane.PRODUCTION_BROWSER_SPEC,lane.BROWSER_SPEC],
     [lane.PRODUCTION_BROWSER_PLATFORM_SPEC,"unknown.spec.ts"], ["nested/"+lane.PRODUCTION_BROWSER_PLATFORM_SPEC],
     [lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC,lane.PRODUCTION_BROWSER_SPEC],
     [None], [{"spec":lane.PRODUCTION_BROWSER_PLATFORM_SPEC}], lane.PRODUCTION_BROWSER_PLATFORM_SPEC])
@@ -363,7 +396,7 @@ def test_production_subset_refuses_duplicates_unknown_legacy_and_arbitrary_selec
         supplier.require_selector({**environment(),"CI_SPECS_JSON":json.dumps(targets)})
 
 
-def test_both_specs_get_isolated_accounts_and_share_only_one_prebuild_supplier():
+def test_all_specs_get_isolated_accounts_and_share_only_one_prebuild_supplier():
     source=(ROOT/"scripts/ci_environment.py").read_text()
     tree=ast.parse(source)
     functions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in {"browser_account_slots","browser_account_count"}]
@@ -372,11 +405,11 @@ def test_both_specs_get_isolated_accounts_and_share_only_one_prebuild_supplier()
     exec(compile(ast.Module(body=functions,type_ignores=[]),"account_slots_fixture","exec"),values)
     assert all(values["browser_account_count"](targets)==2*len(targets) for targets in PRODUCTION_SUBSETS)
     private=next(n for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="PRIVATE_BACKEND_SPECS" for t in n.targets))
-    assert {lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC} <= ast.literal_eval(private.value.args[0])
+    assert lane.PRODUCTION_BROWSER_SPECS <= ast.literal_eval(private.value.args[0])
     runner=(ROOT/"scripts/ci_run_tests.py").read_text()
     parsed=ast.parse(runner)
     markers=next(n for n in parsed.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="MARKER_CHAT_EPOCH_SPECS" for t in n.targets))
-    assert {lane.PRODUCTION_BROWSER_SPEC,lane.PRODUCTION_BROWSER_PLATFORM_SPEC} <= ast.literal_eval(markers.value.args[0])
+    assert lane.PRODUCTION_BROWSER_SPECS <= ast.literal_eval(markers.value.args[0])
     run=next(n for n in parsed.body if isinstance(n,ast.FunctionDef) and n.name=="run_e2e")
     segment=ast.get_source_segment(runner,run)
     assert segment.count("verify_for_e2e(ROOT)")==1 and segment.index("verify_for_e2e(ROOT)") < segment.index("for index, name in enumerate(specs)")
@@ -387,3 +420,41 @@ def test_both_specs_get_isolated_accounts_and_share_only_one_prebuild_supplier()
     workflow=yaml.safe_load((ROOT/".github/workflows/isolated-tests.yml").read_text())
     steps=next(iter(workflow["jobs"].values()))["steps"]
     assert sum(step.get("name")=="Prepare exact production-loader browser package" for step in steps)==1
+
+
+def test_exact_twenty_five_orders_preserve_two_spec_and_four_account_limits():
+    assert len(PRODUCTION_SUBSETS) == 25
+    assert len({tuple(targets) for targets in PRODUCTION_SUBSETS}) == 25
+    assert PRODUCTION_SUBSETS[:16] == FOUR_PRODUCTION_SUBSETS
+    assert len(FOUR_PRODUCTION_SUBSETS) == 16
+    assert all(targets in PRODUCTION_SUBSETS for targets in THREE_PRODUCTION_SUBSETS)
+    assert len(THREE_PRODUCTION_SUBSETS) == 9
+    assert {tuple(targets) for targets in PRODUCTION_SUBSETS} == {
+        targets for size in (1, 2) for targets in permutations(lane.PRODUCTION_BROWSER_SPECS, size)
+    }
+    coverage = load("production_supplier_five_target_batches", "ci_coverage.py")
+    batches = coverage.runtime_batches(sorted(lane.PRODUCTION_BROWSER_SPECS), 2)
+    assert [len(batch) for batch in batches] == [2, 2, 1]
+    original_four = sorted(lane.PRODUCTION_BROWSER_SPECS - {lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC})
+    assert [len(batch) for batch in coverage.runtime_batches(original_four, 2)] == [2, 2]
+    original_three = sorted(lane.PRODUCTION_BROWSER_SPECS - {lane.PRODUCTION_BROWSER_SAVED_PAGING_SPEC, lane.PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC})
+    assert [len(batch) for batch in coverage.runtime_batches(original_three, 2)] == [2, 1]
+    assert not lane.production_browser_e2e_targets(original_three)
+    assert all(lane.production_browser_e2e_targets(batch) for batch in batches)
+    assert not lane.production_browser_e2e_targets(sorted(lane.PRODUCTION_BROWSER_SPECS))
+
+
+def test_workflow_admits_only_closed_orders_at_every_existing_supply_build_and_capture_gate():
+    workflow = yaml.safe_load((ROOT / ".github/workflows/isolated-tests.yml").read_text())
+    steps = next(iter(workflow["jobs"].values()))["steps"]
+    predicate = production_workflow_predicate()
+    guarded = [step for step in steps if predicate in step.get("if", "")]
+    assert len(guarded) == 5
+    named = {step.get("name"): step for step in guarded}
+    assert {"Start bounded same-source browser package clock", "Prepare exact production-loader browser package",
+            "Generate UI build inputs once", "Build local web app"} <= set(named)
+    build = named["Build local web app"]["run"]
+    case_line = next(line.strip() for line in build.splitlines() if line.strip().startswith("'e2e:"))
+    assert case_line == "|".join("'e2e:" + json.dumps(targets, separators=(",", ":")) + "'"
+                                 for targets in PRODUCTION_SUBSETS) + ")"
+    assert "timeout-minutes: 30" in (ROOT / ".github/workflows/isolated-tests.yml").read_text()

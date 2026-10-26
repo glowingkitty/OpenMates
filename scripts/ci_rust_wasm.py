@@ -32,6 +32,11 @@ BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
 PRODUCTION_BROWSER_SPEC = "rust-core-production-saved-session.spec.ts"
 PRODUCTION_BROWSER_PLATFORM_SPEC = "rust-core-production-platform.spec.ts"
+PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC = "rust-core-production-local-cursor.spec.ts"
+PRODUCTION_BROWSER_SAVED_PAGING_SPEC = "rust-core-production-saved-paging.spec.ts"
+PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC = "rust-core-ordinary-login-retention.spec.ts"
+PRODUCTION_BROWSER_SPECS = frozenset({PRODUCTION_BROWSER_SPEC, PRODUCTION_BROWSER_PLATFORM_SPEC,
+                                      PRODUCTION_BROWSER_LOCAL_CURSOR_SPEC, PRODUCTION_BROWSER_SAVED_PAGING_SPEC, PRODUCTION_BROWSER_ORDINARY_LOGIN_SPEC})
 BROWSER_BUDGET = 1800
 WASM_NAME = "openmates_browser_bindings.wasm"
 WASM_PATH = "wasm32-unknown-unknown/release/" + WASM_NAME
@@ -180,9 +185,9 @@ FAILURES = frozenset({"admission", "identity", "source", "deadline", "disk", "to
 
 
 def production_browser_e2e_targets(targets):
-    """Closed nonempty, deduplicated subset of the two reviewed production specs."""
+    """Closed nonempty, deduplicated subset of the five reviewed production specs (at most two per job)."""
     return (type(targets) is list and 1 <= len(targets) <= 2
-            and all(type(name) is str and name in {PRODUCTION_BROWSER_SPEC, PRODUCTION_BROWSER_PLATFORM_SPEC} for name in targets)
+            and all(type(name) is str and name in PRODUCTION_BROWSER_SPECS for name in targets)
             and len(set(targets)) == len(targets))
 
 

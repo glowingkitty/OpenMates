@@ -67,7 +67,7 @@ TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
 RUST_BROWSER_SPEC = "rust-core-browser-session.spec.ts"
 RUST_BROWSER_PASSWORD_SPEC = "rust-core-browser-password-entry.spec.ts"
 RUST_BROWSER_SPECS = frozenset({RUST_BROWSER_SPEC, RUST_BROWSER_PASSWORD_SPEC})
-RUST_PRODUCTION_BROWSER_SPECS = frozenset({"rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts"})
+RUST_PRODUCTION_BROWSER_SPECS = frozenset({"rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts", "rust-core-production-local-cursor.spec.ts", "rust-core-production-saved-paging.spec.ts", "rust-core-ordinary-login-retention.spec.ts"})
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
 APPROVED_RECOVERY_CASES = frozenset({
@@ -84,6 +84,9 @@ MARKER_CHAT_EPOCH_SPECS = frozenset({
     "rust-core-browser-password-entry.spec.ts",
     "rust-core-production-saved-session.spec.ts",
     "rust-core-production-platform.spec.ts",
+    "rust-core-production-local-cursor.spec.ts",
+    "rust-core-production-saved-paging.spec.ts",
+    "rust-core-ordinary-login-retention.spec.ts",
     "cli-rust-core-essential.spec.ts",
     "cli-recovery-fixtures.spec.ts",
     "cli-recovery-discovery.spec.ts",

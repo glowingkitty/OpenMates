@@ -56,6 +56,9 @@ PRIVATE_BACKEND_SPECS = frozenset({
     "rust-core-browser-password-entry.spec.ts",
     "rust-core-production-saved-session.spec.ts",
     "rust-core-production-platform.spec.ts",
+    "rust-core-production-local-cursor.spec.ts",
+    "rust-core-production-saved-paging.spec.ts",
+    "rust-core-ordinary-login-retention.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {

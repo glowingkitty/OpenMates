@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openmates:browser-ordinary-retention-fixture:v1",
+  "description": "Maintained synthetic effect-plan fixture only; executable three-SDK and browser storage acceptance remain required partial.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provenance": {
+      "const": "Public synthetic ordinary-retention plan; never proof of an account or storage result."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stayLoggedIn",
+            "effect"
+          ],
+          "properties": {
+            "stayLoggedIn": {
+              "const": false
+            },
+            "effect": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/effect"
+                },
+                {
+                  "properties": {
+                    "action": {
+                      "const": "save_memory"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stayLoggedIn",
+            "effect"
+          ],
+          "properties": {
+            "stayLoggedIn": {
+              "const": true
+            },
+            "effect": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/effect"
+                },
+                {
+                  "properties": {
+                    "action": {
+                      "const": "save_persisted"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "effect": {
+      "description": "PRIVATE required-partial shared effect proposal; no storage proof, complete SDK or publication claim.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "operationId",
+        "owner",
+        "generation",
+        "lifecycleGeneration",
+        "action",
+        "credentialAcknowledged",
+        "crossDatabaseAssociationProven"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "operationId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$(?![\\s\\S])"
+        },
+        "owner": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$(?![\\s\\S])"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "lifecycleGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "action": {
+          "enum": [
+            "save_memory",
+            "save_persisted"
+          ]
+        },
+        "credentialAcknowledged": {
+          "const": false
+        },
+        "crossDatabaseAssociationProven": {
+          "const": false
+        }
+      }
+    }
+  }
+}

@@ -205,7 +205,7 @@ def test_production_rust_browser_targets_require_exact_built_isolated_profile():
     from scripts.ci_coverage import execution_mode
 
     manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
-    targets = ["rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts"]
+    targets = ["rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts", "rust-core-production-local-cursor.spec.ts", "rust-core-production-saved-paging.spec.ts", "rust-core-ordinary-login-retention.spec.ts"]
     allowed, held = partition(targets, manifest)
     assert allowed == targets
     assert held == {}

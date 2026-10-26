@@ -1,0 +1,1226 @@
+{
+  "afterCounts": {
+    "contracts": 79,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 309
+  },
+  "afterSha256": "bb1da8b22c146f87c9f3f8e1942a5b14d724a8397732308ca9c72b04b326e241",
+  "beforeCounts": {
+    "contracts": 75,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 283
+  },
+  "beforeSha256": "4c4aae4870a6d85341e2a81af56d4b5885e0fcaef1c6755e0faec6f57e9223d7",
+  "fixtureSha256": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb",
+  "gapAdded": [
+    "session.chat-first-page-continuation.v1 [rust] partial: Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance.",
+    "session.chat-first-page-continuation.v1 [npm] partial: Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance.",
+    "session.chat-first-page-continuation.v1 [python] partial: Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance."
+  ],
+  "matrixDelta": {
+    "afterSha256": "2847dac0c6d45998e2ba0d39928fb39381a6ad0844cdfac523f287b86aaa3a90",
+    "beforeSha256": "69bc6f28a82b296fa9f3a577b74eab8d127f449b276f301fcd66c27f3a4d5f98",
+    "familyAdded": "session.chat-first-page-continuation.v1",
+    "rustApisAddedToExisting": {
+      "sdk.session-client": [
+        "client.Client.browser_saved_chat_read_json",
+        "client.Client.browser_local_checkpoint_summary_with_io_json"
+      ],
+      "session.saved-chat-read.v1": [
+        "client.saved_chat_read.SavedChatReadAdmission.ensure_resource_current"
+      ]
+    }
+  },
+  "nativeExecutions": 0,
+  "newFamily": {
+    "description": "Explicit optional first-page callback and same-operation pull continuation with exact platform persistence, capacity and original publication fences; final canonical/cache/offline result remains distinct.",
+    "domain": "operations",
+    "fixture": "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json",
+    "id": "session.chat-first-page-continuation.v1",
+    "languages": {
+      "npm": {
+        "api": [
+          "SessionClient.readChatWithFirstPage"
+        ],
+        "conformance": true,
+        "evidence": [
+          "tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs"
+        ],
+        "gaps": [
+          "Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance."
+        ],
+        "status": "partial"
+      },
+      "python": {
+        "api": [
+          "SessionClient.read_chat_with_first_page",
+          "SessionFirstPageCallback",
+          "SessionFirstPageCapacity",
+          "SessionFirstPagePublication",
+          "SessionFirstPageStore",
+          "SessionFirstPageStore.admit_first_page"
+        ],
+        "conformance": true,
+        "evidence": [
+          "tests/sdk-conformance/runners/session-chat-first-page-continuation.py"
+        ],
+        "gaps": [
+          "Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance."
+        ],
+        "status": "partial"
+      },
+      "rust": {
+        "api": [
+          "client.Client.commit_chat_first_page",
+          "client.Client.read_chat_view_prefer_cache_with_first_page",
+          "client.Client.validate_chat_first_page",
+          "client.Client.validate_chat_first_page_publication",
+          "client.chat_first_page.ChatFirstPageCandidate",
+          "client.chat_first_page.ChatFirstPageCandidate.ciphertext_sha256",
+          "client.chat_first_page.ChatFirstPageCandidate.credential_revision",
+          "client.chat_first_page.ChatFirstPagePublication",
+          "client.chat_first_page.ChatFirstPagePublication.into_window",
+          "client.chat_first_page.ChatFirstPagePublication.is_valid",
+          "client.chat_first_page.ChatFirstPagePublication.with_chat",
+          "client.chat_first_page.ChatFirstPageSink",
+          "client.chat_first_page.ChatFirstPageSink.admit_checkpoint",
+          "client.chat_first_page.ChatFirstPageSink.first_page"
+        ],
+        "conformance": true,
+        "evidence": [
+          "packages/openmates-session-bindings/examples/session-chat-first-page-continuation-conformance.rs"
+        ],
+        "gaps": [
+          "Required partial: the same original Rust read, explicit prospective-total store capacity, exact durable checkpoint/credential CAS receipt and ACK, callback-before-next-pull ordering, and distinct interim/final authority must hold through all direct Rust/npm/Python libraries. The16 shared vectors are authored; compiled three-SDK execution, queued resource/private-denial/request-cancel and post-encoding wipe enforcement, native/browser/platform integration, ARM packaging and equal-input first-usable plus full-history CPU/RAM/performance remain unverified. API shapes may differ. A first page grants no full-history/export/recovery authority; source, syntax and pure/mock checks grant no execution waiver or release acceptance."
+        ],
+        "status": "partial"
+      }
+    }
+  },
+  "oldGapsSha256": "1c2682968c9204c0e0cf27bf7ca7fe5c973c4a629f6c0b00b9646fd829ad883c",
+  "oldPlansSha256": "4fb36f005167c7b367fec8b3dbe70c3445f44d55505f040847536428a5dc0ec3",
+  "orderedFixtureVectors": [
+    {
+      "id": "cold-uuid",
+      "message_id_mode": "uuid",
+      "mode": "admit"
+    },
+    {
+      "id": "cold-composite",
+      "message_id_mode": "composite",
+      "mode": "admit"
+    },
+    {
+      "id": "cold-opaque",
+      "message_id_mode": "opaque",
+      "mode": "admit"
+    },
+    {
+      "id": "capacity-refused",
+      "message_id_mode": "uuid",
+      "mode": "capacity-false"
+    },
+    {
+      "id": "capacity-io-error",
+      "message_id_mode": "uuid",
+      "mode": "capacity-error"
+    },
+    {
+      "id": "wrong-checkpoint-hash",
+      "message_id_mode": "uuid",
+      "mode": "wrong-hash"
+    },
+    {
+      "id": "wrong-credential-revision",
+      "message_id_mode": "uuid",
+      "mode": "wrong-revision"
+    },
+    {
+      "id": "receipt-purpose-separated",
+      "message_id_mode": "uuid",
+      "mode": "wrong-purpose"
+    },
+    {
+      "id": "store-cas-refused",
+      "message_id_mode": "uuid",
+      "mode": "cas-refused"
+    },
+    {
+      "id": "callback-failed",
+      "message_id_mode": "uuid",
+      "mode": "callback-failure"
+    },
+    {
+      "id": "callback-cancelled",
+      "message_id_mode": "uuid",
+      "mode": "callback-cancel"
+    },
+    {
+      "id": "stale-a-preserves-b",
+      "message_id_mode": "uuid",
+      "mode": "stale-a-b"
+    },
+    {
+      "id": "missing-secret-consent",
+      "message_id_mode": "uuid",
+      "mode": "no-secrets"
+    },
+    {
+      "id": "missing-private-consent",
+      "message_id_mode": "uuid",
+      "mode": "no-private"
+    },
+    {
+      "id": "warm-default-preserved",
+      "message_id_mode": "uuid",
+      "mode": "warm"
+    },
+    {
+      "id": "strict-default-preserved",
+      "message_id_mode": "uuid",
+      "mode": "strict"
+    }
+  ],
+  "pinDeltas": {
+    "contracts": {
+      "config/sdk-capabilities.json": {
+        "after": "2847dac0c6d45998e2ba0d39928fb39381a6ad0844cdfac523f287b86aaa3a90",
+        "before": "69bc6f28a82b296fa9f3a577b74eab8d127f449b276f301fcd66c27f3a4d5f98"
+      },
+      "packages/openmates-rust/tests/fixtures/browser-local-around-plan.json": {
+        "after": "0f204564527a2d65b4550a9fb4154d1635918cd1d2f575a856e28fbeb2d8f5f5",
+        "before": null
+      },
+      "packages/openmates-rust/tests/fixtures/local-checkpoint-presentation.json": {
+        "after": "8b0033db5d365f94c39a1e1b21371f109d62c149768c15a29156016de8bd7498",
+        "before": null
+      },
+      "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json": {
+        "after": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb",
+        "before": null
+      },
+      "tests/sdk-conformance/schemas/session-chat-first-page-continuation.schema.json": {
+        "after": "1adb283c89c8015054d11416688eb6a03ec0fb58ecca7818727c1b1eac63316a",
+        "before": null
+      }
+    },
+    "programs": {
+      "frontend/packages/openmates-cli/src/index.ts": {
+        "after": "cc86dc3f1d92751660941970faff8579b012d50a11f8573f708980bd53bde3d4",
+        "before": "7a17b429308cb8a4bbfeb0d5e926e58b542e6c414346dc6714d02bb40a60e127"
+      },
+      "frontend/packages/openmates-cli/src/sdkFirstPage.ts": {
+        "after": "4635650cd6cbc4fdc8dfcca6d55dd392b85aeb7a9387cefab48c9396c971bcec",
+        "before": null
+      },
+      "frontend/packages/openmates-cli/src/sdkSession.ts": {
+        "after": "03970fb73d9ef059b59dd24b3f052e9315e5721398d64f7374660839db0be6eb",
+        "before": "3fe1440135cca3486d06a566f7f372bb8c0f3125297b09a6f004856f8c45641d"
+      },
+      "frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorIO.test.cjs": {
+        "after": "44b2086dd4f95b315db570ccb15a1cb618260bd4bfec3ca487f13f97c1879a2e",
+        "before": "69d4341e459f0d6c6d10e950b4cffd0ebf5369cc8bde052ee65ced5f78a4a57a"
+      },
+      "frontend/packages/ui/src/services/rustCore/browserLocalCursorIO.ts": {
+        "after": "940311e0dd46512d1aea2efdeefea0a9eedf55287527c1890294b7bcc1801cba",
+        "before": "f5012d91f559ca1d4a491ae19cd242a725ab05228d042983018144c3917ccf6d"
+      },
+      "frontend/packages/ui/src/services/rustCore/protocol.ts": {
+        "after": "b769282cb6f00a789e2ded5a6a37fa323443bcfd9008c28313b92d7c4ccf65fc",
+        "before": "2d36e57475df10116e44f9782e44ebbf8ce24fadc01f65042c5aedbc9b74faf4"
+      },
+      "frontend/packages/ui/src/services/rustCore/savedReadProtocol.ts": {
+        "after": "b964b623d5323958b796fd5f792d785b99c4570c537a1a249f7123bdd08cf9a0",
+        "before": "13054419c15c5eddf3a91a30ad3d0ba77176e17c4a0d0a206603b9d2c4546574"
+      },
+      "frontend/packages/ui/src/services/rustCore/workerHost.ts": {
+        "after": "c7b860df031c6c2a98c3cf25cd4761430902deb33f8444de5b883dec695f1805",
+        "before": "11690ca806f8381ca982bee5cc25e0ab40b59097bc8aaf55325ea4830ae208ea"
+      },
+      "frontend/packages/ui/src/services/rustCore/workerRuntime.ts": {
+        "after": "13e0a8c56fe47bf0bfc300fd8906ec113365f4c3bf3306e1f6b68995fa00b913",
+        "before": "ac38a8a4b2e5242401e624996bf7b1a0b17c31b7800cc962a471152e1182c62b"
+      },
+      "packages/openmates-browser-bindings/src/browser.rs": {
+        "after": "f398fbff45d08ae8cfed5c15d3aebe6edc6269512377bbb4cdfe604cbf3d8416",
+        "before": "b6be47c7c401778ca45843317cc0e6b7ebdada7f7a22ccafd08acac75111fe47"
+      },
+      "packages/openmates-browser-bindings/src/browser_crypto_tests.rs": {
+        "after": "630e2b34f1e81a8736de2ceb81f987d5ef9fa3148edea8c2674c246fccf158ed",
+        "before": "f0cc01f4c556c7c17416aac6424c032980b9a9dfd0e075023c83284511a757d1"
+      },
+      "packages/openmates-python/openmates/__init__.py": {
+        "after": "45dc4a73e44d644305df86ac8b3598dc277bee9670a265bae8c6b3d261552fdf",
+        "before": "4a9ccbde23252729eee98391642fbdee0bf6a30a874738aaed83cf2e5e6909b3"
+      },
+      "packages/openmates-python/openmates/first_page_session.py": {
+        "after": "f904e0f0ce45631e396263e10d3f1e8e1e1653cb4ba2c2a8d79d4a237ebde4e0",
+        "before": null
+      },
+      "packages/openmates-python/openmates/session_client.py": {
+        "after": "d235bf5124d7da1dfd9dc230013138e233c510c2937539c0c014d77b77e2c1cb",
+        "before": "4e0631356ecace1201bf937916bcf45b9dadb33c6be1f35c5ff6da96634e4c39"
+      },
+      "packages/openmates-rust/src/client.rs": {
+        "after": "f1298948b1e1f66299ea2e887ffd9318199966853e06138624da117afd4a7225",
+        "before": "6c12b509d5c0762de24d47d3a56ee7faf92d2204d158d40bbf239d900013b094"
+      },
+      "packages/openmates-rust/src/client/browser.rs": {
+        "after": "131d4a18e19479336500cd2ed06a4564658d7068230d4795c34d40345174983a",
+        "before": "dc53cc61acf29c2ed6868997dc883181fe1414aacc5989f63e1de2916860fdb7"
+      },
+      "packages/openmates-rust/src/client/browser_local_checkpoint_tests.rs": {
+        "after": "d43002783ea502decf1d75fd9a8b926fb0cb08503768fd1e865ec4b6500d7b2f",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor.rs": {
+        "after": "9baabf70a5ffb712d6bcaf6018966214b910667179e4eca0c5a70828cb13a4f6",
+        "before": "be2cc085013c6f9d2e69e3a364b70522640546e9315433036b08a7dc3d0f75dc"
+      },
+      "packages/openmates-rust/src/client/browser_local_cursor_tests.rs": {
+        "after": "7f9d9273793863d1ff5b4349f9d73825832069a4efeab6ec8b80b6e22df0a737",
+        "before": "6d221a489a4c00aaaca5db0b1cc5b8da8dc3255f487827558b7663ef19d3244d"
+      },
+      "packages/openmates-rust/src/client/browser_saved_json_tests.rs": {
+        "after": "f34657eb8862e0e601ec232568a1ff2c34d8d3da66c65cb907e02b4887a327cc",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/cache_settlement.rs": {
+        "after": "191a15eabf81d75fa2d98504cb8c07261c42e506295398e332ec495dbcaafa17",
+        "before": "c38d2817b74c33184f875f9d8aae79a6d4c15ca2045d6db94af4d9b5401b83da"
+      },
+      "packages/openmates-rust/src/client/cached_view.rs": {
+        "after": "83f045f26161161694caedec6560b182b15c38d1bac87a4c5a422bf8bf63403b",
+        "before": "cd978df08a4e6aac35489a8ce3002c867b22086496ba4d791a3031c7bc2d6850"
+      },
+      "packages/openmates-rust/src/client/cached_view_tests.rs": {
+        "after": "49d422dddbc8ce93d693fe30589cbc588a7436558943dd8053ec5adff308ee5f",
+        "before": "493188098ee2a681df26f62c8b75f78ab103bd132bb4eb9a44e5246b402aae39"
+      },
+      "packages/openmates-rust/src/client/chat_first_page.rs": {
+        "after": "f4715110e8cc3a85de421b27c9c678e6aea5c5db94536a45c3c961ce82ef2499",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/chat_first_page_tests.rs": {
+        "after": "07f8eaadf559aa2a7d68ca0fd2983f913b06d259853e2f4b4cb5fa792d923bda",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/draft_clear.rs": {
+        "after": "1c06b74445a9c84453317c94b7d7e5bb0eae8e6d8e6f6790cd2e7861647b1ff1",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/first_page_resource_tests.rs": {
+        "after": "a497b133887a46c3de4fd50e7a740e524ad2240d10752261db0068e383806dc1",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/local_cached_read.rs": {
+        "after": "b99b1ff603c4f5261d8b77c9c58e2d8695eaa44cd6eb5a538825519aa341ff1b",
+        "before": "c4a455592dab1e199a7151fef24b977652c2e660316f3f8410ff7174b7cb8465"
+      },
+      "packages/openmates-rust/src/client/local_checkpoint_presentation.rs": {
+        "after": "7e7a4d89050cea56d9d90d2d6b3612ed3e798d18b4eeb35f2164f1adbb908144",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/local_checkpoint_presentation_tests.rs": {
+        "after": "9ff9d124ef128ab94fc4cfcd551b54935c87d068b29650e3ddedc5b94302ac90",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/monitor.rs": {
+        "after": "58847f9115a60814d091d30c2ceac42e5b97df302f56ec5a9e249abed719cdb0",
+        "before": "ab45b63655dc664dc9afdfb062c4b53c158cfa2359b1eb994a9bbdecada5c2b5"
+      },
+      "packages/openmates-rust/src/client/saved_chat_read.rs": {
+        "after": "cac00ee5d8b0bbbc9a48dccc2ab75afbadeabfe4cb5d4aa71fb5c94a04adaad6",
+        "before": "09c0b95f0b040ea1b2e0d2c6013e5e080d8ef0b5e568abbdb6bfa9bfef0b5b4e"
+      },
+      "packages/openmates-rust/src/client/selected_first_page.rs": {
+        "after": "d40aebbafe582f9c493438328836c130fff3375a400804edb36d903094efcdcc",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/selected_first_page_monitor_tests.rs": {
+        "after": "422212f5bbbf3e825f236eabd40b941a2330459255cadd56cc40d9a662ed0a9c",
+        "before": null
+      },
+      "packages/openmates-rust/src/client/sync.rs": {
+        "after": "6de7cfeb49baf13d182bcf3e0e7193cda32d1a628400ed35119ea3d8e6806ee5",
+        "before": "98ef12982e9d158357c0c406707ab20176c4461a81c4369f46dbb3502df0405c"
+      },
+      "packages/openmates-rust/src/client/sync_read_freshness.rs": {
+        "after": "8f61fb2d637e02e2224472851f72c6c541d51bbf91c3627634899745ddd400e9",
+        "before": "e8dcb3fd1d2afe708f56f8d922f9b6ded930c8a459284fdd2f8e114346459cc2"
+      },
+      "packages/openmates-rust/src/client/sync_windows.rs": {
+        "after": "85fbbe088820dd0db43834482609899bfaf2778dabc5e544636dce1a24c2b976",
+        "before": "3d460074da13e15da1a22752d1196695ed7e2f7ec386e64c64aad15c331fd85a"
+      },
+      "packages/openmates-rust/src/client/transport.rs": {
+        "after": "9b13e06f79c44596053fa070d8192a7ad0938ef4decbd83e12ced49913e6c196",
+        "before": "a582af56364d6f86adc06c9771d40ca08b31779b30864c1e42f4c8945216190f"
+      },
+      "packages/openmates-rust/src/client/workspaces.rs": {
+        "after": "ed638af5ed1ed2c0de2c0b8ce1b310b873f75089a5ca9de5c00b36603a6c8681",
+        "before": "3c595427e83c1ea8fb163298309ef1b2e9874fb581d4b4711f613806041a6ddc"
+      },
+      "packages/openmates-session-bindings/examples/session-chat-first-page-continuation-conformance.rs": {
+        "after": "f92df9ff221ec5561818f626e8ea0c5e429fa8d7ffbdc37b3b5f29f2f09a8f79",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/node.rs": {
+        "after": "6d943a17a0af618ce9caafd8c093428da38ca5fbc663c8e3b0eee3ba210a4458",
+        "before": "586baa60e1d006ad1a49ed41e8379f12441f2484828d0ecce1342529b293e4f9"
+      },
+      "packages/openmates-session-bindings/src/python.rs": {
+        "after": "e5aee6a78892bd208cdf0d30fd64de81616df5ea9ded7ba2cd3936f190bcb2c4",
+        "before": "ae7ff8b82cabc12cc6d22b1b32dd607ba83129db746b85b78de44c559570353a"
+      },
+      "packages/openmates-session-bindings/src/session.rs": {
+        "after": "7b32456a3748feabfa0c393ee7192a9e4db796390a784da0cea8431f3dec1482",
+        "before": "13023a4318624adbf444e865a0b12fed222b56809bf1227ddb195a5ed8744e61"
+      },
+      "packages/openmates-session-bindings/src/session_essential.rs": {
+        "after": "ae6de17cf896fa168012b7b590178795b3f6f5115f8a710d51b41f9d44d7f1b3",
+        "before": "cba832970ce8a41d566de4cfe806ebc2419741eb837e4149722e24237f878e23"
+      },
+      "packages/openmates-session-bindings/src/session_first_page.rs": {
+        "after": "9d86784ebb09068e8b0064fd1fb318450bfe259bae6fe097418b26cd51332a40",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/session_first_page_peer_tests.rs": {
+        "after": "1d233bd7a6d1a6227547453a048d88c2c68c6714b8512ed899b71e091305c756",
+        "before": null
+      },
+      "packages/openmates-session-bindings/src/session_first_page_tests.rs": {
+        "after": "c1c76eac99723f11218ef5396f38153f39c5a45e3bc82d09b9fc1a7837df088b",
+        "before": null
+      },
+      "scripts/check_sdk_conformance.py": {
+        "after": "2fd05f849bc3d2d60d1009f7df72ec30d2e8a78d1fbb5992c5e7fac6fc15036c",
+        "before": "36b8c274b6ddd8a04dc3a78c887c65b74186c4d1f4221311baf73c8fcdbcca9b"
+      },
+      "scripts/tests/test_sdk_session_embed_version_gate.py": {
+        "after": "b820aae18c878266515697e5b4daafeae4d230763e3be7959f15e51d93affd51",
+        "before": "7c71c48f2d816243c51c40ce2d19e0201a1f59cc5656c08070d1a12623ed5d44"
+      },
+      "tests/sdk-conformance/first_page_continuation_peer.py": {
+        "after": "246a122802aa0e050a40370e35db1f442fe226d7f9325b36f424390f25421c32",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs": {
+        "after": "e066bc11de1446f2d9c58cbafe83978ad042ace40b2386682532472e4d7c7508",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/session-chat-first-page-continuation.py": {
+        "after": "5ad233c8abf7b37863a957a0469eccdd9872e1ff93bb351495aa6b5e883a4a13",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/support/owned-lifecycle.mjs": {
+        "after": "ddadfea62be832a27abea3f64292b2e45959efe1e04e849f72aba05851a22007",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/support/owned-lifecycle.test.mjs": {
+        "after": "da04248a86b4b453eaa4006d52b306d9ce1550a3572aca652d5756e4ac27e8b4",
+        "before": null
+      },
+      "tests/sdk-conformance/runners/support/owned_lifecycle.py": {
+        "after": "d48f9cd3c5449ca879a7850a369e3d954c79971df9dfee734c75cef6743bbf42",
+        "before": null
+      },
+      "tests/sdk-conformance/test_first_page_continuation_contract.py": {
+        "after": "05634e487f5f15ccdad3d9b761ed41ac26bba6692ec695adb1aa03ee3c8f48a9",
+        "before": null
+      },
+      "tests/sdk-conformance/test_first_page_lifecycle.py": {
+        "after": "43510c7b4d76ab9d11f6cf598f204b74b55f3ce80321ed26a25b0be8698e3b10",
+        "before": null
+      },
+      "tests/sdk-conformance/test_session_first_page_wrappers.cjs": {
+        "after": "a91a04542caf385cec612ddd0f646ebebea7743524e8a43b2ffe3319c22c4805",
+        "before": null
+      },
+      "tests/sdk-conformance/test_session_first_page_wrappers.py": {
+        "after": "3512823b3889b4e8fb8fb00130cb47344b58bbe36e6c74db13bb0d3ecda43972",
+        "before": null
+      }
+    }
+  },
+  "planAdded": [
+    {
+      "capability": "session.chat-first-page-continuation.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json",
+      "fixtureSha256": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb",
+      "language": "rust",
+      "vectors": [
+        "callback-cancelled",
+        "callback-failed",
+        "capacity-io-error",
+        "capacity-refused",
+        "cold-composite",
+        "cold-opaque",
+        "cold-uuid",
+        "missing-private-consent",
+        "missing-secret-consent",
+        "receipt-purpose-separated",
+        "stale-a-preserves-b",
+        "store-cas-refused",
+        "strict-default-preserved",
+        "warm-default-preserved",
+        "wrong-checkpoint-hash",
+        "wrong-credential-revision"
+      ]
+    },
+    {
+      "capability": "session.chat-first-page-continuation.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json",
+      "fixtureSha256": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb",
+      "language": "npm",
+      "vectors": [
+        "callback-cancelled",
+        "callback-failed",
+        "capacity-io-error",
+        "capacity-refused",
+        "cold-composite",
+        "cold-opaque",
+        "cold-uuid",
+        "missing-private-consent",
+        "missing-secret-consent",
+        "receipt-purpose-separated",
+        "stale-a-preserves-b",
+        "store-cas-refused",
+        "strict-default-preserved",
+        "warm-default-preserved",
+        "wrong-checkpoint-hash",
+        "wrong-credential-revision"
+      ]
+    },
+    {
+      "capability": "session.chat-first-page-continuation.v1",
+      "fixture": "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json",
+      "fixtureSha256": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb",
+      "language": "python",
+      "vectors": [
+        "callback-cancelled",
+        "callback-failed",
+        "capacity-io-error",
+        "capacity-refused",
+        "cold-composite",
+        "cold-opaque",
+        "cold-uuid",
+        "missing-private-consent",
+        "missing-secret-consent",
+        "receipt-purpose-separated",
+        "stale-a-preserves-b",
+        "store-cas-refused",
+        "strict-default-preserved",
+        "warm-default-preserved",
+        "wrong-checkpoint-hash",
+        "wrong-credential-revision"
+      ]
+    }
+  ],
+  "private": true,
+  "releaseEligible": false,
+  "schemaSha256": "1adb283c89c8015054d11416688eb6a03ec0fb58ecca7818727c1b1eac63316a",
+  "schemaVersion": 1,
+  "sourceClosure": [
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/apps/web_app/src/lib/rustCore/productionLoader.ts",
+      "sha256": "7e4df4a83014529122ccea683504952ae4b81815be40374349dc58d96ea2b267"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/apps/web_app/tests/helpers/canonical-personal-history-fixture.ts",
+      "sha256": "04db90cc651ec8d0ec187a77dd3eb7d77f4fcaad9bc93da8834887f9b3ae581e"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/apps/web_app/tests/helpers/rust-browser-key-shape.ts",
+      "sha256": "83fa1f42c6c6c08ab9dfc04d2c72c1a4a2f5abbe1b611a18ac84759708b2455c"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/apps/web_app/tests/rust-core-production-local-cursor.spec.ts",
+      "sha256": "54534e63de3da52f9fc2c44ce6a24c7b6ba91a33d9f0273313d08ce687990b2a"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/apps/web_app/tests/rust-core-production-platform.spec.ts",
+      "sha256": "fd65bb7783b7fcee906753d9cf30856253d6a91d62f3752c16d9a966f7740f6b"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "frontend/apps/web_app/tests/rust-core-production-saved-paging.spec.ts",
+      "sha256": "bc0f6b9d7b8e6ec83f0d8e0fcda6f146bdd65105405cfa30990692d066a37c99"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "frontend/packages/openmates-cli/src/index.ts",
+      "sha256": "cc86dc3f1d92751660941970faff8579b012d50a11f8573f708980bd53bde3d4"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "frontend/packages/openmates-cli/src/sdkFirstPage.ts",
+      "sha256": "4635650cd6cbc4fdc8dfcca6d55dd392b85aeb7a9387cefab48c9396c971bcec"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "frontend/packages/openmates-cli/src/sdkSession.ts",
+      "sha256": "03970fb73d9ef059b59dd24b3f052e9315e5721398d64f7374660839db0be6eb"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "frontend/packages/openmates-tui-native/src/runtime.rs",
+      "sha256": "da9d163478648253902d38c665a646866497bb24a61e5a0a61b3f0e01893895e"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "frontend/packages/openmates-tui-native/src/runtime_store.rs",
+      "sha256": "79374004910748a3eff104cd1657e82fff03832e0c33503448c54c1373f761a7"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "frontend/packages/openmates-tui-native/src/storage.rs",
+      "sha256": "3d989f3a5f02e4a5d719ef2ac79ed7bcca643e441e32c29f226a8669969b7a4d"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/browserLocalCursorIO.test.cjs",
+      "sha256": "44b2086dd4f95b315db570ccb15a1cb618260bd4bfec3ca487f13f97c1879a2e"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/checkpointPresentation.test.cjs",
+      "sha256": "0c36c9148fbafd5daa177b80c4aada0c7efa56e06585b2f2aea1b44b5aeb172b"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/helpers/localCursorIDB.cjs",
+      "sha256": "f43a1814c45aeef6d80efc1a5f41055673983fd2d8d1df36563103603f4989c6"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/localCursorWiring.test.cjs",
+      "sha256": "044ad1cd864489a34fd810086cbb0eb842ef10de11455e5ed4a5d12ea0981a44"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/productionSavedChatPlatform.test.cjs",
+      "sha256": "b796ff6015aa9c33090c90df3695cc9656e40d6000c094934f0b0d1c987d3178"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/readMessageIdentity.test.cjs",
+      "sha256": "63e40b64a23ca361e3e8ca5606153d60bd0464f060aafb6719c55100bfa7ca27"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/__tests__/savedChatPaging.test.cjs",
+      "sha256": "dcc95e2d74e970844cebc18e79e5e2dcc1a24cf7a2fda4e735cef6c1a79aa1ff"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/browserLocalCursorIO.ts",
+      "sha256": "940311e0dd46512d1aea2efdeefea0a9eedf55287527c1890294b7bcc1801cba"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/checkpointPresentation.ts",
+      "sha256": "f051352add84afa87d7f9920350767798d774f74eed6b3dacb2f14bcb1ea3c99"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/productionSavedChatPlatform.ts",
+      "sha256": "8774475babe82b4682c85cfd4231cf722150e041f08da521a94df69e9c0c6084"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/productionSavedChatSession.ts",
+      "sha256": "e405044086f8d9743bd6ccc6a870c787cb53a9b7f7b4abcbc39b282d7f91edd4"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/protocol.ts",
+      "sha256": "b769282cb6f00a789e2ded5a6a37fa323443bcfd9008c28313b92d7c4ccf65fc"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/savedReadProtocol.ts",
+      "sha256": "b964b623d5323958b796fd5f792d785b99c4570c537a1a249f7123bdd08cf9a0"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/selectedSavedChat.ts",
+      "sha256": "6d8acdcf5a878374cd1531bb48cfe7eb37406ab537ee02da367e146f80ca1c2a"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/workerHost.ts",
+      "sha256": "c7b860df031c6c2a98c3cf25cd4761430902deb33f8444de5b883dec695f1805"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "frontend/packages/ui/src/services/rustCore/workerRuntime.ts",
+      "sha256": "13e0a8c56fe47bf0bfc300fd8906ec113365f4c3bf3306e1f6b68995fa00b913"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-browser-bindings/src/browser.rs",
+      "sha256": "f398fbff45d08ae8cfed5c15d3aebe6edc6269512377bbb4cdfe604cbf3d8416"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser20",
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-browser-bindings/src/browser_crypto_tests.rs",
+      "sha256": "630e2b34f1e81a8736de2ceb81f987d5ef9fa3148edea8c2674c246fccf158ed"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "packages/openmates-python/openmates/__init__.py",
+      "sha256": "45dc4a73e44d644305df86ac8b3598dc277bee9670a265bae8c6b3d261552fdf"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34",
+        "private-first-page-sdk17"
+      ],
+      "path": "packages/openmates-python/openmates/first_page_session.py",
+      "sha256": "f904e0f0ce45631e396263e10d3f1e8e1e1653cb4ba2c2a8d79d4a237ebde4e0"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34",
+        "private-first-page-sdk17"
+      ],
+      "path": "packages/openmates-python/openmates/session_client.py",
+      "sha256": "d235bf5124d7da1dfd9dc230013138e233c510c2937539c0c014d77b77e2c1cb"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client.rs",
+      "sha256": "f1298948b1e1f66299ea2e887ffd9318199966853e06138624da117afd4a7225"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/browser.rs",
+      "sha256": "131d4a18e19479336500cd2ed06a4564658d7068230d4795c34d40345174983a"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/browser_local_checkpoint_tests.rs",
+      "sha256": "d43002783ea502decf1d75fd9a8b926fb0cb08503768fd1e865ec4b6500d7b2f"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/browser_local_cursor.rs",
+      "sha256": "9baabf70a5ffb712d6bcaf6018966214b910667179e4eca0c5a70828cb13a4f6"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/browser_local_cursor_tests.rs",
+      "sha256": "7f9d9273793863d1ff5b4349f9d73825832069a4efeab6ec8b80b6e22df0a737"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/browser_saved_json_tests.rs",
+      "sha256": "f34657eb8862e0e601ec232568a1ff2c34d8d3da66c65cb907e02b4887a327cc"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/cache_settlement.rs",
+      "sha256": "191a15eabf81d75fa2d98504cb8c07261c42e506295398e332ec495dbcaafa17"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/cached_view.rs",
+      "sha256": "83f045f26161161694caedec6560b182b15c38d1bac87a4c5a422bf8bf63403b"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/cached_view_tests.rs",
+      "sha256": "49d422dddbc8ce93d693fe30589cbc588a7436558943dd8053ec5adff308ee5f"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/chat_first_page.rs",
+      "sha256": "f4715110e8cc3a85de421b27c9c678e6aea5c5db94536a45c3c961ce82ef2499"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/chat_first_page_tests.rs",
+      "sha256": "07f8eaadf559aa2a7d68ca0fd2983f913b06d259853e2f4b4cb5fa792d923bda"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/draft_clear.rs",
+      "sha256": "1c06b74445a9c84453317c94b7d7e5bb0eae8e6d8e6f6790cd2e7861647b1ff1"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/first_page_resource_tests.rs",
+      "sha256": "a497b133887a46c3de4fd50e7a740e524ad2240d10752261db0068e383806dc1"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/local_cached_read.rs",
+      "sha256": "b99b1ff603c4f5261d8b77c9c58e2d8695eaa44cd6eb5a538825519aa341ff1b"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/local_checkpoint_presentation.rs",
+      "sha256": "7e7a4d89050cea56d9d90d2d6b3612ed3e798d18b4eeb35f2164f1adbb908144"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/src/client/local_checkpoint_presentation_tests.rs",
+      "sha256": "9ff9d124ef128ab94fc4cfcd551b54935c87d068b29650e3ddedc5b94302ac90"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/monitor.rs",
+      "sha256": "58847f9115a60814d091d30c2ceac42e5b97df302f56ec5a9e249abed719cdb0"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/saved_chat_read.rs",
+      "sha256": "cac00ee5d8b0bbbc9a48dccc2ab75afbadeabfe4cb5d4aa71fb5c94a04adaad6"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/selected_first_page.rs",
+      "sha256": "d40aebbafe582f9c493438328836c130fff3375a400804edb36d903094efcdcc"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/selected_first_page_monitor_tests.rs",
+      "sha256": "422212f5bbbf3e825f236eabd40b941a2330459255cadd56cc40d9a662ed0a9c"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/sync.rs",
+      "sha256": "6de7cfeb49baf13d182bcf3e0e7193cda32d1a628400ed35119ea3d8e6806ee5"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/sync_read_freshness.rs",
+      "sha256": "8f61fb2d637e02e2224472851f72c6c541d51bbf91c3627634899745ddd400e9"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/sync_windows.rs",
+      "sha256": "85fbbe088820dd0db43834482609899bfaf2778dabc5e544636dce1a24c2b976"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/transport.rs",
+      "sha256": "9b13e06f79c44596053fa070d8192a7ad0938ef4decbd83e12ced49913e6c196"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-rust/src/client/workspaces.rs",
+      "sha256": "ed638af5ed1ed2c0de2c0b8ce1b310b873f75089a5ca9de5c00b36603a6c8681"
+    },
+    {
+      "bucket": "contracts",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/tests/fixtures/browser-local-around-plan.json",
+      "sha256": "0f204564527a2d65b4550a9fb4154d1635918cd1d2f575a856e28fbeb2d8f5f5"
+    },
+    {
+      "bucket": "contracts",
+      "layers": [
+        "applied-browser26"
+      ],
+      "path": "packages/openmates-rust/tests/fixtures/local-checkpoint-presentation.json",
+      "sha256": "8b0033db5d365f94c39a1e1b21371f109d62c149768c15a29156016de8bd7498"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "packages/openmates-session-bindings/examples/session-chat-first-page-continuation-conformance.rs",
+      "sha256": "f92df9ff221ec5561818f626e8ea0c5e429fa8d7ffbdc37b3b5f29f2f09a8f79"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/node.rs",
+      "sha256": "6d943a17a0af618ce9caafd8c093428da38ca5fbc663c8e3b0eee3ba210a4458"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/python.rs",
+      "sha256": "e5aee6a78892bd208cdf0d30fd64de81616df5ea9ded7ba2cd3936f190bcb2c4"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/session.rs",
+      "sha256": "7b32456a3748feabfa0c393ee7192a9e4db796390a784da0cea8431f3dec1482"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/session_essential.rs",
+      "sha256": "ae6de17cf896fa168012b7b590178795b3f6f5115f8a710d51b41f9d44d7f1b3"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/session_first_page.rs",
+      "sha256": "9d86784ebb09068e8b0064fd1fb318450bfe259bae6fe097418b26cd51332a40"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/session_first_page_peer_tests.rs",
+      "sha256": "1d233bd7a6d1a6227547453a048d88c2c68c6714b8512ed899b71e091305c756"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "packages/openmates-session-bindings/src/session_first_page_tests.rs",
+      "sha256": "c1c76eac99723f11218ef5396f38153f39c5a45e3bc82d09b9fc1a7837df088b"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "scripts/check_sdk_conformance.py",
+      "sha256": "2fd05f849bc3d2d60d1009f7df72ec30d2e8a78d1fbb5992c5e7fac6fc15036c"
+    },
+    {
+      "bucket": null,
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/SESSION_FIRST_PAGE_CONTINUATION.md",
+      "sha256": "11af72bcf3101db69db6c5b7c92e9a3cc77bdbe7da62289de09696a6765f8fba"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34",
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/first_page_continuation_peer.py",
+      "sha256": "246a122802aa0e050a40370e35db1f442fe226d7f9325b36f424390f25421c32"
+    },
+    {
+      "bucket": "contracts",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/fixtures/session-chat-first-page-continuation.json",
+      "sha256": "6b236e9b09d3ba7b61ad6af68071e6c711645469aa1f1309000b5e211c8e32cb"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/runners/session-chat-first-page-continuation.mjs",
+      "sha256": "e066bc11de1446f2d9c58cbafe83978ad042ace40b2386682532472e4d7c7508"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/runners/session-chat-first-page-continuation.py",
+      "sha256": "5ad233c8abf7b37863a957a0469eccdd9872e1ff93bb351495aa6b5e883a4a13"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/runners/support/owned-lifecycle.mjs",
+      "sha256": "ddadfea62be832a27abea3f64292b2e45959efe1e04e849f72aba05851a22007"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/runners/support/owned-lifecycle.test.mjs",
+      "sha256": "da04248a86b4b453eaa4006d52b306d9ce1550a3572aca652d5756e4ac27e8b4"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/runners/support/owned_lifecycle.py",
+      "sha256": "d48f9cd3c5449ca879a7850a369e3d954c79971df9dfee734c75cef6743bbf42"
+    },
+    {
+      "bucket": "contracts",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/schemas/session-chat-first-page-continuation.schema.json",
+      "sha256": "1adb283c89c8015054d11416688eb6a03ec0fb58ecca7818727c1b1eac63316a"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/test_first_page_continuation_contract.py",
+      "sha256": "05634e487f5f15ccdad3d9b761ed41ac26bba6692ec695adb1aa03ee3c8f48a9"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "private-first-page-sdk17"
+      ],
+      "path": "tests/sdk-conformance/test_first_page_lifecycle.py",
+      "sha256": "43510c7b4d76ab9d11f6cf598f204b74b55f3ce80321ed26a25b0be8698e3b10"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "tests/sdk-conformance/test_session_first_page_wrappers.cjs",
+      "sha256": "a91a04542caf385cec612ddd0f646ebebea7743524e8a43b2ffe3319c22c4805"
+    },
+    {
+      "bucket": "programs",
+      "layers": [
+        "applied-native34"
+      ],
+      "path": "tests/sdk-conformance/test_session_first_page_wrappers.py",
+      "sha256": "3512823b3889b4e8fb8fb00130cb47344b58bbe36e6c74db13bb0d3ecda43972"
+    }
+  ],
+  "sourceGateRuns": 0,
+  "sourceLayers": [
+    {
+      "manifestSha256": "34d3608593c235391afb8a0849e612c67e552eb2205ae6ffbe61d14c48365d4e",
+      "name": "applied-browser20",
+      "patchSha256": "3a93da2b005e32c16d04e6c66b5f48b618327b5ec34eb9d56159e8cb5f3a9ec8",
+      "paths": 20
+    },
+    {
+      "manifestSha256": "2729312140438c68369a0d63766a2d72d004ede96737da3c2d16d8ed00797552",
+      "name": "applied-native34",
+      "patchSha256": "74cb2a9c30c83b08b8eb70cff8e2f64093dce6232a3a72a07837dc183e9c5fa7",
+      "paths": 34
+    },
+    {
+      "manifestSha256": "55128e6b11b9dd21304c2d6f2c609369299c55f1349cfc9903d02b614cfde16b",
+      "name": "applied-browser26",
+      "patchSha256": "a2b576e89f363816b23e9c8c7bf1ce3555dd36c161b7573002c3bfdc6c76daf4",
+      "paths": 26
+    },
+    {
+      "manifestSha256": "a5b0c12747d6bda4ea22da6085bff9da44620fbd1a07a9981cef57c8f51b02fa",
+      "name": "private-first-page-sdk17",
+      "patchSha256": "ddd65ad1df5a6c46cd03cc22e8e633f33639136e7fddbbf7060050c5ead46fb2",
+      "paths": 17
+    }
+  ]
+}

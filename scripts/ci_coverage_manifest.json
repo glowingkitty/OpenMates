@@ -578,7 +578,10 @@
         "rust-core-browser-session.spec.ts",
         "rust-core-browser-password-entry.spec.ts",
         "rust-core-production-saved-session.spec.ts",
-        "rust-core-production-platform.spec.ts"
+        "rust-core-production-platform.spec.ts",
+        "rust-core-production-local-cursor.spec.ts",
+        "rust-core-production-saved-paging.spec.ts",
+        "rust-core-ordinary-login-retention.spec.ts"
       ]
     },
     "external_integration": {
@@ -971,10 +974,13 @@
     },
     "rust_core_production_saved_reads": {
       "execution": "e2e",
-      "enabling_work": "Exact production-loader browser targets use fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and a fresh opt-in application build in the same job before Playwright. Genuine existing IndexedDB CryptoKeys, bounded encrypted saved-chat reads, owner verification and revocation are exercised without exporting keys or changing login/storage policy. The isolated committed-replay worker provides only the owned marker-chat fixture epoch; no live inference, provider egress, full ActiveChat acceptance, persistence ACK or default production Rust activation.",
+      "enabling_work": "Exact production-loader browser targets use fresh runner-private accounts and internal-network core API/CMS/cache/Vault, same-source locked Rust/WASM and a fresh opt-in application build in the same job before Playwright. Genuine existing IndexedDB CryptoKeys, bounded encrypted saved-chat reads, 65-row composite local-cursor history and its checkpoint plus exact canonical latest/before/after/around saved paging and explicit fresh-password ordinary key retention before new saved-read admission through the genuine DedicatedWorker/IndexedDB, owner verification and revocation are exercised without exporting keys or changing login/storage policy. The isolated committed-replay worker provides only the owned marker-chat fixture epoch; no live inference, provider egress, full ActiveChat acceptance, persistence ACK or default production Rust activation.",
       "specs": [
         "rust-core-production-saved-session.spec.ts",
-        "rust-core-production-platform.spec.ts"
+        "rust-core-production-platform.spec.ts",
+        "rust-core-production-local-cursor.spec.ts",
+        "rust-core-production-saved-paging.spec.ts",
+        "rust-core-ordinary-login-retention.spec.ts"
       ]
     },
     "native_bounded_saved_read": {
