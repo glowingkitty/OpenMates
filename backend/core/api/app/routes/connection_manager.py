@@ -176,6 +176,9 @@ class ConnectionManager:
         self.storage_archive_dispatch_guard_installed = False
         self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
         self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
+        self.empty_call_cleanup_capability: Dict[Tuple[str, str], bool] = {}
+        self.empty_call_cleanup_gates: Dict[str, asyncio.Lock] = {}
+        self.empty_call_cleanup_unsafe_owners: set[str] = set()
         # Nonces are bound to one concrete WebSocket object. Reconnection never
         # inherits the old socket's volatile execution authority.
         self.volatile_session_nonce_by_ws: Dict[int, str] = {}
@@ -185,6 +188,17 @@ class ConnectionManager:
         ] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
+
+    def empty_call_cleanup_gate(self, user_id: str) -> asyncio.Lock:
+        # Keep lock identity stable even when the final socket disconnects.
+        return self.empty_call_cleanup_gates.setdefault(user_id, asyncio.Lock())
+
+    def all_user_connections_support_empty_call_cleanup(self, user_id: str) -> bool:
+        connections = self.active_connections.get(user_id, {})
+        return bool(connections) and user_id not in self.empty_call_cleanup_unsafe_owners and all(
+            self.empty_call_cleanup_capability.get((user_id, device_hash)) is True
+            for device_hash in connections
+        )
 
     async def connect(
         self,
@@ -200,6 +214,7 @@ class ConnectionManager:
         supports_storage_archive: bool = False,
         supports_canonical_embed_receipts: bool = False,
         supports_typed_recovery_outputs: bool = False,
+        supports_empty_call_cleanup: bool = False,
         volatile_session_revoker: Callable[[str], Awaitable[None]] | None = None,
     ):
         await websocket.accept()
@@ -231,11 +246,12 @@ class ConnectionManager:
                 del self.reverse_lookup[old_ws_id]
                 logger.debug(f"Cleaned up reverse_lookup for old ws_id {old_ws_id} during connect.")
         
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = {}
-        
-        self.active_connections[user_id][device_fingerprint_hash] = websocket
-        self.reverse_lookup[new_ws_id] = connection_key
+        async with self.empty_call_cleanup_gate(user_id):
+            if user_id not in self.active_connections:
+                self.active_connections[user_id] = {}
+            self.empty_call_cleanup_capability[connection_key] = supports_empty_call_cleanup
+            self.active_connections[user_id][device_fingerprint_hash] = websocket
+            self.reverse_lookup[new_ws_id] = connection_key
         if logical_session_id:
             self.logical_session_per_connection[connection_key] = logical_session_id
         else:
@@ -405,6 +421,7 @@ class ConnectionManager:
                 self.storage_archive_capability.pop(connection_key, None)
                 self.canonical_embed_receipt_capability.pop(connection_key, None)
                 self.typed_recovery_output_capability.pop(connection_key, None)
+                self.empty_call_cleanup_capability.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -494,6 +511,10 @@ class ConnectionManager:
             # Iterate safely over a copy of items in case disconnect modifies the dict
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
+                    continue
+                if (message.get("type") == "chat_deleted"
+                    and isinstance(message.get("payload", {}).get("empty_call_cleanup"), dict)
+                    and self.empty_call_cleanup_capability.get((user_id, device_hash)) is not True):
                     continue
                 # Skip sockets whose server-side transport is already closed
                 # (grace-period remnants). Sending would raise RuntimeError

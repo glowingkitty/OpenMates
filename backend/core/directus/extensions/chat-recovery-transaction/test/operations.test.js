@@ -4931,3 +4931,254 @@ test('discovery exposes an owner live lease as pending without making it claimab
   assert.equal(expired.jobs[0].job_id, JOB_ID);
   assert.equal(expired.pending_jobs.length, 0);
 });
+
+const CLEANUP_ATTEMPT = '018fabcd-abcd-7abc-8abc-abcdefabcdef';
+const CLEANUP_CALL = 'f'.repeat(32);
+const cleanupCandidate = (mode, overrides = {}) => ({ protocol_version: 1,
+  hashed_user_id: OWNER, chat_id: CHAT_ID, mode, ...overrides });
+const cleanupDeletion = (overrides = {}) => ({ protocol_version: 1,
+  hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID, empty_call_cleanup: {
+    cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: null,
+    lifecycle_message_ids: [], expected_messages_v: 0, ...overrides,
+  } });
+async function newCleanupChat(database) {
+  return executeOperation(database, 'register_personal_chat_draft',
+    draftRegistration({ cleanup_attempt_id: CLEANUP_ATTEMPT }));
+}
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('only genuinely new voice shells arm cleanup; pre-bootstrap draft touches permanently exclude them', async () => {
+  const fresh = fakeDatabase({});
+  assert.equal((await newCleanupChat(fresh)).cleanup_attempt_id, CLEANUP_ATTEMPT);
+  assert.equal((await newCleanupChat(fresh)).cleanup_attempt_id, CLEANUP_ATTEMPT);
+  const existing = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER,
+    encrypted_chat_key: 'immutable-wrapped-key' }] });
+  assert.equal((await newCleanupChat(existing)).cleanup_attempt_id, undefined);
+  for (const timing of ['before', 'after']) {
+    const database = fakeDatabase({});
+    if (timing === 'after') await newCleanupChat(database);
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('disqualify'));
+    assert.equal((await newCleanupChat(database)).cleanup_attempt_id, undefined);
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'DISQUALIFIED');
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()),
+      /empty_call_cleanup_not_eligible/);
+    assert.equal(database.rows.chat_recovery_chat_deletion_fences, undefined);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('call admission and finalization are durable; live calls and any issued turn cannot be cleaned', async () => {
+  const database = fakeDatabase({});
+  await newCleanupChat(database);
+  const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+  await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('start', binding));
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion({ call_id: CLEANUP_CALL })),
+    /empty_call_cleanup_not_eligible/);
+  await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('finish', binding));
+  assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'FINISHED');
+  await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('disqualify'));
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion({ call_id: CLEANUP_CALL })),
+    /empty_call_cleanup_not_eligible/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('conditional cleanup fences only exact lifecycle rows at the unchanged version and is retryable', async () => {
+  const database = fakeDatabase({});
+  await newCleanupChat(database);
+  const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+  for (const mode of ['start', 'finish']) {
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate(mode, binding));
+  }
+  const ids = [`00000000-voice-call-${CLEANUP_CALL}-started`, `ffffffff-voice-call-${CLEANUP_CALL}-ended`];
+  database.rows.messages = ids.map(id => ({ client_message_id: id, chat_id: CHAT_ID,
+    role: 'system', hashed_user_id: OWNER, encrypted_content: 'opaque' }));
+  database.rows.chats[0].messages_v = 2;
+  const body = cleanupDeletion({ call_id: CLEANUP_CALL, lifecycle_message_ids: ids, expected_messages_v: 2 });
+  const accepted = await executeOperation(database, 'invalidate_deletion', body);
+  assert.equal(accepted.chat_deletion_fenced, true);
+  assert.deepEqual(accepted.empty_call_cleanup, { cleanup_attempt_id: CLEANUP_ATTEMPT,
+    call_id: CLEANUP_CALL, expected_messages_v: 2, lifecycle_message_ids: ids });
+  assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'FENCED');
+  database.rows.chats = [];
+  assert.deepEqual((await executeOperation(database, 'invalidate_deletion', body)).empty_call_cleanup,
+    accepted.empty_call_cleanup);
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', { ...body,
+    hashed_user_id: 'b'.repeat(64) }), /empty_call_cleanup_not_eligible/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('conditional cleanup retains unknown messages, drafts, embeds, recovery work and authored metadata', async () => {
+  const mutations = [
+    db => { db.rows.messages = [userMessage()]; },
+    db => { db.rows.messages = [{ ...userMessage(), role: 'system' }]; },
+    db => { db.rows.chats[0].messages_v = 1; },
+    db => { db.rows.chats[0].encrypted_title = 'owner-title'; },
+    db => { db.rows.chats[0].hashed_team_id = TEAM_HASH; },
+    db => { db.rows.chats[0].title_is_manual = true; },
+    db => { db.rows.chats[0].pinned = true; },
+    db => { db.rows.drafts = [{ chat_id: CHAT_ID, encrypted_content: null }]; },
+    db => { db.rows.embeds = [{ hashed_chat_id: sha256(CHAT_ID) }]; },
+    db => { db.rows.chat_turn_preflights = [{ chat_id: CHAT_ID, state: 'PREPARED' }]; },
+    db => { db.rows.chat_message_archive_pages = [{ chat_id: CHAT_ID }]; },
+    db => { db.rows.chat_recovery_outputs = [{ target_chat_id: CHAT_ID }]; },
+    db => { db.rows.project_items = [{ item_type: 'chat', target_id_hash: sha256(CHAT_ID) }]; },
+    db => { db.rows.project_key_wrappers = [{ hashed_chat_id: sha256(CHAT_ID) }]; },
+    db => { db.rows.user_chat_preferences = [{ chat_id: CHAT_ID }]; },
+    db => { db.rows.message_highlights = [{ chat_id: CHAT_ID }]; },
+  ];
+  for (const mutate of mutations) {
+    const database = fakeDatabase({});
+    await newCleanupChat(database);
+    mutate(database);
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()),
+      /empty_call_cleanup_not_eligible/);
+    assert.equal(database.rows.chat_recovery_chat_deletion_fences, undefined);
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'CANDIDATE');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('draft admission and cleanup choose one outcome under the shared durable deletion lock', async () => {
+  for (const draftFirst of [true, false]) {
+    const database = fakeDatabase({});
+    await newCleanupChat(database);
+    const draft = () => executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('disqualify'));
+    const cleanup = () => executeOperation(database, 'invalidate_deletion', cleanupDeletion());
+    const results = await Promise.allSettled(draftFirst ? [draft(), cleanup()] : [cleanup(), draft()]);
+    assert.equal(results[0].status, 'fulfilled');
+    assert.equal(results[1].status, 'rejected');
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].state, draftFirst ? 'DISQUALIFIED' : 'FENCED');
+    assert.equal(database.lockEvents.filter(event => event === `advisory:chat-recovery-delete:${CHAT_ID}`).length, 3);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('first ordinary-message admission and cleanup serialize without deleting an admitted turn', async () => {
+  for (const messageFirst of [true, false]) {
+    const database = fakeDatabase({});
+    await newCleanupChat(database);
+    const admit = () => executeOperation(database, 'prepare_preflight', prepareBody({
+      wrapped_chat_key: 'immutable-wrapped-key', encrypted_chat_metadata: undefined,
+    }));
+    const cleanup = () => executeOperation(database, 'invalidate_deletion', cleanupDeletion());
+    const results = await Promise.allSettled(messageFirst ? [admit(), cleanup()] : [cleanup(), admit()]);
+    assert.equal(results[0].status, 'fulfilled');
+    assert.equal(results[1].status, 'rejected');
+    if (messageFirst) assert.equal(database.rows.chat_turn_preflights.length, 1);
+    else assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('a subsequent tokenless call permanently disqualifies an earlier finished-call candidate', async () => {
+  const database = fakeDatabase({});
+  await newCleanupChat(database);
+  const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+  for (const mode of ['start', 'finish']) {
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate(mode, binding));
+  }
+  await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('start', {
+    call_id: 'e'.repeat(32),
+  }));
+  assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'DISQUALIFIED');
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion({ call_id: CLEANUP_CALL,
+    lifecycle_message_ids: [`00000000-voice-call-${CLEANUP_CALL}-started`, `ffffffff-voice-call-${CLEANUP_CALL}-ended`],
+  })), /empty_call_cleanup_not_eligible/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('hash-only Project admissions exclude pre-bootstrap shells and cannot write after conditional fencing', async () => {
+  const projectTouch = { protocol_version: 1, hashed_user_id: OWNER,
+    hashed_chat_id: sha256(CHAT_ID), mode: 'disqualify' };
+  const early = fakeDatabase({});
+  await executeOperation(early, 'update_call_cleanup_candidate', projectTouch);
+  assert.equal(early.rows.chat_call_cleanup_candidates[0].id, sha256(CHAT_ID));
+  assert.equal((await newCleanupChat(early)).cleanup_attempt_id, undefined);
+  const late = fakeDatabase({});
+  await newCleanupChat(late);
+  await executeOperation(late, 'invalidate_deletion', cleanupDeletion());
+  await assert.rejects(executeOperation(late, 'update_call_cleanup_candidate', projectTouch), /chat_not_found/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('a known legacy connection permanently excludes current candidates before initial sync', async () => {
+  const database = fakeDatabase({});
+  await newCleanupChat(database);
+  const otherOwner = 'b'.repeat(64);
+  database.rows.chat_call_cleanup_candidates.push({ id: 'c'.repeat(64), hashed_user_id: otherOwner, state: 'CANDIDATE' });
+  const result = await executeOperation(database, 'disqualify_call_cleanup_owner', {
+    protocol_version: 1, hashed_user_id: OWNER,
+  });
+  assert.equal(result.disqualified_candidates, 1);
+  assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'DISQUALIFIED');
+  assert.equal(database.rows.chat_call_cleanup_candidates[1].state, 'CANDIDATE');
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()), /empty_call_cleanup_not_eligible/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('lifecycle commits are durable and idempotent; late duplicate persistence cannot recreate a fenced chat', async () => {
+  const database = fakeDatabase({});
+  await newCleanupChat(database);
+  const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+  for (const mode of ['start', 'finish']) {
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate(mode, binding));
+  }
+  const ids = [`00000000-voice-call-${CLEANUP_CALL}-started`, `ffffffff-voice-call-${CLEANUP_CALL}-ended`];
+  const event = id => ({ protocol_version: 1, hashed_user_id: OWNER, chat_id: CHAT_ID,
+    message_id: id, encrypted_content: clientCiphertext(3), created_at: 101 });
+  assert.deepEqual(await executeOperation(database, 'persist_call_lifecycle', event(ids[0])), { messages_v: 1, created: true });
+  assert.deepEqual(await executeOperation(database, 'persist_call_lifecycle', event(ids[0])), { messages_v: 1, created: false });
+  assert.deepEqual(await executeOperation(database, 'persist_call_lifecycle', event(ids[1])), { messages_v: 2, created: true });
+  await executeOperation(database, 'invalidate_deletion', cleanupDeletion({ call_id: CLEANUP_CALL,
+    expected_messages_v: 2, lifecycle_message_ids: ids }));
+  database.rows.chats = []; database.rows.messages = [];
+  await assert.rejects(executeOperation(database, 'persist_call_lifecycle', event(ids[0])), /chat_not_found/);
+  assert.equal(database.rows.chats.length, 0);
+  assert.equal(database.rows.messages.length, 0);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('server-proven failure before Ready permits null-ID cleanup and remains subject to content and legacy exclusions', async () => {
+  for (const retain of [null, 'draft', 'legacy', 'lifecycle']) {
+    const database = fakeDatabase({});
+    await newCleanupChat(database);
+    const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('start', binding));
+    if (retain === 'draft') await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('disqualify'));
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('finish', {
+      ...binding, ready_exposed: false,
+    }));
+    if (retain === 'legacy') await executeOperation(database, 'disqualify_call_cleanup_owner', {
+      protocol_version: 1, hashed_user_id: OWNER,
+    });
+    if (retain === 'lifecycle') {
+      database.rows.chats[0].messages_v = 1;
+      database.rows.messages = [{ client_message_id: `00000000-voice-call-${CLEANUP_CALL}-started`,
+        chat_id: CHAT_ID, role: 'system', hashed_user_id: OWNER }];
+    }
+    if (retain !== null) {
+      await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()), /empty_call_cleanup_not_eligible/);
+      continue;
+    }
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'FINISHED_UNREADY');
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].call_id, null);
+    assert.deepEqual((await executeOperation(database, 'invalidate_deletion', cleanupDeletion())).empty_call_cleanup,
+      { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: null, expected_messages_v: 0, lifecycle_message_ids: [] });
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('possibly exposed Ready or absent exposure proof always retains the bound call identity', async () => {
+  for (const proof of [true, undefined]) {
+    const database = fakeDatabase({});
+    await newCleanupChat(database);
+    const binding = { cleanup_attempt_id: CLEANUP_ATTEMPT, call_id: CLEANUP_CALL };
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('start', binding));
+    await executeOperation(database, 'update_call_cleanup_candidate', cleanupCandidate('finish', {
+      ...binding, ...(proof === undefined ? {} : { ready_exposed: proof }),
+    }));
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].call_id, CLEANUP_CALL);
+    assert.equal(database.rows.chat_call_cleanup_candidates[0].state, 'FINISHED');
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()), /empty_call_cleanup_not_eligible/);
+  }
+});

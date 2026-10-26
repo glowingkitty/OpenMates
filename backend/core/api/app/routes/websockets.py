@@ -51,7 +51,7 @@ from .handlers.websocket_handlers.active_chat_handler import (
     ai_stream_snapshot_cache_key,
     handle_set_active_chat,
 )
-from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
+from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat, handle_delete_empty_call_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
     handle_add_message_highlight,
@@ -3078,6 +3078,7 @@ async def websocket_endpoint(
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
+    supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
 
     supports_storage_archive = declares_archive_capability(raw_capabilities)
     if not supports_storage_archive:
@@ -3115,6 +3116,21 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
+    if not supports_empty_call_cleanup:
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        # Retain eligibility loss durably before a legacy tab can discover any
+        # current candidate through initial sync, even if it later disconnects.
+        manager.empty_call_cleanup_unsafe_owners.add(user_id)
+        try:
+            await ChatRecoveryService(directus_service).execute("disqualify_call_cleanup_owner", {
+                "protocol_version": 1, "hashed_user_id": user_id_hash,
+            })
+        except Exception:
+            # Keep normal old-client sync available; automatic cleanup stays
+            # disabled for this owner when durable exclusion is unavailable.
+            logger.warning("Empty-call rollout exclusion unavailable")
+        else:
+            manager.empty_call_cleanup_unsafe_owners.discard(user_id)
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
@@ -3127,6 +3143,7 @@ async def websocket_endpoint(
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+        supports_empty_call_cleanup=supports_empty_call_cleanup,
         volatile_session_revoker=lambda nonce: revoke_volatile_ai_live_session(
             cache_service, nonce,
         ),
@@ -3785,6 +3802,14 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "delete_empty_call_chat":
+                await handle_delete_empty_call_chat(
+                    websocket=websocket, manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload, user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "delete_chat":

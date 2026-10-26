@@ -730,3 +730,56 @@ async def test_actual_context_free_start_reaches_ready_without_disclosing_chat_c
 def test_malformed_provided_context_remains_rejected(context):
     with pytest.raises(ValueError, match="Invalid call context"):
         route._start(json.dumps({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4()), "context": context}))
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
+    """Existing fixtures model a successful separate cleanup exclusion RPC.
+
+    Atomic eligibility/failure behavior is exercised by cleanup admission and
+    Directus transaction tests; these cases retain their original boundaries.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] in {"disqualify", "start", "finish"}
+            return {"eligible": False, "disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+@pytest.mark.parametrize("failure", ["provider_open", "ready_transport"])
+async def test_cleanup_finish_proves_no_ready_only_before_any_ready_send_attempt(runtime, monkeypatch, failure):
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    operations = []
+
+    async def execute(_self, operation, data):
+        assert operation == "update_call_cleanup_candidate"
+        operations.append(dict(data))
+        return {"eligible": True}
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", execute)
+    if failure == "provider_open":
+        async def failed_open(_self):
+            raise RuntimeError("provider unavailable before Ready")
+        monkeypatch.setattr(Provider, "open", failed_open)
+    else:
+        original_send = Socket.send_json
+        async def failed_ready_send(self, event):
+            if event["type"] == "ready":
+                # The frame may have been exposed even though the await fails.
+                self.sent.append(event)
+                self.changed.set()
+                raise WebSocketDisconnect()
+            await original_send(self, event)
+        monkeypatch.setattr(Socket, "send_json", failed_ready_send)
+
+    socket, _provider, task = await runtime.start(wait_ready=False)
+    await asyncio.wait_for(task, 2)
+    assert [item["mode"] for item in operations] == ["start", "finish"]
+    assert operations[-1]["ready_exposed"] is (failure == "ready_transport")
+    assert any(event["type"] == "ready" for event in socket.sent) is (failure == "ready_transport")

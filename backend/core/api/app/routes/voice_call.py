@@ -459,6 +459,10 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     lock_client: Any = None
     lock_key = lock_token = ""
     registered = False
+    cleanup_attempt_id = None
+    cleanup_tracking_started = False
+    cleanup_eligible = False
+    cleanup_ready_exposed = False
     ledger = SpeechUsageLedger()
     visuals = VoiceCallVisuals()
     turns: dict[str, _SpeechTurn] = {}
@@ -492,6 +496,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                     session_id=session_id, chat_id=chat_id, call_id=call_id)
 
     async def issue(message_id: str) -> None:
+        nonlocal cleanup_eligible
+        if cleanup_eligible:
+            from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+            await ChatRecoveryService(websocket.app.state.directus_service).execute(
+                "update_call_cleanup_candidate", {"protocol_version": 1,
+                    "hashed_user_id": user_hash, "chat_id": chat_id, "mode": "disqualify"},
+            )
+            cleanup_eligible = False
         await issue_message_id(websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
                                chat_id=chat_id, call_id=call_id, message_id=message_id, role="user")
 
@@ -602,6 +614,17 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         stage = "personal_chat"
         if not await _personal_chat(websocket, chat_id, user_id):
             raise ValueError("Chat unavailable")
+        # Bind call admission before provider work under the same durable chat
+        # lock as automatic cleanup. Older clients disqualify any prior attempt.
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        cleanup_attempt_id = json.loads(start_message).get("cleanup_attempt_id")
+        cleanup_state = await ChatRecoveryService(websocket.app.state.directus_service).execute(
+            "update_call_cleanup_candidate", {"protocol_version": 1,
+                "hashed_user_id": user_hash, "chat_id": chat_id, "mode": "start",
+                "cleanup_attempt_id": cleanup_attempt_id, "call_id": call_id},
+        )
+        cleanup_tracking_started = True
+        cleanup_eligible = cleanup_state.get("eligible") is True
         stage = "session"
         if not await _session_still_valid(websocket, auth_data):
             raise ValueError("Session unavailable")
@@ -620,6 +643,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await provider.open()
         stage = "active"
         started = last_auth_check = time.monotonic()
+        # Set before awaiting transport: a send failure/cancellation may still
+        # have exposed Ready, so it must never grant null-ID cleanup authority.
+        cleanup_ready_exposed = True
         await send({"type": "ready", "call_id": call_id, "provider": "mistral", "model": provider.model,
                     "speech_output_transport": SPEECH_OUTPUT_TRANSPORT,
                     "input_sample_rate": 16000, "output_sample_rate": 24000,
@@ -805,6 +831,23 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 cancelled = True
             except Exception:
                 logger.warning("Voice registry finalization failed call_id=%s", call_id)
+        if cleanup_tracking_started:
+            try:
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                await _finish_accepted_job(asyncio.create_task(
+                    ChatRecoveryService(websocket.app.state.directus_service).execute(
+                        "update_call_cleanup_candidate", {"protocol_version": 1,
+                            "hashed_user_id": user_hash, "chat_id": chat_id, "mode": "finish",
+                            "cleanup_attempt_id": cleanup_attempt_id, "call_id": call_id,
+                            "ready_exposed": cleanup_ready_exposed},
+                    ),
+                ))
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                # RUNNING is deliberately retained when finalization cannot be
+                # proved; missing/failed authority always preserves the chat.
+                logger.warning("Voice cleanup finalization unavailable")
         if lock_client is not None:
             await _release_lock(lock_client, lock_key, lock_token)
         try:

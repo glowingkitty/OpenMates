@@ -180,7 +180,7 @@ async def handle_sync_offline_changes(
                     if current_chat is None or is_direct_chat(current_chat):
                         error_count += 1
                         continue
-                if change_type in {"draft", "delete_draft"} and not await draft_change_allowed(
+                if change_type in {"draft", "delete_draft", "title"} and not await draft_change_allowed(
                     directus_service, user_id, chat_id, team_id,
                 ):
                     error_count += 1

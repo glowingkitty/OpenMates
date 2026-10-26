@@ -39,7 +39,8 @@ async def handle_delete_chat(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-    user_otel_attrs: dict = None,):
+    user_otel_attrs: dict = None,
+    *, empty_call_cleanup_guard: Dict[str, Any] | None = None,):
     _otel_span, _otel_token = None, None
     try:
         from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
@@ -251,7 +252,9 @@ async def handle_delete_chat(
             await manager.broadcast_to_user(
                 {
                     "type": "chat_deleted",
-                    "payload": {"chat_id": chat_id, "tombstone": True}
+                    "payload": {"chat_id": chat_id, "tombstone": True,
+                                **({"empty_call_cleanup": empty_call_cleanup_guard}
+                                   if empty_call_cleanup_guard is not None else {})}
                 },
                 user_id,
                 exclude_device_hash=None
@@ -271,3 +274,55 @@ async def handle_delete_chat(
                 _end_span(_otel_span, _otel_token)
             except Exception:
                 pass
+
+
+async def handle_delete_empty_call_chat(
+    websocket: WebSocket, manager: ConnectionManager, cache_service: CacheService,
+    directus_service: DirectusService, encryption_service: EncryptionService,
+    user_id: str, device_fingerprint_hash: str, payload: Dict[str, Any],
+    user_otel_attrs: dict = None,
+) -> None:
+    """First-party authenticated WS only; owner-scoped, no provider/credit work.
+
+    A separate action fails closed on older API hosts. Never fall back to the
+    generic delete action when the conditional transaction rejects or is absent.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    request_id = payload.get("request_id")
+    chat_id = payload.get("chat_id")
+    try:
+        import uuid
+        uuid.UUID(request_id)
+        allowed = {"request_id", "chat_id", "cleanup_attempt_id", "call_id",
+                   "lifecycle_message_ids", "expected_messages_v"}
+        if set(payload) != allowed:
+            raise ValueError("Invalid conditional cleanup request")
+        async with manager.empty_call_cleanup_gate(user_id):
+            service = ChatRecoveryService(directus_service)
+            if not manager.all_user_connections_support_empty_call_cleanup(user_id):
+                await service.execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                    "chat_id": chat_id, "mode": "disqualify",
+                })
+            else:
+                result = await service.execute("invalidate_deletion", {
+                    "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                    "scope": "chat", "chat_id": chat_id,
+                    "empty_call_cleanup": {key: payload[key] for key in (
+                        "cleanup_attempt_id", "call_id", "lifecycle_message_ids", "expected_messages_v")},
+                })
+                guard = result.get("empty_call_cleanup")
+                if isinstance(guard, dict):
+                    await manager.send_personal_message({"type": "empty_call_chat_cleanup_result", "payload": {
+                        "request_id": request_id, "chat_id": chat_id, "accepted": True,
+                    }}, user_id, device_fingerprint_hash)
+                    await handle_delete_chat(websocket, manager, cache_service, directus_service,
+                        encryption_service, user_id, device_fingerprint_hash, {"chatId": chat_id}, user_otel_attrs,
+                        empty_call_cleanup_guard=guard)
+                    return
+    except Exception:
+        # Unknown/old recipients and stale/unavailable authority preserve data.
+        pass
+    await manager.send_personal_message({"type": "empty_call_chat_cleanup_result", "payload": {
+        "request_id": request_id, "chat_id": chat_id, "accepted": False,
+    }}, user_id, device_fingerprint_hash)

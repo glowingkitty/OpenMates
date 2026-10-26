@@ -101,6 +101,10 @@ async def store_ideabucket_encrypted_add(
         except HTTPException:
             raise
 
+    from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed
+    if not await draft_change_allowed(directus_service, user_id, chat_id, None):
+        raise HTTPException(status_code=404, detail="Chat not found")
+
     draft_v = await cache_service.increment_user_draft_version(user_id, chat_id)
     if draft_v is None:
         raise HTTPException(status_code=507, detail={"error": "draft_version_failed"})

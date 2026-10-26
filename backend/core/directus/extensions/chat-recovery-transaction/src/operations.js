@@ -11,6 +11,7 @@ const JOBS = 'chat_completion_recovery_jobs';
 const OUTPUTS = 'chat_recovery_outputs';
 const ACCOUNT_FENCES = 'chat_recovery_account_fences';
 const CHAT_DELETION_FENCES = 'chat_recovery_chat_deletion_fences';
+const CALL_CLEANUP = 'chat_call_cleanup_candidates';
 const OUTPUT_PRODUCERS = 'chat_recovery_output_producers';
 const OUTPUT_PRODUCER_CHILDREN = 'chat_recovery_output_producer_children';
 const AUTHORIZED_RERENDERS = 'chat_recovery_authorized_rerenders';
@@ -134,7 +135,12 @@ const OPERATION_FIELDS = Object.freeze({
     'messages_v', 'timestamp',
   ]),
   register_personal_chat_draft: new Set([
-    'protocol_version', 'hashed_user_id', 'chat_id', 'encrypted_chat_key', 'created_at',
+    'protocol_version', 'hashed_user_id', 'chat_id', 'encrypted_chat_key', 'created_at', 'cleanup_attempt_id',
+  ]),
+  disqualify_call_cleanup_owner: new Set(['protocol_version', 'hashed_user_id']),
+  persist_call_lifecycle: new Set(['protocol_version', 'hashed_user_id', 'chat_id', 'message_id', 'encrypted_content', 'created_at']),
+  update_call_cleanup_candidate: new Set([
+    'protocol_version', 'hashed_user_id', 'chat_id', 'hashed_chat_id', 'mode', 'cleanup_attempt_id', 'call_id', 'ready_exposed',
   ]),
   prepare_preflight: new Set([
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
@@ -300,7 +306,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'job_id', 'hashed_user_id', 'device_hash', 'lease_generation',
     'lease_token', 'expected_messages_v', 'encrypted_assistant_message',
   ]),
-  invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash']),
+  invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash', 'empty_call_cleanup']),
   invalidate_rewind: new Set(['protocol_version', 'hashed_user_id', 'chat_id']),
   lookup_chat_deletion_fences: new Set(['protocol_version', 'hashed_user_id', 'chat_ids']),
   cleanup_expired: new Set(['protocol_version', 'failure_alerts_enabled']),
@@ -2195,6 +2201,7 @@ async function registerPersonalChatDraft(database, raw, now) {
   const chatId = uuid(body.chat_id, 'invalid_chat_id');
   const encryptedKey = string(body.encrypted_chat_key, 'invalid_wrapped_chat_key', 16_384);
   const createdAt = integer(body.created_at, 'invalid_chat_timestamp');
+  const attemptId = body.cleanup_attempt_id == null ? null : uuid(body.cleanup_attempt_id, 'invalid_cleanup_attempt');
   return database.transaction(async (trx) => {
     await requireUnfencedRecoveryAccount(trx, ownerHash);
     await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
@@ -2207,7 +2214,13 @@ async function registerPersonalChatDraft(database, raw, now) {
         fail(404, 'chat_not_found');
       }
       if (existing.encrypted_chat_key !== encryptedKey) fail(409, 'immutable_chat_key_mismatch');
-      return { chat_id: chatId, created: false };
+      const candidate = await trx(CALL_CLEANUP).where({ id: digest(chatId) }).first();
+      const eligible = candidate?.hashed_user_id === ownerHash && candidate.attempt_id === attemptId
+        && attemptId !== null && candidate.state === 'CANDIDATE';
+      if (candidate && !eligible && candidate.state !== 'FENCED') {
+        await trx(CALL_CLEANUP).where({ id: digest(chatId) }).update({ state: 'DISQUALIFIED' });
+      }
+      return { chat_id: chatId, created: false, ...(eligible ? { cleanup_attempt_id: attemptId } : {}) };
     }
     const timestamp = Math.floor(now.getTime() / 1000);
     await trx(CHATS).insert({
@@ -2220,8 +2233,193 @@ async function registerPersonalChatDraft(database, raw, now) {
       parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
       share_with_community: false, share_pii: false, share_highlights: true,
     });
+    // A draft may have been admitted before this key shell existed. Never re-arm
+    // its permanent exclusion, even after its ciphertext has been cleared.
+    const priorCandidate = await trx(CALL_CLEANUP).where({ id: digest(chatId) }).first();
+    if (attemptId && !priorCandidate && !await trx('drafts').where({ chat_id: chatId }).first()) {
+      await trx(CALL_CLEANUP).insert({ id: digest(chatId), hashed_user_id: ownerHash,
+        attempt_id: attemptId, call_id: null, state: 'CANDIDATE', created_at: now });
+      return { chat_id: chatId, created: true, cleanup_attempt_id: attemptId };
+    }
     return { chat_id: chatId, created: true };
   });
+}
+
+async function persistCallLifecycle(database, raw, now) {
+  const body = operationBody(raw, 'persist_call_lifecycle');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 128);
+  if (!/^(?:00000000-voice-call-[a-f0-9]{32}-started|ffffffff-voice-call-[a-f0-9]{32}-ended)$/.test(messageId)) {
+    fail(400, 'invalid_call_lifecycle');
+  }
+  const content = clientCiphertext(body.encrypted_content, 'invalid_encrypted_message');
+  const createdAt = integer(body.created_at, 'invalid_chat_timestamp');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, chatId);
+    if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) fail(404, 'chat_not_found');
+    const chat = await ownedChat(trx, chatId, ownerHash);
+    if (chat.hashed_team_id || directChatMarked(chat) || chat.storage_state === 'deleting') fail(404, 'chat_not_found');
+    const version = integer(chat.messages_v ?? 0, 'invalid_messages_version');
+    const existing = await trx(MESSAGES).where({ client_message_id: messageId }).forUpdate().first();
+    if (existing) {
+      if (existing.chat_id !== chatId || existing.hashed_user_id !== ownerHash || existing.role !== 'system'
+        || existing.encrypted_content !== content || existing.created_at !== createdAt) fail(409, 'call_lifecycle_conflict');
+      return { messages_v: version, created: false };
+    }
+    if (version >= 2147483647) fail(409, 'invalid_messages_version');
+    await trx(MESSAGES).insert({ id: randomUUID(), client_message_id: messageId, chat_id: chatId,
+      hashed_user_id: ownerHash, role: 'system', encrypted_content: content, created_at: createdAt,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    const timestamp = Math.max(createdAt, Number(chat.last_edited_overall_timestamp ?? 0));
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: version + 1,
+      last_edited_overall_timestamp: timestamp,
+      last_message_timestamp: Math.max(createdAt, Number(chat.last_message_timestamp ?? 0)),
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { messages_v: version + 1, created: true };
+  });
+}
+
+async function disqualifyCallCleanupOwner(database, raw) {
+  const body = operationBody(raw, 'disqualify_call_cleanup_owner');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    const count = await trx(CALL_CLEANUP).where({ hashed_user_id: ownerHash })
+      .whereIn('state', ['CANDIDATE', 'RUNNING', 'FINISHED', 'FINISHED_UNREADY']).update({ state: 'DISQUALIFIED' });
+    return { disqualified_candidates: count };
+  });
+}
+
+async function updateCallCleanupCandidate(database, raw, now) {
+  const body = operationBody(raw, 'update_call_cleanup_candidate');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const chatId = body.chat_id == null ? null : uuid(body.chat_id, 'invalid_chat_id');
+  const chatHash = body.hashed_chat_id == null ? (chatId ? digest(chatId) : null)
+    : hexDigest(body.hashed_chat_id, 'invalid_chat_hash');
+  if (!chatHash || (chatId && body.hashed_chat_id != null)
+    || (!chatId && body.mode !== 'disqualify')) fail(400, 'invalid_cleanup_scope');
+  if (!['disqualify', 'start', 'finish'].includes(body.mode)) fail(400, 'invalid_cleanup_mode');
+  if (body.ready_exposed !== undefined && (body.mode !== 'finish' || typeof body.ready_exposed !== 'boolean')) {
+    fail(400, 'invalid_ready_exposure_proof');
+  }
+  const attemptId = body.cleanup_attempt_id == null ? null : uuid(body.cleanup_attempt_id, 'invalid_cleanup_attempt');
+  const callId = body.call_id == null ? null : string(body.call_id, 'invalid_call_id', 128);
+  if (callId !== null && !/^[a-f0-9]{32}$/.test(callId)) fail(400, 'invalid_call_id');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, chatId);
+    if (chatId && await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) fail(404, 'chat_not_found');
+    const chat = chatId ? await trx(CHATS).where({ id: chatId }).forUpdate().first() : null;
+    if (chat && body.mode === 'disqualify' && (chat.hashed_team_id || directChatMarked(chat))) {
+      return { disqualified: false }; // Personal cleanup never applies to Team data.
+    }
+    if (chat && (chat.hashed_user_id !== ownerHash || chat.hashed_team_id || directChatMarked(chat))) {
+      fail(404, 'chat_not_found');
+    }
+    const row = await trx(CALL_CLEANUP).where({ id: chatHash }).first();
+    if (row && (row.hashed_user_id !== ownerHash || row.state === 'FENCED')) fail(404, 'chat_not_found');
+    if (body.mode === 'disqualify') {
+      if (row) await trx(CALL_CLEANUP).where({ id: chatHash }).update({ state: 'DISQUALIFIED' });
+      else await trx(CALL_CLEANUP).insert({ id: chatHash, hashed_user_id: ownerHash,
+        attempt_id: null, call_id: null, state: 'DISQUALIFIED', created_at: now });
+      return { disqualified: true };
+    }
+    if (!row || row.state === 'DISQUALIFIED') return { eligible: false };
+    if (!attemptId || row.attempt_id !== attemptId || !callId) {
+      await trx(CALL_CLEANUP).where({ id: chatHash }).update({ state: 'DISQUALIFIED' });
+      return { eligible: false };
+    }
+    const from = body.mode === 'start' ? 'CANDIDATE' : 'RUNNING';
+    if (row.state !== from || (body.mode === 'finish' && row.call_id !== callId)) {
+      await trx(CALL_CLEANUP).where({ id: chatHash }).update({ state: 'DISQUALIFIED' });
+      return { eligible: false };
+    }
+    // Only the voice server can assert explicit no-Ready proof after matching
+    // the running attempt/call. Missing proof retains the possibly exposed ID.
+    const unready = body.mode === 'finish' && body.ready_exposed === false;
+    await trx(CALL_CLEANUP).where({ id: chatHash }).update({
+      state: body.mode === 'start' ? 'RUNNING' : unready ? 'FINISHED_UNREADY' : 'FINISHED',
+      call_id: unready ? null : callId,
+    });
+    return { eligible: true };
+  });
+}
+
+async function assertEmptyCallCleanup(trx, chat, priorFence, ownerHash, chatId, raw) {
+  const reject = () => fail(409, 'empty_call_cleanup_not_eligible');
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)
+    || Object.keys(raw).some(key => !['cleanup_attempt_id', 'call_id', 'lifecycle_message_ids', 'expected_messages_v'].includes(key))) reject();
+  const attemptId = uuid(raw.cleanup_attempt_id, 'invalid_cleanup_attempt');
+  const version = integer(raw.expected_messages_v, 'invalid_messages_version');
+  const candidate = await trx(CALL_CLEANUP).where({ id: digest(chatId) }).first();
+  if (!candidate || candidate.hashed_user_id !== ownerHash || candidate.attempt_id !== attemptId) reject();
+  const canonicalGuard = expected => ({ cleanup_attempt_id: attemptId,
+    call_id: candidate.call_id, expected_messages_v: expected,
+    lifecycle_message_ids: candidate.call_id === null ? [] : [
+      `00000000-voice-call-${candidate.call_id}-started`, `ffffffff-voice-call-${candidate.call_id}-ended`,
+    ],
+  });
+  if (priorFence && candidate.state === 'FENCED' && priorFence.hashed_user_id === ownerHash) {
+    return canonicalGuard(integer(candidate.expected_messages_v, 'invalid_messages_version'));
+  }
+  if (!chat || chat.hashed_user_id !== ownerHash || chat.hashed_team_id || directChatMarked(chat)
+    || chat.participant_user_hashes != null || chat.participant_key_envelopes != null
+    || chat.storage_state === 'deleting' || chat.messages_v !== version
+    || !['CANDIDATE', 'FINISHED', 'FINISHED_UNREADY'].includes(candidate.state)) reject();
+  if (candidate.state === 'FINISHED_UNREADY' && (candidate.call_id !== null || version !== 0)) reject();
+  const callId = raw.call_id ?? null;
+  if (candidate.call_id !== callId || (callId !== null && !/^[a-f0-9]{32}$/.test(callId))) reject();
+  const allowed = callId === null ? [] : [
+    `00000000-voice-call-${callId}-started`, `ffffffff-voice-call-${callId}-ended`,
+  ];
+  const ids = raw.lifecycle_message_ids;
+  if (!Array.isArray(ids) || ids.length !== allowed.length || new Set(ids).size !== ids.length
+    || ids.some(id => !allowed.includes(id))) reject();
+  // No encrypted user-authored metadata, memberships or durable artifacts may be
+  // erased as a side effect. Unknown/nonzero generations fail closed as well.
+  for (const field of ['title_v', 'metadata_v', 'archived_message_count', 'archive_mutation_v', 'budget_spent']) {
+    if (chat[field] != null && chat[field] !== 0) reject();
+  }
+  if (chat.title_is_manual || chat.pinned || chat.is_shared || chat.shared_public || chat.share_with_community
+    || chat.is_sub_chat || chat.parent_id || chat.budget_limit != null
+    || (Array.isArray(chat.shared_with_user_hashes) && chat.shared_with_user_hashes.length)) reject();
+  for (const [field, value] of Object.entries(chat)) {
+    if (field.startsWith('encrypted_') && field !== 'encrypted_chat_key' && value != null && value !== '') reject();
+  }
+  const messages = await trx(MESSAGES).where({ chat_id: chatId }).limit(3).select([
+    'client_message_id', 'role', 'hashed_user_id', 'user_message_id', 'queue_dispatch_status',
+  ]);
+  if (messages.length !== ids.length || messages.some(row => row.role !== 'system'
+    || row.hashed_user_id !== ownerHash || !ids.includes(row.client_message_id)
+    || row.user_message_id != null || row.queue_dispatch_status != null)) reject();
+  const chatHash = digest(chatId);
+  if (await trx('project_items').where({ item_type: 'chat', target_id_hash: chatHash }).first()) reject();
+  const checks = [
+    ['drafts', 'chat_id'], [PREFLIGHTS, 'chat_id'], [JOBS, 'chat_id'], [OUTBOX, 'chat_id'],
+    [ROUTING_PROOFS, 'chat_id'], [METADATA_JOBS, 'chat_id'], [CHECKPOINTS, 'chat_id'],
+    [OUTPUT_PRODUCERS, 'root_chat_id'], [OUTPUT_PRODUCERS, 'target_chat_id'],
+    [AUTHORIZED_DIRECT_SKILLS, 'target_chat_id'], [AUTHORIZED_RERENDERS, 'target_chat_id'],
+    [LEGACY_OUTPUT_PRODUCERS, 'root_chat_id'], [LEGACY_OUTPUT_PRODUCERS, 'target_chat_id'], [LEGACY_BATCH_CLAIMS, 'chat_id'],
+    [OUTPUTS, 'root_chat_id'], [OUTPUTS, 'target_chat_id'],
+    [ORCHESTRATIONS, 'root_chat_id'], [ORCHESTRATION_CHILDREN, 'parent_chat_id'], [ORCHESTRATION_CHILDREN, 'child_chat_id'],
+    [ORCHESTRATION_BATCHES, 'parent_chat_id'], ['chats', 'parent_id'],
+    ['chat_message_archive_segments', 'chat_id'], ['chat_message_archive_pages', 'chat_id'],
+    ['assistant_speech_manifests', 'chat_id'], ['assistant_speech_segments', 'chat_id'],
+    ['message_highlights', 'chat_id'], ['user_chat_preferences', 'chat_id'],
+    ['code_run_outputs', 'chat_id'], ['notebook_run_outputs', 'chat_id'],
+    [EMBEDS, 'hashed_chat_id', chatHash], [EMBED_KEYS, 'hashed_chat_id', chatHash],
+    ['project_key_wrappers', 'hashed_chat_id', chatHash],
+  ];
+  for (const [table, field, value = chatId] of checks) {
+    if (await trx(table).where({ [field]: value }).first()) reject();
+  }
+  await trx(CALL_CLEANUP).where({ id: digest(chatId) }).update({ state: 'FENCED', expected_messages_v: version });
+  // Other existing atomic content writers lock the chat row and honor this
+  // storage state, alongside recovery's durable deletion fence.
+  await trx(CHATS).where({ id: chatId }).update({ storage_state: 'deleting' });
+  return canonicalGuard(version);
 }
 
 async function preparePreflight(database, raw, now) {
@@ -5141,13 +5339,16 @@ async function invalidateDeletion(database, raw, now) {
     await lockIdentity(trx, `account-recovery:${ownerHash}`);
     if (scope === 'account') {
       await assertNoPendingTeamAccountRecovery(trx, ownerHash);
+      await trx(CALL_CLEANUP).where({ hashed_user_id: ownerHash }).delete();
       if (!await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first()) {
         await trx(ACCOUNT_FENCES).insert({ id: ownerHash, fenced_at: now });
       }
     } else {
       await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
-      const chat = await trx(CHATS).where({ id: chatId }).first();
+      const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
       const prior = await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first();
+      const emptyCallCleanup = body.empty_call_cleanup === undefined ? null
+        : await assertEmptyCallCleanup(trx, chat, prior, ownerHash, chatId, body.empty_call_cleanup);
       if (!chat && !prior) fail(404, 'chat_not_found');
       // Direct chats have no generic Team delete authority. A participant
       // removal is handled through membership, without destroying the pair.
@@ -5177,6 +5378,7 @@ async function invalidateDeletion(database, raw, now) {
         ...await invalidateRecoveryState(trx, ownerHash, chatId, now, teamHash),
         chat_deletion_fenced: true,
         chat_id: chatId,
+        ...(emptyCallCleanup ? { empty_call_cleanup: emptyCallCleanup } : {}),
       };
     }
     return invalidateRecoveryState(trx, ownerHash, chatId, now);
@@ -5382,6 +5584,9 @@ export const operations = Object.freeze({
     JOB_TTL_MS, TOMBSTONE_TTL_MS }),
   prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
   register_personal_chat_draft: registerPersonalChatDraft,
+  update_call_cleanup_candidate: updateCallCleanupCandidate,
+  disqualify_call_cleanup_owner: disqualifyCallCleanupOwner,
+  persist_call_lifecycle: persistCallLifecycle,
   enqueue_inference: enqueueInference, admit_first_personal: admitFirstPersonal,
   verify_routing_admission: verifyRoutingAdmission,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,

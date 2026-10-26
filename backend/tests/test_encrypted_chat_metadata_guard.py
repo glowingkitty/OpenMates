@@ -6,6 +6,7 @@ messages and metadata. A stale client can generate ciphertext with the wrong
 chat key; the server must fail closed before anything is persisted.
 """
 
+import pytest
 import asyncio
 from pathlib import Path
 import sys
@@ -681,3 +682,22 @@ def test_generic_metadata_rejects_reserved_voice_bootstrap_without_storage(monke
         assert [message[0]["type"] for message in manager.personal_messages] == ["error"]
         assert calls == []
     asyncio.run(run())
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_flow_fixtures(monkeypatch):
+    """Existing fixtures model a successful separate cleanup exclusion RPC.
+
+    Atomic eligibility/failure behavior is exercised by cleanup admission and
+    Directus transaction tests; these cases retain their original boundaries.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] in {"disqualify", "start", "finish"}
+            return {"eligible": False, "disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)

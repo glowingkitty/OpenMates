@@ -1,0 +1,13 @@
+# Server-owned empty-call eligibility and permanent draft/content disqualification.
+# Contains identities only; no transcript, ciphertext or key material.
+chat_call_cleanup_candidates:
+  type: collection
+  meta: {accountability: null}
+  fields:
+    id: {type: string, length: 64, primary: true, note: "SHA256(chat_id); shared by pre-bootstrap exclusions and new-call candidates."}
+    hashed_user_id: {type: string, length: 64, required: true}
+    attempt_id: {type: uuid, nullable: true}
+    call_id: {type: string, nullable: true}
+    state: {type: string, required: true}
+    expected_messages_v: {type: integer, nullable: true}
+    created_at: {type: timestamp, required: true}

@@ -262,6 +262,12 @@ async def handle_store_embed(
                         "chat_scope_unavailable", request_id,
                     )
                     return
+            if isinstance(direct_chat_metadata, dict) and not direct_chat_metadata.get("hashed_team_id"):
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": _user_hash(user_id),
+                    "chat_id": direct_chat_metadata["id"], "mode": "disqualify",
+                })
             if is_direct_chat(direct_chat_metadata):
                 try:
                     await require_direct_chat_access(

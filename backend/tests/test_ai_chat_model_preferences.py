@@ -206,3 +206,18 @@ async def test_chat_model_preference_conflict_returns_server_record() -> None:
         )
 
     assert exc_info.value.server_record == server_record
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_authority_for_existing_store_fixtures(monkeypatch):
+    """Model the separate successful exclusion RPC in these CRUD fixtures."""
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+    execute = ChatRecoveryService.execute
+
+    async def with_cleanup_authority(self, operation, data):
+        if operation == "update_call_cleanup_candidate":
+            assert data["mode"] == "disqualify"
+            return {"disqualified": True}
+        return await execute(self, operation, data)
+
+    monkeypatch.setattr(ChatRecoveryService, "execute", with_cleanup_authority)

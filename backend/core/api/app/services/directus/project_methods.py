@@ -229,6 +229,13 @@ class ProjectMethods:
         await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id, team_id=team_id)
         if key_wrappers and not all(_validate_project_key_wrapper(wrapper) for wrapper in key_wrappers):
             return None
+        for wrapper in key_wrappers:
+            if wrapper.get("hashed_chat_id"):
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                await ChatRecoveryService(self.directus_service).execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": hash_id(user_id),
+                    "hashed_chat_id": wrapper["hashed_chat_id"], "mode": "disqualify",
+                })
         success, data = await self.directus_service.create_item("projects", record)
         if not success:
             if is_slug_unique_violation(data):
@@ -264,6 +271,12 @@ class ProjectMethods:
     ) -> Optional[Dict[str, Any]]:
         if not _validate_project_key_wrapper(wrapper):
             return None
+        if wrapper.get("hashed_chat_id"):
+            from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+            await ChatRecoveryService(self.directus_service).execute("update_call_cleanup_candidate", {
+                "protocol_version": 1, "hashed_user_id": hash_id(user_id),
+                "hashed_chat_id": wrapper["hashed_chat_id"], "mode": "disqualify",
+            })
         record = {
             "hashed_project_id": hash_id(project_id),
             "hashed_user_id": None if team_id else hash_id(user_id),
@@ -877,6 +890,12 @@ class ProjectMethods:
         payload: Dict[str, Any],
         team_id: str | None = None,
     ) -> Optional[Dict[str, Any]]:
+        if payload.get("item_type") == "chat":
+            from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+            await ChatRecoveryService(self.directus_service).execute("update_call_cleanup_candidate", {
+                "protocol_version": 1, "hashed_user_id": hash_id(user_id),
+                "hashed_chat_id": payload.get("target_id_hash"), "mode": "disqualify",
+            })
         record = {
             **payload,
             **_owner_record(user_id, team_id),

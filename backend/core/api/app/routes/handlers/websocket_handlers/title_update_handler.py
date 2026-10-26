@@ -59,6 +59,14 @@ async def handle_update_title(
             # Store the encrypted title from client directly (already encrypted with master key)
             encrypted_new_title = encrypted_title_from_client
 
+            import hashlib
+            from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+            metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if not metadata or not metadata.get("hashed_team_id"):
+                await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                    "chat_id": chat_id, "mode": "disqualify",
+                })
             accepted_versions = await allocate_chat_metadata_versions(
                 cache_service,
                 directus_service,

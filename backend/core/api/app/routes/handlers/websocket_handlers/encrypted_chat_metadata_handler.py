@@ -98,11 +98,12 @@ async def handle_voice_call_chat_prepare(
 
     try:
         allowed = {"chat_id", "encrypted_chat_key", "created_at", "voice_call_bootstrap"}
-        if not isinstance(payload, dict) or set(payload) != allowed or payload["voice_call_bootstrap"] is not True:
+        if not isinstance(payload, dict) or not allowed.issubset(payload) or bool(set(payload) - allowed - {"cleanup_attempt_id"}) or payload["voice_call_bootstrap"] is not True:
             raise ValueError("Invalid voice call bootstrap")
         result = await ChatRecoveryService(directus_service).register_personal_chat_draft(
             hashed_user_id=user_id_hash, chat_id=payload["chat_id"],
             encrypted_chat_key=payload["encrypted_chat_key"], created_at=payload["created_at"],
+            **({"cleanup_attempt_id": payload["cleanup_attempt_id"]} if "cleanup_attempt_id" in payload else {}),
         )
     except Exception:
         chat_id = payload.get("chat_id") if isinstance(payload, dict) else None
@@ -117,7 +118,9 @@ async def handle_voice_call_chat_prepare(
     await manager.send_personal_message({
         "type": "encrypted_metadata_stored",
         "payload": {"chat_id": result["chat_id"], "message_id": None,
-                    "status": "stored", "voice_call_bootstrap": True},
+                    "status": "stored", "voice_call_bootstrap": True,
+                    **({"cleanup_attempt_id": result["cleanup_attempt_id"]}
+                       if result.get("cleanup_attempt_id") else {})},
     }, user_id, device_fingerprint_hash)
 
 
@@ -272,6 +275,13 @@ async def handle_encrypted_chat_metadata(
                 else:
                     # Chat doesn't exist - this is a new chat creation
                     logger.info(f"New chat {chat_id} detected in encrypted_chat_metadata_handler")
+
+            if not hashed_team_id:
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+                    "protocol_version": 1, "hashed_user_id": user_id_hash,
+                    "chat_id": chat_id, "mode": "disqualify",
+                })
 
             # ---------------------------------------------------------------------
             # Chat key conflict detection (server-side guardrail)

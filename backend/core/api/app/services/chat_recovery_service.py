@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
     "register_personal_chat_draft",
+    "update_call_cleanup_candidate",
+    "disqualify_call_cleanup_owner",
+    "persist_call_lifecycle",
     "revise_queued_message_ciphertext",
     "commit_queued_message_revision",
     "abort_queued_message_revision",
@@ -120,12 +123,13 @@ class ChatRecoveryService:
         self._directus = directus_service
 
     async def register_personal_chat_draft(
-        self, *, hashed_user_id: str, chat_id: str, encrypted_chat_key: str, created_at: int,
+        self, *, hashed_user_id: str, chat_id: str, encrypted_chat_key: str, created_at: int, cleanup_attempt_id: str | None = None,
     ) -> dict[str, Any]:
         """Atomically create or confirm an owned immutable-key personal shell."""
         return await self.execute("register_personal_chat_draft", {
             "protocol_version": 1, "hashed_user_id": hashed_user_id, "chat_id": chat_id,
             "encrypted_chat_key": encrypted_chat_key, "created_at": created_at,
+            **({"cleanup_attempt_id": cleanup_attempt_id} if cleanup_attempt_id is not None else {}),
         })
 
     @staticmethod

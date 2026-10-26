@@ -108,6 +108,11 @@ class ChatModelPreferenceMethods:
         expected_preference_v: int | None = None,
     ) -> dict[str, Any]:
         encrypted_value = validate_encrypted_selected_ai_model(encrypted_selected_ai_model)
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        await ChatRecoveryService(self._service).execute("update_call_cleanup_candidate", {
+            "protocol_version": 1, "hashed_user_id": hash_user_id(user_id),
+            "chat_id": chat_id, "mode": "disqualify",
+        })
         current = await self.get_preference(user_id, chat_id)
         now = int(time.time())
         hashed_user_id = hash_user_id(user_id)

@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
 from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
@@ -35,8 +37,15 @@ async def draft_change_allowed(
             return True
         if metadata and metadata.get("hashed_team_id"):
             return False
-        if not metadata:
-            return True  # Personal draft-only chat, not yet persisted.
-        return bool(await directus_service.chat.check_chat_ownership(chat_id, user_id))
+        if metadata and not await directus_service.chat.check_chat_ownership(chat_id, user_id):
+            return False
+        # Commit an exclusion before any Redis draft version/content admission or
+        # clear acknowledgement. This also persists when no chat shell exists,
+        # so a later voice bootstrap cannot re-arm an earlier draft attempt.
+        await ChatRecoveryService(directus_service).execute("update_call_cleanup_candidate", {
+            "protocol_version": 1, "hashed_user_id": hash_id(user_id),
+            "chat_id": chat_id, "mode": "disqualify",
+        })
+        return True
     except Exception:
         return False
