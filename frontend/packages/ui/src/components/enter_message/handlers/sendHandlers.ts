@@ -854,8 +854,10 @@ export async function handleSend(
   let chatBeforeSend: import("../../../types/chat").Chat | null = null;
   const clearSubmittedEditor = () => {
     if (options.preserveDraft || editor.isDestroyed || editor.state.doc !== submittedEditorDoc) return;
-    setHasContent(false);
     resetEditorContent(editor, false);
+    // The callback also reads attachment/preview state. Publish only after the
+    // silent clear so it observes the empty document rather than sent embeds.
+    setHasContent(false);
     clearedEditorDoc = editor.state.doc;
   };
   const restoreRejectedDraft = () => {
@@ -1262,8 +1264,8 @@ export async function handleSend(
     // and interact freely. Upload callbacks in embedHandlers.ts will try to update
     // TipTap nodes but the nodes won't exist anymore — that's fine, the callbacks
     // already store embed data in EmbedStore independently.
-    setHasContent(false);
     editor.commands.clearContent(false);
+    setHasContent(false);
     if (privacyAtClick.enhanced) {
       deferredSubmittedDrafts.set(pendingContext, { editor, document: editor.state.doc, chatId: deferredChatId });
     }
@@ -2504,8 +2506,8 @@ export async function handleSend(
     const composerStillContainsSentDocument = editor.state.doc === submittedEditorDoc;
     const composerStillContainsClearedDocument = !!clearedEditorDoc && editor.state.doc === clearedEditorDoc;
     if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
-      setHasContent(false);
       resetEditorContent(editor, false);
+      setHasContent(false);
     }
 
     // OTel: cleanup span (draft clearing)

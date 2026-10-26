@@ -577,7 +577,10 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     const { editor, state, clearContent } = makeUploadedImageEditor();
     const dispatch = vi.fn();
 
-    const pending = handleSend(editor, dispatch, vi.fn(), 'chat-auth');
+    const setHasContent = vi.fn((value: boolean) => {
+      if (!value) expect(state.doc.content).toEqual([]);
+    });
+    const pending = handleSend(editor, dispatch, setHasContent, 'chat-auth');
     expect(dispatch).toHaveBeenCalledWith('sendMessage', expect.objectContaining({
       message: expect.objectContaining({ content: 'embed:uploaded-image', status: 'sending' }),
     }));
