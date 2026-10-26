@@ -16,6 +16,19 @@ Model calls execute outside the session execution lock. Manual takeover invalida
 
 The final result contains observed JSON `data`, source references, complete bounded extracted `observations`, a safe screenshot and timing/usage counters. `screenshot_ref` identifies the image inside the owner-authorized encrypted result; the binary `screenshot_base64` field is excluded from model input. Browser-job result bodies are encrypted separately from the Celery task backend. Transient results expire after 24 hours; saved encrypted chat embeds have independent retention.
 
+Literal string-only answers have an additional verification path when the normal
+Jev answer check abstains. Code first matches every nonempty leaf to observed
+page text or URLs; unmatched values, paraphrases, numbers and empty containers
+cannot use this path. A separately metered, 256-output-token text-helper call
+then checks field meanings, relationships and complete requested coverage.
+Quotation presence alone cannot pass. Required website actions still need the
+existing Jev verification, and output schema/safety validation remains mandatory.
+The original Jev thresholds are unchanged. Native controls cover a complete
+quotation, omitted caveats, invented claims, an inverted claim and unfinished
+navigation. Use `backend/scripts/test_web_browse_text_helpers.py --execute` with a
+retained public observation to repeat those provider controls without revisiting
+the website; this does not substitute for real CLI/SDK proof.
+
 ## First-party HTTP contract
 
 Routes are hidden from public developer documentation. An authenticated session or approved first-party device is required. API-key scopes and spending limits still apply; broad developer keys cannot access browser data.

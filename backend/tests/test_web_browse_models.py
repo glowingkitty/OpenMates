@@ -12,7 +12,11 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from backend.shared.providers.browser_models import BrowserModels, BrowserModelError
+from backend.shared.providers.browser_models import (
+    BrowserModels,
+    BrowserModelError,
+    matched_quotations,
+)
 
 
 @pytest.fixture
@@ -82,6 +86,10 @@ def transport(monkeypatch, handler):
 async def test_completion_requires_grounded_complete_data_and_finished_interactions(
     models, grounded, covered, acted, empty, expected
 ):
+    # A separate quote proof must also fail before a low first score can pass.
+    models.generate = AsyncMock(
+        return_value={"grounded": False, "answer_complete": False}
+    )
     models.decision = AsyncMock(
         return_value=SimpleNamespace(
             answers={
@@ -120,6 +128,126 @@ async def test_completion_requires_grounded_complete_data_and_finished_interacti
         {"role": "textbox", "label": "Search", "value": "query"}
     ]
     assert models.no_results is (empty >= 0.95 and acted >= 0.95)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "review,expected",
+    [
+        ({"grounded": True, "answer_complete": True}, True),
+        ({"grounded": True, "answer_complete": False}, False),
+        ({"grounded": False, "answer_complete": True}, False),
+        ({"grounded": "true", "answer_complete": True}, False),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+async def test_literal_presence_also_requires_independent_meaning_and_coverage(
+    models, review, expected
+):
+    models.decision = AsyncMock(
+        return_value=SimpleNamespace(
+            answers={
+                k: SimpleNamespace(noul=v)
+                for k, v in {
+                    "grounded": 0.88,
+                    "answer_complete": 0.41,
+                    "interaction_complete": 0.98,
+                    "empty": 0.01,
+                }.items()
+            }
+        )
+    )
+    models.generate = AsyncMock(return_value=review)
+    observation = {
+        "url": "https://example.com/",
+        "document_text": "Observed statement. Essential caveat.",
+        "text": "Short display",
+    }
+    data = {
+        "statement": "Observed statement. Essential caveat.",
+        "source_url": "https://example.com/",
+    }
+    assert (
+        await models.verify(
+            "Quote the entire statement with its caveat and URL", observation, data
+        )
+        is expected
+    )
+    context = models.generate.await_args.args[0]
+    assert context["purpose"] == "verify_quotes"
+    assert [p["path"] for p in context["matched_quotations"]] == [
+        "/statement",
+        "/source_url",
+    ]
+    assert context["proposed_answer"] == data
+    assert models.verification["grounding_score"] == 0.88
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"claim": "Invented statement"},
+        {"count": 3},
+        {"available": True},
+        {"claim": ""},
+        {"rows": []},
+        {},
+        {"source_url": "https://unobserved.example/"},
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+def test_unquoted_or_nonliteral_data_cannot_use_quotation_proof(data):
+    assert (
+        matched_quotations(
+            data, {"url": "https://example.com/", "text": "Observed statement"}
+        )
+        is None
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.budgets-and-stop
+@pytest.mark.asyncio
+async def test_unfinished_website_action_cannot_be_overridden_by_quote_review(models):
+    models.decision = AsyncMock(
+        return_value=SimpleNamespace(
+            answers={
+                k: SimpleNamespace(noul=v)
+                for k, v in {
+                    "grounded": 0.98,
+                    "answer_complete": 0.99,
+                    "interaction_complete": 0.10,
+                    "empty": 0.01,
+                }.items()
+            }
+        )
+    )
+    models.generate = AsyncMock(
+        return_value={"grounded": True, "answer_complete": True}
+    )
+    assert not await models.verify(
+        "Open the next page",
+        {"url": "https://example.com/", "text": "Observed statement"},
+        {"quote": "Observed statement"},
+    )
+    models.generate.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.text-helper,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_quote_review_has_a_small_native_output_bound(models, monkeypatch):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    fallback.return_value.direct_message_content = (
+        '{"grounded":true,"answer_complete":true}'
+    )
+    assert await models.generate(
+        {"purpose": "verify_quotes", "goal": "Review matched quotations"}
+    ) == {"grounded": True, "answer_complete": True}
+    assert fallback.await_args.kwargs["max_tokens"] == 256
+    models.before_attempt.assert_awaited_once()
+    models.after_attempt.assert_awaited_once()
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion

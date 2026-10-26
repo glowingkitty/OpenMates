@@ -7,33 +7,85 @@ The approved contract is `feature.app-skill.web-browse@1`.
 The deployed backend (`29836d6`) has a successful real CLI JSON extraction,
 successful direct npm extraction, native idle pause/resume and successful direct
 Python replay of the closed npm run. Fresh Python execution still abstains.
-The prior object-storage outage has recovered. The evidence-only correction and
-prepared-pool implementation remain local pending exact-source CI and deployment.
-The latest deployed version passed 83 isolated cases.
+The previous object-storage outage recovered; the retained CLI recording and new
+CI evidence uploaded successfully. Backend commit `612c62f` passed 113 focused
+cases plus the first-party HTTP authorization case in isolated CI (runs
+40384854217 and 40384953480). The pool remained disabled during deployment and
+was enabled only after the live synthetic-owner qualification below passed.
+The coordinated runtime restart completed with all 17 services healthy. The live
+configuration has three prepared paused VMs. Fresh app/SDK measurements confirmed
+the provisioning improvement but exposed the verification failures below.
 
 ## Startup optimization qualification
 
-Measurements below are direct E2B provider probes with no AI calls. All probe
-resources were destroyed. They are not deployed app or web-embed acceptance.
+Provider probes use actual E2B resources without AI calls. All qualification VMs
+were destroyed. They do not establish web-embed or general task acceptance.
 
 | Path | Samples | Browser-ready time | Result |
 | --- | ---: | --- | --- |
 | Original cold startup | 3 | 10.196–20.316 s | Misses user limit |
 | Prestarted Chromium template, fresh allocation | 10 | 3.443–9.356 s; median 6.657 s | Preboot alone is insufficient |
-| Prepared, confirmed paused blank VM | 5 | 1.240–1.841 s | Prototype meets target; full handoff still pending |
+| Prepared, confirmed paused blank VM | 5 | 1.240–1.841 s | Initial immediate-resume prototype |
+| Durable assignment after 125 s paused | 2 | 1.568, 2.024 s | Includes SQL claim, owner-key handoff, credential scrub, resume and live pristine check |
+| Three simultaneous durable assignments | 3 | 2.128, 2.197, 1.663 s | Three distinct VMs; no shared profile |
 
-The paused measurements include native resume and an actual Chromium roundtrip
-with empty cookie/origin/IndexedDB checks. Separate blank preparation took
-2.881–9.387 s. The accepted goal is under three seconds, acceptable below four,
-and four to five seconds is the hard ceiling. Aging, simultaneous assignment,
-real database ownership, and deployed end-to-end provisioning remain to qualify.
-An IPv4-only diagnostic did not improve the cold path and was not adopted.
+The accepted goal is under three seconds, acceptable below four, with four to
+five seconds the hard ceiling. The five full handoffs stayed below 2.2 seconds;
+this is a small development sample, not a production percentile guarantee.
+Individual blank preparation took 2.881–9.387 s in the initial probe and happens
+before a user request. An IPv4-only diagnostic did not improve the cold path and
+was not adopted.
 
-The chosen design assigns each prepared VM once for its entire lifetime. Never-used
-VMs alone enter the pool; claimed VMs are never recycled. Immutable database
-receipts arbitrate concurrent ownership, and the owner-encrypted handoff scrubs
-platform access before user work. Unassigned preparation is platform overhead,
-not a new user fee. Pool size and lifetime must be tuned against measured demand.
+The live test uses the documented HTTPBin `/base64` endpoint to serve our own
+fixture under its ISC licence. It writes only synthetic random markers and
+reports booleans. Cookies, local storage, session storage, IndexedDB and Cache
+Storage were present for owner A, absent for owner B, and still present when A's
+original browser resumed. An A bearer was rejected at B's endpoint. A real
+primary-key race granted only one of two claims for the last blank VM. A full
+pool returned no handle on exhaustion, and all claimed rows had removed their
+platform credential copies. Synthetic rows, VMs and test Vault keys were cleaned
+up. This native/Vault qualification complements the CI API boundary case; it does
+not substitute for real CLI/SDK or GUI proof.
+
+Each prepared VM is assigned once for its entire lifetime. Claimed VMs are never
+recycled, including failed handoffs. Immutable database receipts arbitrate
+ownership, and encrypted owner persistence plus platform credential removal
+precede user work. Paused compute is free under E2B's current billing policy.
+Unassigned preparation is platform overhead, with no change to the user's
+approved 2× tariff after admitted resume. Pool size and replacement lifetime need
+tuning against measured demand. No Kernel infrastructure was required for these
+results.
+
+## Deployed full skill checks after pool activation
+
+Fresh direct npm and Python requests provisioned in **2.328 s** and **2.244 s**.
+Initial navigation took 4.174 s and 2.759 s respectively; total initial setup,
+including persistence and navigation, was 6.839 s and 5.776 s. Those page-loading
+costs remain visible and are not included in the browser-ready result above.
+
+Both SDK jobs failed later when a corrective Gemini call exceeded its 20-second
+bound. Each recorded its known native usage and preserved an unresolved hold for
+the response that timed out; neither is a successful extraction. Both VMs are
+closed and their unknown usage was not charged as zero or silently forgiven.
+The assistant CLI run also failed verification and then reached its spending
+guard; it settled at 22 credits. A terminal exit of zero and a final assistant
+JSON response do not establish a successful Browse result. The retained latest
+successful CLI recording remains the older baseline run.
+
+Native controls reproduced a false rejection of the complete observed English
+quotation (grounding 0.88, coverage 0.41), while omitted caveats, invented claims
+and unfinished navigation were rejected correctly. Shorter verdict questions
+still rejected the complete quotation. Separate extraction prompt controls both
+returned the full quotation with native usage in 1.724–3.087 s, so they did not
+establish a causal timeout fix. The candidate adds a separate proof for literal
+string-only output: code matches every value to observed text/URLs, then a small,
+metered independent review checks field meanings and complete task coverage.
+Original Jev thresholds and website-action checks remain intact. The five native
+controls passed, accepting the complete quotation and rejecting omitted caveats,
+inventions, inverted claims and unfinished navigation. The complete-quote review
+took 3.862 s and cost $0.00098025 supplier USD in addition to its Jev check. The
+updated 77 model/service cases passed isolated CI (run 40393393048). Deployment
+and fresh CLI/SDK requalification are pending.
 
 ## Environment and scope
 
