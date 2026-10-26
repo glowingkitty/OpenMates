@@ -82,6 +82,7 @@ def test_authored_delivery_stages_and_protocol_warnings_need_no_traceback(tmp_pa
     messages = [
         (websocket_logger, "Final stream delivery stage=final_received device=0 success=none exception=none code=none"),
         (websocket_logger, "Final stream delivery stage=outputs_result device=1 success=false exception=ChatRecoveryProtocolError code=forbidden"),
+        (websocket_logger, "Final stream delivery stage=outputs_result device=2 success=false exception=ReadTimeout code=none"),
         (websocket_logger, "Final stream delivery stage=final_send device=2 success=true exception=private_sentinel code=private_sentinel"),
         (websocket_logger, "Final stream delivery stage=private_sentinel device=1 success=true exception=none code=none"),
         (websocket_logger, "Final stream delivery stage=final_send device=129 success=true exception=none code=none"),
@@ -104,6 +105,7 @@ def test_authored_delivery_stages_and_protocol_warnings_need_no_traceback(tmp_pa
         "final_delivery_stages": [
             {"stage": "final_received", "device": 0, "success": None, "exception_class": "none", "code": "none"},
             {"stage": "outputs_result", "device": 1, "success": False, "exception_class": "ChatRecoveryProtocolError", "code": "forbidden"},
+            {"stage": "outputs_result", "device": 2, "success": False, "exception_class": "ReadTimeout", "code": "none"},
             {"stage": "final_send", "device": 2, "success": True, "exception_class": "other", "code": "other"},
         ], "final_delivery_truncated": False,
         "fixture_final_publications": [], "fixture_publication_truncated": False,

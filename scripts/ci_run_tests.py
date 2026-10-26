@@ -1874,7 +1874,10 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         protocol_rejections = []
                         stage_names = {"final_received", "jobs_begin", "jobs_result", "outputs_begin", "outputs_result", "final_send"}
                         exception_names = {"none", "other", "RuntimeError", "ValueError", "TypeError", "PermissionError",
-                                           "TimeoutError", "ConnectionError", "WebSocketDisconnect", "ChatRecoveryProtocolError"}
+                                           "TimeoutError", "ConnectionError", "WebSocketDisconnect", "ChatRecoveryProtocolError",
+                                           "ReadTimeout", "PoolTimeout", "WriteTimeout", "ConnectTimeout", "ConnectError",
+                                           "ReadError", "RemoteProtocolError", "AttributeError", "KeyError", "IndexError",
+                                           "JSONDecodeError", "HTTPException"}
                         stage_codes = {"none", "other", "forbidden", "not_found", "invalid_request", "lease_conflict", "transaction_failed"}
                         rejection_codes = stage_codes | {"internal_error", "invalid_operation", "chat_not_found",
                                                          "recovery_job_not_found", "recovery_output_not_found",
