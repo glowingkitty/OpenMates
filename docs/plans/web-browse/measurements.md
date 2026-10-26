@@ -4,17 +4,20 @@ Backend qualification is in progress. These are development measurements, not a
 claim that web embeds, workflow support or general browsing acceptance are complete.
 The approved contract is `feature.app-skill.web-browse@1`.
 
-The deployed backend (`29836d6`) has a successful real CLI JSON extraction,
-successful direct npm extraction, native idle pause/resume and successful direct
-Python replay of the closed npm run. Later fresh SDK outcomes are recorded below.
-The previous object-storage outage recovered; the retained CLI recording and new
-CI evidence uploaded successfully. Backend commit `612c62f` passed 113 focused
-cases plus the first-party HTTP authorization case in isolated CI (runs
-40384854217 and 40384953480). The pool remained disabled during deployment and
-was enabled only after the live synthetic-owner qualification below passed.
-The coordinated runtime restart completed with all 17 services healthy. The live
-configuration has three prepared paused VMs. Fresh app/SDK measurements confirmed
-the provisioning improvement but exposed the verification failures below.
+The pool and verification changes are deployed through `46e7c36`. The shared
+runtime subsequently advanced to `09d92f3`; owned Browse source hashes matched
+before paid tests. All services were healthy. Fresh npm/Python calls and the real
+assistant JSON-extraction flow passed. A first-party call with an explicitly null
+schema also passed. The multi-step navigation case reached its target but abstained
+on answer verification, so general browsing reliability is not established.
+
+The earlier storage outage recovered. CI evidence and the latest selected CLI
+recordings uploaded successfully. The pool revision passed 113 isolated cases and
+HTTP authorization/pool-reassignment rejection (runs 40384854217/40384953480).
+The latest extraction correction passed 79 model/service cases (40397671017).
+The running pool has three prepared paused VMs; all known test sessions are closed,
+temporary SDK keys are revoked, and local key secret files are removed. Earlier
+unknown-usage reconciliation holds remain preserved, not forgiven.
 
 ## Startup optimization qualification
 
@@ -86,8 +89,8 @@ Its different path returned raw tables/links/text as if that snapshot were the
 requested answer, then failed verification. It provisioned in 2.808 s, completed
 initial setup in 6.132 s and returned needs_user after 8.582 s; the assistant used
 web.read afterward. This is a Browse failure despite a successful terminal exit
-and a final assistant JSON response. Its VM is closed. The latest successful CLI
-recording remains the older baseline run.
+and a final assistant JSON response. Its VM closed and settled at 11 credits.
+The subsequent successful CLI check below supersedes that failed attempt.
 
 Native controls reproduced a false rejection of the complete English quotation
 (grounding 0.88, coverage 0.41). Shorter questions still rejected it. Standalone
@@ -99,12 +102,72 @@ and negative controls passed, as did 77 model/service cases in isolated CI (run
 40393393048). Its complete-quote helper control took 3.862 s and cost $0.00098025
 supplier USD in addition to Jev.
 
-The next candidate also extracts an answer when the caller omits output_schema,
-using a default object schema while preserving full observations separately.
-A native control of that path produced the requested statement/URL and passed
-independent verification; 42 local service cases passed, including metering,
-replay and rejection of a scalar default answer. Isolated CI and deployment of
-this correction are pending.
+The correction now deployed at `46e7c36` extracts an answer even when the caller
+omits output_schema, using a default object schema while preserving observations
+separately. Local service checks passed 42 cases; the combined 79-case model/service
+suite passed isolated CI. A retained-observation native control and an explicit
+null-schema first-party call both passed.
+
+| Latest flow | Provisioning | Initial navigation | Initial setup | In-skill time | Outcome / final Browse charge |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Real assistant, Example JSON | 3.967 s | 4.148 s | 8.441 s | 18.652 s | Completed, exact full quotation and URL; 14 credits ($0.014) |
+| First-party null schema, HTTPBin HTML heading | 3.241 s | 3.694 s | 7.705 s | 17.988 s | Completed, heading/URL object; 16 credits ($0.016) |
+| Real assistant, follow Learn more to IANA | 1.901 s | 3.839 s | — | 17.353 s | One click reached IANA; verification returned needs_user; 17 credits ($0.017) |
+
+The explicit null-schema call took 23.242 s from submit through result. Its first,
+separate 30-credit-capped attempt stopped at the conservative next-operation bound
+before extraction; a new 60-credit session succeeded. The stopped session closed
+at one credit. The successful assistant's terminal output spanned 73.180 s, and its
+raw recording is 76.800 s including capture lead/trail. Thus the 18.652 s skill time
+is not end-to-end assistant latency. Ordinary assistant processing is separate.
+
+The navigation click took 0.325 s. The verifier's interaction score was 0.85,
+grounding 0.93 and coverage 0.88; no unverified JSON was returned. The regular
+assistant then used web.read. That remains failed Browse task fulfillment, with a
+retained failed recording. The checker currently sees the final page rather than
+a full, code-verified navigation history; enriching that evidence is a recommended
+reliability investigation, not a demonstrated fix.
+
+Independent owner-scoped Decimal audits confirmed all four recorded charges:
+
+| Flow | Final supplier USD | Compute USD | Internal inference USD | Credits at cumulative 2× floor/minimum |
+| --- | ---: | ---: | ---: | ---: |
+| npm JSON | 0.004350288022499084620 | 0.002914308022499084620 | 0.001435980 | 8 |
+| Python JSON | 0.004330252029949188360 | 0.002894146029949188360 | 0.001436106 | 8 |
+| Assistant JSON | 0.007399768619918823120 | 0.005953618619918823120 | 0.001446150 | 14 |
+| Navigation abstention | 0.008933508032901764040 | 0.005520000032901764040 | 0.003413508 | 17 |
+
+These charges include active time after result delivery, up to native idle pause
+or explicit Close. They are not four-second startup prices. Pool credential copies
+were empty for every audited claimed VM, and closed records retained no live
+provider credentials. Failed tasks can still incur their actual metered cost.
+The new temporary SDK key was revoked after qualification.
+
+## Next optimizations and delivery limits
+
+- Keep E2B: prepared paused resources met the infrastructure target in this small
+  sample. No Kernel account or credits were used.
+- Provisioning is below four seconds in the recorded deployed cases, while initial
+  destination setup still takes roughly six to eight seconds. Stream a safe ready/
+  loading preview during navigation and measure the first visible frame in the web
+  implementation; no first-visible-frame claim is made before that UI exists.
+- Profile caller admission, queueing, observation and ordinary assistant inference
+  separately. The full assistant request remains much slower than provisioning.
+- Add code-verified action provenance to completion evidence, preserving negative
+  controls; do not lower thresholds merely to accept uncertain answers.
+- Tune paused-pool capacity/refill against burst demand. Empty capacity returns a
+  bounded rejection without cold fallback or user preparation charges.
+- Qualify smaller allocated RAM against representative sites before reducing cost;
+  the approximately 493 MB simple-page peak does not establish general browser needs.
+- Together/DeepSeek primary qualification still needs the required organization
+  retention verification. Current native helper results qualify Gemini fallback.
+
+Screenshot/fullscreen browser embeds, takeover UI, two app-store examples, Rust
+SDK parity and workflows remain unfinished. Workflow acceptance follows normal
+skill/embed delivery. The approved Specification and app-skill skill currently
+require Rust/npm/pip SDK proof before web work. This checkout has only a Rust TUI
+prototype and Apple crypto bridge, with no Rust SDK; the earlier requested deferral
+has not been answered. No Rust parity, web-viewer or workflow success is claimed.
 
 ## Environment and scope
 
