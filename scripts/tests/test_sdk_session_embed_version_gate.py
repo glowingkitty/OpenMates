@@ -24,6 +24,16 @@ def cookie_registration_matrix():
     def digest(value):
         return hashlib.sha256((json.dumps(value, indent=2) + "\n").encode()).hexdigest()
 
+    # Tests-only exact selected foreground-recovery matrix inverse.
+    assert digest(matrix) == "b86d42a082c938bbcba834d28f0b2e8c2b35f7e107241241e3a6e162212f06f0"
+    family = next(row for row in matrix["capabilities"] if row["id"] == "session.foreground-completion-recovery.v1")
+    assert family["languages"]["rust"]["api"].count("client.Client.completion_recovery_jobs_for_chat") == 1
+    family["languages"]["rust"]["api"].remove("client.Client.completion_recovery_jobs_for_chat")
+    for path in ['frontend/packages/openmates-tui-native/tests/test_saved_read_startup_discovery.py']:
+        assert family["languages"]["rust"]["evidence"].pop() == path
+    for language in ("rust", "npm", "python"):
+        assert family["languages"][language]["gaps"].pop() == 'Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory.'
+
     # Tests-only exact cache/embed successor inverse; original history below stays held.
     assert digest(matrix) == "46026d4d141528e94577fe0272b47caca3723ae50c2a8dac7b9f8af6b797d95e"
     family = next(row for row in matrix["capabilities"] if row["id"] == "sdk.session-client")

@@ -6632,6 +6632,7 @@
           "api": [
             "client.Client.commit_completion_recovery",
             "client.Client.completion_recovery_jobs",
+            "client.Client.completion_recovery_jobs_for_chat",
             "client.Client.completion_recovery_jobs_with_inventory",
             "client.Client.list_with_fresh_chat_inventory",
             "client.Client.resume_completion_recovery",
@@ -6676,11 +6677,13 @@
             "client.sync.FreshChatInventory.consume_if_current"
           ],
           "evidence": [
-            "packages/openmates-session-bindings/examples/session-foreground-completion-recovery-conformance.rs"
+            "packages/openmates-session-bindings/examples/session-foreground-completion-recovery-conformance.rs",
+            "frontend/packages/openmates-tui-native/tests/test_saved_read_startup_discovery.py"
           ],
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
-            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim."
+            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
           ],
           "conformance": true
         },
@@ -6707,7 +6710,8 @@
           ],
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
-            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim."
+            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
           ],
           "conformance": true
         },
@@ -6734,7 +6738,8 @@
           ],
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
-            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim."
+            "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
           ],
           "conformance": true
         }

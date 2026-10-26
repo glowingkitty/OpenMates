@@ -1383,7 +1383,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "031caae25a25d23c0fe2fe3819b02187fc8fd77620870b630094829fb2839958"
+    assert sdk.sha(live_bytes) == "f3f2041553a6063a8fbe7a41761be6b0cdfe1c7893be49159514dff40c5013b0"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -1509,6 +1509,7 @@ def restore_before_cookie_registration(trust, approval):
 
 
 def restore_before_cache_settlement_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1554,6 +1555,7 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
 
 
 def restore_before_cache_adapter_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1666,6 +1668,7 @@ def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capabil
 
 
 def restore_before_cache_peer_seeding_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1738,6 +1741,7 @@ def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_
 
 
 def restore_before_browser_local_wire_cursor_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1814,6 +1818,7 @@ def test_browser_local_wire_cursor_registration_preserves_prior_authority_and_ex
 
 
 def restore_before_version_envelope_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1875,6 +1880,7 @@ def message_id_registration_delta():
 
 
 def restore_before_message_id_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -1921,6 +1927,7 @@ def restore_before_message_id_registration(trust):
 
 
 def restore_before_message_id_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     cache_embed = immutable_trust_test_fixture("sdk-conformance-trust-cache-embed-delta.json", "1ecd1ef400930385c3b5f52a2d2c7da4749add05d3ea4aec2bd71523d82a6390")
     if sdk.sha(raw) == cache_embed["matrixDelta"]["afterSha256"]:
         raw = restore_before_cache_embed_matrix_raw(raw)
@@ -2055,6 +2062,7 @@ def test_current_message_id_window_rejects_each_partial_forged_or_reordered_resu
 
 
 def restore_before_message_id_constant_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2089,6 +2097,7 @@ def restore_before_message_id_constant_registration(trust):
 
 
 def restore_before_message_id_constant_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     cache_embed = immutable_trust_test_fixture("sdk-conformance-trust-cache-embed-delta.json", "1ecd1ef400930385c3b5f52a2d2c7da4749add05d3ea4aec2bd71523d82a6390")
     if sdk.sha(raw) == cache_embed["matrixDelta"]["afterSha256"]:
         raw = restore_before_cache_embed_matrix_raw(raw)
@@ -2138,6 +2147,7 @@ def first_page_browser_registration_delta():
 
 
 def restore_before_first_page_browser_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2176,6 +2186,7 @@ def restore_before_first_page_browser_registration(trust):
 
 
 def restore_before_first_page_browser_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     cache_embed = immutable_trust_test_fixture("sdk-conformance-trust-cache-embed-delta.json", "1ecd1ef400930385c3b5f52a2d2c7da4749add05d3ea4aec2bd71523d82a6390")
     if sdk.sha(raw) == cache_embed["matrixDelta"]["afterSha256"]:
         raw = restore_before_cache_embed_matrix_raw(raw)
@@ -2270,6 +2281,7 @@ def restore_before_opaque_read_id_fixture_raw(raw):
 
 
 def restore_before_opaque_read_id_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2303,6 +2315,7 @@ def restore_before_opaque_read_id_registration(trust):
 
 
 def restore_before_opaque_read_id_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     cache_embed = immutable_trust_test_fixture("sdk-conformance-trust-cache-embed-delta.json", "1ecd1ef400930385c3b5f52a2d2c7da4749add05d3ea4aec2bd71523d82a6390")
     if sdk.sha(raw) == cache_embed["matrixDelta"]["afterSha256"]:
         raw = restore_before_cache_embed_matrix_raw(raw)
@@ -2363,6 +2376,7 @@ def ordinary_retention_registration_delta():
 
 
 def restore_before_ordinary_retention_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2394,6 +2408,7 @@ def restore_before_ordinary_retention_registration(trust):
 
 
 def restore_before_ordinary_retention_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     cache_embed = immutable_trust_test_fixture("sdk-conformance-trust-cache-embed-delta.json", "1ecd1ef400930385c3b5f52a2d2c7da4749add05d3ea4aec2bd71523d82a6390")
     if sdk.sha(raw) == cache_embed["matrixDelta"]["afterSha256"]:
         raw = restore_before_cache_embed_matrix_raw(raw)
@@ -2497,6 +2512,7 @@ def legacy_webcrypto_registration_delta():
 
 
 def restore_before_legacy_webcrypto_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2547,6 +2563,7 @@ def cache_embed_registration_delta():
 
 
 def restore_before_cache_embed_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2572,6 +2589,7 @@ def restore_before_cache_embed_registration(trust):
 
 
 def restore_before_cache_embed_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     delta = cache_embed_registration_delta()["matrixDelta"]
     assert sdk.sha(raw) == delta["afterSha256"]
     matrix = json.loads(raw)
@@ -2590,6 +2608,7 @@ def restore_before_cache_embed_matrix_raw(raw):
 
 
 def historical_cache_embed_cookie_raw(raw):
+    raw = selected_recovery_cookie_history(raw)
     delta = cache_embed_registration_delta()["cookieDelta"]
     assert sdk.sha(raw) == delta["afterSha256"]
     prior = delta["beforeRaw"].encode()
@@ -2598,6 +2617,7 @@ def historical_cache_embed_cookie_raw(raw):
 
 
 def historical_cache_embed_matrix_raw(raw):
+    raw = selected_recovery_matrix_history(raw)
     delta = cache_embed_registration_delta()["matrixDelta"]
     return restore_before_cache_embed_matrix_raw(raw) if sdk.sha(raw) == delta["afterSha256"] else raw
 
@@ -2615,7 +2635,7 @@ def test_cache_embed_registration_classifies_partial_public_surface_without_new_
     assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
     assert len(delta["sourceClosure"]) == 13
     root = Path(__file__).resolve().parents[2]
-    raw = (root/"config/sdk-capabilities.json").read_bytes()
+    raw = selected_recovery_matrix_history((root/"config/sdk-capabilities.json").read_bytes())
     matrix = json.loads(raw)
     before = json.loads(restore_before_cache_embed_matrix_raw(raw))
     assert len(matrix["capabilities"]) == len(before["capabilities"])
@@ -2658,6 +2678,7 @@ def ci_fixes_registration_delta():
 
 
 def restore_before_ci_fixes_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     portable = immutable_trust_test_fixture("sdk-conformance-trust-binding-unit-delta.json", "2092ba6774bc920f17405d3fa1d098cfd1667128452ec0096f9e93ddc7304883")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == portable["afterSha256"]:
@@ -2714,6 +2735,7 @@ def binding_unit_registration_delta():
 
 
 def restore_before_binding_unit_registration(trust):
+    trust = selected_recovery_history(trust)
     trust = first_page_npm_diagnostic_history(trust)
     delta = binding_unit_registration_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
@@ -2759,6 +2781,7 @@ def first_page_npm_diagnostic_delta():
 
 
 def restore_before_first_page_npm_diagnostic_registration(trust):
+    trust = selected_recovery_history(trust)
     delta = first_page_npm_diagnostic_delta()
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
@@ -2769,6 +2792,7 @@ def restore_before_first_page_npm_diagnostic_registration(trust):
 
 
 def first_page_npm_diagnostic_history(trust):
+    trust = selected_recovery_history(trust)
     delta = first_page_npm_diagnostic_delta()
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
         return restore_before_first_page_npm_diagnostic_registration(trust)
@@ -2777,7 +2801,7 @@ def first_page_npm_diagnostic_history(trust):
 
 def test_first_page_npm_diagnostic_changes_only_exact_existing_program_pin():
     delta = first_page_npm_diagnostic_delta()
-    live = sdk.load_trust()
+    live = selected_recovery_history(sdk.load_trust())
     prior = restore_before_first_page_npm_diagnostic_registration(live)
     assert {k: len(live[k]) for k in delta["counts"]} == {"programs": 323, "contracts": 86, "plan": 93, "gaps": 180}
     assert {k: v for k, v in live.items() if k != "programs"} == {k: v for k, v in prior.items() if k != "programs"}
@@ -2809,3 +2833,133 @@ def test_first_page_npm_diagnostic_preserves_binding_and_old_history_prefix():
     old = restore_before_binding_unit_registration(live)
     assert sdk.sha((json.dumps(old, indent=2, sort_keys=True) + "\n").encode()) == binding_unit_registration_delta()["beforeSha256"]
     assert first_page_npm_diagnostic_history(prior) == prior
+
+
+def selected_recovery_registration_delta():
+    return immutable_trust_test_fixture("sdk-conformance-trust-selected-cli-delta.json", "317cca0866fd683e464e6edc78e978dac265e0206e4dbc205c1d7946014967d9")
+
+
+def restore_before_selected_recovery_registration(trust):
+    delta = selected_recovery_registration_delta()
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    prior = copy.deepcopy(trust)
+    for bucket in ("programs", "contracts"):
+        for path, change in delta["pinDeltas"][bucket].items():
+            assert prior[bucket][path] == change["after"]
+            if change["before"] is None:
+                del prior[bucket][path]
+            else:
+                prior[bucket][path] = change["before"]
+    for change in delta["gapDeltas"]:
+        assert prior["gaps"][change["index"]] == change["after"]
+        prior["gaps"][change["index"]] = change["before"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return prior
+
+
+def selected_recovery_history(trust):
+    delta = selected_recovery_registration_delta()
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]:
+        return restore_before_selected_recovery_registration(trust)
+    return trust
+
+
+def restore_before_selected_recovery_matrix_raw(raw):
+    delta = selected_recovery_registration_delta()["matrixDelta"]
+    assert sdk.sha(raw) == delta["afterSha256"]
+    matrix = json.loads(raw)
+    family = next(row for row in matrix["capabilities"] if row["id"] == delta["family"])
+    assert family["languages"]["rust"]["api"].count(delta["apiAdded"]) == 1
+    family["languages"]["rust"]["api"].remove(delta["apiAdded"])
+    for path in reversed(delta["evidenceAdded"]):
+        assert family["languages"]["rust"]["evidence"].pop() == path
+    for language in ("rust", "npm", "python"):
+        assert family["languages"][language]["gaps"].pop() == delta["functionalObligation"]
+    prior = (json.dumps(matrix, indent=2) + "\n").encode()
+    assert sdk.sha(prior) == delta["beforeSha256"]
+    return prior
+
+
+def selected_recovery_matrix_history(raw):
+    delta = selected_recovery_registration_delta()["matrixDelta"]
+    if sdk.sha(raw) == delta["afterSha256"]:
+        return restore_before_selected_recovery_matrix_raw(raw)
+    return raw
+
+
+def selected_recovery_cookie_history(raw):
+    delta = selected_recovery_registration_delta()["cookieDelta"]
+    if sdk.sha(raw) == delta["afterSha256"]:
+        prior = delta["beforeRaw"].encode()
+        assert sdk.sha(prior) == delta["beforeSha256"]
+        return prior
+    return raw
+
+
+def test_selected_recovery_partial_registration_keeps_all_old_plans_and_gap_prefixes():
+    delta = selected_recovery_registration_delta()
+    live = sdk.load_trust()
+    prior = restore_before_selected_recovery_registration(live)
+    assert {key: len(live[key]) for key in delta["counts"]} == {"programs": 332, "contracts": 86, "plan": 93, "gaps": 180}
+    assert live["plan"] == prior["plan"] and len(live["plan"]) == 93
+    assert len(live["gaps"]) == len(prior["gaps"]) == 180
+    assert all(after.startswith(before) for before, after in zip(prior["gaps"], live["gaps"]))
+    assert len(delta["gapDeltas"]) == 3
+    assert sdk.sha(json.dumps(prior["plan"], sort_keys=True).encode()) == delta["oldPlansSha256"]
+    assert sdk.sha(json.dumps(prior["gaps"], sort_keys=True).encode()) == delta["oldGapsSha256"]
+    assert delta["newExecutionPlans"] == 0
+    assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
+    assert len(delta["sourceClosure"]) == 10
+    root = Path(__file__).resolve().parents[2]
+    for row in delta["sourceClosure"]:
+        assert sdk.sha((root / row["path"]).read_bytes()) == row["after_sha256"]
+    assert delta["publicApiDelta"]["rust"]["added"] == ["client.Client.completion_recovery_jobs_for_chat"]
+    assert delta["publicApiDelta"]["npm"]["added"] == delta["publicApiDelta"]["python"]["added"] == []
+    witness = delta["diagnosticWitnessUnchanged"]
+    assert sdk.sha((root / witness["path"]).read_bytes()) == witness["sha256"]
+    assert sdk.sha((json.dumps(prior, indent=2, sort_keys=True) + "\n").encode()) == "031caae25a25d23c0fe2fe3819b02187fc8fd77620870b630094829fb2839958"
+    historical = restore_before_first_page_npm_diagnostic_registration(prior)
+    assert sdk.sha((json.dumps(historical, indent=2, sort_keys=True) + "\n").encode()) == "964f822aefd37312c53f42bc359650ff0521393d39f03d5a44ad2b03045f2180"
+
+
+def test_selected_recovery_matrix_inverse_keeps_every_prior_status_and_obligation():
+    delta = selected_recovery_registration_delta()
+    raw = (Path(__file__).resolve().parents[2] / "config/sdk-capabilities.json").read_bytes()
+    matrix = json.loads(raw)
+    prior = json.loads(restore_before_selected_recovery_matrix_raw(raw))
+    assert len(matrix["capabilities"]) == len(prior["capabilities"])
+    for old, new in zip(prior["capabilities"], matrix["capabilities"]):
+        assert old["id"] == new["id"]
+        if old["id"] != delta["matrixDelta"]["family"]:
+            assert old == new
+        else:
+            for language in ("rust", "npm", "python"):
+                assert old["languages"][language]["status"] == new["languages"][language]["status"] == "partial"
+                assert old["languages"][language]["conformance"] == new["languages"][language]["conformance"]
+                assert new["languages"][language]["gaps"][:-1] == old["languages"][language]["gaps"]
+                assert new["languages"][language]["gaps"][-1] == delta["matrixDelta"]["functionalObligation"]
+            for language in ("npm", "python"):
+                assert old["languages"][language]["api"] == new["languages"][language]["api"]
+
+
+@pytest.mark.parametrize("bucket", ["programs", "contracts", "plan", "gaps"])
+def test_selected_recovery_inverse_refuses_unknown_source_contract_plan_or_gap_drift(bucket):
+    changed = copy.deepcopy(sdk.load_trust())
+    if bucket in ("programs", "contracts"):
+        changed[bucket][next(iter(changed[bucket]))] = "0" * 64
+    else:
+        changed[bucket].pop()
+    with pytest.raises(AssertionError):
+        restore_before_selected_recovery_registration(changed)
+
+
+def test_selected_recovery_matrix_and_cookie_history_refuse_unknown_drift():
+    delta = selected_recovery_registration_delta()
+    root = Path(__file__).resolve().parents[2]
+    raw = (root / "config/sdk-capabilities.json").read_bytes()
+    with pytest.raises(AssertionError):
+        restore_before_selected_recovery_matrix_raw(raw + b" ")
+    assert selected_recovery_matrix_history(raw + b" ") == raw + b" "
+    cookie = (root / "scripts/tests/test_sdk_session_embed_version_gate.py").read_bytes()
+    assert sdk.sha(selected_recovery_cookie_history(cookie)) == delta["cookieDelta"]["beforeSha256"]
+    assert selected_recovery_cookie_history(cookie + b" ") == cookie + b" "
