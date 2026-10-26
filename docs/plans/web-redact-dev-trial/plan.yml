@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: web-redact-dev-trial
 title: Browser Redact development trial
-status: verified
+status: implementing
 goal: >
   Implement the new way of detecting and replacing personal information in the
   message input, including transcripts, so the user can test it on development
