@@ -623,7 +623,7 @@ describe("sendDeleteDraftImpl", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
-  it("logs failed background draft deletion without showing a user error notification", async () => {
+  it("rejects unconfirmed deletion without retiring the recoverable local draft", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
 
@@ -632,13 +632,49 @@ describe("sendDeleteDraftImpl", () => {
     });
     mocks.emitDeleteReceipt({ chat_id: "chat-1", success: false });
 
-    await expect(deletion).resolves.toBeUndefined();
+    await expect(deletion).rejects.toThrow("Draft delete receipt reported failure");
+    expect(mocks.chatDB.clearCurrentUserChatDraft).not.toHaveBeenCalled();
     expect(mocks.notificationStore.error).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(
       "[ChatSyncService:Senders] Failed to delete draft for chat chat-1:",
       expect.any(Error),
     );
     warnSpy.mockRestore();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle
+  it("keeps the encrypted draft when its deletion receipt times out", async () => {
+    vi.useFakeTimers();
+    try {
+      const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+      const rejection = expect(deletion).rejects.toThrow("Timed out waiting for draft delete receipt");
+      await vi.advanceTimersByTimeAsync(10_001);
+      await rejection;
+      expect(mocks.chatDB.clearCurrentUserChatDraft).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+  it("keeps a newer draft saved while deletion is awaiting acknowledgement", async () => {
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" }));
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 4, encrypted_draft_md: "new-cipher" });
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 4 });
+    await deletion;
+    expect(mocks.chatDB.clearCurrentUserChatDraft).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+  it("updates the acknowledged version using encrypted storage metadata only", async () => {
+    mocks.chatDB.clearCurrentUserChatDraft.mockResolvedValueOnce({ chat_id: "chat-1", title: "private display title" });
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: "chat-1", encrypted_title: "sealed-title",
+      encrypted_draft_md: null, encrypted_draft_preview: null });
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
+    await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" }));
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: true, draft_v: 4 });
+    await deletion;
+    expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledExactlyOnceWith({ chat_id: "chat-1", encrypted_title: "sealed-title",
+      encrypted_draft_md: null, encrypted_draft_preview: null, cleared_draft_v: 4 });
   });
 
   // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.sync.version-authoritative

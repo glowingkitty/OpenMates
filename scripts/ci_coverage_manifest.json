@@ -498,6 +498,7 @@
       "execution": "e2e",
       "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
+        "draft-embed-preview.spec.ts",
         "apple-ui-contracts.spec.ts",
         "profile-image-recovery.spec.ts",
         "teams-management-flow.spec.ts",
@@ -541,6 +542,7 @@
       "execution": "e2e",
       "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed. Voice-call fixtures activate canonical recovery epoch 1 only in the exact isolated full-storage voice profile before browser execution.",
       "specs": [
+        "draft-embed-preview.spec.ts",
         "calendar-event-embed.spec.ts",
         "ai-response-language.spec.ts",
         "apps-workspace.spec.ts",

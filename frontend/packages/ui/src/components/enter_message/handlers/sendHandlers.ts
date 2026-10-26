@@ -2465,15 +2465,12 @@ export async function handleSend(
 			isNewChatCreation || isUsingDraftChat,
 			earlyEmptyConnectedAccounts,
 		);
-    if (options.preserveDraft) {
-      // A local admission guard can resolve sendNewMessage after marking the
-      // message failed. Separate wiki submissions must retain their fullscreen
-      // on this rejection rather than reporting acceptance to the caller.
-      const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
-      if (submittedMessage?.status === 'failed') {
-        wsSpan.end();
-        return false;
-      }
+    // A local admission guard can resolve after marking the message failed.
+    // Every composer must retain its draft on rejection; cleanup requires acceptance.
+    const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
+    if (submittedMessage?.status === 'failed') {
+      wsSpan.end();
+      return false;
     }
     sendAccepted = true;
 		recordSendDebugStep("send_new_message_complete", {

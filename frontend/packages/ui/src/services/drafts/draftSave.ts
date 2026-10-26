@@ -511,10 +511,12 @@ export async function clearCurrentDraft(expected?: {
     `[DraftService] Attempting to delete draft for chat ID: ${currentChatId}`,
   );
 
+  let draftDeleted = false;
   try {
     // Local draft fields may already be cleared by the editor update. The
     // authenticated server deletion remains authoritative and is idempotent.
     await chatSyncService.sendDeleteDraft(currentChatId);
+    draftDeleted = true;
 
     // Update UI state for the draft (version, unsaved changes)
     // No need to update currentUserDraftVersion here if the chat context might change or be cleared.
@@ -616,13 +618,14 @@ export async function clearCurrentDraft(expected?: {
       `[DraftService] Error deleting draft or chat for ${currentChatId}:`,
       error,
     );
-    draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+    draftEditorUIState.update((s) => s.currentChatId === currentChatId
+      ? { ...s, hasUnsavedChanges: true } : s);
   } finally {
     // This block ensures the editor UI is in a consistent state.
     const finalEditorState = get(draftEditorUIState);
     const liveEditorInstance = getEditorInstance(); // Get current editor instance
 
-    if (finalEditorState.currentChatId === currentChatId && stillOwnsInitialDocument()) {
+    if (draftDeleted && finalEditorState.currentChatId === currentChatId && stillOwnsInitialDocument()) {
       // If the context is still the (now draft-less) chat
       if (liveEditorInstance) {
         console.debug(

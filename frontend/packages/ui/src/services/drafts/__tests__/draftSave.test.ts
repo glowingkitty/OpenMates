@@ -324,6 +324,20 @@ describe("draftSave", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("clearCurrentDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
+    it("preserves the editor, chat and attachments when draft deletion fails", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "photo-draft", currentUserDraftVersion: 3 });
+      mocks.chatSyncService.sendDeleteDraft.mockRejectedValueOnce(new Error("Permission denied"));
+      await clearCurrentDraft();
+      expect(editor.chain).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("photo-draft");
+      expect(mocks.draftState.currentUserDraftVersion).toBe(3);
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+    });
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
     it("preserves a committed Team chat when its local message window is empty", async () => {
       const editor = createEditor(true);

@@ -324,6 +324,17 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     mocks.tipTapToCanonicalMarkdown.mockReturnValue('Send these attachments');
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,drafts.persistence.local-first-encrypted
+  it('restores an ordinary photo draft when the sender resolves with a failed message', async () => {
+    mocks.chatDB.getMessage.mockResolvedValueOnce({ status: 'failed' } as never);
+    const { editor, document } = makeEditor();
+    const original = structuredClone(document);
+    const result = await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
+    expect(result).toBe(false);
+    expect(document).toEqual(original);
+    expect(mocks.clearCurrentDraft).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,message-input.send.ownership
   it('begins one exact-message Project read before local DB readiness and discards it after failure', async () => {
     mocks.draftState.currentChatId = null;
