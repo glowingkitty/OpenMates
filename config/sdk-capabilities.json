@@ -6696,7 +6696,8 @@
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
             "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
-            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory.",
+            "Reviewed direct Rust/Bridge/NAPI/PyO3 and idiomatic npm/Python selected-discovery source now has four shared authored selected vectors (12 total with every original eight object retained): selected/unrelated opaque-handle retention, explicit selected-empty with unrelated offer, failed discovery before publication, and in-flight cancellation. The selected fixture writers retain original writer and parent descriptors through exact file-fsync/parent-fsync/readback and precommit validation; pure source/IO-recorder checks and independent source review do not establish actual OS durability, compiled artifacts, real SDK conformance or speed. Original owner/key/Team/private-policy/request/operation-epoch guards, unrelated durable journals, strict terminal history/PII/save-before-output, no global inventory/absence/list TTL authority and every prior recovery/expiry/denial/backend/workflow obligation remain required. Actual matching direct three-language 12-vector execution, queued/revocation/race coverage and measured CPU/end-to-end/RAM evidence remain unverified; no full workflow inventory or release eligibility is claimed."
           ],
           "conformance": true
         },
@@ -6708,6 +6709,7 @@
             "SessionClient.completionRecovery.discard",
             "SessionClient.completionRecovery.enable",
             "SessionClient.completionRecovery.jobs",
+            "SessionClient.completionRecovery.jobsForChat",
             "SessionClient.completionRecovery.resume",
             "SessionClient.completionRecovery.stage",
             "SessionCompletionRecovery",
@@ -6715,6 +6717,7 @@
             "SessionCompletionRecovery.discard",
             "SessionCompletionRecovery.enable",
             "SessionCompletionRecovery.jobs",
+            "SessionCompletionRecovery.jobsForChat",
             "SessionCompletionRecovery.resume",
             "SessionCompletionRecovery.stage"
           ],
@@ -6724,7 +6727,8 @@
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
             "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
-            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory.",
+            "Reviewed direct Rust/Bridge/NAPI/PyO3 and idiomatic npm/Python selected-discovery source now has four shared authored selected vectors (12 total with every original eight object retained): selected/unrelated opaque-handle retention, explicit selected-empty with unrelated offer, failed discovery before publication, and in-flight cancellation. The selected fixture writers retain original writer and parent descriptors through exact file-fsync/parent-fsync/readback and precommit validation; pure source/IO-recorder checks and independent source review do not establish actual OS durability, compiled artifacts, real SDK conformance or speed. Original owner/key/Team/private-policy/request/operation-epoch guards, unrelated durable journals, strict terminal history/PII/save-before-output, no global inventory/absence/list TTL authority and every prior recovery/expiry/denial/backend/workflow obligation remain required. Actual matching direct three-language 12-vector execution, queued/revocation/race coverage and measured CPU/end-to-end/RAM evidence remain unverified; no full workflow inventory or release eligibility is claimed."
           ],
           "conformance": true
         },
@@ -6736,6 +6740,7 @@
             "SessionClient.completion_recovery.discard",
             "SessionClient.completion_recovery.enable",
             "SessionClient.completion_recovery.jobs",
+            "SessionClient.completion_recovery.jobs_for_chat",
             "SessionClient.completion_recovery.resume",
             "SessionClient.completion_recovery.stage",
             "SessionCompletionRecovery",
@@ -6743,6 +6748,7 @@
             "SessionCompletionRecovery.discard",
             "SessionCompletionRecovery.enable",
             "SessionCompletionRecovery.jobs",
+            "SessionCompletionRecovery.jobs_for_chat",
             "SessionCompletionRecovery.resume",
             "SessionCompletionRecovery.stage"
           ],
@@ -6752,7 +6758,8 @@
           "gaps": [
             "Private actual-call draft, uncompiled/unrun; paired native artifacts, all shared vectors, lifecycle/storage races and live backend compatibility remain unverified. Existing147 release obligations remain. Metadata recovery full three-language proof and source-host lifecycle stay required off this bounded slice.",
             "API-key OpenMates facade is not promoted; explicit Cookie SessionClient only, no ambient CLI credentials. Conformance registration is not an execution/pass claim.",
-            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory."
+            "Selected-Chat foreground recovery discovery remains required partial: direct explicit-credential Rust/npm/Python operations must discover only the exact canonical Chat via existing authenticated foreground startup offers, retain original owner/master-key/Team/private-policy/request/operation-epoch fences across all IO and final output, preserve unrelated in-memory offers and durable pending journals, and never grant phased-sync inventory, global absence, freshness or completeness from selected offers. Selected main and Personal metadata jobs, missing metadata, unrelated output/delivery filtering, failed/incomplete transaction nonpublication, cancelled/denied reads, strict retained140-row continuation and save-before-output require equivalent shared executable vectors and genuine matching direct SDK runs; equivalent language operation shapes may differ. Newly authored native source tests and source review are not runtime/conformance/performance acceptance; three-language adapters/shared fixture work remains separately reviewed and UNRUN. Existing protocol/authority and every prior release obligation remain mandatory.",
+            "Reviewed direct Rust/Bridge/NAPI/PyO3 and idiomatic npm/Python selected-discovery source now has four shared authored selected vectors (12 total with every original eight object retained): selected/unrelated opaque-handle retention, explicit selected-empty with unrelated offer, failed discovery before publication, and in-flight cancellation. The selected fixture writers retain original writer and parent descriptors through exact file-fsync/parent-fsync/readback and precommit validation; pure source/IO-recorder checks and independent source review do not establish actual OS durability, compiled artifacts, real SDK conformance or speed. Original owner/key/Team/private-policy/request/operation-epoch guards, unrelated durable journals, strict terminal history/PII/save-before-output, no global inventory/absence/list TTL authority and every prior recovery/expiry/denial/backend/workflow obligation remain required. Actual matching direct three-language 12-vector execution, queued/revocation/race coverage and measured CPU/end-to-end/RAM evidence remain unverified; no full workflow inventory or release eligibility is claimed."
           ],
           "conformance": true
         }
@@ -6907,16 +6914,28 @@
     },
     {
       "id": "session.saved-chat-read.v1",
-      "description": "Bounded saved-chat aggregation with stored or page-local PII content and explicit exact oversized-row reads; executable shared source vectors are staged, runtime acceptance pending.",
+      "description": "Bounded saved-chat aggregation with stored or page-local PII content and explicit exact oversized-row reads; executable shared source vectors are staged, runtime acceptance pending. Full saved-chat JSON also carries the exact optional decrypted saved slug; original-policy admission and final native/foreign publication remain required partial until matching compiled runtime proof.",
       "fixture": "tests/sdk-conformance/fixtures/session-saved-chat-read.json",
       "domain": "operations",
       "languages": {
         "rust": {
           "status": "partial",
           "api": [
+            "client.Client.full_chat_read_admission",
+            "client.Client.open_chat_with_metadata",
+            "client.Client.open_chat_with_metadata_and_admission",
+            "client.Client.open_chat_with_metadata_and_fresh_inventory",
             "client.Client.saved_chat_exact_message",
             "client.Client.saved_chat_read",
             "client.Client.saved_chat_read_admission",
+            "client.full_chat_read.FullChatRead",
+            "client.full_chat_read.FullChatRead.chat",
+            "client.full_chat_read.FullChatRead.check",
+            "client.full_chat_read.FullChatRead.slug",
+            "client.full_chat_read.FullChatRead.take_admission",
+            "client.full_chat_read.FullChatReadAdmission",
+            "client.full_chat_read.FullChatReadAdmission.check",
+            "client.full_chat_read.FullChatReadAdmission.restore_team",
             "client.saved_chat_read.SavedChatContentMode",
             "client.saved_chat_read.SavedChatContentMode.PageLocal",
             "client.saved_chat_read.SavedChatExactMessage",
@@ -7012,7 +7031,8 @@
           "gaps": [
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
             "Restricting saved-output admission is shared Rust platform glue; foreign SessionClient operations use the same locked native return fence. Authoritative revocation/cancellation/owner/key/expiry tests are authored but compiled direct-three-SDK/runtime and comparative performance proof remains required. No cache or persistence receipt is exposed.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
           ],
           "conformance": true
         },
@@ -7028,7 +7048,8 @@
           ],
           "gaps": [
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
           ],
           "conformance": true
         },
@@ -7037,6 +7058,7 @@
           "api": [
             "SessionClient.saved_chat_exact_message",
             "SessionClient.saved_chat_read",
+            "SessionFullChatRead",
             "SessionSavedChatExactMessage",
             "SessionSavedChatExactOptions",
             "SessionSavedChatMessageMetadata",
@@ -7050,7 +7072,8 @@
           ],
           "gaps": [
             "Source-only draft: compiled adapters, actual backend and CLI/TUI integration, terminal JSON projection, follow-up suggestions, packaged binaries, platform and E2E acceptance remain pending; no broader capability family is promoted.",
-            "Read-message ID compatibility supports exact visible ASCII bytes 0x21..0x7e, length1\u2013256, including deployed chat-suffix UUIDs; Chat UUID/send/recovery authority stays strict. Backend-permitted spaces, Unicode and IDs longer than256bytes, and dot-only exact-route IDs remain unsupported pending safe parser/transport proof. Equivalent bounded read-message ID behavior and executable three-SDK execution of the expanded27-window/66-saved-read fixtures remain unverified; language API shapes may differ. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance."
+            "Read-message ID source grammar accepts any nonempty opaque string, including controls, spaces, Unicode and reserved characters; empty and nonstring inputs remain refused, while Chat UUID/send/recovery authority stays strict. Source acceptance does not establish safe exact-route encoding or support through actual foreign runtimes, transport/redirect/cancellation/size limits or deployed backend behavior. Genuine direct Rust/npm/Python execution of the expanded shared74 saved-read vectors and exact-route edge cases remains unverified. Source/pure checks establish no compiled/runtime, personal-account, ARM-package, performance, canonical-history or release acceptance.",
+            "Reviewed full-read source preserves the exact optional decrypted saved slug and original policy/key/owner/caller/source evidence through native final persistence, explicit ambient-context restoration and opaque foreign final allocation. Eight shared authored full-read vectors extend the existing saved-read family from66to74; all original66 objects and all3 plan identities remain. Matching genuine Rust/npm/Python adapter execution, native and foreign scheduler/cancellation/revocation/successor cases, source-denial and restored-context safety, compiled packaging/platform/product CLI stdout proof and matched CPU/end-to-end/RAM performance remain required and unverified; source/pure registration is no runtime, cache/history/durability or release acceptance. Reviewed arrival-order preservation adds no API or runtime proof and retains metadata/request priority, bounded history and unsupported old/map-only provenance qualifications."
           ],
           "conformance": true
         }
