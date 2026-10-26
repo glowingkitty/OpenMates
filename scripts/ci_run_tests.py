@@ -28,7 +28,10 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from ci_voice_recovery_epoch import VOICE_RECOVERY_SPEC, activate_isolated_voice_recovery_epoch
+from ci_voice_recovery_epoch import (
+    AUTHORED_MEDIA_RECOVERY_SPEC, VOICE_RECOVERY_SPEC,
+    activate_isolated_authored_media_recovery_epoch, activate_isolated_voice_recovery_epoch,
+)
 from ci_web_performance import PERFORMANCE_SPECS, collect as collect_web_performance, performance_environment
 from ci_web_search_diagnostics import capture_scope as web_search_capture_scope
 
@@ -82,6 +85,7 @@ TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
 ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
 MARKER_CHAT_EPOCH_SPECS = frozenset({
     "cli-authored-results.spec.ts",
+    "authored-results-flow.spec.ts",
     "stop-new-chat-draft.spec.ts",
     "rust-core-browser-session.spec.ts",
     "rust-core-browser-password-entry.spec.ts",
@@ -1462,6 +1466,7 @@ def run_e2e(
             capacity_epoch_receipt = None
             marker_chat_epoch_receipt = None
             voice_chat_epoch_receipt = None
+            authored_media_epoch_receipt = None
             identity_index = 0
             for index, name in enumerate(specs):
                 account_slots = browser_account_slots(name)
@@ -1525,6 +1530,12 @@ def run_e2e(
                                 name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
                             )
                         recovery_epoch_receipt = voice_chat_epoch_receipt
+                    if name == AUTHORED_MEDIA_RECOVERY_SPEC:
+                        if authored_media_epoch_receipt is None:
+                            authored_media_epoch_receipt = activate_isolated_authored_media_recovery_epoch(
+                                name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                            )
+                        recovery_epoch_receipt = authored_media_epoch_receipt
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(

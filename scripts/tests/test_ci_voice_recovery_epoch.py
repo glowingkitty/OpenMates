@@ -50,6 +50,7 @@ def activate(tmp_path, candidate, *, spec=voice.VOICE_RECOVERY_SPEC, receipt=Non
     return result, calls
 
 
+# contract-test: tooling
 def test_voice_profile_executes_only_guarded_api_transition(tmp_path):
     receipt, calls = activate(tmp_path, profile())
     assert receipt == {
@@ -135,6 +136,7 @@ def test_voice_profile_executes_only_guarded_api_transition(tmp_path):
         ),
     ],
 )
+# contract-test: tooling
 def test_profile_drift_fails_before_any_container_command(tmp_path, path, value):
     candidate = profile()
     target = candidate
@@ -155,6 +157,7 @@ def test_profile_drift_fails_before_any_container_command(tmp_path, path, value)
         )
 
 
+# contract-test: tooling
 def test_wrong_spec_is_rejected_before_profile_read_or_container_access(tmp_path):
     with pytest.raises(RuntimeError, match="exact voice browser spec"):
         voice.activate_isolated_voice_recovery_epoch(
@@ -176,20 +179,36 @@ def test_wrong_spec_is_rejected_before_profile_read_or_container_access(tmp_path
         {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 1},
     ],
 )
+# contract-test: tooling
 def test_incomplete_receipt_never_claims_activation(tmp_path, receipt):
     with pytest.raises(RuntimeError, match="incomplete"):
         activate(tmp_path, profile(), receipt=receipt)
 
 
-def execute_program(monkeypatch, *, fault=None):
-    for key in voice._PROXY_KEYS | {"OPENMATES_STORAGE_CAPACITY_FIXTURES"}:
+def execute_program(
+    monkeypatch, *, fault=None, program=None, fixture_guard=None, extra_env=None
+):
+    for key in (
+        voice._PROXY_KEYS
+        | voice._OTHER_EPOCH_GUARDS
+        | {
+            voice._AUTHORED_MEDIA_GUARD,
+            "OPENMATES_STORAGE_CAPACITY_FIXTURES",
+            "OPENMATES_CI_PUBLIC_PROVIDER_PROXY",
+        }
+    ):
         monkeypatch.delenv(key, raising=False)
     for key, value in {
         **voice._FIXTURE_ENV,
         **voice._PRIVATE_ENDPOINTS,
-        "OPENMATES_CI_VOICE_RECOVERY_EPOCH_FIXTURE": "1",
+        fixture_guard or "OPENMATES_CI_VOICE_RECOVERY_EPOCH_FIXTURE": "1",
     }.items():
         monkeypatch.setenv(key, value)
+    for key, value in (extra_env or {}).items():
+        if value is None:
+            monkeypatch.delenv(key, raising=False)
+        else:
+            monkeypatch.setenv(key, value)
     if fault == "inner-production":
         monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     state = {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
@@ -252,11 +271,17 @@ def execute_program(monkeypatch, *, fault=None):
         setattr(module, name, value)
         monkeypatch.setitem(sys.modules, qualified, module)
     try:
-        exec(compile(voice.VOICE_EPOCH_PROGRAM, "<voice-epoch-fixture>", "exec"), {})
+        exec(
+            compile(
+                program or voice.VOICE_EPOCH_PROGRAM, "<isolated-epoch-fixture>", "exec"
+            ),
+            {},
+        )
     finally:
         execute_program.last_calls, execute_program.last_closed = calls, closed
 
 
+# contract-test: tooling
 def test_actual_activation_program_uses_canonical_pause_activate_resume(
     monkeypatch, capsys
 ):
@@ -291,6 +316,7 @@ def test_actual_activation_program_uses_canonical_pause_activate_resume(
         "cache-ack",
     ],
 )
+# contract-test: tooling
 def test_inner_boundary_and_every_transition_ack_fail_closed(
     monkeypatch, capsys, fault
 ):
@@ -303,6 +329,7 @@ def test_inner_boundary_and_every_transition_ack_fail_closed(
         assert execute_program.last_calls == ["get_cutover_state"]
 
 
+# contract-test: tooling
 def test_runner_gate_is_required_before_reading_a_profile(tmp_path):
     def require_runner():
         raise RuntimeError("not a GitHub runner")
@@ -316,6 +343,7 @@ def test_runner_gate_is_required_before_reading_a_profile(tmp_path):
         )
 
 
+# contract-test: tooling
 def test_browser_runner_preserves_two_accounts_and_activates_before_playwright(
     tmp_path, monkeypatch
 ):
@@ -402,6 +430,7 @@ def test_browser_runner_preserves_two_accounts_and_activates_before_playwright(
     assert receipts[0]["accounts"]["recovery_protocol_epoch"] == 1
 
 
+# contract-test: tooling
 def test_existing_marker_and_capacity_guards_stay_separate(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
     monkeypatch.setitem(sys.modules, "ci_environment", environment)

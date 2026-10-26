@@ -1,4 +1,4 @@
-"""Enable canonical recovery only for the disposable full-storage voice suite."""
+"""Enable recovery only for the exact isolated voice and authored media specs."""
 
 from __future__ import annotations
 
@@ -216,4 +216,207 @@ def activate_isolated_voice_recovery_epoch(
         or receipt.get("sends_paused") is not False
     ):
         raise RuntimeError("Disposable voice recovery epoch activation was incomplete")
+    return receipt
+
+
+AUTHORED_MEDIA_RECOVERY_SPEC = "authored-results-media.spec.ts"
+_AUTHORED_MEDIA_GUARD = "OPENMATES_CI_AUTHORED_MEDIA_RECOVERY_EPOCH_FIXTURE"
+_OTHER_EPOCH_GUARDS = {
+    "OPENMATES_CI_VOICE_RECOVERY_EPOCH_FIXTURE",
+    "OPENMATES_CI_MARKER_CHAT_EPOCH_FIXTURE",
+    "OPENMATES_CI_RECOVERY_EPOCH_FIXTURE",
+}
+
+# Reuse the existing canonical pause/activate/resume program verbatim, with a
+# fixed separate fixture identity. This is not a caller-selectable cutover mode;
+# voice retains its original program and entry point unchanged.
+AUTHORED_MEDIA_EPOCH_PROGRAM = (
+    VOICE_EPOCH_PROGRAM.replace(
+        "OPENMATES_CI_VOICE_RECOVERY_EPOCH_FIXTURE", _AUTHORED_MEDIA_GUARD
+    )
+    .replace("Voice recovery", "Authored media recovery")
+    .replace(
+        "isolated full-storage voice fixture",
+        "isolated full-storage authored media fixture",
+    )
+    .replace(
+        "or os.getenv('OPENMATES_STORAGE_CAPACITY_FIXTURES') is not None",
+        "or any(os.getenv(key) is not None for key in "
+        + repr(
+            tuple(
+                sorted(
+                    _OTHER_EPOCH_GUARDS
+                    | {
+                        "OPENMATES_STORAGE_CAPACITY_FIXTURES",
+                        "OPENMATES_CI_PUBLIC_PROVIDER_PROXY",
+                    }
+                )
+            )
+        )
+        + ")",
+    )
+)
+
+
+def activate_isolated_authored_media_recovery_epoch(
+    spec_name: str,
+    *,
+    compose_path: Path,
+    require_runner: Callable[[], None],
+    compose: Callable,
+) -> dict:
+    """Activate only the exact selected-media fixture's private upload stack."""
+    require_runner()
+    if spec_name != AUTHORED_MEDIA_RECOVERY_SPEC:
+        raise RuntimeError(
+            "Authored media recovery epoch requires the exact media browser spec"
+        )
+    profile = json.loads(compose_path.read_text())
+    services = profile.get("services", {})
+    networks = profile.get("networks", {})
+    required = {
+        "api",
+        "core-worker",
+        "ai-worker",
+        "object-storage",
+        "uploads",
+        "clamav",
+        "runner-gateway",
+    }
+    if (
+        not required.issubset(services)
+        or set(networks) != {"default", "ingress"}
+        or networks["default"].get("internal") is not True
+        or any(network.get("external") is not None for network in networks.values())
+    ):
+        raise RuntimeError(
+            "Authored media recovery epoch requires the isolated full-storage upload profile"
+        )
+    for name in required:
+        service = services[name]
+        expected_networks = (
+            {"default"}
+            if name in {"api", "core-worker", "ai-worker"}
+            else {"default", "ingress"}
+        )
+        if (
+            service.get("network_mode") is not None
+            or set(service.get("networks", ["default"])) != expected_networks
+        ):
+            raise RuntimeError(
+                "Authored media recovery epoch requires private processing and upload networks"
+            )
+        ports = service.get("ports", [])
+        if (name in {"api", "core-worker", "ai-worker"} and ports) or any(
+            not isinstance(port, str) or not port.startswith("127.0.0.1:")
+            for port in ports
+        ):
+            raise RuntimeError(
+                "Authored media recovery epoch rejects public service ports"
+            )
+    for name in ("api", "ai-worker"):
+        environment = services[name].get("environment", {})
+        if any(
+            environment.get(key) != value
+            for key, value in {**_FIXTURE_ENV, **_PRIVATE_ENDPOINTS}.items()
+        ):
+            raise RuntimeError(
+                "Authored media recovery epoch requires private fixture endpoints"
+            )
+    for name in ("core-worker", "uploads"):
+        environment = services[name].get("environment", {})
+        if any(
+            environment.get(key) != value
+            for key, value in {
+                **_PRIVATE_ENDPOINTS,
+                "SERVER_ENVIRONMENT": "development",
+                "MOCK_EXTERNAL_APIS": "true",
+            }.items()
+        ):
+            raise RuntimeError(
+                "Authored media recovery epoch requires private upload endpoints"
+            )
+    queue_options = [
+        part
+        for part in services["ai-worker"].get("command", [])
+        if isinstance(part, str) and part.startswith("--queues=")
+    ]
+    if (
+        queue_options != ["--queues=app_ai,app_ai_routing"]
+        or services["ai-worker"]["environment"].get("CELERY_QUEUES")
+        != "app_ai,app_ai_routing"
+    ):
+        raise RuntimeError(
+            "Authored media recovery epoch requires the exact ordinary AI worker queues"
+        )
+    upload_env = services["uploads"].get("environment", {})
+    if (
+        any(
+            upload_env.get(key) != value
+            for key, value in {
+                "CLAMAV_HOST": "clamav",
+                "CLAMAV_PORT": "3310",
+                "DEV_CORE_API_URL": "http://api:8000",
+                "PROD_CORE_API_URL": "http://api:8000",
+            }.items()
+        )
+        or services["clamav"].get("environment", {}).get("CLAMAV_NO_CLAMD") != "false"
+        or services["uploads"].get("depends_on", {}).get("clamav")
+        != {"condition": "service_healthy"}
+        or "storage.ci.test"
+        not in services["object-storage"]
+        .get("networks", {})
+        .get("default", {})
+        .get("aliases", [])
+    ):
+        raise RuntimeError(
+            "Authored media recovery epoch requires real isolated upload scanning and storage"
+        )
+    forbidden_flags = _OTHER_EPOCH_GUARDS | {
+        _AUTHORED_MEDIA_GUARD,
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES",
+        "OPENMATES_CI_PUBLIC_PROVIDER_PROXY",
+    }
+    for service in services.values():
+        environment = service.get("environment", {})
+        if (
+            _PROXY_KEYS.intersection(environment)
+            or forbidden_flags.intersection(environment)
+            or service.get("network_mode") is not None
+        ):
+            raise RuntimeError(
+                "Authored media recovery epoch rejects proxies, other fixtures and network modes"
+            )
+    try:
+        result = compose(
+            "exec",
+            "-T",
+            "-e",
+            f"{_AUTHORED_MEDIA_GUARD}=1",
+            "api",
+            "python",
+            "-c",
+            AUTHORED_MEDIA_EPOCH_PROGRAM,
+            capture=True,
+            timeout=60,
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            "Disposable authored media recovery epoch activation failed"
+        ) from None
+    try:
+        receipt = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            "Disposable authored media recovery epoch omitted its receipt"
+        ) from exc
+    if (
+        receipt != _RECEIPT
+        or type(receipt.get("protocol_epoch")) is not int
+        or type(receipt.get("legacy_in_flight")) is not int
+        or receipt.get("sends_paused") is not False
+    ):
+        raise RuntimeError(
+            "Disposable authored media recovery epoch activation was incomplete"
+        )
     return receipt
