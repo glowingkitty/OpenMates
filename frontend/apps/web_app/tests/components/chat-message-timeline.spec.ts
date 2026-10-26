@@ -9,6 +9,23 @@ async function activations(page: import('@playwright/test').Page) {
   return page.evaluate(() => (window as unknown as { timelineActivations: string[] }).timelineActivations);
 }
 
+async function expectTimelineIconMatchesMore(page: import('@playwright/test').Page) {
+  const icon = page.getByTestId('chat-timeline-toggle').locator('svg');
+  const gradient = icon.locator('linearGradient');
+  await expect(gradient).toHaveCount(1);
+  const gradientId = await gradient.getAttribute('id');
+  await expect(icon).toHaveAttribute('stroke', `url(#${gradientId})`);
+  const stops = await gradient.locator('stop').evaluateAll(nodes => nodes.map(node => ({
+    color: getComputedStyle(node).stopColor,
+    offset: node.getAttribute('offset'),
+  })));
+  expect(stops).toHaveLength(2);
+  const more = page.locator('.more-trigger .icon_more');
+  await expect(more).toHaveCSS('background-image',
+    `linear-gradient(135deg, ${stops[0].color} ${stops[0].offset}, ${stops[1].color} ${stops[1].offset})`);
+  await expect(icon).toHaveCSS('filter', await more.evaluate(node => getComputedStyle(node).filter));
+}
+
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.bookmarks,chat-message-timeline.accessible-layout
 test('a bookmark in a dense scrollable stack stays yellow and can be selected and toggled without jumping', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -387,6 +404,7 @@ test('phone disclosure preserves full-width messages and keeps the pill open aft
   await expect(toggle.locator('svg path')).toHaveCount(3);
   expect(await toggle.locator('svg path').evaluateAll(nodes => nodes.map(node => (node as SVGPathElement).getTotalLength()))).toEqual([12, 18, 12]);
   expect(await toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('1');
+  await expectTimelineIconMatchesMore(page);
   const metrics = () => lane.evaluate(node => ({
     width: node.getBoundingClientRect().width,
     padding: getComputedStyle(node).paddingLeft,
@@ -469,6 +487,7 @@ test('a narrow laptop pane uses the light pill and accessible toggle while wide 
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(rail).toHaveCount(0);
   expect(await page.getByTestId('chat-history-content').evaluate(node => getComputedStyle(node).paddingLeft)).toBe('0px');
+  await expectTimelineIconMatchesMore(page);
   await toggle.focus(); await toggle.press('Enter');
   await expect(rail).toBeVisible();
   expect(await toggle.getAttribute('aria-controls')).toBe(await page.getByTestId('chat-message-timeline').getAttribute('id'));

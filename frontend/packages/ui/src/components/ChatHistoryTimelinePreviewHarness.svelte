@@ -30,7 +30,7 @@
         <ChatTimelineToggle open={timelineOverlayOpen} controls={timelinePanelId} onToggle={() => timelineOverlayOpen = !timelineOverlayOpen} />
       {/if}
     {/snippet}
-    <HeaderActionMenu report={empty} share={empty} actions={empty} hasShare={false} actionCount={0} navigationAction={navigation} />
+    <HeaderActionMenu report={empty} share={empty} actions={empty} hasShare={false} actionCount={0} forceOverflow navigationAction={navigation} />
   </div>
   <ChatHistory {...fixture} bind:this={history} sourceMessages={rows} compressionCheckpoints={short ? [] : fixture.compressionCheckpoints}
     bind:timelineOverlayOpen {timelinePanelId} on:timelineStateChange={(event) => { available = event.detail.available; narrow = event.detail.narrow; }} />
