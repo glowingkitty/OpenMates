@@ -62,6 +62,66 @@ def transport(monkeypatch, handler):
     )
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "grounded,covered,acted,empty,expected",
+    [
+        (0.98, 0.93, 0.95, 0.01, True),
+        (0.94, 0.99, 0.99, 0.01, False),
+        (0.99, 0.89, 0.99, 0.01, False),
+        (0.99, 0.99, 0.94, 0.01, False),
+        (0.67, 0.03, 0.89, 0.01, False),
+        (0.0, 0.0, 0.9, 0.01, False),
+        (0.52, 0.15, 0.08, 0.01, False),
+        (0.0, 0.0, 0.99, 0.99, True),
+        (0.0, 0.0, 0.94, 0.99, False),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.truthful-completion,web-browse.structured-data
+async def test_completion_requires_grounded_complete_data_and_finished_interactions(
+    models, grounded, covered, acted, empty, expected
+):
+    models.decision = AsyncMock(
+        return_value=SimpleNamespace(
+            answers={
+                k: SimpleNamespace(noul=v)
+                for k, v in {
+                    "grounded": grounded,
+                    "answer_complete": covered,
+                    "interaction_complete": acted,
+                    "empty": empty,
+                }.items()
+            }
+        )
+    )
+    observed = {
+        "url": "https://example.com/",
+        "title": "Example Domain",
+        "text": "Observed facts",
+        "controls": [
+            {
+                "role": "textbox",
+                "label": "Search",
+                "value": "query",
+                "options": ["not-needed"],
+            }
+        ],
+    }
+    assert (
+        await models.verify("Read the page", observed, {"fact": "Observed facts"})
+        is expected
+    )
+    state = models.decision.await_args.args[0]
+    assert state["proposed_answer"]["sources"] == [
+        {"url": observed["url"], "title": observed["title"]}
+    ]
+    assert state["observed_page"]["controls"] == [
+        {"role": "textbox", "label": "Search", "value": "query"}
+    ]
+    assert models.no_results is (empty >= 0.95 and acted >= 0.95)
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

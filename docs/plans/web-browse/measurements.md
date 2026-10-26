@@ -29,6 +29,10 @@ a daily credit limit and expiry. No account defaults or model overrides were cha
 | First skill execution | 16.713 s | Returned `needs_user` for an absent heading |
 | First npm request through result delivery | 22.253 s | Includes admission, queueing and polling |
 | Internal inference | 3 calls, about 3.057 s | Two Jev calls and one Gemini extraction |
+| Native automatic idle pause | Confirmed after 125 s | Fixed long-lived controller; same page retained |
+| Resume after automatic idle pause | 0.460 s | Latest native lifecycle probe |
+| Latest native cold readiness | 10.990 s | Same lifecycle probe |
+| Latest peak sampled VM memory | 492,797,952 bytes | Same simple-page probe |
 
 The page had no visible heading. The requested schema required one, so Browse
 returned `data: null` and declined to claim completion. This is retained as a
@@ -72,28 +76,36 @@ at the user multiplier before rounding.
   release path. Pending charge receipts retain their intent and reservation.
 - A follow-up must reconcile E2B's native idle pause before changing activity and
   admitting resume. Regression cases cover one original browser and stable charges.
-- A 125-second native idle probe confirmed auto-pause, then reproduced HTTP 502 on
+- An initial 125-second native idle probe confirmed auto-pause, then reproduced HTTP 502 on
   the first browser RPC after successful resume. The current candidate waits on
   bounded metadata-only readiness checks and never retries an input action.
   The readiness wait alone did not restore an older controller.
 - A subsequent 75-second A/B probe isolated the controller lifetime: both VMs
   were still running at the same ingress addresses, but the default command had
   zero controller processes and returned 502; `timeout=0` retained one responding
-  controller. The next candidate explicitly disables the SDK's default 60-second
+  controller. The deployed fix explicitly disables the SDK's default 60-second
   command connection timeout. The sandbox's idle/expiry lifecycle still bounds
   the controller. The native regression probe now supports `--idle-before-pause`.
+  That probe subsequently passed automatic pause and same-page resume in 0.460 s,
+  including private-network and manual-observation guards.
 - Mouse-driven navigation can invalidate an observation's execution context.
-  The current candidate retries that read at most three times after document
+  The deployed controller retries that read at most three times after document
   readiness; access denials and a closed original page are not retried.
-- The text helper returned a grounded but abbreviated purpose statement. Native
-  completion scored it 0.84, below the unchanged 0.95 threshold; a complete
-  statement retaining the page's relevant caveat scored 0.95 and an invented
-  banking claim scored 0.0. Extraction now preserves relevant qualifications,
-  and controller instructions distinguish answer formatting from website actions.
+- The initial completion question conflated factual support, answer coverage and
+  website actions. A later generated answer included the complete visible purpose
+  and caveats, yet the combined judge still rejected it. The candidate now asks
+  those questions separately and supplies the trusted source reference that will
+  be returned with the data. Native diagnostic controls scored a full verbatim
+  answer 0.95 for grounding, 0.93 for coverage and 0.97 for browser actions. Omitted
+  caveats scored 0.67/0.03/0.89; an invented banking claim 0/0/0.90; unfinished
+  required navigation 0.52/0.15/0.08. Acceptance requires grounding and completed
+  interactions at least 0.95, with coverage at least 0.90. These are heuristic
+  cutoffs from a small control set, not measured accuracy probabilities. Explicit
+  zero-result acceptance also requires completed website interactions.
 - A separate information-readiness question scored visible information 0.97,
   required navigation 0.16 and an absent heading 0.54. The next candidate uses
   that head to avoid unnecessary navigation, with independent final verification
-  still required at 0.95. It never overrides a page-injection block.
+  still required. It never overrides a page-injection block.
 - Successful native resume is now persisted before ingress checks. A later
   transport failure can settle its known compute window rather than treating the
   entire resume as unknown. Closing an unresolved session retains only the private
@@ -109,6 +121,13 @@ but completion scores of 0.63 and 0.49 led to `needs_user`; the assistant again 
 `web.read`. This remains a failed Browse fulfillment check. An older SDK session's
 failed resume has a reconciliation hold; its last confirmed settled charge is 13
 credits. That hold is not a new settled charge and must not be silently forgiven.
+The legacy session has now been closed: live credentials are removed and only the
+private resource receipt needed for reconciliation remains. The latest CLI run
+stayed on the intended Example page but again returned `needs_user` and fell back
+to `web.read`. The latest npm call likewise returned no verified data: readiness
+scored 0.95 and the old combined completion question 0.85. Neither is a Browse
+fulfillment pass. Its 26.172 s includes 21.201 s of cold startup; accrued supplier
+cost at result time was $0.00200887587929, before final idle-window settlement.
 
 The deployed dispatch, settlement and pause-recovery change passed 32 focused
 tests locally and in isolated CI (run 40336127998). The preceding broader backend
@@ -116,7 +135,9 @@ and Google SDK check passed 88 tests. The readiness/observation candidate passed
 61 focused local tests before five additional transport cases, which also passed.
 The deployed readiness candidate subsequently passed 67 isolated cases (run
 40342501601). The controller-lifetime/native-receipt/information-readiness candidate
-passes 74 focused local cases; its isolated verification is next.
+passed 74 focused cases locally and in isolated CI (run 40349555582).
+The separated completion rubric is awaiting exact-source isolated verification
+and fresh deployed CLI/npm/Python fulfillment checks.
 Native provider probes are additional evidence;
 they do not replace CLI, SDK or web acceptance.
 

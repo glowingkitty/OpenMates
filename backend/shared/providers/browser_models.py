@@ -383,13 +383,43 @@ class BrowserModels:
                         observation.get("document_text", observation.get("text", ""))
                     )
                     > 16000,
+                    "controls": [
+                        {
+                            k: c[k]
+                            for k in ("role", "label", "value", "checked")
+                            if k in c
+                        }
+                        for c in observation.get("controls", [])[:40]
+                    ],
                 },
-                "extracted_data": proposed,
+                "proposed_answer": {
+                    "data": proposed,
+                    "sources": [
+                        {
+                            "url": observation.get("url", ""),
+                            "title": observation.get("title", ""),
+                        }
+                    ],
+                },
             },
             {
-                "complete": {
+                "grounded": {
                     "type": "noul",
-                    "instructions": "Independently verify that ALL user requirements are visibly satisfied in observed evidence. Extracted data is a proposed answer, not evidence. Missing, unsupported or uncertain facts mean no.",
+                    "instructions": "Is every asserted fact in proposed_answer.data and its source attribution directly supported by observed_page? "
+                    "The proposed answer is a hypothesis, not evidence. The observed current URL supports its own source URL. "
+                    "Outside knowledge or invented claims mean no. Missing requested fields are evaluated separately by answer_complete.",
+                },
+                "answer_complete": {
+                    "type": "noul",
+                    "instructions": "If returned as JSON with proposed sources, would proposed_answer fully answer all information requested by goal, including relevant qualifications and caveats? "
+                    "The website itself need not display schema field names or JSON. Judge the answer meaning, not whether the application has already sent it. "
+                    "Missing requested information or qualifications mean no.",
+                },
+                "interaction_complete": {
+                    "type": "noul",
+                    "instructions": "Are all website navigation, search submission, filtering and form interactions required by goal observably complete? "
+                    "Reading or extracting the currently loaded page only requires that observed page. Returning or formatting a response is handled by the application and is not a website action. "
+                    "A filled query is not proof a required search was submitted. If no further website interaction is requested, answer yes.",
                 },
                 "empty": {
                     "type": "noul",
@@ -398,14 +428,27 @@ class BrowserModels:
             },
             screenshot=observation.get("screenshot"),
         )
-        self.no_results = result.answers["empty"].noul >= 0.95
+        self.no_results = (
+            result.answers["empty"].noul >= 0.95
+            and result.answers["interaction_complete"].noul >= 0.95
+        )
         self.verification.update(
             {
-                "completion_score": result.answers["complete"].noul,
+                "grounding_score": result.answers["grounded"].noul,
+                "answer_coverage_score": result.answers["answer_complete"].noul,
+                "interaction_score": result.answers["interaction_complete"].noul,
                 "no_results_score": result.answers["empty"].noul,
             }
         )
-        return result.answers["complete"].noul >= 0.95 or self.no_results
+        # Separate factual support and website state from answer presentation.
+        # Native controls scored a complete verbatim answer 0.93 for coverage,
+        # versus <=0.15 for omitted caveats, inventions and unfinished navigation.
+        # These are heuristic cutoffs, not calibrated accuracy probabilities.
+        return self.no_results or (
+            result.answers["grounded"].noul >= 0.95
+            and result.answers["answer_complete"].noul >= 0.90
+            and result.answers["interaction_complete"].noul >= 0.95
+        )
 
     async def sanitize_external(
         self, payload: dict[str, Any], cache: Any
