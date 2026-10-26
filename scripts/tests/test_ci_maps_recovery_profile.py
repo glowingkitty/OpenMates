@@ -52,9 +52,13 @@ def test_failed_authored_case_extracts_listener_cause_before_private_byte_cap(tm
                                     "tests": [{"results": [failed, {**failed, "status": "passed"}]}]}]}]}
     summaries = runner.capture_recovery_receipt_api_diagnostics(report, 2)
     assert summaries == [{"exception_class": "ValueError", "function": "send_available_recovery_outputs", "line": 590,
-                          "final_delivery_stages": [], "final_delivery_truncated": False}]
+                          "final_delivery_stages": [], "final_delivery_truncated": False,
+                          "fixture_final_publications": [], "fixture_publication_truncated": False}]
     assert calls == [(("logs", "--no-color", "--since", "2026-10-26T11:44:58+00:00",
                        "--until", "2026-10-26T11:47:05+00:00", "--tail", "8000", "api"),
+                      {"capture": True, "timeout": 90}),
+                     (("logs", "--no-color", "--since", "2026-10-26T11:44:58+00:00",
+                       "--until", "2026-10-26T11:47:05+00:00", "--tail", "2000", "ai-worker"),
                       {"capture": True, "timeout": 90})]
     private = tmp_path / "ci-private"
     retained = private / "recovery-api-spec-2-result-0.log"
@@ -102,6 +106,7 @@ def test_authored_delivery_stages_and_protocol_warnings_need_no_traceback(tmp_pa
             {"stage": "outputs_result", "device": 1, "success": False, "exception_class": "ChatRecoveryProtocolError", "code": "forbidden"},
             {"stage": "final_send", "device": 2, "success": True, "exception_class": "other", "code": "other"},
         ], "final_delivery_truncated": False,
+        "fixture_final_publications": [], "fixture_publication_truncated": False,
         "recovery_protocol_rejections": [
             {"operation": "list_pending_outputs", "code": "chat_not_found", "status": 404},
             {"operation": "list_available_jobs", "code": "other", "status": 500},
@@ -127,6 +132,55 @@ def test_authored_delivery_diagnostics_bound_exported_event_counts(tmp_path, mon
     assert len(summary["final_delivery_stages"]) == 64
     assert summary["final_delivery_truncated"] is True
     assert len(summary["recovery_protocol_rejections"]) == 16
+
+
+def test_fixture_publication_summary_exports_only_fixed_facts(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    def row(message, name="backend.apps.ai.testing.mock_replay"):
+        return json.dumps({"name": name, "message": message, "content": "private_canary"})
+
+    output = "\n".join([
+        row("Fixture final publication stage=begin success=none"),
+        row("Fixture final publication stage=complete success=false"),
+        row("Fixture final publication stage=complete success=true"),
+        row("Fixture final publication stage=private_canary success=true"),
+        row("Fixture final publication stage=complete success=private_canary"),
+        row("Fixture final publication stage=begin success=true"),
+        row("Fixture final publication stage=complete success=none"),
+        row("Fixture final publication stage=complete success=true", "private_canary"),
+    ])
+    events, truncated = runner._fixture_final_publication_summary(output)
+    assert events == [{"stage": "begin", "success": None},
+                      {"stage": "complete", "success": False}, {"stage": "complete", "success": True}]
+    assert truncated is False
+    assert "private_canary" not in json.dumps(events)
+    events, truncated = runner._fixture_final_publication_summary("\n".join([row("Fixture final publication stage=begin success=none")] * 9))
+    assert len(events) == 8 and truncated is True
+
+
+@pytest.mark.parametrize("custom_error", [False, True])
+def test_fixture_publication_log_failure_preserves_api_summary(tmp_path, monkeypatch, custom_error):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    def compose(*args, **kwargs):
+        if args[-1] == "ai-worker":
+            error_class = type("private_canary", (RuntimeError,), {}) if custom_error else RuntimeError
+            raise error_class("private_canary")
+        return SimpleNamespace(stdout="")
+    monkeypatch.setattr(runner, "compose", compose)
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE, "tests": [{"results": [
+        {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000},
+    ]}]}]}]}
+    summary = runner.capture_recovery_receipt_api_diagnostics(report, 0)[0]
+    assert summary["final_delivery_stages"] == []
+    assert summary["fixture_final_publications"] == []
+    assert summary["fixture_publication_capture_error"] == ("other" if custom_error else "RuntimeError")
+    assert "private_canary" not in json.dumps(summary)
+    assert len(list((tmp_path / "ci-private").iterdir())) == 1
 
 
 @pytest.mark.parametrize("title", [
@@ -179,7 +233,8 @@ def test_authored_diagnostics_retain_at_most_four_failed_attempts(tmp_path, monk
     failed = {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000}
     report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE,
                                     "tests": [{"results": [failed] * 5}]}]}]}
-    assert len(runner.capture_recovery_receipt_api_diagnostics(report, 0)) == len(calls) == 4
+    assert len(runner.capture_recovery_receipt_api_diagnostics(report, 0)) == 4
+    assert len(calls) == 8
     assert len(list((tmp_path / "ci-private").iterdir())) == 4
 
 

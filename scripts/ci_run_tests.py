@@ -1754,6 +1754,31 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
     return summaries
 
 
+def _fixture_final_publication_summary(output: str) -> tuple[list[dict[str, object]], bool]:
+    """Read only fixed fixture publication facts; discard all worker log bytes."""
+    events = []
+    truncated = False
+    for row in output.splitlines()[-2000:]:
+        start = row.find("{")
+        if start < 0 or len(row) > 65_536:
+            continue
+        try:
+            record = json.loads(row[start:])
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(record, dict) or record.get("name") != "backend.apps.ai.testing.mock_replay":
+            continue
+        message = record.get("message")
+        match = re.fullmatch(r"Fixture final publication stage=(begin|complete) success=(none|true|false)", message) if isinstance(message, str) else None
+        if not match or (match[1] == "begin") != (match[2] == "none"):
+            continue
+        if len(events) == 8:
+            truncated = True
+            continue
+        events.append({"stage": match[1], "success": {"none": None, "true": True, "false": False}[match[2]]})
+    return events, truncated
+
+
 def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
     """Retain bounded API logs for only allowlisted receipt and cache cases."""
     authored_title = "saved authored results preserve all admitted typed records through fresh CLI reads"
@@ -1827,6 +1852,21 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         "function": function, "line": int(line),
                     }
                     if spec.get("title") == authored_title:
+                        publication_error = None
+                        try:
+                            publication_log = compose(
+                                "logs", "--no-color", "--since", since, "--until", until,
+                                "--tail", "2000", "ai-worker", capture=True, timeout=90,
+                            )
+                            publication_output = publication_log.stdout if isinstance(publication_log.stdout, str) else ""
+                            publication_events, publication_truncated = _fixture_final_publication_summary(publication_output)
+                        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                            publication_events, publication_truncated = [], False
+                            error_name = type(exc).__name__
+                            publication_error = error_name if error_name in {
+                                "OSError", "FileNotFoundError", "PermissionError", "RuntimeError",
+                                "SubprocessError", "CalledProcessError", "TimeoutExpired",
+                            } else "other"
                         structured = None
                         recovery_failure = None
                         delivery_stages = []
@@ -1905,6 +1945,10 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         summary = recovery_failure or structured or summary
                         summary["final_delivery_stages"] = delivery_stages
                         summary["final_delivery_truncated"] = delivery_truncated
+                        summary["fixture_final_publications"] = publication_events
+                        summary["fixture_publication_truncated"] = publication_truncated
+                        if publication_error is not None:
+                            summary["fixture_publication_capture_error"] = publication_error
                         if protocol_rejections:
                             summary["recovery_protocol_rejections"] = protocol_rejections
                     # Raw windows stay runner-private. Boolean cache failures
