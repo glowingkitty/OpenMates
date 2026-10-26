@@ -16,6 +16,7 @@ REDUCED_ACCOUNTABILITY = {
     "embed_diffs": None,
     "chat_recovery_outputs": None,
     "chat_recovery_account_fences": None,
+    "chat_call_cleanup_candidates": None,
     "chat_recovery_chat_deletion_fences": None,
     "chat_recovery_output_producers": None,
     "chat_recovery_output_producer_children": None,

@@ -10,4 +10,4 @@ chat_call_cleanup_candidates:
     call_id: {type: string, nullable: true}
     state: {type: string, required: true}
     expected_messages_v: {type: integer, nullable: true}
-    created_at: {type: timestamp, required: true}
+    created_at: {type: datetime, required: true}
