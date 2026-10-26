@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fitVisualViewport } from '$lib/actions/fitVisualViewport';
   import { recordRecentReplayDiagnostic } from '@repo/ui/services/recentChatWindowCache';
   import { APPS_WORKSPACE_CHAT_HANDOFF_EVENT, APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT,
     takeAppsWorkspaceChatHandoff, deliverAppsWorkspaceChatHandoff, isAppsWorkspaceHandoffCurrent, recordAppsWorkspaceHandoffPhase } from '@repo/ui/services/appsWorkspaceChatHandoffService';
@@ -3866,6 +3867,7 @@
 
 <div
 	class="main-content"
+	use:fitVisualViewport
 	class:menu-closed={!$panelState.isActivityHistoryOpen}
 	class:edge-dragging={edgeSwipeDragging &&
 		(edgeSwipeTarget === 'open-chats' || edgeSwipeTarget === 'close-chats')}

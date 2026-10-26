@@ -26,7 +26,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'minimized-state',
-			text: 'The minimized composer shows only its AI affordance and microphone.',
+			text: 'The minimized composer shows its attachment shortcut and microphone.',
 			checkpoint: 'minimized',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -71,7 +71,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 		{
 			id: 'message-input.minimized-controls',
 			checkpoint: 'minimized',
-			visual: 'The minimized composer has the empty-state AI affordance and microphone, with no expanded action row.',
+			visual: 'The minimized composer has the attachment shortcut and microphone, with no expanded action row.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{

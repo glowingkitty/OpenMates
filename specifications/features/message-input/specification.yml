@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 9
+version: 10
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -285,6 +285,17 @@ assertions:
   depends_on:
   - models.ActionControlState
   - models.RecordingState.start_inputs
+- id: message-input.attachments.quick-access
+  type: behavior
+  must: In the web GUI, the empty minimized composer replaces its decorative AI icon with an accessible attachment
+    shortcut. On phones and tablets, including iPads using a desktop-sized viewport, the shortcut opens the native
+    photo capture picker. On desktop computers, it opens the file picker for images or other supported files.
+    The shortcut acts directly without focusing the text editor or opening the keyboard. Closing or cancelling
+    a picker preserves the draft and returns to usable composer controls. The existing plus menu remains available
+    in the expanded composer, with camera and file actions following the same safe picker handoff.
+  depends_on:
+  - models.EmbedInputState
+  - examples.quick_attachments
 - id: message-input.drafts.preview-persistence
   type: behavior
   must: Meaningful text or embed content updates draft state against the current or temporary chat id; after blur,
@@ -452,6 +463,7 @@ examples:
   - parent_state
   - focus_visibility
   - action_controls
+  - quick_attachments
   - drafts
   - attachments
   - recording

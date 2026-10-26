@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@9
+specification: feature.message-input@10
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -347,3 +347,17 @@ single_line_recording:
   given: A long recording is active and its newest transcript line is visible.
   when: The recording overlay changes between laptop, tablet and phone widths.
   then: The preview immediately settles on exactly one fully readable newest line and recording controls remain visible.
+
+quick_attachments:
+- id: phone-or-ipad-camera-shortcut
+  given: A user has an empty minimized composer on an iPhone or an iPad, even when the iPad uses its desktop-sized viewport.
+  when: The user taps the camera shortcut and then cancels the native camera picker.
+  then: The camera picker opens directly without opening the text keyboard, no attachment is added, and the composer remains usable. Taking a photo instead uses the existing attachment and signup rules.
+  assertion_ids:
+  - message-input.attachments.quick-access
+- id: desktop-file-shortcut
+  given: A user sees an empty minimized composer in a desktop browser.
+  when: The user activates the file shortcut using a mouse or keyboard.
+  then: The file picker opens directly and permits images or other supported files. Cancelling leaves the draft unchanged; selecting a file uses the existing attachment and signup rules.
+  assertion_ids:
+  - message-input.attachments.quick-access

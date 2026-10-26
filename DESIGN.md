@@ -344,6 +344,12 @@ Create a new settings element only when the pattern appears in at least three se
 
 Chat should remain familiar and readable.
 
+The empty minimized composer has a 40px attachment shortcut at the leading edge:
+camera on phones and tablets, file picker on desktop. Use the existing camera and
+files icons with translated accessible names. Activating it does not focus the
+text editor. Mobile app bounds follow the visual viewport so keyboard and picker
+transitions keep composer controls visible.
+
 Empty-chat welcome content fades completely out during composer focus while
 keeping its layout measurements; disable its controls immediately with `inert`.
 New-chat suggestions remain visible and interactive above the active composer;

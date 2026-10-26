@@ -303,6 +303,15 @@
     // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
+    let quickAttachmentUsesCamera = $state(false);
+    let nativeAttachmentPickerOpen = false;
+
+    onMount(() => {
+        quickAttachmentUsesCamera = !isDesktop();
+        const finishPicker = () => { nativeAttachmentPickerOpen = false; };
+        window.addEventListener('focus', finishPicker);
+        return () => window.removeEventListener('focus', finishPicker);
+    });
     let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
     let appsHandoffEditorReady = $state(false);
@@ -1182,6 +1191,7 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let restoreEditorFocusTimer: ReturnType<typeof setTimeout> | null = null;
     let editorFocusGeneration = 0;
     let composerDestroyed = false;
     const pendingVoiceCallDraftWaits = new Set<() => void>();
@@ -2981,7 +2991,7 @@
             blurTimeoutId = null; // Clear the timeout ID
             // Recording owns the compact panel while the user browses the chat.
             // Keep its width expanded without stealing DOM focus back.
-            if (recordingLayoutActive) return;
+            if (recordingLayoutActive || nativeAttachmentPickerOpen) return;
             if (preserveComposerFocusForThisBlur) {
                 isMessageFieldFocused = true;
                 isFocused = true;
@@ -3974,6 +3984,7 @@
     }
 
     function cleanup() {
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
         stopPlaceholderCycle();
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
@@ -4775,9 +4786,20 @@
         // this generic control handler would run after the send's focus snapshot
         // and look like a newer user focus during an asynchronous submission.
         const sendsMessage = target.closest('[data-action="send-message"], .minimized-send-button');
-        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage) {
-            setTimeout(() => {
-                if (editor && !editor.isDestroyed) editor.commands.focus('end');
+        const attachmentControl = target.closest('[data-testid="composer-attachment-menu-button"], [data-testid="composer-attachment-menu"]');
+        // Attachment controls own the keyboard handoff. Refocusing from their
+        // bubbling click can reopen the keyboard over the native picker.
+        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage && !attachmentControl && !nativeAttachmentPickerOpen) {
+            if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+            const editorAtClick = editor;
+            const chatIdAtClick = currentChatId;
+            restoreEditorFocusTimer = setTimeout(() => {
+                restoreEditorFocusTimer = null;
+                if (!nativeAttachmentPickerOpen && editor === editorAtClick && currentChatId === chatIdAtClick && editorAtClick && !editorAtClick.isDestroyed) {
+                    // TipTap commands.focus queues another animation-frame focus;
+                    // synchronous DOM focus cannot escape a later picker handoff.
+                    editorAtClick.view.focus();
+                }
             }, 0);
         }
 
@@ -5035,6 +5057,7 @@
         handleFileDragLeave(event, editorElement);
     }
     async function onFileSelected(event: Event) {
+        nativeAttachmentPickerOpen = false;
         const input = event.target as HTMLInputElement;
         if (!$authStore.isAuthenticated && input.files?.length) {
             setPendingAnonymousFileAttachment(true);
@@ -5048,8 +5071,31 @@
         });
     }
     function handleCameraClick() {
-        const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-        if (isMobile) cameraInput?.click(); else showCamera = true;
+        if (!isDesktop()) openNativeAttachmentPicker(cameraInput); else showCamera = true;
+    }
+
+    function openNativeAttachmentPicker(input: HTMLInputElement) {
+        if (!input) return;
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        nativeAttachmentPickerOpen = true;
+        // Dismiss text entry before handing control to the OS without collapsing
+        // the composer or scheduling focus that reopens the keyboard on return.
+        editor?.view.dom.blur();
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement && messageInputWrapper?.contains(activeElement)) {
+            activeElement.blur();
+        }
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        // Stay within this user gesture: deferring click loses iOS picker access.
+        input.click();
+    }
+
+    function handleQuickAttachment() {
+        if (!isDesktop()) handleCameraClick(); else handleFileSelect();
     }
     /**
      * Handle a photo captured from the CameraView (desktop webcam overlay).
@@ -5568,16 +5614,7 @@
         }
     }
     function handleFileSelect() {
-        // Cancel any pending blur timeout so the action buttons stay visible after the
-        // OS file picker opens. Without this, the editor blur fires before the file picker
-        // opens and collapses the action buttons bar.
-        if (blurTimeoutId) {
-            clearTimeout(blurTimeoutId);
-            blurTimeoutId = null;
-        }
-        isMessageFieldFocused = true;
-        fileInput.multiple = true;
-        fileInput.click();
+        openNativeAttachmentPicker(fileInput);
     }
     /**
      * Handle the global embedUploadFinished event dispatched by embedHandlers.ts
@@ -6503,6 +6540,9 @@
         editor.commands.focus('end');
     }
     export function dismissFocus() {
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        nativeAttachmentPickerOpen = false;
         if (blurTimeoutId) clearTimeout(blurTimeoutId);
         blurTimeoutId = null;
         preserveComposerFocusOnNextBlur = false;
@@ -7401,7 +7441,14 @@
         {/if}
 
         {#if showEmptyInputAffordances && !callOwnsAudio}
-			<span class="empty-input-ai-icon" aria-hidden="true"></span>
+			<button
+                class="empty-input-attachment-button"
+                type="button"
+                data-testid="composer-attachment-shortcut"
+                aria-label={$text(quickAttachmentUsesCamera ? 'enter_message.attachments.take_photo' : 'enter_message.attachments.attach_files')}
+                onpointerdown={(event) => event.preventDefault()}
+                onclick={handleQuickAttachment}
+            ><span class="clickable-icon {quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}" aria-hidden="true"></span></button>
 			<button
 				class="clickable-icon icon_recordaudio empty-input-mic-button"
 				type="button"
@@ -7536,9 +7583,9 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} data-testid="message-file-input" type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
+        <input bind:this={fileInput} data-testid="message-file-input" type="file" oncancel={() => nativeAttachmentPickerOpen = false} onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
-        <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
+        <input bind:this={cameraInput} data-testid="message-camera-input" oncancel={() => nativeAttachmentPickerOpen = false} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
@@ -7780,7 +7827,7 @@
         color: var(--color-grey-60);
     }
 
-    .message-input-wrapper.guest-cta-mode .empty-input-ai-icon {
+    .message-input-wrapper.guest-cta-mode .empty-input-attachment-button span {
         background: var(--color-grey-60);
     }
 
@@ -7842,24 +7889,41 @@
         line-height: 48px;
     }
 
-    .empty-input-ai-icon {
+    .empty-input-attachment-button {
         position: absolute;
         top: 50%;
-        left: 22px;
+        left: 14px;
         z-index: 31;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        margin: 0;
+        padding: 8px;
+        box-sizing: border-box;
+        border: none;
+        border-radius: var(--radius-full);
+        background: transparent;
+        filter: none;
+        scale: 1;
+        transform: translateY(-50%);
+        cursor: pointer;
+    }
+
+    .empty-input-attachment-button span {
         width: 24px;
         height: 24px;
         background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
-        transform: translateY(-50%);
-        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-        mask-image: url('@openmates/ui/static/icons/ai.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        pointer-events: none;
+    }
+
+    .empty-input-attachment-button:hover {
+        background: var(--color-grey-10);
+    }
+
+    .empty-input-attachment-button:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
     }
 
 	.empty-input-mic-button {
