@@ -70,9 +70,11 @@ RUST_BROWSER_SPECS = frozenset({RUST_BROWSER_SPEC, RUST_BROWSER_PASSWORD_SPEC})
 RUST_PRODUCTION_BROWSER_SPECS = frozenset({"rust-core-production-saved-session.spec.ts", "rust-core-production-platform.spec.ts", "rust-core-production-local-cursor.spec.ts", "rust-core-production-saved-paging.spec.ts", "rust-core-ordinary-login-retention.spec.ts"})
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+VOICE_CLEANUP_CASE_TITLE = 'keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup'
 APPROVED_RECOVERY_CASES = frozenset({
     ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
     ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+    ("voice-call.spec.ts", VOICE_CLEANUP_CASE_TITLE),
     ("startup-sync-contract.spec.ts", "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads"),
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
@@ -1633,7 +1635,7 @@ def run_e2e(
                                     "failure": accountability_retention_error})
                 # Playwright may exit successfully after a retry. Retain the first
                 # failed receipt attempt's bounded API window in that case too.
-                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
+                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"} or (name == "voice-call.spec.ts" and case_title == VOICE_CLEANUP_CASE_TITLE):
                     try:
                         spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
                             report, index
@@ -1757,6 +1759,7 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
         "legacy connection preserves typed rows while completing the existing v1 final job",
         "saved code embed and version diff replay with canonical ciphertext acknowledgements",
         "native cache keeps selected math tools and settled billing across five chat turns",
+        VOICE_CLEANUP_CASE_TITLE,
     }
     private = RESULTS / "ci-private"
     private.mkdir(parents=True, exist_ok=True, mode=0o700)

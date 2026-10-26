@@ -36,9 +36,11 @@ WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
 COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+VOICE_CLEANUP_CASE_TITLE = 'keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup'
 APPROVED_RECOVERY_CASES = frozenset({
     ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
     ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+    ("voice-call.spec.ts", VOICE_CLEANUP_CASE_TITLE),
     ("startup-sync-contract.spec.ts", "authenticated startup observes HTTP-cache cold fill and two same-route warm reloads"),
 })
 TERMINAL = ("success", "failure", "cancelled")
