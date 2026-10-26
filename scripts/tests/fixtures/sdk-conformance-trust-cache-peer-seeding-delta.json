@@ -1,0 +1,93 @@
+{
+  "afterCounts": {
+    "contracts": 71,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 277
+  },
+  "afterSha256": "63a5825c03614ce50c1a2e9060aad2cc8659023d0c869791e47f3892110d6320",
+  "beforeCounts": {
+    "contracts": 71,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 276
+  },
+  "beforeSha256": "1fe90fffdff3feee2ddf60edfd129c6ed799a9e45b743f71e84bfa018e30bcff",
+  "contractsPlansGapsMetadataUnchanged": true,
+  "nativeExecutions": 0,
+  "private": true,
+  "programPinDeltas": {
+    "packages/openmates-session-bindings/examples/session-cache-preferred-settlement-conformance.rs": {
+      "after": "5276adfca415b032afab51bd889e5eadd7a593ca3bed1758b5b26b12146b5581",
+      "before": "eebb0c7417bae0f5ed923bf1ad5f00fc8e948fcda4d7e813952e337e8c6fca90"
+    },
+    "packages/openmates-session-bindings/src/session_cache_settlement_tests.rs": {
+      "after": "13feeef899df3b1c32dd80466b3629b825cfbb4df90f9a007a2ebb346a946866",
+      "before": "3cd09acbde3cab44d28a023adb79aa46ddc9718ad1246487a427a182fa23d64c"
+    },
+    "tests/sdk-conformance/cache_settlement_peer.py": {
+      "after": "1d54930415f2690b804f4ed84311f57c30e4f514f5b824ef2835635c5a934235",
+      "before": "74260073aa550f1066d994940b998f46175fd9d817ec75d1ad3b11c6a41eed11"
+    },
+    "tests/sdk-conformance/runners/session-cache-preferred-settlement.mjs": {
+      "after": "cbdcf93756b3bc6b8211a92a548ff3de1fb021b67d08ada723f6e8ea43f16459",
+      "before": "28e865fe5e475da87860ff3322ad9283f490d9d940c5b3a91694c487573823c4"
+    },
+    "tests/sdk-conformance/runners/session-cache-preferred-settlement.py": {
+      "after": "f4d6c0db569f65d11ded8296685628d3a6df06b1689bbf575882f5140e8b241e",
+      "before": "b6c33c40d42fa7d48ebf5bb2ef05e341a68330ba4be479f8712ed761344b8df5"
+    },
+    "tests/sdk-conformance/test_cache_settlement_peer.py": {
+      "after": "0961764646418e197ca35af601dd971715d990ec582ae0e367cdec9a029eeae6",
+      "before": null
+    }
+  },
+  "releaseEligible": false,
+  "reviewedSourceClosure": [
+    {
+      "afterSha256": "5276adfca415b032afab51bd889e5eadd7a593ca3bed1758b5b26b12146b5581",
+      "beforeSha256": "eebb0c7417bae0f5ed923bf1ad5f00fc8e948fcda4d7e813952e337e8c6fca90",
+      "path": "packages/openmates-session-bindings/examples/session-cache-preferred-settlement-conformance.rs",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    },
+    {
+      "afterSha256": "13feeef899df3b1c32dd80466b3629b825cfbb4df90f9a007a2ebb346a946866",
+      "beforeSha256": "3cd09acbde3cab44d28a023adb79aa46ddc9718ad1246487a427a182fa23d64c",
+      "path": "packages/openmates-session-bindings/src/session_cache_settlement_tests.rs",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    },
+    {
+      "afterSha256": "1d54930415f2690b804f4ed84311f57c30e4f514f5b824ef2835635c5a934235",
+      "beforeSha256": "74260073aa550f1066d994940b998f46175fd9d817ec75d1ad3b11c6a41eed11",
+      "path": "tests/sdk-conformance/cache_settlement_peer.py",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    },
+    {
+      "afterSha256": "cbdcf93756b3bc6b8211a92a548ff3de1fb021b67d08ada723f6e8ea43f16459",
+      "beforeSha256": "28e865fe5e475da87860ff3322ad9283f490d9d940c5b3a91694c487573823c4",
+      "path": "tests/sdk-conformance/runners/session-cache-preferred-settlement.mjs",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    },
+    {
+      "afterSha256": "f4d6c0db569f65d11ded8296685628d3a6df06b1689bbf575882f5140e8b241e",
+      "beforeSha256": "b6c33c40d42fa7d48ebf5bb2ef05e341a68330ba4be479f8712ed761344b8df5",
+      "path": "tests/sdk-conformance/runners/session-cache-preferred-settlement.py",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    },
+    {
+      "afterSha256": "0961764646418e197ca35af601dd971715d990ec582ae0e367cdec9a029eeae6",
+      "beforeSha256": null,
+      "path": "tests/sdk-conformance/test_cache_settlement_peer.py",
+      "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3"
+    }
+  ],
+  "schemaVersion": 1,
+  "scope": "Root SOURCE CLEARED exact6 harness-only peer seeding paths. Preserve production/core, schema, fixtures, all90plans and177gaps. Prior failed9cef compiler/native observations are causal evidence, not new verification.",
+  "sourceGateRuns": 0,
+  "sourceProposalSha256": "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3",
+  "unchangedDigests": {
+    "contracts": "f3ffa35d5bab0b5e018bc58fde161dfe7bdc4cd11772a7b6aa12384d77dab29f",
+    "gaps": "748de52144e17522e81f39a34d7816212b5785925feb384fc3b142f4949b2ec2",
+    "plan": "c2dc3117621e819d48fff597ac7c611069b4a7ac6b81a4c9f1b5c7d00dac84b9"
+  }
+}

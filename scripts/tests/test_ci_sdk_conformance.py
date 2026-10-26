@@ -1378,7 +1378,7 @@ def test_current_reviewed_aggregate_keeps_exact_live_authority_and_counts():
     approval = immutable_trust_test_fixture("sdk-conformance-trust-reviewed229-delta.json", "bdbd7a7d020394bc71d6ab84da1abc9a7fae75c748f04d920c1708c24fa9b969")
     live_path = Path(sdk.__file__).with_name("ci_sdk_conformance_trust.json")
     live_bytes = live_path.read_bytes()
-    assert sdk.sha(live_bytes) == "1fe90fffdff3feee2ddf60edfd129c6ed799a9e45b743f71e84bfa018e30bcff"
+    assert sdk.sha(live_bytes) == "63a5825c03614ce50c1a2e9060aad2cc8659023d0c869791e47f3892110d6320"
     trust = sdk.load_trust()
     assert trust == json.loads(live_bytes)
     trust = restore_before_cache_settlement_registration(trust)
@@ -1533,6 +1533,9 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
 
 
 def restore_before_cache_adapter_registration(trust):
+    seeding = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
+    if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == seeding["afterSha256"]:
+        trust = restore_before_cache_peer_seeding_registration(trust)
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-adapters-delta.json", "33506804d67aab4f5d301d756583961df30c1bf81a6930b7808bc2c9ee3b3df1")
     actual = sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode())
     # Known immutable predecessor is accepted solely for transitive test-data
@@ -1559,7 +1562,7 @@ def restore_before_cache_adapter_registration(trust):
 
 def test_cache_adapters_add_exact_three_required_plans_preserve_old87_and_all_gaps():
     delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-settlement-adapters-delta.json", "33506804d67aab4f5d301d756583961df30c1bf81a6930b7808bc2c9ee3b3df1")
-    live = sdk.load_trust()
+    live = restore_before_cache_peer_seeding_registration(sdk.load_trust())
     assert sdk.sha((json.dumps(live, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     assert {key: len(live[key]) for key in delta["afterCounts"]} == {"programs":276,"contracts":71,"plan":90,"gaps":177}
     prior = restore_before_cache_adapter_registration(live)
@@ -1604,3 +1607,41 @@ def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capabil
     assert len(suite["vectors"]) == witness["priorVectorCount"] == {"session.message-window.v1":24,"session.saved-chat-read.v1":54}[capability]
     assert sdk.sha(json.dumps(suite["vectors"], sort_keys=True).encode()) == witness["priorVectorsSha256"]
     assert sdk.sha(json.dumps(restored, sort_keys=True).encode()) == witness["beforeSemanticSha256"]
+
+
+def restore_before_cache_peer_seeding_registration(trust):
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
+    assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
+    restored = copy.deepcopy(trust)
+    for path, change in delta["programPinDeltas"].items():
+        assert restored["programs"][path] == change["after"]
+        if change["before"] is None:
+            del restored["programs"][path]
+        else:
+            restored["programs"][path] = change["before"]
+    assert sdk.sha((json.dumps(restored, indent=2, sort_keys=True) + "\n").encode()) == delta["beforeSha256"]
+    return restored
+
+
+def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_or_gap_change():
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-cache-peer-seeding-delta.json", "08c1e10699cd73c735352e82a02749ced7305af638d70e7b7292a0e9b3cfc8fc")
+    live = sdk.load_trust()
+    assert {k:len(live[k]) for k in delta["afterCounts"]} == {"programs":277,"contracts":71,"plan":90,"gaps":177}
+    prior = restore_before_cache_peer_seeding_registration(live)
+    assert set(delta["programPinDeltas"]) == {
+        "packages/openmates-session-bindings/examples/session-cache-preferred-settlement-conformance.rs",
+        "packages/openmates-session-bindings/src/session_cache_settlement_tests.rs",
+        "tests/sdk-conformance/cache_settlement_peer.py",
+        "tests/sdk-conformance/runners/session-cache-preferred-settlement.mjs",
+        "tests/sdk-conformance/runners/session-cache-preferred-settlement.py",
+        "tests/sdk-conformance/test_cache_settlement_peer.py",
+    }
+    assert sum(row["before"] is None for row in delta["programPinDeltas"].values()) == 1
+    assert next(path for path,row in delta["programPinDeltas"].items() if row["before"] is None) == "tests/sdk-conformance/test_cache_settlement_peer.py"
+    assert len(prior["programs"]) == 276
+    assert {k:v for k,v in live.items() if k != "programs"} == {k:v for k,v in prior.items() if k != "programs"}
+    for bucket in ("contracts","plan","gaps"):
+        assert sdk.sha(json.dumps(live[bucket],sort_keys=True).encode()) == delta["unchangedDigests"][bucket]
+    assert len(live["plan"]) == 90 and len(live["gaps"]) == 177
+    assert delta["releaseEligible"] is False and delta["nativeExecutions"] == delta["sourceGateRuns"] == 0
+    assert all(row["sourceProposalSha256"] == "0606a049b6ee3c9c33b30dac1ba6f1948709243809ccf9c7aca2db99b9e1cae3" for row in delta["reviewedSourceClosure"])
