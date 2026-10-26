@@ -3003,7 +3003,7 @@
     "packages/openmates-session-bindings/src/session_essential.rs": "ae6de17cf896fa168012b7b590178795b3f6f5115f8a710d51b41f9d44d7f1b3",
     "packages/openmates-session-bindings/src/session_first_page.rs": "9d86784ebb09068e8b0064fd1fb318450bfe259bae6fe097418b26cd51332a40",
     "packages/openmates-session-bindings/src/session_first_page_peer_tests.rs": "1d233bd7a6d1a6227547453a048d88c2c68c6714b8512ed899b71e091305c756",
-    "packages/openmates-session-bindings/src/session_first_page_tests.rs": "c1c76eac99723f11218ef5396f38153f39c5a45e3bc82d09b9fc1a7837df088b",
+    "packages/openmates-session-bindings/src/session_first_page_tests.rs": "86f3a6d3301c1d9198589faba66e804922225cc53d39c4b580dd0fb9e6e0a65d",
     "packages/openmates-session-bindings/src/session_saved_read.rs": "56c2d39b80e2d7dc47895ff59e210b685f3bc8f37ea1ac009854f42aa5226fa5",
     "packages/openmates-session-bindings/src/session_work.rs": "fb5bd7e43ad82a18320c0efade994a6b50a37ff835c56be2849ae2207e57faee",
     "scripts/build_sdk_native.py": "7b6d9d7139be4680019b69a941102df2b882225508ca0296c7a4270626741c28",

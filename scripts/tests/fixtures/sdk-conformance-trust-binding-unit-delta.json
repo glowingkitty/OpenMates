@@ -1,0 +1,22 @@
+{
+  "afterProgramSha256": "86f3a6d3301c1d9198589faba66e804922225cc53d39c4b580dd0fb9e6e0a65d",
+  "afterSha256": "964f822aefd37312c53f42bc359650ff0521393d39f03d5a44ad2b03045f2180",
+  "applicationReceiptSha256": "77bad916c7da04c766eb3c7f9fc43df78583d69eb95dae8d753afb92205ebe0a",
+  "beforeProgramSha256": "c1c76eac99723f11218ef5396f38153f39c5a45e3bc82d09b9fc1a7837df088b",
+  "beforeSha256": "d8129346c685952291275170971f0d0b600f0a4dbf3e2aa4b31a7ffb77e4a03f",
+  "counts": {
+    "contracts": 86,
+    "gaps": 180,
+    "plan": 93,
+    "programs": 323
+  },
+  "nativeExecutions": 0,
+  "oldGapsSha256": "1092028b466f71ed26e183688684f4cd6c63ef7c6c6b1d811ae1da5e150e7802",
+  "oldPlansSha256": "87eaab316b78a628b6bcd9c125a7147d604adb9819db0c1ad3f59586e17a4cbe",
+  "private": true,
+  "program": "packages/openmates-session-bindings/src/session_first_page_tests.rs",
+  "releaseEligible": false,
+  "schemaVersion": 1,
+  "scope": "Exact one test-program pin only; secret-free success let-else avoids private Debug exposure; all existing assertions preserved; no production/API/guard/SDK17/Notifications changes; runtime remains unrun",
+  "sourceGateRuns": 0
+}
