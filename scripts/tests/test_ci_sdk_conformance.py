@@ -1533,7 +1533,7 @@ def test_cache_settlement_source_registration_is_exact_and_not_release_proof():
 
 
 def restore_before_cache_adapter_registration(trust):
-    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-envelope-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
+    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-result-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == envelope["afterSha256"]:
         trust = restore_before_version_envelope_registration(trust)
     browser = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
@@ -1616,7 +1616,7 @@ def test_explicit_private_read_policy_retains_every_prior_fixture_oracle(capabil
 
 
 def restore_before_cache_peer_seeding_registration(trust):
-    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-envelope-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
+    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-result-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == envelope["afterSha256"]:
         trust = restore_before_version_envelope_registration(trust)
     browser = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
@@ -1660,7 +1660,7 @@ def test_cache_peer_seeding_pins_exact_six_reviewed_paths_without_contract_plan_
 
 
 def restore_before_browser_local_wire_cursor_registration(trust):
-    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-envelope-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
+    envelope = immutable_trust_test_fixture("sdk-conformance-trust-version-result-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
     if sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == envelope["afterSha256"]:
         trust = restore_before_version_envelope_registration(trust)
     delta = immutable_trust_test_fixture("sdk-conformance-trust-browser-local-wire-cursor-delta.json", "ce725e243ed00e27f69792e51415ee6fafb0e91c08f42a4a5a466c10bf0b7c1d")
@@ -1707,7 +1707,7 @@ def test_browser_local_wire_cursor_registration_preserves_prior_authority_and_ex
 
 
 def restore_before_version_envelope_registration(trust):
-    delta = immutable_trust_test_fixture("sdk-conformance-trust-version-envelope-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-version-result-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
     assert sdk.sha((json.dumps(trust, indent=2, sort_keys=True) + "\n").encode()) == delta["afterSha256"]
     prior = copy.deepcopy(trust)
     for path, change in delta["programPinDeltas"].items():
@@ -1718,7 +1718,7 @@ def restore_before_version_envelope_registration(trust):
 
 
 def test_version_envelope_registration_changes_only_exact_two_reviewed_programs():
-    delta = immutable_trust_test_fixture("sdk-conformance-trust-version-envelope-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
+    delta = immutable_trust_test_fixture("sdk-conformance-trust-version-result-delta.json", "a12756e8020b6c84f4b67d1d10b050992d032a6cfa6d2a8408bd13dc1fe22672")
     live = sdk.load_trust()
     prior = restore_before_version_envelope_registration(live)
     assert {k:len(live[k]) for k in delta["afterCounts"]} == {"programs":283,"contracts":73,"plan":90,"gaps":177}
