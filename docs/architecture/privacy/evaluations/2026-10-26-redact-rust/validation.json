@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-26",
+  "rust": {
+    "command": "rustc --edition=2021 --test scripts/redact_rust_evaluation.rs -o <task-private-binary>; <task-private-binary> --test-threads=1",
+    "passed": 10,
+    "failed": 0,
+    "stdout": "\nrunning 10 tests\ntest tests::bounded_codec_and_ids ... ok\ntest tests::der_integer_padding ... ok\ntest tests::exact_unicode_originals ... ok\ntest tests::exact_unicode_sdk_redaction_and_restore_roundtrip ... ok\ntest tests::fingerprint_excludes_confidence ... ok\ntest tests::json_strings_escape_controls ... ok\ntest tests::real_openssl_es256_valid_and_tampered ... ok\ntest tests::rejects_valid_span_with_wrong_redacted_output ... ok\ntest tests::rejects_wrong_or_ambiguous_placeholders_and_overlap ... ok\ntest tests::simulated_disconnect_preserves_descriptor_and_blocks_io ... ok\n\ntest result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n",
+    "source_sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5"
+  },
+  "python": {
+    "command": "python3 -m unittest discover -s scripts -p redact_rust_evaluation_test.py",
+    "passed": 9,
+    "failed": 0,
+    "result": "OK",
+    "source_sha256": "ca211ce17d5891cb7a6abe5aa3104fd82bfd5dbf7909589667279eadb71e924f"
+  },
+  "ruff": {
+    "command": "python3 -m ruff check scripts/redact_native_chunk_experiment.py scripts/redact_rust_evaluation.py scripts/redact_rust_evaluation_test.py",
+    "result": "All checks passed!"
+  },
+  "plan_validation": "PASS; implementing",
+  "git_diff_check": "passed"
+}

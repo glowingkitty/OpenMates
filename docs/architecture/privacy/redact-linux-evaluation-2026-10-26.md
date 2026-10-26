@@ -3,6 +3,12 @@
 Date: 2026-10-26. Task: TASK-906. Session: 678f.
 Dependency: working web trial TASK-6119. Production CLI integration is deferred.
 
+Follow-up: the [direct Rust evaluation](redact-rust-linux-evaluation-2026-10-26.md)
+reproduces the native long-input bottleneck, measures effective thread settings
+and rejects faster chunking variants that miss personal data. Its real licence
+initialization also clarifies the historical pre-seal flush below; the original
+result files and measurements remain unchanged.
+
 The native SDK completed offline classification on this ARM Linux host with
 about 182 MiB peak process RSS. Long-input scans are expensive: 27,135 characters
 took a median 41.1 seconds on one core and 23.4 seconds on two. Redact adds useful
@@ -90,8 +96,9 @@ population accuracy or guarantee anonymity.
 ## Resource and latency protocol
 
 Run sequential fresh processes on one and two allowed CPU cores at reduced
-priority. All native threads inherit affinity. The public SDK has no documented
-native thread-count option: its default remains and thread count is recorded.
+priority. All native threads inherit affinity. These historical runs left native
+threads at their default and recorded process threads. The follow-up source audit
+found `DAL_LITERT_THREADS`; the Rust evaluation measures that LiteRT control.
 `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and the Node worker pool are additional
 hints; affinity supplies the actual CPU ceiling.
 The host has 16 ARM Neoverse-N1 cores and approximately 32 GB RAM. Measured
@@ -124,8 +131,12 @@ establish representative percentiles.
 
 ## Offline inference and required telemetry
 
-Normal SDK model load and `flushTelemetry()` finish before offline inference;
-required reporting remains intact. Refuse license-endpoint overrides and raw
+The historical harness called normal SDK model load and `flushTelemetry()`
+before offline inference, without changing reporting. A follow-up source audit
+found that the JS wrapper can defer native session initialization when model
+files already exist. Those calls alone do not prove a successful licensing HTTP
+exchange. The Rust follow-up initializes the session explicitly and records real
+successful licence-signature verification before sealing. Refuse endpoint overrides and raw
 HTTP debug logging. Inputs/predictions never enter network requests or terminal
 logs. Saved synthetic evidence uses split `synthetic_parts` arrays assembled
 locally, preserving complete recoverable predictions without literal vendor keys.

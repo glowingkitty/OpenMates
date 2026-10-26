@@ -1,0 +1,16 @@
+{
+  "comparisons": [
+    {
+      "baseline": "rust-published-2cpu-default-full.json",
+      "candidate": "rust-published-2cpu-threads2-full.json",
+      "cases": 92,
+      "label_offset_fingerprints_equal": true
+    },
+    {
+      "baseline": "rust-published-2cpu-default-full.json",
+      "candidate": "rust-published-8cpu-threads8-full.json",
+      "cases": 92,
+      "label_offset_fingerprints_equal": true
+    }
+  ]
+}

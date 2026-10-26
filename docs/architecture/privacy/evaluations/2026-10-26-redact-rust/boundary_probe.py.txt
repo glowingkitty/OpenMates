@@ -1,0 +1,42 @@
+"""Synthetic boundary experiment; run from the owned repository root."""
+import hashlib,json,os,sys
+from pathlib import Path
+sys.path.insert(0,str(Path('scripts').resolve()))
+import redact_rust_evaluation as bench
+from redact_linux_evaluation import supervise
+root=Path('/tmp/openmates-redact-rust-678f');native=root/'swift-experiment/native'
+patterns=[
+ ('name-en','The customer is Amina\nOkafor needs an account reset and follow-up assistance.','Amina\nOkafor'),
+ ('name-fr','Notre cliente est Élodie\nMoreau demande de corriger son compte au plus vite.','Élodie\nMoreau'),
+ ('name-de','Unser Kunde heißt Lukas\nWeber und benötigt Hilfe mit seinem Benutzerkonto.','Lukas\nWeber'),
+ ('name-rare','Our patient is Xochitl\nQuispe and needs an updated appointment confirmation.','Xochitl\nQuispe'),
+ ('address-uk','The delivery address is 42 Maple Avenue\nBristol BS1 4QA and should be used for delivery.','42 Maple Avenue\nBristol BS1 4QA'),
+ ('address-de','Unsere Anschrift ist Lindenstraße 12\n90402 Nürnberg und ist nur intern zu verwenden.','Lindenstraße 12\n90402 Nürnberg'),
+]
+neutral='This ordinary passage contains routine context about the support request and its review '
+rows=[]
+for kind,text,value in patterns:
+ for length in (80,100,115,135):
+  prefix=(neutral*3)[:length].rsplit(' ',1)[0]+'.\n'
+  rows.append({'id':f'q:boundary-{kind}-{length}','text':prefix+text,'expected':[['private_value',value]],'synthetic_generated':True})
+for length in (80,100,115,135):
+ prefix=(neutral*3)[:length].rsplit(' ',1)[0]+'.\n'
+ rows.append({'id':f'q:boundary-negative-{length}','text':prefix+'The request needs an ordinary response.\nPlease continue with the routine review.','expected':[],'synthetic_generated':True})
+(root/'results/boundary-sweep-inputs.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2)+'\n')
+input_file=root/'boundary-sweep.inputs.bin';input_file.write_bytes(bench.encode_corpus(rows))
+files=bench.verify_native(native,root/'swift-experiment/receipt.json')
+binary=bench.compile_binary()
+for carry in (1,0):
+ output=root/f'results/rust-boundary150-carry{carry}-2cpu.json'
+ if output.exists():raise ValueError('Preserve previous boundary run')
+ env=bench.brotli.child_environment(Path('/tmp/openmates-redact-678f-brotli-1.1.1'),dict(os.environ))
+ env.update({'DAL_LITERT_THREADS':'2','DAL_REDACT_BENCH_MAX_CHARS':'150','DAL_REDACT_BENCH_CARRY':str(carry)})
+ command=[str(binary),str(native),str(root/'model'),str(input_file),str(output),'3']
+ receipt=supervise(command,sorted(os.sched_getaffinity(0))[:2],1536,120,env)
+ receipt.update({'source_sha256':bench.digest(Path(__file__)),'rust_source_sha256':bench.digest(bench.ROOT/'scripts/redact_rust_evaluation.rs'),'binary_sha256':bench.digest(binary),'input_sha256':bench.digest(input_file),'native_files':files,'carry':carry})
+ if receipt['returncode']==0 and not receipt['stopped_by_supervisor']:
+  data=json.loads(output.read_text());indexed={c['id']:c for c in data['cases']}
+  receipt['quality']=bench.score_set(rows,indexed)
+ output.with_suffix('.supervisor.json').write_text(json.dumps(receipt,indent=2)+'\n')
+ print(json.dumps({'carry':carry,'returncode':receipt['returncode'],'quality':receipt.get('quality')}),flush=True)
+ if receipt['returncode']!=0 or receipt['stopped_by_supervisor']:raise SystemExit(1)

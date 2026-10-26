@@ -16,6 +16,7 @@ scope:
     - Cover editable dictation and text fields in existing audio recording embeds before chat-model send.
     - Use one standard notification per browser session if enhanced detection is unavailable; add no composer status row. Keep linked attribution in the existing Privacy description.
     - Reject known vulnerable Brotli decoder paths: require patched Node for web build/server startup and a verified private patched library for native evaluation.
+    - Extend the Linux evaluation with a direct Rust native-ABI host, matched CPU/thread settings and bounded native-only chunking experiments; retain the working browser and iPhone behavior.
   out:
     - Production activation, production license acceptance decisions and permanent production privacy-policy changes.
     - Apple, CLI or SDK model activation; server-side classification; changes to speech transcription/correction providers.
@@ -29,6 +30,8 @@ decisions:
   - Existing public URL handling remains supported; Redact's blanket URL and organization labels are excluded from the trial.
   - The user explicitly requested checking CVE-2026-111497. Source and loader checks distinguish patched backports from version strings; native SDK loads cannot fall back to the old host decoder. Shared system package updates remain separate.
   - Hosted verification remains blocked because Vercel serves Node 24.21.0 without the patch marker, including after a fresh build without cache. The static app works, but the new guard intentionally rejects server-rendered requests until Vercel patches the managed runtime. Keep this Plan implementing until that live check succeeds.
+  - The user explicitly requested real Rust tests and faster Linux processing. Benchmark the same published native engine directly from Rust, inspect serial chunking and measure DAL_LITERT_THREADS before attributing latency to the host language. Any SDK chunking override is a private Linux benchmark build with default behavior and licensing preserved.
+  - The user requested a renewed privacy assessment of direct browser licensing calls and the vendor privacy policy. Production approval is withheld; a development opt-in decision is pending. Do not silently strip reporting or assume a relay/custom Rust runtime is permitted without appropriate written terms.
 verification:
   - Focused local model-adapter and send-lifecycle unit tests, component compilation, translation build and scoped lint.
   - Isolated GitHub bare component checks for normal notifications/retry and real browser inference, current-draft ownership, exclusions and mounted-page offline classification.
@@ -36,3 +39,5 @@ verification:
   - Verify the pinned browser's Brotli fix, web Node patch guards, and private native decoder symbol/version/hash under actual OS network denial.
   - Scoped development deployment after the candidate checks succeed.
   - Final security/cache candidate 528e5291bd77d0adb9fc3629145962e51a2384c9 passed both real-model composer scenarios in GitHub run 40317398417 with no skips, retries or flaky results; send/reveal and notification recovery flows also passed their scoped isolated runs.
+  - Rust verifier/codec/network-seal unit checks and direct native inference on synthetic fixtures, with CPU affinity, effective native thread settings, memory, span parity and long-input latency recorded separately from startup/licensing.
+  - Direct Rust evaluation completed with 10 Rust and 9 Python unit checks passing. All 92 published-engine fingerprints match across 2-core/default, 2-core/2-thread and 8-core/8-thread runs. Larger chunks and zero carry were rejected after individual PII coverage regressions; native LiteRT 2.3.1 supplied no speed benefit. Results and immutable receipts are in docs/architecture/privacy/redact-rust-linux-evaluation-2026-10-26.md.

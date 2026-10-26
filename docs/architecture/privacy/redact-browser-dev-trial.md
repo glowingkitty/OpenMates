@@ -196,6 +196,13 @@ native memory, latency, detection misses, and OS-enforced offline proof.
 
 ## Brotli security check
 
+The subsequent [licensing/privacy review](redact-licensing-privacy-review-2026-10-26.md)
+confirms that users' browsers directly contact the licensing service. The vendor's
+website privacy page does not document key SDK telemetry details. Production
+approval remains withheld; making the development trial explicitly opt-in is a
+pending user decision. The [vendor inquiry](desert-ant-privacy-questions-unsent-2026-10-26.md)
+is an unsent draft, not an approved change to the SDK's mandatory reporting.
+
 The user explicitly requested checking the October 2026 decoder vulnerability,
 `CVE-2026-111497`. This integration adds no Brotli npm decoder dependency.
 Vercel negotiates HTTP compression; browser fetch handles content decoding before

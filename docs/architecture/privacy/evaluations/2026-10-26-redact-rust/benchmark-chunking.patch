@@ -1,0 +1,24 @@
+--- a/Sources/Redact/Model.swift
++++ b/Sources/Redact/Model.swift
+@@ -23,7 +23,21 @@
+     init(assets: ModelAssets, chunking: Chunking = .default) throws {
+         guard let tok = Tokenizer(bytes: assets.tokenizer) else { throw RedactError.resourceMissing }
+         tokenizer = tok
++#if os(Linux) && DAL_REDACT_BENCHMARK_CHUNKING
++        let benchmarkMaxChars = environmentVariable("DAL_REDACT_BENCH_MAX_CHARS")
++        let benchmarkCarry = environmentVariable("DAL_REDACT_BENCH_CARRY")
++        if chunking == .default && (benchmarkMaxChars != nil || benchmarkCarry != nil) {
++            guard let maxChars = Int(benchmarkMaxChars ?? "150"), (150...600).contains(maxChars),
++                  let carry = Int(benchmarkCarry ?? "1"), (0...1).contains(carry) else {
++                throw RedactError.predictionFailed
++            }
++            self.chunking = Chunking(maxChars: maxChars, carry: carry)
++        } else {
++            self.chunking = chunking
++        }
++#else
+         self.chunking = chunking
++#endif
+         id2label = try Model.parseLabels(assets.labelsJSON)
+         session = assets.session
+     }

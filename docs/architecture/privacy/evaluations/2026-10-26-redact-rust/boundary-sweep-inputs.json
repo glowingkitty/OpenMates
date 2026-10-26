@@ -1,0 +1,290 @@
+[
+  {
+    "id": "q:boundary-name-en-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nThe customer is Amina\nOkafor needs an account reset and follow-up assistance.",
+    "expected": [
+      [
+        "private_value",
+        "Amina\nOkafor"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-en-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nThe customer is Amina\nOkafor needs an account reset and follow-up assistance.",
+    "expected": [
+      [
+        "private_value",
+        "Amina\nOkafor"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-en-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nThe customer is Amina\nOkafor needs an account reset and follow-up assistance.",
+    "expected": [
+      [
+        "private_value",
+        "Amina\nOkafor"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-en-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nThe customer is Amina\nOkafor needs an account reset and follow-up assistance.",
+    "expected": [
+      [
+        "private_value",
+        "Amina\nOkafor"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-fr-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nNotre cliente est Élodie\nMoreau demande de corriger son compte au plus vite.",
+    "expected": [
+      [
+        "private_value",
+        "Élodie\nMoreau"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-fr-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nNotre cliente est Élodie\nMoreau demande de corriger son compte au plus vite.",
+    "expected": [
+      [
+        "private_value",
+        "Élodie\nMoreau"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-fr-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nNotre cliente est Élodie\nMoreau demande de corriger son compte au plus vite.",
+    "expected": [
+      [
+        "private_value",
+        "Élodie\nMoreau"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-fr-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nNotre cliente est Élodie\nMoreau demande de corriger son compte au plus vite.",
+    "expected": [
+      [
+        "private_value",
+        "Élodie\nMoreau"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-de-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nUnser Kunde heißt Lukas\nWeber und benötigt Hilfe mit seinem Benutzerkonto.",
+    "expected": [
+      [
+        "private_value",
+        "Lukas\nWeber"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-de-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nUnser Kunde heißt Lukas\nWeber und benötigt Hilfe mit seinem Benutzerkonto.",
+    "expected": [
+      [
+        "private_value",
+        "Lukas\nWeber"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-de-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nUnser Kunde heißt Lukas\nWeber und benötigt Hilfe mit seinem Benutzerkonto.",
+    "expected": [
+      [
+        "private_value",
+        "Lukas\nWeber"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-de-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nUnser Kunde heißt Lukas\nWeber und benötigt Hilfe mit seinem Benutzerkonto.",
+    "expected": [
+      [
+        "private_value",
+        "Lukas\nWeber"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-rare-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nOur patient is Xochitl\nQuispe and needs an updated appointment confirmation.",
+    "expected": [
+      [
+        "private_value",
+        "Xochitl\nQuispe"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-rare-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nOur patient is Xochitl\nQuispe and needs an updated appointment confirmation.",
+    "expected": [
+      [
+        "private_value",
+        "Xochitl\nQuispe"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-rare-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nOur patient is Xochitl\nQuispe and needs an updated appointment confirmation.",
+    "expected": [
+      [
+        "private_value",
+        "Xochitl\nQuispe"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-name-rare-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nOur patient is Xochitl\nQuispe and needs an updated appointment confirmation.",
+    "expected": [
+      [
+        "private_value",
+        "Xochitl\nQuispe"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-uk-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nThe delivery address is 42 Maple Avenue\nBristol BS1 4QA and should be used for delivery.",
+    "expected": [
+      [
+        "private_value",
+        "42 Maple Avenue\nBristol BS1 4QA"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-uk-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nThe delivery address is 42 Maple Avenue\nBristol BS1 4QA and should be used for delivery.",
+    "expected": [
+      [
+        "private_value",
+        "42 Maple Avenue\nBristol BS1 4QA"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-uk-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nThe delivery address is 42 Maple Avenue\nBristol BS1 4QA and should be used for delivery.",
+    "expected": [
+      [
+        "private_value",
+        "42 Maple Avenue\nBristol BS1 4QA"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-uk-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nThe delivery address is 42 Maple Avenue\nBristol BS1 4QA and should be used for delivery.",
+    "expected": [
+      [
+        "private_value",
+        "42 Maple Avenue\nBristol BS1 4QA"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-de-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nUnsere Anschrift ist Lindenstraße 12\n90402 Nürnberg und ist nur intern zu verwenden.",
+    "expected": [
+      [
+        "private_value",
+        "Lindenstraße 12\n90402 Nürnberg"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-de-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nUnsere Anschrift ist Lindenstraße 12\n90402 Nürnberg und ist nur intern zu verwenden.",
+    "expected": [
+      [
+        "private_value",
+        "Lindenstraße 12\n90402 Nürnberg"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-de-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nUnsere Anschrift ist Lindenstraße 12\n90402 Nürnberg und ist nur intern zu verwenden.",
+    "expected": [
+      [
+        "private_value",
+        "Lindenstraße 12\n90402 Nürnberg"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-address-de-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nUnsere Anschrift ist Lindenstraße 12\n90402 Nürnberg und ist nur intern zu verwenden.",
+    "expected": [
+      [
+        "private_value",
+        "Lindenstraße 12\n90402 Nürnberg"
+      ]
+    ],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-negative-80",
+    "text": "This ordinary passage contains routine context about the support request and.\nThe request needs an ordinary response.\nPlease continue with the routine review.",
+    "expected": [],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-negative-100",
+    "text": "This ordinary passage contains routine context about the support request and its review This.\nThe request needs an ordinary response.\nPlease continue with the routine review.",
+    "expected": [],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-negative-115",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage.\nThe request needs an ordinary response.\nPlease continue with the routine review.",
+    "expected": [],
+    "synthetic_generated": true
+  },
+  {
+    "id": "q:boundary-negative-135",
+    "text": "This ordinary passage contains routine context about the support request and its review This ordinary passage contains routine context.\nThe request needs an ordinary response.\nPlease continue with the routine review.",
+    "expected": [],
+    "synthetic_generated": true
+  }
+]

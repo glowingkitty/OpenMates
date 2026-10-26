@@ -1,0 +1,30 @@
+"""Compare individual annotated-character coverage, without saving original text."""
+import json,sys,unicodedata
+from pathlib import Path
+sys.path.insert(0,str(Path('scripts').resolve()))
+import redact_rust_evaluation as b
+root=Path('/tmp/openmates-redact-rust-678f/results')
+fixtures=[*b.load_fixtures(),*b.context_fixtures()]
+rows=[dict(row,id='q:'+row['id']) for row in fixtures]
+def compare(base_name,new_name,expected):
+ base=json.loads((root/base_name).read_text());new=json.loads((root/new_name).read_text())
+ assert base['status']==new['status']=='complete'
+ a={r['id']:r for r in base['cases']};c={r['id']:r for r in new['cases']}
+ results=[]
+ for row in expected:
+  covers=[]
+  for data in (a,c):covers.append({p for span in data[row['id']]['spans'] for p in range(span['start'],span['end'])})
+  for index,(_label,value) in enumerate(row['expected']):
+   start=b.utf16_length(row['text'][:row['text'].index(value)]);all_chars=set();meaningful=set();cursor=start
+   for ch in value:
+    positions=set(range(cursor,cursor+b.utf16_length(ch)));all_chars.update(positions)
+    if unicodedata.category(ch)[0] in 'LNM':meaningful.update(positions)
+    cursor+=len(positions)
+   lost=(covers[0]-covers[1])&all_chars;gained=(covers[1]-covers[0])&all_chars
+   if lost or gained:results.append({'id':row['id'],'value_index':index,'lost_characters':len(lost),'lost_meaningful_characters':len(lost&meaningful),'gained_characters':len(gained),'gained_meaningful_characters':len(gained&meaningful)})
+ return {'baseline':base_name,'candidate':new_name,'annotated_values':sum(len(r['expected']) for r in expected),'cases_with_lost_meaningful_characters':len({r['id'] for r in results if r['lost_meaningful_characters']}),'lost_meaningful_characters':sum(r['lost_meaningful_characters'] for r in results),'differences':results}
+comparisons=[compare('rust-rebuilt150-carry1-8cpu.json',name,rows) for name in ['rust-rebuilt300-carry1-8cpu.json','rust-rebuilt600-carry1-8cpu.json','rust-rebuilt150-carry0-8cpu.json','rust-runtime231-150-carry1-8cpu.json']]
+boundaries=json.loads((root/'boundary-sweep-inputs.json').read_text())
+comparisons.append(compare('rust-boundary150-carry1-2cpu.json','rust-boundary150-carry0-2cpu.json',boundaries))
+(root/'coverage-comparison.json').write_text(json.dumps({'comparisons':comparisons},indent=2)+'\n')
+for r in comparisons:print(r['candidate'],r['annotated_values'],r['cases_with_lost_meaningful_characters'],r['lost_meaningful_characters'])

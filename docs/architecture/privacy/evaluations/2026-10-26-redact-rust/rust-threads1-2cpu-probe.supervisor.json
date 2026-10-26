@@ -1,0 +1,79 @@
+{
+  "status": "complete",
+  "inference_host": "standalone Rust binary; no Node or Python model execution",
+  "exit_code": 0,
+  "stopped_by_supervisor": null,
+  "wall_seconds": 10.750592769123614,
+  "sampled_peak_rss_bytes": 70713344,
+  "affinity_cpus": [
+    0,
+    1
+  ],
+  "niceness_increment": 10,
+  "dal_litert_threads": "1",
+  "timeout_seconds": 180,
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "binary_sha256": "509a1a2d772ab11fffc6912cf1554c14a8925c6d3b8cacaf69f07f234ec973d4",
+  "source_sha256": "032bf94a4c590e947fc12f8eac54a73556bca9b3f9236971c6eed33a67382d2f",
+  "supervisor_sha256": "3cd0f0758a2dc9586a147ead861e009b009c8fd9372c268c4b9072a1a0c0d2ae",
+  "input_sha256": "af027987e918b469ee0bc4003791f519966ad8cbc981d587b7c2d00e49bfd6e1",
+  "input_lengths": [
+    {
+      "id": "lat:address",
+      "characters_utf16": 86
+    },
+    {
+      "id": "lat:32",
+      "characters_utf16": 211
+    },
+    {
+      "id": "lat:256",
+      "characters_utf16": 1695
+    }
+  ],
+  "native_files": [
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    },
+    {
+      "file": "libRedactNode.so",
+      "bytes": 56377136,
+      "sha256": "513aa6212cdcffcd767ee2b066df155986563471518c1a1ca87ae249373031fe"
+    },
+    {
+      "file": "libdalcpushim.so",
+      "bytes": 67504,
+      "sha256": "b14e75056c68bc2380b00a60d4c97419d85fc578bf1c4861dc8a12d5fa80e5f7"
+    }
+  ],
+  "patched_decoder": {
+    "status": "verified",
+    "version": "1.1.1",
+    "version_number": 16781313,
+    "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+    "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+    "symbols": {
+      "BrotliDecoderVersion": {
+        "address": "0xe3e9b0a56c54",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      },
+      "BrotliDecoderDecompressStream": {
+        "address": "0xe3e9b0a556c0",
+        "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+        "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+      }
+    },
+    "mapped_brotli_libraries": [
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+      "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+    ],
+    "curl_version": "libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.1 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.7",
+    "network": "libseccomp TSYNC deny installed before SDK library load; no HTTP perform",
+    "sdk_model_or_license_created": false,
+    "curl_init_cleanup": true
+  },
+  "quality": null
+}

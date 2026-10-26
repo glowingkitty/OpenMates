@@ -1,0 +1,181 @@
+{
+  "sdk_commit": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "swift": "6.3.3",
+  "cpus": [
+    12,
+    13,
+    14,
+    15
+  ],
+  "nice": 10,
+  "max_disk_bytes": 5000000000,
+  "min_free_bytes": 32212254720,
+  "inference_executed": false,
+  "toolchain_url": "https://download.swift.org/swift-6.3.3-release/ubuntu2404-aarch64/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE-ubuntu24.04-aarch64.tar.gz",
+  "toolchain_archive_bytes": 1054239814,
+  "toolchain_unpacked_lower_bound": 3487580160,
+  "phase": "build-complete-scratch-cleaned",
+  "updated_utc": "2026-10-26T12:59:00Z",
+  "free_bytes": 36710834176,
+  "task_allocated_bytes": 3735027712,
+  "toolchain_sha256": "47126395429653fa768d370655876ec1b68f6a95c7884f5e4f179700141c9b7f",
+  "toolchain_signer_fingerprints": [
+    "52BB7E3DE28A71BE22EC05FFEF80A866B47A981F",
+    "52BB7E3DE28A71BE22EC05FFEF80A866B47A981F"
+  ],
+  "signing_keys_sha256": "67abcc2cff49a9dd4536b12bc4a7c2b82c434ddaa42b90516c9734f4dd5481af",
+  "archive": "sdk-source.tar.gz",
+  "archive_member_bytes": 14118076,
+  "archive_members": 1306,
+  "min_memory_available_bytes": 2147483648,
+  "memory_archive_admission_bytes": 4294967296,
+  "brotli_prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+  "memory_archive_bytes": 1054239814,
+  "memory_available_before": 15157108736,
+  "memory_available_after": 14371753984,
+  "memory_archive_sha256": "47126395429653fa768d370655876ec1b68f6a95c7884f5e4f179700141c9b7f",
+  "memory_archive_seals": 15,
+  "memory_archive_chunk_bytes": 65536,
+  "source_patched": true,
+  "source_archive_sha256": "6143aaeea8dfa8801df0bf5e8a111eddb430515f6f3350460df27bc1b55a7c2e",
+  "chunking_patch_sha256": "4e12a633f94070c1c0ee21644fa9f6661f9d361b41c96ca53f5b4b6c9e3968e0",
+  "source_path": "/tmp/openmates-redact-rust-678f/swift-experiment/source/desert-ant-core-86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "swift_path": "/tmp/openmates-redact-rust-678f/swift-experiment/toolchain/swift-6.3.3-RELEASE-ubuntu24.04-aarch64/usr/bin/swift",
+  "litert_sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c",
+  "build_requires_baseline_parity": true,
+  "build_command": [
+    "/tmp/openmates-redact-rust-678f/swift-experiment/toolchain/swift-6.3.3-RELEASE-ubuntu24.04-aarch64/usr/bin/swift",
+    "build",
+    "--scratch-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/build",
+    "--cache-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/swiftpm-cache",
+    "--config-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/swiftpm-config",
+    "--security-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/swiftpm-security",
+    "--jobs",
+    "4",
+    "-c",
+    "release",
+    "--product",
+    "RedactNode",
+    "--disable-default-traits",
+    "-Xswiftc",
+    "-static-stdlib",
+    "-Xswiftc",
+    "-DDAL_REDACT_BENCHMARK_CHUNKING",
+    "-Xlinker",
+    "-L/tmp/openmates-redact-rust-678f/swift-experiment/link-stubs",
+    "-Xlinker",
+    "-L/tmp/openmates-redact-rust-678f/swift-experiment/source/desert-ant-core-86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Vendor/litert/lib/linux-arm64",
+    "-Xlinker",
+    "-rpath",
+    "-Xlinker",
+    "$ORIGIN",
+    "-Xlinker",
+    "-z",
+    "-Xlinker",
+    "nodelete",
+    "-Xlinker",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/link-stubs/dal_curl_compat.o"
+  ],
+  "build_timeout_seconds": 1200,
+  "native_path": "/tmp/openmates-redact-rust-678f/swift-experiment/runtime231/native/libRedactNode.so",
+  "native_sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8",
+  "resolved_dependencies": [
+    {
+      "identity": "swift-numerics",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-numerics",
+      "state": {
+        "revision": "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version": "1.1.1"
+      }
+    }
+  ],
+  "source_integrity_audit": {
+    "unchanged_tracked_files": 903,
+    "changed_tracked_files": [
+      "Sources/Redact/Model.swift"
+    ],
+    "only_benchmark_chunking_patch": true
+  },
+  "previous_attempt_errors": [
+    "resource_admission: free=32272388096, task_bytes=4501270528, additional=0"
+  ],
+  "toolchain_archive_removed": true,
+  "memory_archive_closed": true,
+  "native_files": [
+    {
+      "file": "libLiteRt.so",
+      "bytes": 8980040,
+      "sha256": "f5dd262601c88f4ae5d1f8be868e1233d07a551baed3327c762ada384d83ded8"
+    },
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75079512,
+      "sha256": "6cd3b016a9b8d6a9070af3a14d22d97f7a27a69d563e5bf5861f229a643b90b8"
+    }
+  ],
+  "benchmark_environment": {
+    "DAL_REDACT_BENCH_MAX_CHARS": {
+      "minimum": 150,
+      "maximum": 600,
+      "default": 150
+    },
+    "DAL_REDACT_BENCH_CARRY": {
+      "minimum": 0,
+      "maximum": 1,
+      "default": 1
+    },
+    "compile_guard": "os(Linux) && DAL_REDACT_BENCHMARK_CHUNKING",
+    "missing_overrides_preserve_defaults": true
+  },
+  "retained_package_resolved": {
+    "file": "Package.resolved",
+    "sha256": "2f009b5914724b36dea840dddbe8d51d93c8e4cb5c8da148fb78b2bdee52e85d"
+  },
+  "cleanup": {
+    "removed": [
+      "toolchain",
+      "build"
+    ],
+    "checked_accessible_processes": 28,
+    "live_references": [],
+    "classified_inaccessible_session_daemons": [
+      {
+        "pid": 5013,
+        "process": "(sd-pam)",
+        "classification": "pre-existing session daemon, outside private build workflow",
+        "unreadable_fields": [
+          "cwd",
+          "exe",
+          "fd",
+          "maps"
+        ]
+      },
+      {
+        "pid": 919532,
+        "process": "gpg-agent",
+        "classification": "pre-existing session daemon, outside private build workflow",
+        "unreadable_fields": [
+          "cwd",
+          "exe",
+          "fd",
+          "maps"
+        ]
+      }
+    ],
+    "zombies_excluded": true,
+    "free_bytes_before": 33147682816,
+    "free_bytes_after": 36710834176,
+    "reclaimed_bytes": 3563151360,
+    "utc": "2026-10-26T13:07:55Z",
+    "native_outputs_preserved": true,
+    "source_archive_patch_signatures_receipts_logs_preserved": true
+  },
+  "base_build_receipt_sha256": "1ac6d52c6bda2312aa092f79f9e29ec5645f137f99ef36f68056258c4e7eb270",
+  "runtime_replacement_receipt_sha256": "635895629decd521cf072cc4c345666d4530f8442d2c87cafafbe691c2a20fbe",
+  "runtime_replacement": "LiteRT2.3.1; core/header build remained2.2; experimental compatibility, no production approval"
+}
