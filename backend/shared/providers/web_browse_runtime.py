@@ -21,6 +21,84 @@ READER_AGENT = "OpenMatesBrowser"
 USER_AGENT = "OpenMatesBrowser/1.0 (+https://openmates.org)"
 
 
+async def public_ipv4(hostname: str) -> list[str]:
+    """Resolve once; callers connect to these literal, validated addresses."""
+    rows = await asyncio.get_running_loop().getaddrinfo(
+        hostname, 443, family=socket.AF_INET, type=socket.SOCK_STREAM
+    )
+    addresses = list(dict.fromkeys(row[4][0] for row in rows))
+    if not addresses or any(not ipaddress.ip_address(ip).is_global for ip in addresses):
+        raise ValueError("Non-public destination")
+    return addresses
+
+
+async def connect_public_https(reader, writer):
+    """Local CONNECT-only transport pins DNS while preserving origin TLS/SNI.
+
+    Chromium and the robots reader both use this transport. It has no direct
+    fallback, resolves IPv4 only, and never logs destinations or tunnel bytes.
+    """
+    upstream_writer = None
+    pumps = []
+    established = False
+    try:
+        async with asyncio.timeout(45):
+            header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+            if len(header) > 8192:
+                raise ValueError("Oversized proxy request")
+            method, authority, version = (
+                header.split(b"\r\n", 1)[0].decode("ascii").split()
+            )
+            target = urlsplit("https://" + authority)
+            if (
+                method != "CONNECT"
+                or version not in ("HTTP/1.0", "HTTP/1.1")
+                or not target.hostname
+                or target.port != 443
+                or target.username is not None
+                or target.password is not None
+                or target.path
+                or target.query
+                or target.fragment
+            ):
+                raise ValueError("Unsupported proxy request")
+            addresses = await public_ipv4(target.hostname)
+            upstream_reader, upstream_writer = await asyncio.wait_for(
+                asyncio.open_connection(addresses[0], 443, family=socket.AF_INET), 5
+            )
+            writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            await writer.drain()
+            established = True
+
+            async def pump(source, destination):
+                while block := await source.read(65536):
+                    destination.write(block)
+                    await destination.drain()
+
+            pumps = [
+                asyncio.create_task(pump(reader, upstream_writer)),
+                asyncio.create_task(pump(upstream_reader, writer)),
+            ]
+            await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
+    except Exception:
+        if not established:
+            writer.write(
+                b"HTTP/1.1 502 Destination Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+    finally:
+        for task in pumps:
+            task.cancel()
+        if pumps:
+            await asyncio.gather(*pumps, return_exceptions=True)
+        for stream in (upstream_writer, writer):
+            if stream is not None:
+                stream.close()
+                try:
+                    await stream.wait_closed()
+                except Exception:
+                    pass
+
+
 def observation_url(value: str) -> str:
     """Credentials in callback URLs are live browser state, never observations."""
     parsed = urlsplit(value)
@@ -89,8 +167,7 @@ async def serve() -> None:
     config = json.loads(Path("/tmp/openmates-browse/config.json").read_text())
     token = config["token"]
     from protego import Protego
-    from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler, Request
-    from urllib.error import HTTPError
+    from http.client import HTTPSConnection
     import time
     import re
 
@@ -108,18 +185,13 @@ async def serve() -> None:
             or p.port not in (None, 443)
         ):
             raise ValueError("Only public HTTPS destinations are supported")
-        addresses = await asyncio.get_running_loop().getaddrinfo(
-            p.hostname, 443, type=socket.SOCK_STREAM
-        )
-        if not addresses or any(
-            not ipaddress.ip_address(a[4][0]).is_global for a in addresses
-        ):
-            raise ValueError("Non-public destination")
+        await public_ipv4(p.hostname)
         return p
 
-    class NoRedirect(HTTPRedirectHandler):
-        def redirect_request(self, *args, **kwargs):
-            return None
+    # Both clients use the same pinned transport, including policy redirects.
+    proxy = await asyncio.start_server(
+        connect_public_https, "127.0.0.1", 8877, limit=8192
+    )
 
     async def crawler_allowed(url):
         p = await public_target(url)
@@ -133,24 +205,27 @@ async def serve() -> None:
                     await public_target(robots_url)
 
                     def fetch():
-                        opener = build_opener(ProxyHandler({}), NoRedirect())
+                        target = urlsplit(robots_url)
+                        connection = HTTPSConnection("127.0.0.1", 8877, timeout=5)
+                        connection.set_tunnel(target.hostname, 443)
                         try:
-                            with opener.open(
-                                Request(robots_url, headers={"User-Agent": USER_AGENT}),
-                                timeout=5,
-                            ) as response:
-                                content = response.read(512001)
-                                if len(content) > 512000:
-                                    raise ValueError(
-                                        "Crawler policy exceeds size limit"
-                                    )
-                                return (
-                                    response.status,
-                                    content.decode("utf-8", errors="replace"),
-                                    None,
-                                )
-                        except HTTPError as exc:
-                            return exc.code, "", exc.headers.get("Location")
+                            path = target.path or "/"
+                            if target.query:
+                                path += "?" + target.query
+                            connection.request(
+                                "GET", path, headers={"User-Agent": USER_AGENT}
+                            )
+                            response = connection.getresponse()
+                            content = response.read(512001)
+                            if len(content) > 512000:
+                                raise ValueError("Crawler policy exceeds size limit")
+                            return (
+                                response.status,
+                                content.decode("utf-8", errors="replace"),
+                                response.getheader("Location"),
+                            )
+                        finally:
+                            connection.close()
 
                     status, content, location = await asyncio.to_thread(fetch)
                     if status in (301, 302, 303, 307, 308) and location:
@@ -174,10 +249,13 @@ async def serve() -> None:
     playwright = await async_playwright().start()
     browser = await playwright.chromium.launch(
         headless=True,
+        proxy={"server": "http://127.0.0.1:8877", "bypass": "<-loopback>"},
         args=[
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--disable-background-networking",
+            "--disable-quic",
+            "--proxy-bypass-list=<-loopback>",
             "--disable-features=WebRtcHideLocalIpsWithMdns",
             "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
         ],
@@ -452,7 +530,7 @@ async def serve() -> None:
         await writer.wait_closed()
 
     server = await asyncio.start_server(handle, "0.0.0.0", 8765, limit=40000)
-    async with server:
+    async with server, proxy:
         await server.serve_forever()
 
 

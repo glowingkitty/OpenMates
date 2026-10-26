@@ -16,6 +16,10 @@ from pydantic import ValidationError
 import pytest
 
 from backend.core.api.app.services.web_browse_service import BrowseService, BrowseStore
+from backend.shared.providers.e2b_browser import (
+    BrowserAdmissionRejected,
+    BrowserUnavailable,
+)
 from backend.shared.python_schemas.web_browse import (
     BrowseRequest,
     BrowseControl,
@@ -555,3 +559,57 @@ async def test_close_during_inference_settles_usage_after_draining_call(service)
     assert not any(
         isinstance(c, dict) and c["operation"] == "act" for c in service.driver.calls
     )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop,web-browse.session-and-run
+@pytest.mark.asyncio
+@pytest.mark.parametrize("known_rejection", [True, False])
+async def test_creation_rejection_releases_hold_but_uncertain_creation_stays_pending(
+    service, known_rejection
+):
+    exception = (
+        BrowserAdmissionRejected("Rejected")
+        if known_rejection
+        else BrowserUnavailable("Unknown response")
+    )
+    service.driver.create = AsyncMock(side_effect=exception)
+    result = await run(service)
+    assert result.status == "failed"
+    record = service.store.records[result.session_id]
+    assert bool(record.get("accounting_pending")) is not known_rejection
+    assert bool(record.get("reservation")) is not known_rejection
+    service.app.charge_user_credits.assert_not_awaited()
+    service.driver.create.assert_awaited_once()
+    if known_rejection:
+        # An opaque ID with no original browser cannot silently allocate a replacement.
+        with pytest.raises(HTTPException) as exc:
+            await run(
+                service,
+                BrowseRequest(task="Continue", session_id=result.session_id),
+                message_id="next",
+            )
+        assert exc.value.status_code == 410
+        service.driver.create.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.truthful-completion
+@pytest.mark.asyncio
+async def test_verified_empty_search_stays_no_results_when_schema_demands_records(
+    service,
+):
+    class EmptyModels(Models):
+        no_results = True
+
+        async def generate(self, context):
+            return {"data": []}
+
+    service.models_factory = EmptyModels
+    service.driver.observation["text"] = "No matching records."
+    result = await run(
+        service,
+        arguments(
+            output_schema={"type": "array", "minItems": 1, "items": {"type": "object"}}
+        ),
+    )
+    assert result.status == "no_results" and result.data is None
+    assert result.observations["text"] == "No matching records."

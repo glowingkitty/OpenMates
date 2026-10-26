@@ -13,7 +13,6 @@ from typing import Any, Awaitable, Callable
 import httpx
 
 PRIVATE_NETWORKS = [
-    "0.0.0.0/8",
     "10.0.0.0/8",
     "100.64.0.0/10",
     "127.0.0.0/8",
@@ -27,7 +26,9 @@ PRIVATE_NETWORKS = [
     "198.51.100.0/24",
     "203.0.113.0/24",
     "240.0.0.0/4",
-    "::/0",
+    "::1/128",
+    "fc00::/7",
+    "fe80::/10",
 ]
 RUNTIME_DIR = "/tmp/openmates-browse"
 RUNTIME_PYTHON = "/opt/openmates-browser/venv/bin/python"
@@ -35,6 +36,10 @@ RUNTIME_PYTHON = "/opt/openmates-browser/venv/bin/python"
 
 class BrowserUnavailable(RuntimeError):
     """A safe failure without upstream payloads or browser credentials."""
+
+
+class BrowserAdmissionRejected(BrowserUnavailable):
+    """The provider explicitly rejected creation before allocating a machine."""
 
 
 class E2BBrowser:
@@ -72,24 +77,33 @@ class E2BBrowser:
         on_created: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> dict[str, Any]:
         from e2b import Sandbox
+        from e2b.exceptions import SandboxException
 
         template = self.validate_creation()
         token = secrets.token_urlsafe(32)
         requested_at = time.time()
-        sandbox = await asyncio.to_thread(
-            Sandbox.create,
-            template,
-            api_key=self.api_key,
-            request_timeout=20,
-            timeout=120,
-            lifecycle={"on_timeout": "pause", "auto_resume": False},
-            network={"deny_out": PRIVATE_NETWORKS, "allow_public_traffic": False},
-            metadata={
-                "openmates_browser_session": session_id,
-                "openmates_owner_hash": owner,
-                "openmates_browse_scope": self.scope,
-            },
-        )
+        try:
+            sandbox = await asyncio.to_thread(
+                Sandbox.create,
+                template,
+                api_key=self.api_key,
+                request_timeout=20,
+                retries=0,
+                timeout=120,
+                lifecycle={"on_timeout": "pause", "auto_resume": False},
+                network={"deny_out": PRIVATE_NETWORKS, "allow_public_traffic": False},
+                metadata={
+                    "openmates_browser_session": session_id,
+                    "openmates_owner_hash": owner,
+                    "openmates_browse_scope": self.scope,
+                },
+            )
+        except SandboxException as exc:
+            if exc.status_code in (400, 401, 402, 403, 404, 422, 429):
+                raise BrowserAdmissionRejected(
+                    "Browser hosting did not admit this request."
+                ) from None
+            raise
         try:
             info = await asyncio.to_thread(sandbox.get_info)
             cpu = getattr(info, "cpu_count", None)
@@ -143,7 +157,7 @@ class E2BBrowser:
                     await asyncio.sleep(0.25)
             raise BrowserUnavailable("Browser did not become ready.")
         except BaseException:
-            await asyncio.to_thread(sandbox.kill)
+            await asyncio.to_thread(sandbox.kill, retries=0)
             if "provider" in locals():
                 provider["provider_deadline"] = min(
                     provider["provider_deadline"], time.time()
@@ -171,6 +185,7 @@ class E2BBrowser:
                 provider["sandbox_id"],
                 seconds,
                 api_key=self.api_key,
+                retries=0,
             )
             provider["provider_deadline"] = time.time() + seconds
 
@@ -178,7 +193,11 @@ class E2BBrowser:
         from e2b import Sandbox
 
         sandbox = await asyncio.to_thread(
-            Sandbox.connect, provider["sandbox_id"], api_key=self.api_key, timeout=120
+            Sandbox.connect,
+            provider["sandbox_id"],
+            api_key=self.api_key,
+            timeout=120,
+            retries=0,
         )
         provider["traffic_access_token"] = sandbox.traffic_access_token
         provider["running_since"] = time.time()
@@ -188,14 +207,14 @@ class E2BBrowser:
         from e2b import Sandbox
 
         await asyncio.to_thread(
-            Sandbox.pause, provider["sandbox_id"], api_key=self.api_key
+            Sandbox.pause, provider["sandbox_id"], api_key=self.api_key, retries=0
         )
 
     async def kill(self, provider: dict[str, Any]) -> None:
         from e2b import Sandbox
 
         await asyncio.to_thread(
-            Sandbox.kill, provider["sandbox_id"], api_key=self.api_key
+            Sandbox.kill, provider["sandbox_id"], api_key=self.api_key, retries=0
         )
 
     async def rpc(

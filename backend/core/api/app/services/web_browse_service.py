@@ -16,7 +16,11 @@ from fastapi import HTTPException
 from jsonschema import Draft202012Validator
 
 from backend.shared.providers.browser_models import BrowserModels, BrowserModelError
-from backend.shared.providers.e2b_browser import E2BBrowser, BrowserUnavailable
+from backend.shared.providers.e2b_browser import (
+    E2BBrowser,
+    BrowserUnavailable,
+    BrowserAdmissionRejected,
+)
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 from backend.shared.python_schemas.web_browse import (
     BrowseRequest,
@@ -542,6 +546,13 @@ class BrowseService:
                 raise HTTPException(
                     409, "The previous browser operation needs usage reconciliation."
                 )
+            if request.session_id and (
+                not record.get("provider") or record["provider"].get("deleted")
+            ):
+                raise HTTPException(
+                    410,
+                    "This browser is unavailable; start a new Browse request without its session_id.",
+                )
             # Hold the complete user-authorized cap; credits are debited only on settlement.
             await self.claim_slot(record)
             if not record.get("reservation"):
@@ -650,11 +661,16 @@ class BrowseService:
                             record.pop("startup_intent", None)
                             await self.store.save(record)
 
-                        await driver.create(
-                            session_id=session_id,
-                            owner=owner_hash(user_id),
-                            on_created=created,
-                        )
+                        try:
+                            await driver.create(
+                                session_id=session_id,
+                                owner=owner_hash(user_id),
+                                on_created=created,
+                            )
+                        except BrowserAdmissionRejected:
+                            record.pop("startup_intent", None)
+                            await self.store.save(record)
+                            raise
                         await driver.rpc(
                             record["provider"],
                             {"operation": "navigate", "url": request.start_url},
@@ -776,9 +792,6 @@ class BrowseService:
                                     if isinstance(extracted, dict)
                                     else None
                                 )
-                                Draft202012Validator(request.output_schema).validate(
-                                    data
-                                )
                             else:
                                 data = {
                                     k: observation.get(k) for k in ("tables", "links")
@@ -795,6 +808,14 @@ class BrowseService:
                                 if getattr(models, "no_results", False)
                                 else ("completed", None)
                             )
+                            if request.output_schema:
+                                validator = Draft202012Validator(request.output_schema)
+                                if status == "no_results" and not validator.is_valid(
+                                    data
+                                ):
+                                    data = None  # An empty search cannot satisfy a schema demanding records.
+                                elif status == "completed":
+                                    validator.validate(data)
                         else:
                             status, reason = (
                                 "needs_user",
@@ -862,7 +883,7 @@ class BrowseService:
                         )
                     data = checked["data"]
                     checked_observations = checked["observations"]
-                    if request.output_schema:
+                    if request.output_schema and data is not None:
                         Draft202012Validator(request.output_schema).validate(data)
         except BrowseControlChanged:
             status, reason = (

@@ -44,7 +44,7 @@ def main() -> None:
         .set_envs({"PLAYWRIGHT_BROWSERS_PATH": "/opt/openmates-browser/browsers"})
         .run_cmd(
             "python3 -m venv /opt/openmates-browser/venv && "
-            "/opt/openmates-browser/venv/bin/pip install --no-cache-dir playwright==1.56.0 protego==0.5.0"
+            "/opt/openmates-browser/venv/bin/pip install --no-cache-dir playwright==1.64.1 protego==0.5.0"
         )
         .run_cmd(
             "/opt/openmates-browser/venv/bin/playwright install --with-deps chromium && "

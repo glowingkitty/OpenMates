@@ -448,6 +448,7 @@ class BrowserModels:
                 continue
             server = next(s for s in config["servers"] if s["id"] == host)
             model_ref = provider + "/" + model
+            protocol_defaults = {}
             tariff = snapshot_model_tariff(config)
             # Google candidates exclude thoughts; reconcile its inclusive total too.
             if provider == "google":
@@ -523,9 +524,12 @@ class BrowserModels:
                 content = body.get("choices", [{}])[0].get("message", {}).get("content")
             else:
                 from backend.apps.ai.llm_providers.google_client import (
+                    _get_google_ai_studio_api_key,
                     invoke_google_ai_studio_chat_completions,
                 )
 
+                if not await _get_google_ai_studio_api_key(self.secrets):
+                    continue
                 call_id = await self.admit(model_ref, host, bound)
                 started = time.monotonic()
                 try:
@@ -541,6 +545,8 @@ class BrowserModels:
                         max_tokens=2048,
                         stream=False,
                         thinking_level="LOW",
+                        request_attempts=1,
+                        request_timeout_seconds=20,
                     )
                 except BaseException:
                     await self.account(
@@ -551,7 +557,38 @@ class BrowserModels:
                         elapsed=time.monotonic() - started,
                     )
                     raise
-                usage = response.usage or {}
+                native_usage = response.usage
+                usage = (
+                    native_usage.model_dump()
+                    if callable(getattr(native_usage, "model_dump", None))
+                    else dict(native_usage)
+                    if isinstance(native_usage, dict)
+                    else dict(vars(native_usage))
+                    if native_usage is not None
+                    else {}
+                )
+                # GenerateContent UsageMetadata.cached_content_token_count is a
+                # non-optional proto3 int32: successful reports omit its zero.
+                # https://github.com/googleapis/googleapis/blob/master/google/ai/generativelanguage/v1beta/generative_service.proto
+                # Do not extend this transport-specific default to missing usage,
+                # failed calls, other providers, or incomplete token counters.
+                if (
+                    response.success
+                    and usage.get("cache_read_input_tokens") is None
+                    and all(
+                        type(usage.get(k)) is int and usage[k] >= 0
+                        for k in (
+                            "prompt_token_count",
+                            "candidates_token_count",
+                            "total_token_count",
+                        )
+                    )
+                ):
+                    usage["cache_read_input_tokens"] = 0
+                    protocol_defaults = {
+                        "native_cache_read_input_tokens": None,
+                        "cache_read_evidence": "google_generate_content_proto3_scalar_default",
+                    }
                 content = response.direct_message_content
             try:
                 usage = normalize_provider_usage(
@@ -561,6 +598,7 @@ class BrowserModels:
                     inference_host=host,
                     tariff_snapshot=tariff,
                 ).to_bucket()
+                usage.update(protocol_defaults)
             except (ValueError, TypeError):
                 # Preserve an unresolved attempt rather than fabricate a zero bill.
                 usage = {"tariff_snapshot": tariff}
@@ -572,7 +610,9 @@ class BrowserModels:
                 elapsed=time.monotonic() - started,
             )
             try:
-                return json.loads(content or "")
+                parsed = json.loads(content or "")
+                json.dumps(parsed, allow_nan=False)
+                return parsed
             except (ValueError, TypeError):
                 if host != "together":
                     raise BrowserModelError(

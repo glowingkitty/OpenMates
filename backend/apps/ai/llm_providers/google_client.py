@@ -927,11 +927,14 @@ async def invoke_google_ai_studio_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     thinking_level: Optional[str] = None,
+    request_attempts: Optional[int] = None,
+    request_timeout_seconds: Optional[int] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata]]]:
     """
     Google AI Studio (Gemini API) client using `google-genai` API-key auth.
 
     Note: This is separate from `invoke_google_chat_completions`, which uses Vertex AI service-account auth.
+    Optional per-request transport bounds leave shared clients and ordinary chat defaults unchanged.
     """
     api_key = await _get_google_ai_studio_api_key(secrets_manager)
     if not api_key:
@@ -992,6 +995,12 @@ async def invoke_google_ai_studio_chat_completions(
         output_limit = (
             min(max_tokens, 65_536) if max_tokens is not None else 65_536
         ) if normalized_model_id == "gemini-4-argon" else max_tokens
+        transport_options = {}
+        if request_attempts is not None or request_timeout_seconds is not None:
+            transport_options["http_options"] = types.HttpOptions(
+                timeout=request_timeout_seconds * 1000 if request_timeout_seconds is not None else None,
+                retry_options=types.HttpRetryOptions(attempts=request_attempts) if request_attempts is not None else None,
+            )
         generation_config = types.GenerateContentConfig(
             thinking_config=_google_thinking_config(normalized_model_id, thinking_level),
             **sampling_config,
@@ -999,6 +1008,7 @@ async def invoke_google_ai_studio_chat_completions(
             system_instruction=system_prompt,
             tools=google_tools,
             tool_config=tool_config_dict if tool_config_dict else None,
+            **transport_options,
         )
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"

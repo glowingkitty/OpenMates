@@ -35,6 +35,7 @@ def models(monkeypatch):
 
 def google_fallback(monkeypatch):
     module = ModuleType("backend.apps.ai.llm_providers.google_client")
+    module._get_google_ai_studio_api_key = AsyncMock(return_value="private-test-key")
     module.invoke_google_ai_studio_chat_completions = AsyncMock(
         return_value=SimpleNamespace(
             success=True,
@@ -43,7 +44,7 @@ def google_fallback(monkeypatch):
                 candidates_token_count=10,
                 thoughts_token_count=2,
                 total_token_count=112,
-                cache_read_input_tokens=0,
+                cache_read_input_tokens=None,
             ),
             direct_message_content='{"text":"Paris"}',
         )
@@ -150,9 +151,63 @@ async def test_unverified_retention_or_ineligible_context_never_reaches_together
     assert await models.generate(context) == {"text": "Paris"}
     assert fallback.await_args.kwargs["model_id"] == "gemini-3.8-flash"
     assert fallback.await_args.kwargs["thinking_level"] == "LOW"
+    assert fallback.await_args.kwargs["request_attempts"] == 1
+    assert fallback.await_args.kwargs["request_timeout_seconds"] == 20
     assert models.attempts[0]["host"] == "google_ai_studio"
     assert models.attempts[0]["usage"]["output_tokens"] == 12
     assert models.attempts[0]["usage"]["output_reasoning_tokens"] == 2
+    assert models.attempts[0]["usage"]["cache_read_input_tokens"] == 0
+    assert models.attempts[0]["usage"]["native_cache_read_input_tokens"] is None
+    assert (
+        models.attempts[0]["usage"]["cache_read_evidence"]
+        == "google_generate_content_proto3_scalar_default"
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.text-helper
+@pytest.mark.asyncio
+@pytest.mark.parametrize("incomplete", ["missing_total", "failed_response"])
+async def test_google_protocol_default_never_fabricates_usage_for_incomplete_or_failed_calls(
+    models, monkeypatch, incomplete
+):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    response = fallback.return_value
+    if incomplete == "missing_total":
+        response.usage.total_token_count = None
+    else:
+        response.success = False
+    with pytest.raises(BrowserModelError, match="accounting reconciliation"):
+        await models.generate({"purpose": "type", "goal": "Search for Paris"})
+    assert models.attempts[0]["usage"]["cache_read_input_tokens"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_nonfinite_generated_numbers_fail_after_accounting_without_retry(
+    models, monkeypatch
+):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    fallback.return_value.direct_message_content = '{"data":{"value":NaN}}'
+    with pytest.raises(BrowserModelError, match="invalid JSON"):
+        await models.generate({"purpose": "extract", "goal": "Read an observed number"})
+    fallback.assert_awaited_once()
+    assert models.attempts[0]["complete"] is True and models.cost > 0
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
+@pytest.mark.asyncio
+async def test_missing_google_key_stops_before_model_admission(models, monkeypatch):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    module = sys.modules["backend.apps.ai.llm_providers.google_client"]
+    module._get_google_ai_studio_api_key.return_value = None
+    with pytest.raises(BrowserModelError, match="unavailable"):
+        await models.generate({"purpose": "type", "goal": "Search for Paris"})
+    models.before_attempt.assert_not_awaited()
+    fallback.assert_not_awaited()
+    assert models.attempts == []
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.text-helper,web-browse.cost-accounting
