@@ -147,18 +147,83 @@ Native HTTPS bodies were not intercepted: their metadata-only schema is supporte
 by the pinned licensing implementation and the separate web audit. The native
 flush API waits for requests without exposing HTTP response success.
 
+## CVE-2026-111497: evaluator remediation
+
+The historical benchmark's on-load licensing phase used the host's libcurl with
+system `libbrotli1=1.1.0-2build2`, before content classification was network-sealed.
+That decoder is in the affected upstream range. Patched Node 24.22.1 does not
+fix this separate native dependency: the SDK's statically bundled Swift
+FoundationNetworking uses its curlcompat shim to open system `libcurl.so.4` with
+`RTLD_DEEPBIND`. Foundation enables automatic response decompression, including
+Brotli when libcurl supports it. No malicious compressed input or exploitation
+was tested or observed. Original benchmark JSON, manifest and measurement hashes
+remain unchanged; the following loader verification is separate evidence.
+
+The evaluator now requires a task-private, ABI-compatible Brotli **1.1.1** build
+before any SDK model/HTTP load. Host packages, services, browser configuration
+and normal SDK licensing/reporting were not changed. The helper compiles only
+the upstream common/decoder shared libraries with existing `cc`, SONAME 1,
+reduced priority and at most two CPUs. CMake was unavailable; no tools or packages
+were installed. The entire private source/build prefix occupies about 3.2 MiB.
+
+- Official tag `v1.1.1`, commit `db0631dfea829194206d269bc7b25d0908cdb97d`.
+- Source archive SHA-256: `38f9c17ee36c2e930ce00975b50fcd246a8e5594c1bcf43cd56b14118786b82a`.
+- Decoder source SHA-256: `79db5a1879540eb7c915ce948e8fb94adc1ff49be87dca01529b9283c6ba343e`.
+- Built decoder SHA-256: `2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f`.
+- Built common-library SHA-256: `74907dcc520f4df0de4ffa271070a7d91e553f7ed0f2ae94608d4f12d650037c`.
+
+The pinned decoder returns the permanent format-block-switch error when the
+block-type count is invalid, and propagates status from literal, command and
+distance block switches. Both source identity and this fixed logic are checked.
+The supervisor verifies source/library hashes and sets `LD_LIBRARY_PATH` only
+for its child processes, replacing inherited search paths. It rejects loader
+interposition and missing/unverified prefixes. The direct Node evaluator also
+checks these identities before native model loading, so invoking it directly
+does not silently fall back to the host decoder.
+
+Loader-only probes load the actual SDK C shim, obtain its already-loaded libcurl
+handle, and resolve both `BrotliDecoderVersion` and
+`BrotliDecoderDecompressStream`. Python `dladdr` and Node process-map checks
+place the actual symbols in the verified private decoder. Its runtime version
+is **16781313 / 1.1.1**, and libcurl reports `brotli/1.1.1`. Only the private
+common/decoder libraries were mapped. Real seccomp TSYNC network denial was
+installed before probing; the only curl operations were initialization and
+cleanup. No HTTP transfer, model, license client or inference was started.
+
+[Selected final loader proof](evaluations/2026-10-26-redact/security-brotli-2026-10-26/native-loader-preflight-final.json),
+its supervisor receipt and the separate
+[security manifest](evaluations/2026-10-26-redact/security-brotli-2026-10-26/manifest.json)
+retain compiler commands, library/source hashes and resolved symbol addresses.
+Nine Node and eight Python tooling tests pass, including missing-prefix,
+unpatched-receipt, library-tampering, loader-path and interposition rejection.
+No model benchmark was repeated after this remediation; historical performance
+numbers must not be represented as measurements of the patched setup.
+
+Sources: [Google fixed release](https://github.com/google/brotli/releases/tag/v1.1.1),
+[SDK native shim](https://github.com/Desert-Ant-Labs/desert-ant-core/blob/86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Tools/curlcompat/dal_curl_compat.c),
+[Swift 6.3.3 decompression configuration](https://github.com/swiftlang/swift-corelibs-foundation/blob/swift-6.3.3-RELEASE/Sources/FoundationNetworking/URLSession/libcurl/EasyHandle.swift#L337),
+[libcurl encoding semantics](https://curl.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html).
+
 ## Reproduction after the web gate
 
 Run only after parent confirmation. Use a task-private cache outside the repo;
 profiles run sequentially. The parent must set
 `OPENMATES_REDACT_EVALUATION_GO=web-trial-passed` explicitly.
 Use a fresh result filename for each attempt; previous evidence is never replaced.
+Build the private patched decoder explicitly first. It must remain present for
+the mandatory per-process source/hash/version/address preflight:
+
+```sh
+python3 scripts/redact_brotli_guard.py --build --prefix /tmp/openmates-redact-678f-brotli-1.1.1
+```
 
 ```sh
 python3 scripts/redact_linux_evaluation.py --run --download --cores 1 --repeats 3 --timeout-seconds 600 \
+  --brotli-prefix /tmp/openmates-redact-678f-brotli-1.1.1 \
   --directory /tmp/openmates-redact-678f-model \
   --output /tmp/redact-new-1core.json
 python3 scripts/redact_linux_evaluation.py --run --cores 2 --repeats 3 --timeout-seconds 600 \
+  --brotli-prefix /tmp/openmates-redact-678f-brotli-1.1.1 \
   --directory /tmp/openmates-redact-678f-model \
   --output /tmp/redact-new-2core.json
 ```

@@ -216,7 +216,9 @@ test.describe('Local PII composer integration', () => {
       }).observe(document, { childList: true, subtree: true, characterData: true });
     }, FALLBACK_NOTICE);
     let failModel = true;
-    await context.route(MODEL_URL, route => failModel ? route.abort('failed') : route.continue());
+    await context.route(MODEL_URL, route => failModel
+      ? route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body>Missing model fixture</body></html>' })
+      : route.continue());
     const editor = await openComposer(page);
     await fillDraft(editor, `${CUSTOMER_DRAFT} Reply to keep.reference@example.net or protected.reference@example.net.`);
     const notice = page.getByTestId('notification').filter({ hasText: FALLBACK_NOTICE });

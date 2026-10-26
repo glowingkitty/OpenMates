@@ -12,6 +12,10 @@ import { performance } from 'node:perf_hooks';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let currentStage = 'validate-assets';
 export const SDK_VERSION = '4.1.0';
+export const PATCHED_BROTLI = Object.freeze({ version: '1.1.1', versionNumber: 0x1001001,
+  commit: 'db0631dfea829194206d269bc7b25d0908cdb97d',
+  archive: '38f9c17ee36c2e930ce00975b50fcd246a8e5594c1bcf43cd56b14118786b82a',
+  decoderSource: '79db5a1879540eb7c915ce948e8fb94adc1ff49be87dca01529b9283c6ba343e' });
 export const MODEL = Object.freeze({
   repository: 'desert-ant-labs/redact', tag: 'v0.4.0',
   revision: '3ed5033aeb544f454ebde77dc76fd7b7e76cc572',
@@ -33,6 +37,54 @@ export function evidenceJSON(value) {
   }, 2) + '\n';
 }
 const sha256 = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+export function verifyNativeBrotli(nativeRoot, requireNative, env = process.env) {
+  if (!env.OPENMATES_REDACT_BROTLI_PREFIX || env.LD_PRELOAD || env.LD_AUDIT) throw new Error('Verified private Brotli prefix required before native SDK load');
+  const prefix = fs.realpathSync(env.OPENMATES_REDACT_BROTLI_PREFIX);
+  if (env.LD_LIBRARY_PATH !== path.join(prefix, 'lib')) throw new Error('Private Brotli loader path must be set before process startup');
+  const receipt = JSON.parse(fs.readFileSync(path.join(prefix, 'security-build.json'), 'utf8'));
+  if (receipt.schema !== 1 || receipt.version !== PATCHED_BROTLI.version || receipt.commit !== PATCHED_BROTLI.commit ||
+      receipt.archive_sha256 !== PATCHED_BROTLI.archive || receipt.decoder_source_sha256 !== PATCHED_BROTLI.decoderSource ||
+      receipt.fixed_block_switch_error_propagation !== true ||
+      sha256(path.join(prefix, `brotli-${PATCHED_BROTLI.commit}/c/dec/decode.c`)) !== PATCHED_BROTLI.decoderSource) throw new Error('Patched decoder source identity required');
+  const expected = {};
+  for (const name of ['libbrotlicommon.so.1', 'libbrotlidec.so.1']) {
+    const file = fs.realpathSync(path.join(prefix, 'lib', name));
+    if (!file.startsWith(path.join(prefix, 'lib') + path.sep) || path.relative(prefix, file) !== receipt.libraries[name].file ||
+        sha256(file) !== receipt.libraries[name].sha256) throw new Error('Private Brotli library hash/path mismatch');
+    expected[name] = file;
+  }
+  const koffi = requireNative('koffi');
+  koffi.load(path.join(nativeRoot, 'libLiteRt.so'));
+  const core = koffi.load(path.join(nativeRoot, 'libRedactNode.so'));
+  if (core.func('int dal_curl_available()')() !== 1) throw new Error('SDK native curl shim unavailable');
+  const libc = koffi.load('libc.so.6');
+  const handle = libc.func('void *dlopen(const char *, int)')('libcurl.so.4', 2 | 4); // NOW | NOLOAD
+  if (!handle) throw new Error('SDK curl handle unavailable');
+  const dlsym = libc.func('uintptr_t dlsym(void *, const char *)');
+  const curl = koffi.load('libcurl.so.4');
+  const version = curl.func('uint32_t BrotliDecoderVersion()')();
+  if (version !== PATCHED_BROTLI.versionNumber) throw new Error('SDK libcurl selected an unapproved Brotli decoder');
+  const mappings = fs.readFileSync('/proc/self/maps', 'utf8').trim().split('\n');
+  const symbols = {};
+  for (const name of ['BrotliDecoderVersion', 'BrotliDecoderDecompressStream']) {
+    const address = BigInt(dlsym(handle, name));
+    const mapping = mappings.find(line => {
+      const [start, end] = line.split(' ')[0].split('-').map(hex => BigInt(`0x${hex}`));
+      return address >= start && address < end;
+    });
+    const library = mapping ? fs.realpathSync(mapping.trim().split(/\s+/).at(-1)) : undefined;
+    if (library !== expected['libbrotlidec.so.1']) throw new Error('Actual decoder symbol mapped outside verified prefix');
+    symbols[name] = { address: `0x${address.toString(16)}`, library, sha256: sha256(library) };
+  }
+  const mappedBrotli = [...new Set(mappings.filter(line => line.includes('/libbrotli')).map(line => fs.realpathSync(line.trim().split(/\s+/).at(-1))))];
+  if (mappedBrotli.some(file => !Object.values(expected).includes(file))) throw new Error('Unapproved system Brotli mapped in evaluator');
+  const easy = curl.func('void *curl_easy_init()')();
+  if (!easy) throw new Error('Offline libcurl initialization failed');
+  curl.func('void curl_easy_cleanup(void *)')(easy);
+  return { status: 'verified', version: PATCHED_BROTLI.version, version_number: version, commit: PATCHED_BROTLI.commit,
+    prefix, symbols, mapped_brotli_libraries: mappedBrotli, curl_init_cleanup: true,
+    sdk_model_or_license_created: false, http_perform_called: false };
+}
 const filesUnder = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
   entry.isDirectory() ? filesUnder(path.join(dir, entry.name)) : entry.isFile() ? [path.join(dir, entry.name)] : []);
 export function validatedSpans(text, items) {
@@ -164,8 +216,9 @@ function sealNetwork(requireNative) {
 async function main() {
   const [mode, directory, output, repeatsRaw = '7', phase = 'all', unitsRaw = '32,256,1024,4096'] = process.argv.slice(2);
   if (mode === '--rescore') return rescore(directory, output);
-  if (!['--inspect', '--run'].includes(mode) || !directory || !output) throw new Error('Usage: --inspect|--run MODEL_DIRECTORY OUTPUT [REPEATS]');
+  if (!['--inspect', '--run', '--native-preflight'].includes(mode) || !directory || !output) throw new Error('Usage: --inspect|--run MODEL_DIRECTORY OUTPUT [REPEATS]');
   if (fs.existsSync(output)) throw new Error('Choose a fresh evidence output path');
+  if (mode === '--run' && process.env.OPENMATES_REDACT_EVALUATION_GO !== 'web-trial-passed') throw new Error('Benchmark gated on parent confirmation of successful web trial');
   const uiRequire = createRequire(path.join(ROOT, 'frontend/packages/ui/package.json'));
   const sdkRoot = path.dirname(uiRequire.resolve('@desert-ant-labs/redact'));
   const requireNative = createRequire(path.join(sdkRoot, 'node.js'));
@@ -177,6 +230,18 @@ async function main() {
   const koffiPackage = JSON.parse(fs.readFileSync(path.join(koffiRoot, 'package.json'), 'utf8'));
   if (corePackage.version !== '4.1.0' || koffiPackage.version !== '2.16.3') throw new Error('Native dependency version mismatch');
   const nativeRoot = path.join(sdkRoot, 'native', `${process.platform}-${process.arch}`);
+  let decoderPreflight;
+  if (mode === '--run' || mode === '--native-preflight') {
+    currentStage = 'patched-native-decoder-preflight';
+    const offline = mode === '--native-preflight' ? sealNetwork(requireNative) : undefined;
+    decoderPreflight = verifyNativeBrotli(nativeRoot, requireNative);
+    if (mode === '--native-preflight') {
+      fs.mkdirSync(path.dirname(output), { recursive: true });
+      fs.writeFileSync(output, JSON.stringify({ ...decoderPreflight, offline: { ...offline,
+        required_telemetry: 'not started: loader-only preflight creates no model or SDK license client' } }, null, 2) + '\n');
+      return;
+    }
+  }
   const nativeFiles = filesUnder(nativeRoot).map(file => ({ file: path.basename(file), bytes: fs.statSync(file).size, sha256: sha256(file) }));
   const modelFiles = Object.entries(MODEL.files).map(([name, expected]) => {
     const file = path.join(directory, name), bytes = fs.readFileSync(file);
@@ -185,6 +250,7 @@ async function main() {
     return { file: name, bytes: bytes.length, sha256: sha256(file) };
   });
   const base = { status: mode === '--inspect' ? 'verified-assets-only-no-model-load' : 'running',
+    native_decoder_preflight: decoderPreflight,
     model: MODEL, sdk: { name: sdkPackage.name, version: sdkPackage.version,
       core_version: corePackage.version, koffi_version: koffiPackage.version },
     environment: { platform: process.platform, architecture: process.arch, node: process.version, os: os.release(),

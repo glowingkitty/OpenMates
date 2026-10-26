@@ -4,6 +4,7 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises';
 import { build } from 'esbuild';
+import { assertWebNodeRuntimeSecurity } from '../src/lib/server/webNodeRuntimeSecurity.mjs';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const uiRequire = createRequire(resolve(appRoot, '../../packages/ui/package.json'));
@@ -11,6 +12,7 @@ export const piiRuntimeOutput = resolve(appRoot, 'static/pii-runtime/redact-4.1.
 let preparing;
 
 export async function preparePIIRuntime() {
+  assertWebNodeRuntimeSecurity();
   if (preparing) return preparing;
   preparing = (async () => {
     const sdkRoot = dirname(uiRequire.resolve('@desert-ant-labs/redact'));
@@ -47,6 +49,7 @@ export function piiRuntimePlugin() {
     name: 'openmates-dev-pii-runtime',
     configResolved(config) { production = config.env.VITE_ENV === 'production'; },
     async buildStart() {
+      assertWebNodeRuntimeSecurity();
       if (production) await rm(resolve(appRoot, 'static/pii-runtime'), { recursive: true, force: true });
       else await preparePIIRuntime();
     },

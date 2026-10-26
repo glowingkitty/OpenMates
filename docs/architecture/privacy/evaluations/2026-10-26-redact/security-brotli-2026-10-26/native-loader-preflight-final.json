@@ -1,0 +1,33 @@
+{
+  "status": "verified",
+  "version": "1.1.1",
+  "version_number": 16781313,
+  "commit": "db0631dfea829194206d269bc7b25d0908cdb97d",
+  "prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+  "symbols": {
+    "BrotliDecoderVersion": {
+      "address": "0xf01505db6c54",
+      "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+      "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+    },
+    "BrotliDecoderDecompressStream": {
+      "address": "0xf01505db56c0",
+      "library": "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1",
+      "sha256": "2db67bd9c7d1bec64a4c0c60b0d157abacd39d4757cdca93a31894eebe5e8b1f"
+    }
+  },
+  "mapped_brotli_libraries": [
+    "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlicommon.so.1.1.1",
+    "/tmp/openmates-redact-678f-brotli-1.1.1/lib/libbrotlidec.so.1.1.1"
+  ],
+  "curl_init_cleanup": true,
+  "sdk_model_or_license_created": false,
+  "http_perform_called": false,
+  "offline": {
+    "mechanism": "libseccomp TSYNC, EPERM",
+    "all_threads": true,
+    "socket_creation_denied": true,
+    "existing_internet_sockets": 0,
+    "required_telemetry": "not started: loader-only preflight creates no model or SDK license client"
+  }
+}

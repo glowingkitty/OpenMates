@@ -85,7 +85,7 @@ LiteRT WASM files were byte-identical to the installed package files:
 | `RedactWeb.wasm` (46,278,336 bytes) | `84689a2378bbff7a8a8f5ba7790c5765173aa9b4ff38e2578999b8051dc8eea4` |
 | `litert_wasm_compat_internal.wasm` (10,948,854 bytes) | `4190033238e53ec86b832bad4649851ad111025c226c1688cfae20e1f8fe8926` |
 | Generated `sdk.js` | `df634631a5e13292bd7d346f31a8a3329dd3e30a295fd215b46c9a51a7f030bf` |
-| Generated `worker.js` | `14147f8827e057ca1855733bc72e71da0ffc45a0c20baabec55d04e78fc7b00a` |
+| Generated `worker.js` (including HTML-response cache guard) | `87886e4e686b17e99596552667006cac5a8a78fa172dbb98d6f502efa791cc20` |
 
 The reviewed network paths are:
 
@@ -159,6 +159,82 @@ Pinned source evidence:
 - [Licensing on session load](https://github.com/Desert-Ant-Labs/desert-ant-core/blob/86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Sources/Inference/SessionFactory.swift)
 - [Local JavaScript inference bridge](https://github.com/Desert-Ant-Labs/desert-ant-core/blob/86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Sources/Inference/JSSession.swift)
 - [Browser downloads and memory filesystem](https://github.com/Desert-Ant-Labs/desert-ant-core/blob/86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Sources/ModelStore/WasmBackend.swift)
+
+## Verified development delivery
+
+Vercel deployment `d0b63e7fc24752caff675fd626fd316b05922c7f` succeeded.
+HTTPS GET measurements on `app.dev.openmates.org` transferred 18,140,652 bytes
+for Redact WASM and 2,919,460 bytes for LiteRT WASM, with Brotli encoding,
+`application/wasm`, and immutable one-year caching. Decompressed hashes matched
+the package artifacts above. The worker is JavaScript with
+`no-cache, must-revalidate`; the version endpoint reports the pinned versions.
+Inspected response headers imposed no script/worker CSP restriction.
+
+The two runtime binaries therefore transferred about 21.1 MB rather than their
+57.2 MB raw size. Adding the model/tokenizer and small scripts puts the expected
+first-use transfer near 46 MB; this total is an estimate from measured runtime
+transfers plus public model sizes, not a second full browser-network capture.
+
+Missing runtime files pass through the application's 404 redirect and ultimately
+produce HTTP 200 HTML. The worker explicitly rejects HTML/XHTML asset responses
+before caching, and evicts old cached HTML before fetching again. The focused
+failure/retry browser scenario injects exactly this HTTP 200 HTML response,
+then restores the real model URL and requires successful classification.
+Licensing requests are outside this asset-only guard.
+
+The final security/cache candidate
+`528e5291bd77d0adb9fc3629145962e51a2384c9` passed both real-model composer
+scenarios in [GitHub run 40317398417](https://github.com/glowingkitty/OpenMates/actions/runs/40317398417)
+with no skips, retries or flaky results. This repeats the content-leakage audit,
+new-input offline classification, full-account exclusion, and failed-download
+notification/retry checks against the final worker. Send/owner-reveal and embed
+fullscreen checks passed in run `40309153386`; normal notification recovery
+passed across phone and laptop profiles in run `40302937679`.
+
+The [Linux evaluation](redact-linux-evaluation-2026-10-26.md) records the separate
+native memory, latency, detection misses, and OS-enforced offline proof.
+
+## Brotli security check
+
+The user explicitly requested checking the October 2026 decoder vulnerability,
+`CVE-2026-111497`. This integration adds no Brotli npm decoder dependency.
+Vercel negotiates HTTP compression; browser fetch handles content decoding before
+the SDK receives response bytes. No Brotli dependency or decoder marker was
+found in the inspected SDK/LiteRT glue or WASM, although stripped binaries do not
+provide a complete dependency attestation.
+
+Local and isolated CI Node use the patched 24.22.1 release. Its embedded Brotli
+version still reports 1.2.0, so version text alone is insufficient. A shared
+web helper requires Node 24.22.1 or later within 24.x and the backported
+`BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH=-17` constant. Both runtime preparation
+and the server hook assert this before application processing. Vercel's API
+reported the deployed runtime family as 24.x, without exposing an exact patch;
+the new guard checks the actual executing runtime rather than assuming its patch
+from the platform alias or WAF status.
+
+Playwright 1.60.0 pins Chromium 148.0.7778.96. Inspection of that Chromium tag's
+vendored Brotli source confirmed the block-switch rejection, error -17, and
+error propagation at all three switch call sites. This is a source/provenance
+check for this CVE, not a blanket browser security audit or a claim about every
+end user's browser.
+
+The Linux audit found a separate affected path: the native SDK's curl shim loads
+the host's libcurl, which automatically enables Brotli decoding through the old
+system `libbrotli1=1.1.0-2build2`. Patched Node does not fix that native path.
+The native evaluation runner now requires a verified task-private Brotli 1.1.1
+build and validates the decoder version, file hashes and actual function address
+through the SDK's real curl shim before SDK loading. The check ran with network
+access denied and no model or licensing request. Shared host libraries were not
+changed. Historical benchmark records remain unchanged; the separate security
+receipt documents the corrected loader path. SDK licensing behavior is intact.
+
+Primary security references:
+
+- [Node October 21 security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
+- [Patched Brotli release](https://github.com/google/brotli/releases/tag/v1.1.1)
+- [Vercel's runtime advisory](https://vercel.com/kb/bulletin/node-js-security-advisory)
+- [Pinned Chromium decoder](https://raw.githubusercontent.com/chromium/chromium/148.0.7778.96/third_party/brotli/dec/decode.c)
+- [Pinned Chromium error definitions](https://raw.githubusercontent.com/chromium/chromium/148.0.7778.96/third_party/brotli/include/brotli/decode.h)
 
 ## Preliminary published-demo observations
 

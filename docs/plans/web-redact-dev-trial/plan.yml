@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: web-redact-dev-trial
 title: Browser Redact development trial
-status: implementing
+status: verified
 goal: >
   Implement the new way of detecting and replacing personal information in the
   message input, including transcripts, so the user can test it on development
@@ -15,6 +15,7 @@ scope:
     - Use current immutable composer snapshots for preview and send; stop sends if both detectors fail or ownership/settings change during verification.
     - Cover editable dictation and text fields in existing audio recording embeds before chat-model send.
     - Use one standard notification per browser session if enhanced detection is unavailable; add no composer status row. Keep linked attribution in the existing Privacy description.
+    - Reject known vulnerable Brotli decoder paths: require patched Node for web build/server startup and a verified private patched library for native evaluation.
   out:
     - Production activation, production license acceptance decisions and permanent production privacy-policy changes.
     - Apple, CLI or SDK model activation; server-side classification; changes to speech transcription/correction providers.
@@ -26,8 +27,11 @@ decisions:
   - The user explicitly requested full regex fallback and a follow-up Linux memory, performance and reliability benchmark. TASK-906 owns that benchmark after this web trial; CLI model activation remains deferred.
   - Existing feature.pii-protection@2 placeholder, exclusion and owner-only restoration assertions remain the privacy boundary. A permanent browser-model contract is deferred to the production decision.
   - Existing public URL handling remains supported; Redact's blanket URL and organization labels are excluded from the trial.
+  - The user explicitly requested checking CVE-2026-111497. Source and loader checks distinguish patched backports from version strings; native SDK loads cannot fall back to the old host decoder. Shared system package updates remain separate.
 verification:
   - Focused local model-adapter and send-lifecycle unit tests, component compilation, translation build and scoped lint.
   - Isolated GitHub bare component checks for normal notifications/retry and real browser inference, current-draft ownership, exclusions and mounted-page offline classification.
   - Inspect pinned SDK network call sites and audit actual browser requests for synthetic input leakage; document mandatory licensing metadata separately from content.
+  - Verify the pinned browser's Brotli fix, web Node patch guards, and private native decoder symbol/version/hash under actual OS network denial.
   - Scoped development deployment after the candidate checks succeed.
+  - Final security/cache candidate 528e5291bd77d0adb9fc3629145962e51a2384c9 passed both real-model composer scenarios in GitHub run 40317398417 with no skips, retries or flaky results; send/reveal and notification recovery flows also passed their scoped isolated runs.

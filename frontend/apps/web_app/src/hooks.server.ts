@@ -4,6 +4,9 @@
  * See: deployment/dev_server/Caddyfile lines 28-40
  */
 import type { Handle } from '@sveltejs/kit';
+import { assertWebNodeRuntimeSecurity } from './lib/server/webNodeRuntimeSecurity.mjs';
+
+assertWebNodeRuntimeSecurity();
 
 const SEO_ROUTE_PREFIXES = ['/example', '/intro', '/legal', '/events', '/announcements', '/tips'];
 

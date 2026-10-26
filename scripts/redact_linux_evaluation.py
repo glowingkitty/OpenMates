@@ -13,8 +13,10 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import sys
 import time
 import urllib.request
+import redact_brotli_guard as brotli_guard
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "3ed5033aeb544f454ebde77dc76fd7b7e76cc572"
@@ -101,6 +103,8 @@ def main():
     parser.add_argument("--directory", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--brotli-prefix", type=Path)
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--cores", type=int, choices=[1, 2], default=2)
     parser.add_argument("--cpu-offset", type=int, default=0)
@@ -121,22 +125,40 @@ def main():
     cpus = available[args.cpu_offset:args.cpu_offset + args.cores]
     if len(cpus) != args.cores:
         parser.error("Not enough available CPUs at requested offset")
+    env = {**os.environ, "OMP_NUM_THREADS": str(args.cores), "OPENBLAS_NUM_THREADS": str(args.cores),
+           "UV_THREADPOOL_SIZE": str(args.cores)}
+    preflight = None
+    if args.run or args.preflight_only:
+        if not args.brotli_prefix:
+            parser.error("Native evaluator requires --brotli-prefix with verified patched libraries")
+        try:
+            env = brotli_guard.child_environment(args.brotli_prefix, env)
+            architecture = {"aarch64": "arm64", "x86_64": "x64"}.get(os.uname().machine)
+            native_core = ROOT / "frontend/packages/ui/node_modules/@desert-ant-labs/redact/native" / f"linux-{architecture}" / "libRedactNode.so"
+            probe_command = [sys.executable, str(ROOT / "scripts/redact_brotli_guard.py"),
+                             "--probe", "--prefix", str(args.brotli_prefix), "--native-core", str(native_core)]
+            probe = subprocess.run(probe_command, env=env, capture_output=True, text=True, timeout=20)
+            if probe.returncode:
+                parser.error("Offline native decoder preflight failed; no SDK model or HTTP started")
+            preflight = json.loads(probe.stdout)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            parser.error(f"Patched decoder preflight refused: {type(error).__name__}")
     if args.download:
         prepare_assets(args.directory)
     command = ["node", "--max-old-space-size=256", "--experimental-strip-types", "--loader",
                str(ROOT / "frontend/packages/openmates-cli/tests/loader.mjs"),
                str(ROOT / "scripts/redact_linux_evaluation.mjs"),
-               "--run" if args.run else "--inspect", str(args.directory.resolve()),
+               "--native-preflight" if args.preflight_only else "--run" if args.run else "--inspect",
+               str(args.brotli_prefix.resolve() if args.preflight_only else args.directory.resolve()),
                str(args.output.resolve()), str(args.repeats),
                "latency-only" if args.latency_only else "all", ",".join(map(str, args.latency_units))]
-    env = {**os.environ, "OMP_NUM_THREADS": str(args.cores), "OPENBLAS_NUM_THREADS": str(args.cores),
-           "UV_THREADPOOL_SIZE": str(args.cores)}
     # Required SDK telemetry is untouched, including endpoint and license state.
     if "DAL_LICENSE_ENDPOINT" in env or env.get("DAL_HTTP_DEBUG"):
         parser.error("Use normal SDK license endpoint without raw HTTP debug logging")
     result = supervise(command, cpus, args.max_rss_mib, args.timeout_seconds, env)
     receipt = {"status": "complete" if result["returncode"] == 0 else "failed",
                "result_file": args.output.name, "supervisor": result,
+               "native_decoder_preflight": preflight,
                "stdout_stderr": "discarded to prevent raw fixture/prediction logs"}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.with_suffix(".supervisor.json").write_text(json.dumps(receipt, indent=2) + "\n")

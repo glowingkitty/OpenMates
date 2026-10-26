@@ -2,7 +2,7 @@
 // contract-test-file: tooling
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatedSpans, score, evidenceJSON, loadSynthetic, boundaryFixtures, percentile } from './redact_linux_evaluation.mjs';
+import { validatedSpans, score, evidenceJSON, loadSynthetic, boundaryFixtures, percentile, verifyNativeBrotli } from './redact_linux_evaluation.mjs';
 
 const text = '👋 Amina Okafor';
 const fixture = { id: 'unicode', text, expected: [['private_person', 'Amina Okafor']] };
@@ -59,4 +59,27 @@ test('existing fixtures stay assembled locally; long-tail fixtures keep annotate
 test('nearest rank p95 reports tail sample instead of claiming interpolated precision', () => {
   assert.equal(percentile([7, 1, 4, 2, 3, 6, 5], 0.5), 4);
   assert.equal(percentile([7, 1, 4, 2, 3, 6, 5], 0.95), 7);
+});
+
+test('direct evaluator entry refuses native loading without verified private decoder', () => {
+  let nativeImports = 0;
+  const requireNative = () => { nativeImports++; throw new Error('Native loader must not run'); };
+  assert.throws(() => verifyNativeBrotli('/unused/native', requireNative, {}), /private Brotli prefix required/);
+  assert.equal(nativeImports, 0);
+});
+
+test('native decoder guard rejects loader interposition before any native import', () => {
+  let nativeImports = 0;
+  assert.throws(() => verifyNativeBrotli('/unused/native', () => { nativeImports++; }, {
+    OPENMATES_REDACT_BROTLI_PREFIX: '/synthetic/private', LD_PRELOAD: '/synthetic/system.so',
+  }), /private Brotli prefix required/);
+  assert.equal(nativeImports, 0);
+});
+
+test('native decoder guard refuses system library search path before any native import', () => {
+  let nativeImports = 0;
+  assert.throws(() => verifyNativeBrotli('/unused/native', () => { nativeImports++; }, {
+    OPENMATES_REDACT_BROTLI_PREFIX: '/tmp', LD_LIBRARY_PATH: '/lib',
+  }), /loader path must be set before process startup/);
+  assert.equal(nativeImports, 0);
 });

@@ -17,6 +17,10 @@ function cacheable(input, init) {
      (url.href.startsWith(MODEL_BASE) && MODEL_FILES.has(url.href.slice(MODEL_BASE.length))));
 }
 
+function isHTML(response) {
+  return /^\s*(?:text\/html|application\/xhtml\+xml)(?:\s*;|\s*$)/i.test(response.headers.get('Content-Type') ?? '');
+}
+
 // Strict allowlist: SDK licence/activation requests pass straight through. No
 // prompt, options, result, telemetry response or unrelated fetch can be cached.
 self.fetch = async (input, init) => {
@@ -24,9 +28,12 @@ self.fetch = async (input, init) => {
   let cache;
   try { cache = await caches.open(CACHE_NAME); } catch { /* Private browsing may deny storage. */ }
   const cached = await cache?.match(input);
-  if (cached) return cached;
+  if (cached && !isHTML(cached)) return cached;
+  // A host's missing-asset fallback can return HTML with HTTP 200. Do not let
+  // a previously cached fallback make every subsequent model retry fail.
+  if (cached) { try { await cache.delete(input); } catch { /* Fetch a fresh asset even if eviction fails. */ } }
   const response = await networkFetch(input, init);
-  if (!response.ok) throw new Error('PII asset download failed');
+  if (!response.ok || isHTML(response)) throw new Error('PII asset download failed');
   if (cache) { try { await cache.put(input, response.clone()); } catch { /* In-memory use still works. */ } }
   return response;
 };
