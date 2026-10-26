@@ -1250,6 +1250,7 @@ _PARALLEL_SAFE_EXCLUDED_APP_IDS = frozenset({
 })
 _ParallelResult = TypeVar("_ParallelResult")
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
+    ("web", "browse"),
     ("social_media", "search"),
     ("social_media", "get-posts"),
 }
@@ -1540,6 +1541,8 @@ def _build_async_skill_pending_tool_result(
         result["embed_id"] = async_result.get("embed_id")
     if async_result.get("task_id"):
         result["task_id"] = async_result.get("task_id")
+    if app_id == 'web' and skill_id == 'browse':
+        result['session_id'] = async_result.get('session_id')
     if async_task_ids:
         result["task_ids"] = async_task_ids
     return result
@@ -10375,6 +10378,7 @@ async def handle_main_processing(
                             "status": "processing",
                             "embed_id": async_result.get("embed_id"),
                             "task_id": async_result.get("task_id"),
+                            **({"session_id": async_result.get("session_id"), "run_id": async_result.get("run_id"), "task": parsed_args.get("task", "")} if (app_id, skill_id) == ("web", "browse") else {}),
                             "prompt": parsed_args.get("requests", [{}])[0].get("prompt", "") if isinstance(parsed_args, dict) else "",
                             "model": parsed_args.get("requests", [{}])[0].get("model", "") if isinstance(parsed_args, dict) else "",
                         }

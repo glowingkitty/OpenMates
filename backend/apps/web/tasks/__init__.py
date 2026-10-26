@@ -12,3 +12,4 @@
 # def web_search_task(...):
 #     pass
 
+from .browse_task import browse_task as browse_task

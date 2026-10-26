@@ -217,7 +217,8 @@ async def sanitize_app_skill_output(
     async def _sanitize() -> Any:
         if not context.external_data:
             return ascii_sanitized
-        if prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
+        from backend.shared.python_utils.strict_output_safety import active_strict_scanner
+        if active_strict_scanner.get() is None and prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
             logger.warning("%sPrompt-injection semantic scanning disabled by direct programmatic caller", log_prefix)
             return ascii_sanitized
         return await sanitize_long_text_fields_in_payload(
@@ -241,9 +242,15 @@ async def sanitize_app_skill_output(
         )
         return sanitized
     except asyncio.TimeoutError:
+        from backend.shared.python_utils.strict_output_safety import active_strict_scanner, StrictSafetyUnavailable
+        if active_strict_scanner.get() is not None:
+            raise StrictSafetyUnavailable('Output safety processing did not complete.') from None
         logger.warning("%sSemantic scan status=unscanned reason=OUTPUT_SAFETY_TIMEOUT; returning ASCII-cleaned content", log_prefix)
         return ascii_sanitized
     except Exception as exc:
+        from backend.shared.python_utils.strict_output_safety import active_strict_scanner, StrictSafetyUnavailable
+        if active_strict_scanner.get() is not None:
+            raise StrictSafetyUnavailable('Output safety processing did not complete.') from None
         error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
         logger.error(
             "%sSemantic scan status=unscanned reason=%s; returning ASCII-cleaned content",

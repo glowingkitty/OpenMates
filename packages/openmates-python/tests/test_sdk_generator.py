@@ -242,3 +242,20 @@ def test_generated_native_methods_delegate_to_runner():
         {"app_id": "models3d", "skill_id": "search", "input_data": {"requests": [{"query": "benchy"}]}, "options": {"prompt_injection_protection": None}},
         {"app_id": "business", "skill_id": "company_financials", "input_data": {"companies": [{"query": "CALM"}]}, "options": {"prompt_injection_protection": False}},
     ]
+
+
+# contract-test: supporting surface=sdks.pip assertions=web-browse.structured-data,web-browse.delivery-and-evidence
+def test_browse_json_library_contract_does_not_invoke_cli():
+    metadata=next(s for s in APP_SKILL_METADATA if s['app_id']=='web' and s['skill_id']=='browse')
+    assert metadata['schema']['required']==['task','chat_id','message_id']
+    assert metadata['schema']['properties']['output_schema']
+    observed={'status':'completed','data':{'title':'Observed'},'sources':[{'url':'https://example.com'}]}
+    class Client:
+        def _run_app_skill(self,*args,**kwargs):
+            self.args=args
+            return observed
+    client=Client()
+    libraries=GeneratedAppSkills(client._run_app_skill)
+    data={'task':'Extract title','start_url':'https://example.com','chat_id':'chat','message_id':'message','output_schema':{'type':'object'}}
+    assert libraries.web.browse(data) is observed
+    assert client.args==('web','browse',data)

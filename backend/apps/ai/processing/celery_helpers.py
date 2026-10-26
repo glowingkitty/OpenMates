@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 SHARED_APP_QUEUES = {
     "audio": "app_music",
     "models3d": "app_images",
+    "web": "app_code",  # Browse reuses the E2B execution worker.
 }
 
 
@@ -35,7 +36,8 @@ async def execute_skill_via_celery(
     app_id: str,
     skill_id: str,
     arguments: Dict[str, Any],
-    celery_producer: Any  # Celery instance
+    celery_producer: Any,  # Celery instance
+    task_uuid: Optional[str] = None,
 ) -> str:
     """
     Execute a skill via Celery task for long-running operations.
@@ -77,7 +79,7 @@ async def execute_skill_via_celery(
         dispatch_options = {}
         user_id = arguments.get("user_id")
         if isinstance(user_id, str) and user_id:
-            task_id = str(uuid.uuid4())
+            task_id = str(uuid.UUID(task_uuid)) if task_uuid else str(uuid.uuid4())
             await asyncio.to_thread(record_task_owner, task_id, user_id, celery_producer.conf.broker_url)
             dispatch_options["task_id"] = task_id
 

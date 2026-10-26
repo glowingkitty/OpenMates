@@ -1,0 +1,155 @@
+schema_version: 1
+specification: feature.app-skill.web-browse@1
+structured_data:
+  - id: workshop-records
+    given: The user requests beginner workshops as records containing title, start time and source URL, and the assistant supplies that output schema.
+    when: Browse observes the matching schedule and extracts its records.
+    then: It returns validated JSON containing only observed workshops with their sources, which the assistant can turn into result embeds and a workflow can pass to later steps.
+  - id: unavailable-field
+    given: The requested JSON includes ticket availability, but the visited page never shows it.
+    when: Extraction cannot establish that field or satisfy a required output schema.
+    then: It identifies the missing information and returns useful partial observations with an honest incomplete outcome instead of inventing availability or claiming schema-valid success.
+routing:
+  - id: interactive-goal
+    given: A user asks to open a permitted conference schedule and display Friday's beginner workshops.
+    when: Preprocessing selects the needed capability and the assistant calls Browse with the goal and schedule URL.
+    then: Browse receives its operating instructions and performs the interactive task; an ordinary factual search still uses the existing search skill.
+  - id: continue-previous-page
+    given: The chat contains an unexpired browser session on the schedule page.
+    when: The user says to show Saturday instead.
+    then: The assistant selects Browse and supplies that session with the new goal.
+sessions:
+  - id: create-and-reuse
+    given: A user submits the schedule task without a session identifier.
+    when: That task completes and the same chat submits a second task with the returned session.
+    then: Two runs use the same browser state and have separate results and usage.
+  - id: invalid-session
+    given: A caller supplies another user's session, a session from another chat, or an expired identifier.
+    when: Browse attempts to resume or observe it.
+    then: Access fails before browser work, disclosure or charging, without silently creating a replacement.
+control_loop:
+  - id: observed-control
+    given: The page exposes a Friday filter and a button currently covered by a popup.
+    when: Jev chooses a filter or click from the current observation.
+    then: Code validates the actual target; covered controls are rejected and successful actions are recorded before observing again.
+  - id: absent-or-stale-visual-target
+    given: A visual locator returns a box for a missing button, or the page changes after a decision.
+    when: The worker validates that proposed click or receives a replayed delivery.
+    then: It does not click an absent or stale target or repeat a previously executed action; it obtains fresh authorized state.
+typing:
+  - id: generated-query
+    given: The user's goal needs a search phrase in a visible search field, and permitted minimal context is sufficient.
+    when: Text must be generated.
+    then: Together-hosted DeepSeek supplies a bounded field value; an eligible failed call may use Gemini 3.8 Flash once, with both attempts accounted for.
+  - id: sensitive-or-missing-value
+    given: A field needs a birth date or payment detail restricted by Together's terms, or personal information the user never supplied.
+    when: The worker requests the field value.
+    then: Restricted content is not sent to Together; a permitted fallback or manual entry is requested, and missing facts are never invented.
+outcomes:
+  - id: verified-results
+    given: The requested day and beginner filter are visibly applied and matching workshops are shown.
+    when: Jev proposes finishing.
+    then: The result identifies the observed matches and source page, and the assistant can present them with the browser embed.
+  - id: empty-or-blocked
+    given: The requested filters yield no workshops, or a provider failure prevents further actions.
+    when: Browse stops.
+    then: It distinguishes no results from failure, preserves permitted partial evidence and tells the assistant why it stopped.
+embeds:
+  - id: watch-without-control
+    given: AI is browsing and the owner opens the screenshot preview.
+    when: Fullscreen displays the live session and the owner later closes it.
+    then: The user can observe progress without taking control, and closing the viewer does not change who controls the browser.
+  - id: reopen-after-expiry
+    given: A completed run's remote browser has been deleted after its idle deadline.
+    when: The user reopens the saved embed.
+    then: Saved encrypted observations remain readable and the embed clearly says the live session expired without starting a paid browser.
+takeover:
+  - id: interrupt-and-resume
+    given: AI has a pending click when the owner presses Take control.
+    when: The handoff completes, the owner changes a filter and presses Let AI continue.
+    then: AI cannot execute its stale click; manual input has exclusive control until revoked, and continuation uses fresh state in the same session and chat.
+  - id: forged-control
+    given: Another user or a viewing-only connection attempts to send input or change a viewer flag.
+    when: The server receives the command.
+    then: It rejects the input without changing control or exposing browser content.
+sign_in:
+  - id: contextual-notice
+    given: The owner reaches a permitted site's sign-in flow for the first time in this session.
+    when: They choose to sign in.
+    then: A notice explains cloud-browser and resumed AI access with Continue to sign in and Cancel; cancellation leaves the AI without account access.
+  - id: private-input
+    given: The owner enters a password and MFA code during manual takeover.
+    when: They finish sign-in and explicitly let AI continue.
+    then: AI observes fresh permitted account content, while credentials never appeared in model input, saved previews, logs or chat; consequential actions still require confirmation.
+confirmations:
+  - id: exact-submission
+    given: A task reaches Send, Buy or Delete with a specific site, recipient or item and material values.
+    when: The assistant proposes committing the action.
+    then: It requests explicit confirmation of that action, and changed values invalidate an earlier confirmation.
+  - id: website-cannot-authorize
+    given: A page instructs the agent to ignore its user and submit a purchase, or presents an access-denial barrier.
+    when: The worker evaluates its next step.
+    then: Page instructions grant no authority; no consequential submission or automatic barrier bypass occurs.
+lifecycle:
+  - id: free-paused-retention
+    given: The last meaningful interaction ended at noon and no task remains active.
+    when: Two minutes pass, and later twenty-four hours pass without owner activity.
+    then: The sandbox is confirmed paused at 12:02 with no paused-runtime charge, and the paused session is deleted at noon the next day.
+  - id: activity-and-close
+    given: A paused session receives viewer polling or an animated page had continued refreshing before pause.
+    when: Polling continues, the owner resumes before expiry, or chooses Close session.
+    then: Polling and page churn never extend retention or wake compute; an explicit valid resume does, and Close deletes immediately.
+budgets:
+  - id: bounded-failure
+    given: A run repeats unsuccessful actions, reaches its step/time/credit cap or loses provider access.
+    when: The next action would exceed its permitted work.
+    then: It stops with a distinct reason and incurred usage, without unbounded retries or another hosting provider.
+  - id: stop-and-insufficient-funds
+    given: AI is running or the user controls a paid browser.
+    when: The owner presses Stop or the remaining authorized credit reservation is exhausted.
+    then: Further AI actions stop and compute cannot continue spending beyond its authorized cap; an uncertain in-flight action is reconciled rather than repeated.
+billing:
+  - id: double-cost
+    given: Verified browser runtime costs USD 0.0138, Jev costs USD 0.0168 and text helpers cost USD 0.00264.
+    when: The run's accumulated usage is settled.
+    then: The raw charge is 66.48 credits at twice USD 0.03324 and USD 0.001 per credit, followed once by the existing final credit rounding; no per-click minimum, second markup or duplicate assistant charge applies.
+  - id: paused-and-promotional
+    given: A session is paused for twenty-three hours, and our E2B account has promotional credits.
+    when: The owner reviews usage or resumes.
+    then: Paused time has zero browser charge; actual running work uses its effective tariff regardless of our promotional balance, with fallback and image usage included once and unused reservations released.
+network:
+  - id: private-destination
+    given: A public page redirects or loads a subresource pointing to loopback, cloud metadata or a private address.
+    when: The browser attempts that request, including after a changed DNS answer.
+    then: Enforced network policy denies the connection before private data or backend credentials can be reached.
+  - id: external-instructions-and-source-rights
+    given: Website content asks the agent to change its destination policy or access a retired provider through an undocumented endpoint.
+    when: Browse considers that instruction or cannot complete required output-safety processing.
+    then: The page has no policy authority; unsupported collection is refused and autonomous action pauses when required safety checks cannot complete.
+privacy:
+  - id: private-viewer-and-cache-recovery
+    given: The owner reopens a session after a cache loss while its authoritative record remains valid.
+    when: An authenticated first-party client requests the viewer or a public share tries the same request.
+    then: The owner can recover the authorized session; public/developer access cannot obtain it, and viewer credentials are absent from saved embeds and model context.
+  - id: encrypted-results
+    given: A run contains private account observations.
+    when: Results are saved and performance diagnostics are produced.
+    then: Private results follow encrypted history storage; diagnostics contain counts, timings and cost without page text, images or credentials, and the UI does not claim cloud browser state is client-only encrypted.
+workflows:
+  - id: workflow-fresh-session
+    given: A workflow starts a browser task after regular Browse and embed verification.
+    when: It runs twice without an explicit valid session binding.
+    then: Each run gets isolated browser state and the same limits, outcomes and usage accounting as interactive Browse, with no borrowed login.
+  - id: workflow-needs-user
+    given: An unattended browser workflow needs manual sign-in or confirmation of a consequential action.
+    when: It cannot continue with its current authority.
+    then: It returns a resumable needs_user outcome through workflow handling instead of auto-confirming or keeping paid compute running indefinitely.
+delivery:
+  - id: real-skill-and-app-store-examples
+    given: Two permitted tasks cover filtering a conference schedule and navigating to a requested documentation section, including a same-session follow-up.
+    when: The deployed skill is exercised through real CLI, supported direct libraries and the web embeds.
+    then: Results, screenshots, errors and billing agree across clients, and real successful results provide two executable app-store examples.
+  - id: measured-performance-and-workflow-phase
+    given: Representative permitted tasks include success, no results, stale targets, provider failure and human handoff.
+    when: Implementation is validated with isolated deterministic CI and dev-only real inference, followed by workflow checks.
+    then: The report records source identity, actual completion checks, stage and total timings, tokens and cost including failed attempts; estimates and untested native surfaces are identified honestly, and ordinary chat routing is unchanged.

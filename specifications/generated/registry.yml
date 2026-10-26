@@ -326,6 +326,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.web-browse:
+    version: 1
+    status: draft
+    path: features/app-skills/web-browse
+    fingerprint: 4507abfbb9c6cbadbbefe4d64fef614abd57f8daf905cc6412d42728d3fa8236
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.web-read:
     version: 1
     status: draft
@@ -4349,6 +4361,210 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  web-browse.structured-data:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 858170f9dd425058b9570601d304406ab61ca5927831fa96f387e1b25e990f51
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.dispatch-and-routing:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 6c71e373ffc486684f5dff0651e6f21502d0bffbba119b84b0d81e212b113a36
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.session-and-run:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: security
+    fingerprint: a34006fbc1d439b17028992074c070c8b7237b1d40ec9712729d451f44c8c71d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.control-loop:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 764dbe369da4d5211f3f8dd76f02a42c4ce65c80d24eb6bab7a1fc387985ca31
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.text-helper:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: privacy
+    fingerprint: d0281e9085cec1cabbb3fb776965461e993a890ef900b7085ab548de0c106334
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.truthful-completion:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 9ab0fe06fd93cb8f2e054b5e58ff00e8249a56bcb3dcb964c498153bb5519479
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.embed-and-observation:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: parity
+    fingerprint: 414413d6a4326d215d2a38ee9278a88fb08bd9bb56d3f17a64b29cd1dfca257a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.exclusive-takeover:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: security
+    fingerprint: 116607b63411879e45895fbbdb3ccbcf38e89024a5bf7a9fe141092793145dc5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.sign-in:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: privacy
+    fingerprint: 15ee5f260c84639068d9879f4db501888201cfae4e6bacb7abbb5b441728348b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.consequential-actions:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: security
+    fingerprint: 695fdaea55c50872c99f3d429ae2dc37d832a367855e0aa8cea04fa0846038c3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.lifecycle:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 3b485331a73b7ed57faaca8b2e6211b9ce62177d687904fec1553f731e7d69b3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.budgets-and-stop:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: security
+    fingerprint: aaae0325f45803fdaf2e8b601483d0d40ef46e6bd4fecc55c568e06ff788f064
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.cost-accounting:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: invariant
+    fingerprint: 9d33be5d883cde2be30e580cfa7b268f009dc455f489a3c1c19bda5bad924a45
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.network-and-content:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: security
+    fingerprint: 148906d85aa921ee8465983b8d5c45a671e5207d6a885034f7c27549fcb2e82b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.private-storage-and-api:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: privacy
+    fingerprint: 2af67a914a7c8507823619603186a6375a0da6f7b8f09756253dc12ed625d7b5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.workflow-parity:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: parity
+    fingerprint: 36bcc1e3ce2793d001cb840a36bca4168b16b6e567bfd0e859505f930d031823
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.delivery-and-evidence:
+    specification: feature.app-skill.web-browse@1
+    specification_id: feature.app-skill.web-browse
+    type: parity
+    fingerprint: 7bf08c9d88f846d8bf79c32671e331eb8b622aab36bf56ec4d56c7aba5b21bee
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   web-read.public-page:
     specification: feature.app-skill.web-read@1
     specification_id: feature.app-skill.web-read

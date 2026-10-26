@@ -11,7 +11,10 @@
     "calendar_event_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free bare preview of calendar event components and the shared weekly renderer, using synthetic event DTOs and real local browser downloads. No backend, calendar account, external provider or AI inference.",
-      "specs": ["components/calendar-event-embed.spec.ts", "components/event-reference-hydration.spec.ts"]
+      "specs": [
+        "components/calendar-event-embed.spec.ts",
+        "components/event-reference-hydration.spec.ts"
+      ]
     },
     "image_embed_file_actions": {
       "execution": "e2e",
@@ -1017,6 +1020,13 @@
       "specs": [
         "components/apps-catalog-availability.spec.ts",
         "components/focus-mode-instructions.spec.ts"
+      ]
+    },
+    "web_browse_boundary": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated browser account and core API/CMS/cache/Vault only. Exercises real first-party authentication, missing owner/chat records, malformed-input redaction and per-owner limits. Every request is rejected before sandbox creation or model inference; no E2B, Jev, Together or Gemini credentials are used.",
+      "specs": [
+        "web-browse-api.spec.ts"
       ]
     }
   },

@@ -47,6 +47,9 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # inherited output-safety scan before delivery of complete extracted text.
     if (app_id, skill_id) == ("web", "read"):
         return 75.0
+    if (app_id, skill_id) == ("web", "browse"):
+        from backend.shared.python_schemas.web_browse import BrowseRequest
+        return float(BrowseRequest.model_validate(arguments).timeout_seconds + 120)
     # Public class search spans up to fourteen dates plus venue enrichment.
     if (app_id, skill_id) == ("fitness", "search_classes"):
         return 60.0
@@ -332,7 +335,7 @@ async def execute_skill(
     last_exception: Optional[Exception] = None
     # The public decision quote includes exactly one attempt per provider.
     # Jev already owns its bounded outage fallback; never retry the whole skill.
-    total_attempts = 1 if (app_id, skill_id) == ("ai", "decide") else max_retries + 1
+    total_attempts = 1 if (app_id, skill_id) in {("ai", "decide"), ("web", "browse")} else max_retries + 1
     successful_result: Any = None
     skill_succeeded = False
 

@@ -934,7 +934,9 @@ class BaseApp:
         skill_id: str,
         app_id: str,
         idempotency_key: str,
-        usage_details: Optional[Dict[str, Any]] = None
+        usage_details: Optional[Dict[str, Any]] = None,
+        api_key_hash: Optional[str] = None,
+        device_hash: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self.is_valid:
             raise HTTPException(status_code=500, detail="App is not properly configured to charge credits.")
@@ -951,6 +953,10 @@ class BaseApp:
             "idempotency_key": idempotency_key,
             "usage_details": usage_details or {}
         }
+        if api_key_hash:
+            charge_payload["api_key_hash"] = api_key_hash
+        if device_hash:
+            charge_payload["device_hash"] = device_hash
         
         logger.info(f"Requesting credit charge for user {user_id}: {credits_to_charge} credits for skill {skill_id} in app {app_id}.")
         try:

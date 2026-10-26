@@ -1,0 +1,28 @@
+schema_version: 2
+profile: concise
+id: web-browse
+title: E2B Browse Skill
+status: implementing
+goal: >
+  Implement agentic web browsing as the Web app's Browse skill, with reusable E2B
+  sessions, Jev control, DeepSeek via Together and Gemini 3.8 Flash fallback,
+  screenshot embeds and user takeover; deploy and test the regular skill and
+  embeds first, then workflow support, and report performance, cost and reliability.
+specifications: [feature.app-skill.web-browse@1]
+decisions:
+  - The user explicitly authorized implementation from the clarified design on 2026-10-26; no additional design approval round is required.
+  - Use two times effective metered supplier cost, pause idle compute after 120 seconds and delete after 86400 seconds of inactivity.
+  - Reuse session d7bf and existing provider, encryption, app-skill, billing, embed and CI infrastructure.
+  - OpenMates Tasks owns implementation status and dependencies; this Plan has no duplicate task ledger.
+scope:
+  - Regular callable skill, authenticated session controls, encrypted results, scoped provider calls and bounded usage ledger.
+  - Screenshot preview and fullscreen watch, manual input, sign-in notice, AI continuation and lifecycle controls.
+  - Workflow contract and tests after regular skill/embed verification.
+required_checks:
+  - Specification/Plan validation and focused local backend and frontend checks.
+  - Isolated GitHub CI for affected API/client and component/browser behavior, including unauthorized access and lifecycle cases.
+  - Deployed real OpenMates CLI skill calls with automatic chat routing, followed by SDK and web verification.
+  - Laptop/mobile visual verification of the deployed embed and real user takeover/continuation.
+  - Dev-only real-inference measurements of completion, latency stages, tokens, supplier cost, charged credits and failures.
+  - Workflow success, session isolation and needs-user/approval behavior after the regular skill and embeds.
+evidence: []

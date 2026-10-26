@@ -127,7 +127,8 @@ class JevDecisionClient:
         if self._accounting is not None:
             input_tokens, output_tokens, _ = _raw_usage(response)
             self._accounting.append({"provider": provider, "input_tokens": input_tokens,
-                                     "output_tokens": output_tokens, "success": success})
+                                     "output_tokens": output_tokens, "success": success,
+                                     "http_status": status})
         if not self._telemetry_task_id:
             return
         try:

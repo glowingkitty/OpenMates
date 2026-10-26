@@ -14,7 +14,7 @@ import asyncio
 import logging
 import hashlib
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from celery.result import AsyncResult
 
@@ -81,7 +81,8 @@ class TaskStatusResponse(BaseModel):
 async def get_task_status(
     task_id: str,
     request: Request,
-    user_info: Dict[str, Any] = SessionOrApiKeyAuth
+    user_info: Dict[str, Any] = SessionOrApiKeyAuth,
+    response_headers: Response = None,
 ):
     """
     Poll for the status and result of a long-running task.
@@ -125,6 +126,25 @@ async def get_task_status(
             if not owner_hash:
                 _assert_task_owner(result.result, user_info)
             response.result = result.result
+            if isinstance(response.result, dict) and response.result.get('browse_session_id'):
+                if response_headers is not None:
+                    response_headers.headers['Cache-Control'] = 'no-store'
+                    response_headers.headers['X-Content-Type-Options'] = 'nosniff'
+                # Browse result bodies remain Vault-encrypted in their owner record;
+                # the public task backend receives only these opaque identities.
+                if user_info.get('api_key_hash') and not user_info.get('device_hash'):
+                    raise HTTPException(403,detail='An approved first-party device is required for Browse.')
+                from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+                try:
+                    ApiKeyAuthorizationService().require_app_skill_scope(user_info.get('api_key_metadata') or {},'web','browse')
+                except ApiKeyScopeError:
+                    raise HTTPException(403,detail='This device cannot access Browse results.') from None
+                from backend.core.api.app.services.web_browse_service import BrowseStore
+                store=BrowseStore(request.app.state.directus_service,request.app.state.encryption_service,request.app.state.cache_service)
+                payload=await store.load_result(response.result['browse_run_id'],str(user_info['user_id']))
+                if payload.session_id!=response.result['browse_session_id']:
+                    raise HTTPException(404,detail='Browser result not found.')
+                response.result=payload.model_dump()
         elif raw_status == 'FAILURE' or raw_status == 'REVOKED':
             if not owner_hash:
                 _assert_task_owner(result.result, user_info)

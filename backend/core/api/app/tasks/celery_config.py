@@ -197,7 +197,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
-    {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'app_code',    'module': 'backend.apps.web.tasks'},  # Browse shares the existing E2B execution worker
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.email_delivery_feedback_tasks'},
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
@@ -217,6 +217,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_storage_billing_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.web_browse_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
@@ -1476,6 +1477,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'sweep-idle-browser-sessions': {
+        'task': 'web.browse.sweep',
+        'schedule': timedelta(minutes=1),
+        'options': {'queue': 'persistence', 'expires': 50},
+    },
     'sweep-assistant-speech-billing': {
         'task': 'apps.audio.tasks.assistant_speech_billing_sweep',
         'schedule': timedelta(minutes=10),

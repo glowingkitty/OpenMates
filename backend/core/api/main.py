@@ -1442,6 +1442,8 @@ def create_app() -> FastAPI:
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
+    from backend.core.api.app.routes import web_browse
+    app.include_router(web_browse.router, include_in_schema=False)  # Owner-only browser sessions, approved first-party devices
     app.include_router(developer_metadata_api.router, include_in_schema=True)  # Safe task/plan status metadata without encrypted fields
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified

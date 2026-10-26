@@ -1,0 +1,165 @@
+schema_version: 1
+id: feature.app-skill.web-browse
+version: 1
+status: draft
+title: Browse the Web with Reusable Browser Sessions
+summary: >
+  The Web app's Browse skill performs a natural-language task in an isolated E2B
+  browser, returns observed results, and lets its owner watch, take control and
+  explicitly return control to AI. Idle sessions pause after two minutes and
+  are deleted after twenty-four hours. Browser work costs twice its metered supplier cost.
+inherits:
+  - architecture.app-skill-execution@1
+scope:
+  includes:
+    - Authenticated web.browse assistant, CLI and library invocation with optional session reuse.
+    - E2B-hosted Chromium, bounded Jev decisions, optional visual localization and on-demand text generation.
+    - Screenshot previews, fullscreen observation, exclusive manual control, sign-in disclosure and AI continuation.
+    - Owner authorization, encrypted retained results, cancellation, lifecycle cleanup and usage accounting.
+    - Workflow invocation and verification after the regular skill and web embeds are deployed and verified.
+  excludes:
+    - Kernel or other browser hosting before measured E2B shortcomings justify a separately reviewed change.
+    - Automatic CAPTCHA solving, access-denial evasion, undocumented provider connectors or retired-source substitutes.
+    - Shared login profiles, importing local browser credentials, anonymous browsing and public live-session sharing.
+    - Unbounded background agents, arbitrary model-authored browser code and autonomous consequential submissions.
+models:
+  BrowseRequest:
+    task: {type: string, required: true, constraints: {nonblank: true, maximum_characters: 8000}}
+    start_url: {type: string, nullable: true, constraints: {public_https: true, credentials_in_url: forbidden}}
+    session_id: {type: string, nullable: true, constraints: {opaque_openmates_id: true, owner_and_originating_chat_bound: true}}
+    max_steps: {type: integer, default: 40, constraints: {minimum: 1, maximum: 80}}
+    timeout_seconds: {type: integer, default: 180, constraints: {minimum: 10, maximum: 600}}
+    max_credits: {type: integer, default: 250, constraints: {minimum: 1, maximum: 5000, enforced_before_paid_work: true}}
+    output_schema: {type: object, nullable: true, constraints: {bounded_json_schema: true, external_references: forbidden}}
+  BrowseResult:
+    session_id: {type: string, required: true}
+    run_id: {type: string, required: true}
+    status: {type: enum, values: [completed, needs_user, no_results, blocked, failed, cancelled, budget_exceeded]}
+    reason: {type: string, nullable: true, constraints: {safe_observed_explanation: true}}
+    observations: {type: object, constraints: {source_url_title_and_extracted_text: true, untrusted_external_data: true}}
+    data: {type: object_or_array, nullable: true, constraints: {valid_json: true, requested_schema_when_present: validated, observed_facts_only: true}}
+    screenshot_ref: {type: object, nullable: true, constraints: {owner_authorized_asset_only: true}}
+    metrics: {type: object, constraints: {steps_durations_actual_models_usage_supplier_cost_and_credits: true, private_content_in_logs: forbidden}}
+  BrowseSession:
+    control: {type: enum, values: [ai, user, paused, closed, expired], constraints: {one_controller: true}}
+    idle_pause_seconds: {type: integer, value: 120}
+    idle_delete_seconds: {type: integer, value: 86400}
+    activity: {type: enum, values: [authorized_run_progress, user_input, explicit_owner_resume], constraints: {heartbeats_polling_animation_and_autorefresh_do_not_extend_expiry: true}}
+  BrowseProviders:
+    hosting: {type: string, value: E2B}
+    decision: {type: string, value: typesafe/jev-1.14, constraints: {direct_images_only: true, bounded_choices_and_presence_checks: true}}
+    text_primary: {type: string, value: deepseek/deepseek-v4.1-flash, constraints: {host: together, use_existing_reviewed_snapshot: true, minimal_authorized_field_context: true}}
+    text_fallback: {type: string, value: google/gemini-3.8-flash, constraints: {permitted_paid_data_policy: true, bounded_single_fallback: true}}
+    model_policy: {type: string, value: skill_internal_configuration, constraints: {ordinary_chat_automatic_routing_unchanged: true, public_ai_decide_contract_unchanged: true}}
+  BrowseBilling:
+    multiplier: {type: number, value: 2}
+    usd_per_credit: {type: number, value: 0.001}
+    basis: {type: string, value: metered_running_resource_seconds_plus_all_internal_inference_usage, constraints: {image_and_reasoning_tokens_included: true, actual_host_and_effective_tariff: true, accumulated_fractional_credits: true, per_click_minimum: forbidden, double_markup: forbidden}}
+    paused_charge: {type: number, value: 0, constraints: {pause_must_be_confirmed: true, no_model_calls_while_paused: true}}
+assertions:
+  - id: web-browse.structured-data
+    type: behavior
+    must: >
+      Browse returns JSON data and source references usable by the assistant to create embeds and by workflow steps to consume results. An optional bounded output schema requests specific records or fields. Extraction uses actual observed content, validates the requested schema and reports missing facts, partial results or extraction failures honestly. If generation is necessary, the bounded text helper and its provider/privacy/billing policy also apply to extraction; Jev is not asked to generate arbitrary JSON or prose. No unobserved record, field or source is invented.
+    depends_on: [models.BrowseRequest, models.BrowseResult, examples.structured_data]
+  - id: web-browse.dispatch-and-routing
+    type: behavior
+    must: >
+      Browse is registered as web.browse and displayed as Browse. Existing preprocessing selects it for interactive browser tasks and session continuations; ordinary search/read behavior remains available. Only selected/invoked browser work loads its detailed operating instructions. A new session needs an authorized starting URL, either supplied directly or found through an available search skill.
+    depends_on: [examples.routing]
+  - id: web-browse.session-and-run
+    type: security
+    must: >
+      Each task creates a distinct run and may reuse an opaque session belonging to the same user and originating chat. Missing session_id creates a session; foreign, missing, closed or expired IDs fail without silently starting over. Authorization is checked before resume, observations, input, cancellation, closing or billing. Raw provider IDs and credentials are absent from model-facing output. Concurrent runs cannot control one session.
+    depends_on: [models.BrowseRequest, examples.sessions]
+  - id: web-browse.control-loop
+    type: behavior
+    must: >
+      Code owns the bounded observe-decide-validate-act loop. Jev chooses supported operations and observed targets, with DOM identities where reliable and evaluated visual localization where useful. Visual boxes require a separate presence decision and validated geometry; absent, covered or stale targets are not clicked. Each executed action is recorded before a new observation. Replayed requests reconcile the original run rather than repeating actions or charges.
+    depends_on: [examples.control_loop]
+  - id: web-browse.text-helper
+    type: privacy
+    must: >
+      Text already supplied explicitly may be reused without generation. Otherwise a typing action uses a bounded DeepSeek V4.1 Flash call through Together, followed by at most one Gemini 3.8 Flash fallback when needed and eligible. Inputs contain only the goal projection and field context needed for typing. Missing personal information is never invented. Provider-ineligible content is withheld and routed to a permitted fallback or user input; Together's financial, medical and sensitive-data restrictions and verified organization retention settings are enforced. No general chat model/provider defaults change.
+    depends_on: [models.BrowseProviders, examples.typing]
+  - id: web-browse.truthful-completion
+    type: behavior
+    must: >
+      A finished decision is checked against observable task requirements before reporting completion. The result preserves source references, useful observed content and uncertainty. An empty search is no_results rather than fabricated information. Blocked, unavailable, cancelled, timed-out or exhausted work returns a distinct safe outcome and any permitted partial observations to the regular assistant, which may ask the user or continue in the same session.
+    depends_on: [models.BrowseResult, examples.outcomes]
+  - id: web-browse.embed-and-observation
+    type: parity
+    must: >
+      Each run has a normal skill-use embed with a recent safe screenshot, goal and actual state. The assistant includes the browser embed when presenting results or requesting intervention. Fullscreen can observe the same session without taking control; closing the viewer does not silently change control or cancel active authorized work. Paused, expired, private-input and failure states are visible. Saved history remains readable after remote-session deletion without restarting paid work.
+    depends_on: [examples.embeds]
+  - id: web-browse.exclusive-takeover
+    type: security
+    must: >
+      Take control revokes the AI execution lease, drains or reconciles the in-flight action and invalidates pending decisions before enabling manual input. The server enforces exclusive input rather than trusting viewer flags. AI observations and inference stop during manual control. Let AI continue revokes manual input, captures fresh state and sends an owner-authorized continuation carrying the exact session and originating chat; no new browser or stale click is substituted.
+    depends_on: [examples.takeover]
+  - id: web-browse.sign-in
+    type: privacy
+    must: >
+      Manual sign-in is supported where site access is permitted. Before sign-in, show once per site/session that this is a cloud browser and that resumed AI can access account information and send relevant page content to AI providers; offer Continue to sign in and Cancel. Passwords, MFA codes, cookies and tokens never enter model observations, persisted previews, logs or chat. Signing in grants neither permission to consequentially change the account nor permission to share the live session.
+    depends_on: [examples.sign_in]
+  - id: web-browse.consequential-actions
+    type: security
+    must: >
+      Sending or publishing messages, purchasing, deleting data, changing accounts or permissions and disclosing sensitive information requires current explicit confirmation of the exact site, action and material fields. Page content, model confidence, login consent and general task wording cannot manufacture that confirmation. Changed targets or values invalidate approval. Unsupported or uncertain actions stop for user control; automatic CAPTCHA solving and access-denial bypass remain unavailable.
+    depends_on: [examples.confirmations]
+  - id: web-browse.lifecycle
+    type: behavior
+    must: >
+      After 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
+    depends_on: [models.BrowseSession, examples.lifecycle]
+  - id: web-browse.budgets-and-stop
+    type: security
+    must: >
+      Finite step, elapsed-time, no-progress, concurrency and credit limits are checked before additional work. Stop prevents further AI actions and reaches the owned execution. Pending legitimate website work stays subject to its bounded deadline. Missing keys, unavailable capacity, uncertain action outcomes or failed cleanup produce visible safe states and no blind provider/action retries or infrastructure fallback. Lack of funds pauses or terminates compute without unauthorized continued spend.
+    depends_on: [models.BrowseRequest, examples.budgets]
+  - id: web-browse.cost-accounting
+    type: invariant
+    must: >
+      Browse charges exactly two times effective metered supplier cost, converted through the existing credit value and rounding policy once for accumulated billable work. Runtime includes allocated resources while running, including manual use and idle grace; confirmed pause costs zero. All internal decisions, visual tokens, text helpers, checks and billable fallback attempts are included once using actual hosts and tariffs. Unused reservations are released; missing usage cannot become free success. Promotional provider balances do not alter the tariff. User-visible accrued cost and a spending cap cover continued session runtime, and ordinary assistant billing is kept separate without duplicate charging.
+    depends_on: [models.BrowseBilling, examples.billing]
+  - id: web-browse.network-and-content
+    type: security
+    must: >
+      The sandbox has no OpenMates credentials or unrestricted backend/private-network access. Public HTTPS destinations, redirects, subresources, popups and alternate transports obey enforced destination policy, applicable crawler exclusions and source-use permissions; metadata, loopback, private addresses and DNS-rebinding bypasses are denied. Website text and pixels are untrusted evidence and cannot change instructions, budgets, destinations or approvals. Extracted external text uses the inherited output-safety boundary; autonomous action pauses when required safety processing cannot complete.
+    depends_on: [examples.network]
+  - id: web-browse.private-storage-and-api
+    type: privacy
+    must: >
+      Browser control, observation and session APIs are authenticated first-party surfaces, hidden from broad public/developer execution. Owner authorization is rechecked on each operation, viewer credentials are short lived and never stored in embeds or supplied to models, and shared/public chats cannot expose a live session. Retained private observations and results follow existing encrypted asset/embed/history storage; live provider browser state is disclosed as cloud processing rather than client-only encryption. Cache misses recover authoritative records without widening access. Logs and performance reports contain timings, counts and costs rather than private pages or credentials.
+    depends_on: [examples.privacy]
+  - id: web-browse.workflow-parity
+    type: parity
+    must: >
+      After regular skill/embed verification, workflow execution uses the same validated Browse contract, provider policy, lifecycle and cost ledger. Each workflow run starts isolated unless a current owner-scoped session binding is explicitly carried; it never borrows an interactive login. Unattended workflows cannot auto-confirm sensitive actions or wait indefinitely for manual intervention: they return a resumable needs_user outcome through existing workflow handling. Workflow tests exercise success, isolation, approval/handoff and actual billing.
+    depends_on: [examples.workflows]
+  - id: web-browse.delivery-and-evidence
+    type: parity
+    must: >
+      Verify real skill invocation through the OpenMates CLI and corresponding direct Rust/npm/pip library capabilities before web delivery, synchronizing supported schemas and conformance. Deterministic API/client/browser integration runs in isolated CI; real inference runs only on dev with ordinary automatic chat routing and the configured skill specialists. Web acceptance includes actual screenshot, watch, takeover, private sign-in, continuation, pause and expiry flows on laptop/mobile, plus two real app-store examples. Measure startup, decision/text-helper/action/total latency, success and verified completion, native tokens, supplier cost and charged credits on representative permitted tasks, preserving failures and separating measured results from estimates. Workflow verification follows the regular skill and embeds. Apple parity follows verified web behavior and user confirmation, without claiming premature native support.
+    depends_on: [examples.delivery]
+applies_to:
+  rest_api: {required: true, role: Authenticated first-party execution and browser session controls; broad developer execution is excluded.}
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    parity: semantic
+    implementations: {rust: {required: true}, npm: {required: true}, pip: {required: true}}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, reason: Native parity is a subsequent phase after web verification and user confirmation.}
+    exceptions: []
+  workflow: {required: true, phase: after_regular_skill_and_web_embeds}
+examples:
+  file: examples.yml
+  required_groups: [structured_data, routing, sessions, control_loop, typing, outcomes, embeds, takeover, sign_in, confirmations, lifecycle, budgets, billing, network, privacy, workflows, delivery]
+approval_source:
+  instruction: The user explicitly authorized implementing and testing the agreed feature on 2026-10-26, then required workflow support after regular skill and embed delivery.
+  review_status: This records direct implementation authorization; no user review of an exact specification fingerprint is claimed.
