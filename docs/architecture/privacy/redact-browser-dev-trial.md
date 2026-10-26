@@ -199,8 +199,8 @@ native memory, latency, detection misses, and OS-enforced offline proof.
 The subsequent [licensing/privacy review](redact-licensing-privacy-review-2026-10-26.md)
 confirms that users' browsers directly contact the licensing service. The vendor's
 website privacy page does not document key SDK telemetry details. Production
-approval remains withheld; making the development trial explicitly opt-in is a
-pending user decision. The [vendor inquiry](desert-ant-privacy-questions-unsent-2026-10-26.md)
+approval remains withheld. The user prefers retaining the current enabled dev
+trial with a settings switch back to regex. The [vendor inquiry](desert-ant-privacy-questions-unsent-2026-10-26.md)
 is an unsent draft, not an approved change to the SDK's mandatory reporting.
 
 The user explicitly requested checking the October 2026 decoder vulnerability,

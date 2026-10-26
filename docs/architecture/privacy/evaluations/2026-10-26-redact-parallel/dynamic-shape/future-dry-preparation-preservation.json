@@ -1,0 +1,25 @@
+{
+  "kind": "dry-preparation-evidence-preservation",
+  "status": "passed",
+  "model_operations_executed": false,
+  "allocation_or_inference_rerun": false,
+  "original_hashes_verified_unchanged": {
+    "preparation.json": "97b818583ea7d93be335cd759aa46499e1f261924df6ad62ccc56a1c6ba53c43",
+    "runtime-2.2/allocation-result.json": "0bae047e7e215788d7ffc846ceb3b4bdd234750ad98d62250c968bc4216dacf8",
+    "runtime-2.2/native-stderr.log": "0cca6b01988b164a9b2ae19b27ab64e47c9787b2f10e91df9143ea8e77abc18a",
+    "runtime-2.2/supervisor-result.json": "2d6372236b188160253b7bd5305f715aca8509b2a882a98d93730ace8685e37a",
+    "runtime-2.3.1/allocation-result.json": "7a218f15e0179077f4c0722548c063dd908c0e25b851be3e5c30ad8d45417709",
+    "runtime-2.3.1/native-stderr.log": "1231845ec371d160c63f1d775dcd5bb8519a84d604a43a030a97ee84776724cd",
+    "runtime-2.3.1/supervisor-result.json": "17f884dcd14eac1c7a4a9900995082299f7ff5febde9222d1f7366f97f3f54e8"
+  },
+  "new_preparation_path": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/preparation.json",
+  "new_preparation_sha256": "3c6a3357a020b3c61c54a632c3da2cfc1ed9e539e66914d3d2949bbab3071475",
+  "new_generated_source_sha256": "462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046",
+  "new_binary_sha256": "f0d5d873a2f33f11a0a611038c60bee31e4e65d80b705cc971391648a74ba5c1",
+  "new_supervisor_sha256": "41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3",
+  "new_extension_sha256": "c30b038feb4fdfbe39a0012929aa4240424c94e81d6daceee78238fa70445d76",
+  "new_compile_and_public_header_abi_checks_passed": true,
+  "new_run_directory_exists": false,
+  "future_run_evidence_root": "/tmp/openmates-redact-rust-678f/dynamic-shape-probe/preparations/462d56f25d0301eca88ed4732b384c97232dc181c9b1736d79d204b890ca6046/41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3/runs",
+  "shared_native_files_verified_without_replacement": true
+}

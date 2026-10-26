@@ -1,0 +1,470 @@
+{
+  "published_control": {
+    "status": "failed",
+    "reason": "wall-time-limit",
+    "whole_profile_seconds": 600.1031385026872,
+    "completed_cases": 122,
+    "scope": "Only completed per-case checkpoints, not a complete published-engine run",
+    "raw_sha256": "42e479f87f2d61384766b147a3e13c4a8003042767e8bcc7ee61aad4abb93404",
+    "comparison": {
+      "cases": 122,
+      "span_parity": true,
+      "span_differences": [],
+      "annotated_coverage_losses": []
+    }
+  },
+  "matrix": [
+    {
+      "profile": "fast-1worker-8threads-all",
+      "workers": 1,
+      "threads": 8,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 87101440,
+      "seconds": 177.67486670054495,
+      "raw_sha256": "587ca2f8b249f9d98da1c967053fcf8177d97fb0628483df2707f62619cc7427",
+      "large_cases": [
+        {
+          "id": "q:large-prose-32768",
+          "milliseconds": 5687.497794000001,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-32768",
+          "milliseconds": 6761.1920359999995,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768",
+          "milliseconds": 6512.345354,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-32768",
+          "milliseconds": 6332.261189000001,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768-negative",
+          "milliseconds": 6059.367817,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-prose-131072",
+          "milliseconds": 23305.8884,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-131072",
+          "milliseconds": 29634.156262,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072",
+          "milliseconds": 24087.50064,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-131072",
+          "milliseconds": 26272.271029,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072-negative",
+          "milliseconds": 24115.914947,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:stress-repetitive-27135",
+          "milliseconds": 8838.671476,
+          "within_2500ms": false
+        }
+      ]
+    },
+    {
+      "profile": "fast-2workers-4threads-all",
+      "workers": 2,
+      "threads": 4,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 132157440,
+      "seconds": 133.5717856520787,
+      "raw_sha256": "163c85fcdc9376a7d79175a5baee272f3626df03da36ca5d9f702db921ed5596",
+      "large_cases": [
+        {
+          "id": "q:large-prose-32768",
+          "milliseconds": 4111.139906,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-32768",
+          "milliseconds": 4462.745691,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768",
+          "milliseconds": 5338.827756,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-32768",
+          "milliseconds": 4754.535274,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768-negative",
+          "milliseconds": 4571.548306000001,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-prose-131072",
+          "milliseconds": 17512.881527,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-131072",
+          "milliseconds": 21039.529132,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072",
+          "milliseconds": 17836.522378,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-131072",
+          "milliseconds": 19165.020286,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072-negative",
+          "milliseconds": 18569.010249000003,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:stress-repetitive-27135",
+          "milliseconds": 7180.804668999999,
+          "within_2500ms": false
+        }
+      ],
+      "comparison": {
+        "cases": 127,
+        "span_parity": true,
+        "span_differences": [],
+        "annotated_coverage_losses": []
+      }
+    },
+    {
+      "profile": "fast-4workers-2threads-all",
+      "workers": 4,
+      "threads": 2,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 218071040,
+      "seconds": 110.02871933300048,
+      "raw_sha256": "166c3e9dc2a6f43ac93c005b87c1df798fa25a947e1cd768d4fc941e64e55b96",
+      "large_cases": [
+        {
+          "id": "q:large-prose-32768",
+          "milliseconds": 3263.441347,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-32768",
+          "milliseconds": 3657.205978,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768",
+          "milliseconds": 3697.021846,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-32768",
+          "milliseconds": 3709.778257,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768-negative",
+          "milliseconds": 3709.331539,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-prose-131072",
+          "milliseconds": 13555.584420000001,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-131072",
+          "milliseconds": 17578.273666,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072",
+          "milliseconds": 14853.128466,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-131072",
+          "milliseconds": 16005.142725999998,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072-negative",
+          "milliseconds": 14681.11128,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:stress-repetitive-27135",
+          "milliseconds": 5546.958011,
+          "within_2500ms": false
+        }
+      ],
+      "comparison": {
+        "cases": 127,
+        "span_parity": true,
+        "span_differences": [],
+        "annotated_coverage_losses": []
+      }
+    },
+    {
+      "profile": "fast-8workers-1threads-all",
+      "workers": 8,
+      "threads": 1,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 390778880,
+      "seconds": 110.74492944590747,
+      "raw_sha256": "adc050e0097bafaa76633af75acb458fae3d858adb5a5502a5dd2cf89ce1e9d9",
+      "large_cases": [
+        {
+          "id": "q:large-prose-32768",
+          "milliseconds": 3161.148715,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-32768",
+          "milliseconds": 3609.4087959999997,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768",
+          "milliseconds": 3586.776916,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-32768",
+          "milliseconds": 4557.095149000001,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768-negative",
+          "milliseconds": 4018.412063,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-prose-131072",
+          "milliseconds": 12860.662202,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-131072",
+          "milliseconds": 17482.397703,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072",
+          "milliseconds": 14584.801696999999,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-python-config-131072",
+          "milliseconds": 14581.888372,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072-negative",
+          "milliseconds": 14280.769031,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:stress-repetitive-27135",
+          "milliseconds": 5335.406334,
+          "within_2500ms": false
+        }
+      ],
+      "comparison": {
+        "cases": 127,
+        "span_parity": true,
+        "span_differences": [],
+        "annotated_coverage_losses": []
+      }
+    },
+    {
+      "profile": "fast-1worker-8threads-512k-code-doc",
+      "workers": 1,
+      "threads": 8,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 93659136,
+      "seconds": 279.5097378930077,
+      "raw_sha256": "a7de191dd2111b6fa09f296a5dad669c870f0a92879fa7561ba02f9c6777a030",
+      "large_cases": [
+        {
+          "id": "q:large-markdown-524288",
+          "milliseconds": 182863.96644999998,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-524288",
+          "milliseconds": 96137.132112,
+          "within_2500ms": false
+        }
+      ]
+    },
+    {
+      "profile": "fast-4workers-2threads-512k-code-doc",
+      "workers": 4,
+      "threads": 2,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "peak_observed_rss_bytes": 225046528,
+      "seconds": 196.88815542403609,
+      "raw_sha256": "ed6bf0d96f5efcad08fd7ee629ceedc56c5b6854544025aa9345ecce581ea0dd",
+      "large_cases": [
+        {
+          "id": "q:large-markdown-524288",
+          "milliseconds": 139575.556661,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-524288",
+          "milliseconds": 56890.180185,
+          "within_2500ms": false
+        }
+      ],
+      "comparison": {
+        "cases": 2,
+        "span_parity": true,
+        "span_differences": [],
+        "annotated_coverage_losses": []
+      }
+    },
+    {
+      "profile": "fast-8workers-2threads-16cpu-scaling",
+      "workers": 8,
+      "threads": 2,
+      "cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "peak_observed_rss_bytes": 393240576,
+      "seconds": 189.95748940762132,
+      "raw_sha256": "ba952f4c365cdcd8c315d1fd0e93fa2bc726919454a78cb30de617a4c3550d6c",
+      "large_cases": [
+        {
+          "id": "q:large-markdown-32768",
+          "milliseconds": 2698.467557,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-32768",
+          "milliseconds": 2385.549565,
+          "within_2500ms": true
+        },
+        {
+          "id": "q:large-markdown-131072",
+          "milliseconds": 12591.382081999998,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-131072",
+          "milliseconds": 10281.684266999999,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-markdown-524288",
+          "milliseconds": 122387.617898,
+          "within_2500ms": false
+        },
+        {
+          "id": "q:large-typescript-524288",
+          "milliseconds": 39174.800708,
+          "within_2500ms": false
+        }
+      ]
+    }
+  ],
+  "sixteen_cpu_parity": {
+    "scope": "More CPU capacity than sequential eight-core controls; per-case input hashes/model/native/Rust identities verified; not a matched-CPU speedup",
+    "comparison": {
+      "cases": 6,
+      "span_parity": true,
+      "span_differences": [],
+      "annotated_coverage_losses": []
+    }
+  },
+  "latency_target_ms": 2500
+}

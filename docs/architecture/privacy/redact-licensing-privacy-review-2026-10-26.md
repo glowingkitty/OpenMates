@@ -1,8 +1,9 @@
 # Redact licensing and privacy review
 
 Reviewed 2026-10-26 for TASK-6119, session 678f. Production activation is disabled.
-The user requested reassessment of direct client licensing traffic; the decision
-on making the development trial explicitly opt-in is pending.
+The user requested reassessment of direct client licensing traffic, then preferred
+retaining the enabled development trial with a settings switch back to regex.
+Production still awaits sufficient SDK privacy terms and a lawful-basis assessment.
 
 ## Decision
 

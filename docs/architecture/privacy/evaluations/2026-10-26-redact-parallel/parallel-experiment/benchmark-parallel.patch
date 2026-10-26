@@ -1,0 +1,194 @@
+--- a/Sources/Redact/Model.swift
++++ b/Sources/Redact/Model.swift
+@@ -5,6 +5,15 @@
+ /// deterministic-owner merge.
+ final class Model: @unchecked Sendable {
+     private let session: any InferenceSession
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++    private let benchmarkSessions: [any InferenceSession]
++
++    // A task owns each mutable row until returning this immutable envelope.
++    private final class BenchmarkChunkBatch: @unchecked Sendable {
++        let rows: [(Int, [(Span, Double)])]
++        init(_ rows: [(Int, [(Span, Double)])]) { self.rows = rows }
++    }
++#endif
+     private let tokenizer: Tokenizer
+     private let id2label: [Int: String]
+     private let chunking: Chunking
+@@ -23,9 +32,26 @@
+     init(assets: ModelAssets, chunking: Chunking = .default) throws {
+         guard let tok = Tokenizer(bytes: assets.tokenizer) else { throw RedactError.resourceMissing }
+         tokenizer = tok
++#if os(Linux) && DAL_REDACT_BENCHMARK_CHUNKING
++        let benchmarkMaxChars = environmentVariable("DAL_REDACT_BENCH_MAX_CHARS")
++        let benchmarkCarry = environmentVariable("DAL_REDACT_BENCH_CARRY")
++        if chunking == .default && (benchmarkMaxChars != nil || benchmarkCarry != nil) {
++            guard let maxChars = Int(benchmarkMaxChars ?? "150"), (150...600).contains(maxChars),
++                  let carry = Int(benchmarkCarry ?? "1"), (0...1).contains(carry) else {
++                throw RedactError.predictionFailed
++            }
++            self.chunking = Chunking(maxChars: maxChars, carry: carry)
++        } else {
++            self.chunking = chunking
++        }
++#else
+         self.chunking = chunking
++#endif
+         id2label = try Model.parseLabels(assets.labelsJSON)
+         session = assets.session
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++        benchmarkSessions = assets.benchmarkSessions
++#endif
+     }
+ 
+     /// `labels.json` is `{"id2label": {"0": "O", ...}}`.
+@@ -59,10 +85,58 @@
+         // (start, end, label) at its best score, in first-seen order.
+         var best: [String: Int] = [:]
+         var scored: [(Span, Double)] = []
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++        if benchmarkSessions.count > 1 {
++            let ranges = Chunks.ranges(t, chunking)
++            let chunks = ranges.map { t.slice($0.lowerBound, $0.upperBound) }
++            var ordered = [[(Span, Double)]](repeating: [], count: ranges.count)
++            try await withThrowingTaskGroup(of: BenchmarkChunkBatch.self) { group in
++                let count = min(benchmarkSessions.count, ranges.count)
++                for worker in 0..<count {
++                    let workerSession = benchmarkSessions[worker]
++                    group.addTask {
++                        var rows: [(Int, [(Span, Double)])] = []
++                        for index in Swift.stride(from: worker, to: ranges.count, by: count) {
++                            try Task.checkCancellation()
++                            var localBest: [String: Int] = [:]
++                            var localScored: [(Span, Double)] = []
++                            try await self.scoreChunk(chunks[index], at: ranges[index].lowerBound,
++                                low: low, session: workerSession,
++                                best: &localBest, scored: &localScored)
++                            rows.append((index, localScored))
++                        }
++                        return BenchmarkChunkBatch(rows)
++                    }
++                }
++                for try await batch in group {
++                    for (index, spans) in batch.rows { ordered[index] = spans }
++                }
++            }
++            // Stable chunk order retains original first-seen order and maxima.
++            // No chunk runs hysteresis, contextual rules, or final cleanup.
++            for spans in ordered {
++                for (span, score) in spans {
++                    let key = "\(span.start):\(span.end):\(span.label)"
++                    if let at = best[key] {
++                        if score > scored[at].1 { scored[at].1 = score }
++                    } else {
++                        best[key] = scored.count
++                        scored.append((span, score))
++                    }
++                }
++            }
++        } else {
+         for range in Chunks.ranges(t, chunking) {
+             try await scoreChunk(t.slice(range.lowerBound, range.upperBound), at: range.lowerBound,
+-                                 low: low, best: &best, scored: &scored)
+-        }
++                                 low: low, session: session, best: &best, scored: &scored)
++        }
++        }
++#else
++        for range in Chunks.ranges(t, chunking) {
++            try await scoreChunk(t.slice(range.lowerBound, range.upperBound), at: range.lowerBound,
++                                 low: low, session: session, best: &best, scored: &scored)
++        }
++#endif
+ 
+         var kept = Pipeline.hysteresis(t, scored, minScore)
+         kept = Pipeline.mergePriority(kept)
+@@ -73,7 +147,7 @@
+ 
+     /// Score one chunk in 254-token windows, adding its spans at `base` (the
+     /// chunk's UTF-16 offset in the full text).
+-    private func scoreChunk(_ text: String, at base: Int, low: Double,
++    private func scoreChunk(_ text: String, at base: Int, low: Double, session: any InferenceSession,
+                             best: inout [String: Int], scored: inout [(Span, Double)]) async throws {
+         let tokens = tokenizer.tokenize(text)
+         let offsets = reconstructOffsets(UTF16Text(text), tokens)
+@@ -82,7 +156,7 @@
+             let end = min(i + Model.maxContent, tokens.count)
+             let chunk = Array(tokens[i..<end])
+             let chunkOffsets = Array(offsets[i..<end])
+-            let (tags, tagOffsets, probs) = try await runWindow(chunk, chunkOffsets)
++            let (tags, tagOffsets, probs) = try await runWindow(chunk, chunkOffsets, session: session)
+             // score = max token prob overlapping each BIOES span (within this window)
+             let usableTags = zip(tags, probs).map { $0.1 >= low ? $0.0 : "O" }
+             for span in Pipeline.bioesToSpans(usableTags, tagOffsets) {
+@@ -105,13 +179,13 @@
+     }
+ 
+     /// Run one window (<= 256 incl. specials); returns (tags, offsets, probs).
+-    private func runWindow(_ chunk: [Tokenizer.Token], _ chunkOffsets: [(Int, Int)]) async throws
++    private func runWindow(_ chunk: [Tokenizer.Token], _ chunkOffsets: [(Int, Int)], session: any InferenceSession) async throws
+         -> ([String], [(Int, Int)], [Double]) {
+         let ids = [tokenizer.bosID] + chunk.map(\.id) + [tokenizer.eosID]
+         let realLen = ids.count
+         var offs: [(Int, Int)] = [(0, 0)] + chunkOffsets + [(0, 0)]
+ 
+-        let (logits, numLabels) = try await logits(ids: ids)
++        let (logits, numLabels) = try await logits(ids: ids, session: session)
+         guard numLabels > 0, logits.count == realLen * numLabels else {
+             throw RedactError.predictionFailed
+         }
+@@ -160,7 +234,7 @@
+     /// return row-major logits. The `.tflite` declares only `input_ids` and
+     /// `attention_mask` and the session ignores extra inputs, so the same tensor
+     /// dict serves both.
+-    private func logits(ids: [Int]) async throws -> (values: [Float], numLabels: Int) {
++    private func logits(ids: [Int], session: any InferenceSession) async throws -> (values: [Float], numLabels: Int) {
+         let realLen = ids.count
+         guard realLen > 0, realLen <= Self.seq else { throw RedactError.predictionFailed }
+         var padded = [Int32](repeating: 1, count: Self.seq)   // <pad>
+--- a/Sources/Redact/ModelLoading.swift
++++ b/Sources/Redact/ModelLoading.swift
+@@ -10,6 +10,11 @@
+     public let labelsJSON: String
+     /// The platform's ready-to-run session for the model artifact.
+     let session: any InferenceSession
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++    // Independent factory calls own independent LiteRT compiled models/locks.
++    // The ordinary licensed factory path remains responsible for every load.
++    private(set) var benchmarkSessions: [any InferenceSession]
++#endif
+ 
+     /// Bindings entry point: build from an already-constructed session (e.g. the
+     /// wasm host's `JSInferenceSession`) plus the sidecars.
+@@ -18,16 +23,29 @@
+         self.tokenizer = tokenizer
+         self.labelsJSON = labelsJSON
+         self.session = session
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++        benchmarkSessions = [session]
++#endif
+     }
+ 
+     /// Build from a resolved model directory: read the sidecars and let the
+     /// core pick this platform's session for the artifact.
+     static func redact(files: StoredModel) async throws -> ModelAssets {
+-        ModelAssets(
++        var assets = ModelAssets(
+             tokenizer: try files.read(RedactModel.tokenizer),
+             labelsJSON: try files.readString(RedactModel.labels),
+             session: try await files.inferenceSession(
+                 model: RedactModel.artifact, sdk: RedactModel.sdkInfo))
++#if os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL
++        guard let workers = Int(environmentVariable("DAL_REDACT_BENCH_WORKERS") ?? "1"),
++              (1...8).contains(workers) else { throw RedactError.predictionFailed }
++        // Finish all licensed loads before the caller supplies private text.
++        for _ in 1..<workers {
++            assets.benchmarkSessions.append(try await files.inferenceSession(
++                model: RedactModel.artifact, sdk: RedactModel.sdkInfo))
++        }
++#endif
++        return assets
+     }
+ }
+ 

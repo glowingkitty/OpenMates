@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""Reconstruct synthetic C ABI payloads; benchmark unchanged Rust validation only."""
+from pathlib import Path
+import collections,hashlib,importlib.util,json,os,resource,signal,struct,subprocess,sys,time
+ROOT=Path('/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-678f')
+WORK=Path('/tmp/openmates-redact-parallel-678f/validation-timing')
+RAW=Path('/tmp/openmates-redact-parallel-678f/fast-8workers-2threads-16cpu-scaling.json')
+HOST=ROOT/'scripts/redact_rust_evaluation.rs'
+GENERATOR=ROOT/'scripts/redact_large_document_fixtures.py'
+RUSTC=Path('/home/superdev/.rustup/toolchains/1.98.1-aarch64-unknown-linux-gnu/bin/rustc')
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+observed=json.loads(RAW.read_text())
+sys.path.insert(0,str(ROOT/'scripts'))
+spec=importlib.util.spec_from_file_location('validation_fixture_source',GENERATOR)
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+fixtures={row['id']:row for row in module.generate((32*1024,128*1024,512*1024))}
+assert len(observed['cases'])==6
+pack_string=lambda value:struct.pack('>I',len(value.encode()))+value.encode()
+framed=bytearray(struct.pack('>I',6))
+for case in observed['cases']:
+    text=fixtures[case['id']]['text']
+    units=text.encode('utf-16-le')
+    assert len(text.encode())==case['input_bytes']
+    assert len(units)//2==case['characters_utf16']
+    previous=0;counts=collections.Counter();redacted=[];encoded=[]
+    for span in case['spans']:
+        label,start,end,confidence=(span[k] for k in ['label','start','end','confidence'])
+        assert previous<=start<end<=len(units)//2
+        original=units[start*2:end*2].decode('utf-16-le',errors='strict')
+        counts[label]+=1
+        placeholder=f'[{label}_{counts[label]}]'
+        assert placeholder not in text
+        redacted.extend([units[previous*2:start*2],placeholder.encode('utf-16-le')])
+        encoded.append(pack_string(label)+pack_string(original)+pack_string(placeholder)+struct.pack('>dII',confidence,start,end))
+        previous=end
+    redacted.append(units[previous*2:])
+    redacted_text=b''.join(redacted).decode('utf-16-le',errors='strict')
+    payload=pack_string(redacted_text)+struct.pack('>I',len(encoded))+b''.join(encoded)
+    framed+=pack_string(case['id'])+pack_string(text)+pack_string(case['fingerprint'])+struct.pack('>I',len(payload))+payload
+input_path=WORK/'synthetic-validation-payloads.bin'
+with input_path.open('xb') as f:f.write(framed)
+before=HOST.read_text()
+assert before.count('fn main() {')==1
+main=r"""
+fn validation_only(args: &[String]) -> Res<()> {
+    if args.len()!=3 { return Err("validation-benchmark-arguments"); }
+    let bytes=fs::read(&args[1]).map_err(|_|"validation-input-read")?;
+    if bytes.len()>16*1024*1024 { return Err("validation-input-bound"); }
+    let mut cursor=Cursor::new(&bytes);
+    let count=cursor.u32()?;
+    if count!=6 { return Err("validation-case-count"); }
+    let mut rows=Vec::new();
+    for _ in 0..count {
+        let id=cursor.string(128)?;
+        let text=cursor.string(MAX_TEXT)?;
+        let expected=cursor.string(32)?;
+        let length=cursor.u32()? as usize;
+        if length>MAX_RESULT { return Err("validation-payload-bound"); }
+        let payload=cursor.take(length)?;
+        let mut timings=Vec::new();
+        let mut histogram=std::collections::BTreeMap::<String,usize>::new();
+        let mut span_count=0;
+        for repeat in 0..3 {
+            let start=Instant::now();
+            let spans=parse_result(std::hint::black_box(payload),std::hint::black_box(text))?;
+            let elapsed=start.elapsed().as_secs_f64()*1000.0;
+            timings.push(elapsed);
+            if fingerprint(&spans)!=expected { return Err("recorded-fingerprint-mismatch"); }
+            if repeat==0 {
+                span_count=spans.len();
+                for span in &spans { *histogram.entry(span.label.clone()).or_insert(0)+=1; }
+            } else if spans.len()!=span_count { return Err("validation-count-drift"); }
+            std::hint::black_box(spans);
+        }
+        let times=timings.iter().map(|v|format!("{v:.9}")).collect::<Vec<_>>().join(",");
+        let labels=histogram.iter().map(|(key,value)|format!("{}:{}",json_string(key),value)).collect::<Vec<_>>().join(",");
+        let mut ordered=timings.clone();ordered.sort_by(|a,b|a.partial_cmp(b).unwrap());
+        rows.push(format!("{{\"id\":{},\"span_count\":{},\"labels\":{{{}}},\"parse_result_ms\":[{}],\"median_ms\":{:.9}}}",json_string(id),span_count,labels,times,ordered[1]));
+    }
+    cursor.finished()?;
+    let result=format!("{{\"status\":\"passed\",\"mode\":\"pure Rust unchanged parse_result validation and restoration\",\"sdk_or_model_loaded\":false,\"network_or_licensing_used\":false,\"inference_executed\":false,\"repetitions\":3,\"cases\":[{}]}}\n",rows.join(","));
+    let mut output=fs::OpenOptions::new().write(true).create_new(true).open(&args[2]).map_err(|_|"validation-fresh-output-required")?;
+    output.write_all(result.as_bytes()).map_err(|_|"validation-output-write")?;
+    Ok(())
+}
+fn main() {
+    let args:Vec<String>=std::env::args().collect();
+    if let Err(error)=validation_only(&args) { eprintln!("{error}");std::process::exit(1); }
+}
+"""
+generated=before.replace('fn main() {','fn retained_original_main() {',1)+'\n'+main
+source=WORK/'validation-only.rs'
+with source.open('x') as f:f.write(generated)
+validator=lambda s:s.split('fn parse_result(',1)[1].split('\nfn classify(',1)[0]
+assert validator(generated)==validator(before)
+source_hash=sha(source);host_hash=sha(HOST)
+assert host_hash==hashlib.sha256(before.encode()).hexdigest()
+binary=WORK/'validation-only'
+def bounds():
+    os.nice(10);os.sched_setaffinity(0,{10,11});resource.setrlimit(resource.RLIMIT_CORE,(0,0));resource.setrlimit(resource.RLIMIT_CPU,(30,30))
+command=[str(RUSTC),'--edition=2021','-O','-C','debuginfo=0',str(source),'-o',str(binary)]
+compiled=subprocess.run(command,capture_output=True,text=True,timeout=120,preexec_fn=bounds)
+(WORK/'compile.log').write_text(compiled.stdout+compiled.stderr)
+compiled.check_returncode()
+output=WORK/'validation-result.json'
+start=time.monotonic()
+with (WORK/'run-stderr.log').open('xb') as errors:
+    child=subprocess.Popen([str(binary),str(input_path),str(output)],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=errors,preexec_fn=bounds,start_new_session=True)
+    try:code=child.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        os.killpg(child.pid,signal.SIGKILL);child.wait();raise
+if code:raise RuntimeError('Unchanged validation rejected reconstructed payload; stop without repairs')
+assert sha(HOST)==host_hash
+proof={'status':'passed','recipe_sha256':sha(Path(__file__)),'original_host_sha256':host_hash,'generated_source_sha256':source_hash,'validator_function_sha256':hashlib.sha256(validator(before).encode()).hexdigest(),'validator_function_byteidentical':True,'only_host_change':'rename original main; append pure validation main','fixture_generator_sha256':sha(GENERATOR),'recorded_model_results_sha256':sha(RAW),'private_synthetic_payloads_sha256':sha(input_path),'binary_sha256':sha(binary),'result_sha256':sha(output),'compile_command':command,'cpu_affinity':[10,11],'nice':10,'wall_seconds':time.monotonic()-start,'wall_bound_seconds':30,'repetitions_per_case':3,'model_or_sdk_calls':0,'licensing_or_network_calls':0,'reconstruction':'original UTF16 slices; ordered label counters and literal placeholders; JSON confidence roundtrip to f64; original parse_result validates all restoration and offsets; recorded fingerprint checked after timer'}
+(WORK/'validation-proof.json').write_text(json.dumps(proof,indent=2)+'\n')
+print(json.dumps({'proof':str(WORK/'validation-proof.json'),'proof_sha256':sha(WORK/'validation-proof.json'),'source_sha256':source_hash,'validator_sha256':proof['validator_function_sha256'],'cases':json.loads(output.read_text())['cases']}))

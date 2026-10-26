@@ -1,0 +1,1 @@
+PASS 164224 Swift predicate equivalence checks; valid UTF16 offsets, Unicode/surrogate cuts, overlap, equal starts, whitespace, exact20 boundary; opaque downstream result exhaustive

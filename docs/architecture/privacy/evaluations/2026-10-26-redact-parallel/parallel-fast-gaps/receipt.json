@@ -1,0 +1,168 @@
+{
+  "sdk_commit": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "swift": "6.3.3",
+  "cpus": [
+    12,
+    13,
+    14,
+    15
+  ],
+  "nice": 10,
+  "max_disk_bytes": 5000000000,
+  "min_free_bytes": 32212254720,
+  "min_memory_available_bytes": 2147483648,
+  "memory_archive_admission_bytes": 4294967296,
+  "brotli_prefix": "/tmp/openmates-redact-678f-brotli-1.1.1",
+  "inference_executed": false,
+  "benchmark_environment": {
+    "DAL_REDACT_BENCH_MAX_CHARS": {
+      "minimum": 150,
+      "maximum": 600,
+      "default": 150
+    },
+    "DAL_REDACT_BENCH_CARRY": {
+      "minimum": 0,
+      "maximum": 1,
+      "default": 1
+    },
+    "compile_guard": "os(Linux) && DAL_REDACT_BENCHMARK_CHUNKING",
+    "missing_overrides_preserve_defaults": true,
+    "DAL_REDACT_BENCH_WORKERS": {
+      "minimum": 1,
+      "maximum": 8,
+      "default": 1
+    },
+    "parallel_compile_guard": "os(Linux) && DAL_REDACT_BENCHMARK_PARALLEL",
+    "independent_compiled_sessions": true,
+    "sessions_initialized_during_model_load": true,
+    "chunk_order_preserved": true,
+    "global_postprocessing_passes": 1,
+    "DAL_REDACT_BENCH_FAST_GAPS": {
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0
+    },
+    "fast_gaps_compile_guard": "os(Linux) && DAL_REDACT_BENCHMARK_FAST_GAPS"
+  },
+  "resource_accounting_root": "/tmp/openmates-redact-rust-678f/swift-experiment",
+  "parallel_fast_gaps": true,
+  "toolchain_sha256": "47126395429653fa768d370655876ec1b68f6a95c7884f5e4f179700141c9b7f",
+  "reused_build_root": "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment",
+  "original_parallel_receipt_sha256": "1d9692f7dbac1cc8f23c0b5ff32c518c33ea099a0ae0a714cbf12f72de97942a",
+  "phase": "build-complete",
+  "updated_utc": "2026-10-26T18:09:41Z",
+  "archive": "sdk-source.tar.gz",
+  "archive_member_bytes": 14118076,
+  "archive_members": 1306,
+  "source_patched": true,
+  "source_archive_sha256": "6143aaeea8dfa8801df0bf5e8a111eddb430515f6f3350460df27bc1b55a7c2e",
+  "chunking_patch_sha256": "4e12a633f94070c1c0ee21644fa9f6661f9d361b41c96ca53f5b4b6c9e3968e0",
+  "parallel_source_patched": true,
+  "parallel_patch_sha256": "26442d00db572b1e1dd34dd47e574edc40fa18f654fdea2d0241eaa7163e4bb5",
+  "parallel_source_sha256": {
+    "Sources/Redact/Model.swift": "872985a84d777322c67b5132d434b30e12a37173d0470502c2c32da0a67db1f5",
+    "Sources/Redact/ModelLoading.swift": "a6aae170efa698f7d199d57c9276fcb41b2945f92dcd80114f5f68cffc8f8e0c",
+    "Sources/Redact/Pipeline.swift": "d652d4f41758d1027dad31b82117eb828f8c0d9327c22d785d4a23165322585d"
+  },
+  "fast_gaps_source_patched": true,
+  "source_integrity_audit": {
+    "unchanged_tracked_files": 901,
+    "changed_tracked_files": [
+      "Sources/Redact/Model.swift",
+      "Sources/Redact/ModelLoading.swift",
+      "Sources/Redact/Pipeline.swift"
+    ],
+    "only_benchmark_parallel_patch": true,
+    "only_benchmark_parallel_fast_gaps_patch": true,
+    "patch_relative_to_pinned_original": true
+  },
+  "source_path": "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-fast-gaps/source/desert-ant-core-86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "swift_path": "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/toolchain/swift-6.3.3-RELEASE-ubuntu24.04-aarch64/usr/bin/swift",
+  "litert_sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c",
+  "build_requires_baseline_parity": true,
+  "gap_predicate_proof": {
+    "checks": 164224,
+    "passed": true,
+    "source_sha256": "3d1cd2a7295e8b1d83e212cd5b82abd1c33d5807cb410dd168060b5c73ecf2ef",
+    "binary_sha256": "4356c78e67386d8de35649d1ab10a62f27c8540d66578d4381a26839a6cffc0b",
+    "stdout_sha256": "67a45b40050c45c5c970e0747119ef22b2920782e76bbd3ff4050042bbf2444b",
+    "input_scope": "valid source UTF16 span offsets; Unicode/surrogate cuts, overlap/equal starts, whitespace, boundary20; downstream boolean exhaustive",
+    "real_model_inference": false
+  },
+  "build_command": [
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/toolchain/swift-6.3.3-RELEASE-ubuntu24.04-aarch64/usr/bin/swift",
+    "build",
+    "--scratch-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/build",
+    "--cache-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/swiftpm-cache",
+    "--config-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/swiftpm-config",
+    "--security-path",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-experiment/swiftpm-security",
+    "--jobs",
+    "4",
+    "-c",
+    "release",
+    "--product",
+    "RedactNode",
+    "--disable-default-traits",
+    "-Xswiftc",
+    "-static-stdlib",
+    "-Xswiftc",
+    "-DDAL_REDACT_BENCHMARK_CHUNKING",
+    "-Xlinker",
+    "-L/tmp/openmates-redact-rust-678f/swift-experiment/parallel-fast-gaps/link-stubs",
+    "-Xlinker",
+    "-L/tmp/openmates-redact-rust-678f/swift-experiment/parallel-fast-gaps/source/desert-ant-core-86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb/Vendor/litert/lib/linux-arm64",
+    "-Xlinker",
+    "-rpath",
+    "-Xlinker",
+    "$ORIGIN",
+    "-Xlinker",
+    "-z",
+    "-Xlinker",
+    "nodelete",
+    "-Xlinker",
+    "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-fast-gaps/link-stubs/dal_curl_compat.o",
+    "-Xswiftc",
+    "-DDAL_REDACT_BENCHMARK_PARALLEL",
+    "-Xswiftc",
+    "-DDAL_REDACT_BENCHMARK_FAST_GAPS"
+  ],
+  "build_timeout_seconds": 1200,
+  "native_path": "/tmp/openmates-redact-rust-678f/swift-experiment/parallel-fast-gaps/native/libRedactNode.so",
+  "native_sha256": "aef424a660681bea94eeda73ae94d267b5980ee8a894c2cd71fe6f3502ed69f5",
+  "native_files": [
+    {
+      "file": "libRedactNode.so",
+      "bytes": 75154720,
+      "sha256": "aef424a660681bea94eeda73ae94d267b5980ee8a894c2cd71fe6f3502ed69f5"
+    },
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "identity": "swift-numerics",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-numerics",
+      "state": {
+        "revision": "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version": "1.1.1"
+      }
+    }
+  ],
+  "free_bytes": 32951808000,
+  "task_allocated_bytes": 120254464,
+  "original_parallel_artifacts_preserved": {
+    "receipt_sha256": "1d9692f7dbac1cc8f23c0b5ff32c518c33ea099a0ae0a714cbf12f72de97942a",
+    "patch_sha256": "2b697a6358c47074d9854a5400ca2d4536493e43b9002c917ebb8c76ed7f8e24",
+    "native_sha256": "34285e882f54de6655d323814533c5a419c0a9535ad7bf0b83aba2630e88f5b3",
+    "source_files_verified": true
+  },
+  "aggregate_task_allocated_bytes": 4169592832
+}

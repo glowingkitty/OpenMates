@@ -1,0 +1,333 @@
+{
+  "date": "2026-10-26",
+  "task": "TASK-906",
+  "session": "678f",
+  "scope": "Synthetic native engineering only; no product or production model activation",
+  "input_scope": "No user/project source; generator hashes and per-case digests retain reconstruction without committing assembled synthetic credentials",
+  "inference": "Existing unchanged Rust C ABI host; Python supervision/scoring only",
+  "privacy": "Normal SDK licensing before OS network seal; no content inference network access. Allocation probes read no input; inherited receipt field clarified in separate immutable derivation.",
+  "files": [
+    {
+      "file": "comparison-summary.json",
+      "bytes": 12037,
+      "sha256": "5b0888eb38c5df3282e5821d403525d5f6b202f13a3def2646207e54686bb598"
+    },
+    {
+      "file": "dynamic-shape/executed-generated-host.rs.txt",
+      "bytes": 66145,
+      "sha256": "794fc07f8e465bb31c80d846b8f5ece62f005d1e4d1794ad2a76065b0cfd8417"
+    },
+    {
+      "file": "dynamic-shape/executed-probe-extension.rs.txt",
+      "bytes": 11773,
+      "sha256": "8ee0ea2576cb500fdb5ae3dce312139b7164a20f2375732a7da6abff90d0ed76"
+    },
+    {
+      "file": "dynamic-shape/feasibility-summary.json",
+      "bytes": 2193,
+      "sha256": "ca16b735af12a1d535b99bac4e417755fde9da440259cb2108e62a9167a9be05"
+    },
+    {
+      "file": "dynamic-shape/future-dry-preparation-preservation.json",
+      "bytes": 2057,
+      "sha256": "0a50654297d6ce43c7c77f6ee5706c7fb3f12b93b3acef93a3589ea480b7a224"
+    },
+    {
+      "file": "dynamic-shape/future-preparation.json",
+      "bytes": 4662,
+      "sha256": "3c6a3357a020b3c61c54a632c3da2cfc1ed9e539e66914d3d2949bbab3071475"
+    },
+    {
+      "file": "dynamic-shape/preparation.json",
+      "bytes": 4158,
+      "sha256": "97b818583ea7d93be335cd759aa46499e1f261924df6ad62ccc56a1c6ba53c43"
+    },
+    {
+      "file": "dynamic-shape/public-header-abi-check.log.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "dynamic-shape/receipt-clarification.json",
+      "bytes": 3441,
+      "sha256": "df831e27d57ae80a6aa26a3fe3ead1ac8ba8f11def0aa0127b30a92a1d620ae0"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.2/allocation-result.json",
+      "bytes": 4304,
+      "sha256": "0bae047e7e215788d7ffc846ceb3b4bdd234750ad98d62250c968bc4216dacf8"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.2/sanitized-allocation-error.txt",
+      "bytes": 153,
+      "sha256": "b61587678be5b60d8d33a067771643a2dab3cce46fd3bcc8a0dd20d6d108c1db"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.2/supervisor-result.json",
+      "bytes": 1395,
+      "sha256": "2d6372236b188160253b7bd5305f715aca8509b2a882a98d93730ace8685e37a"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.3.1/allocation-result.json",
+      "bytes": 4294,
+      "sha256": "7a218f15e0179077f4c0722548c063dd908c0e25b851be3e5c30ad8d45417709"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.3.1/sanitized-allocation-error.txt",
+      "bytes": 172,
+      "sha256": "ad6edc56da1646467b9aac466bd85d45f1fa294e13ffeffae1eed6d4488caa9e"
+    },
+    {
+      "file": "dynamic-shape/runtime-2.3.1/supervisor-result.json",
+      "bytes": 1404,
+      "sha256": "17f884dcd14eac1c7a4a9900995082299f7ff5febde9222d1f7366f97f3f54e8"
+    },
+    {
+      "file": "fast-1worker-8threads-512k-code-doc.json",
+      "bytes": 205982,
+      "sha256": "a7de191dd2111b6fa09f296a5dad669c870f0a92879fa7561ba02f9c6777a030"
+    },
+    {
+      "file": "fast-1worker-8threads-512k-code-doc.supervisor.json",
+      "bytes": 9623,
+      "sha256": "2849c6e425ac82eee1fb337d1cd71bab312d437b62193870b34eb03093295447"
+    },
+    {
+      "file": "fast-1worker-8threads-all.json",
+      "bytes": 139159,
+      "sha256": "587ca2f8b249f9d98da1c967053fcf8177d97fb0628483df2707f62619cc7427"
+    },
+    {
+      "file": "fast-1worker-8threads-all.supervisor.json",
+      "bytes": 86471,
+      "sha256": "2ef1be0460c907dbf2f43a6505ebe2ca63d2367fde1b6f11abc5500520d80764"
+    },
+    {
+      "file": "fast-2workers-4threads-all.json",
+      "bytes": 139464,
+      "sha256": "163c85fcdc9376a7d79175a5baee272f3626df03da36ca5d9f702db921ed5596"
+    },
+    {
+      "file": "fast-2workers-4threads-all.supervisor.json",
+      "bytes": 86690,
+      "sha256": "a4571143e8e4f903f79b7f4c1e84c10eebc1eef1a3b5e2b05d7bce7c0b777608"
+    },
+    {
+      "file": "fast-4workers-2threads-512k-code-doc.json",
+      "bytes": 206002,
+      "sha256": "ed6bf0d96f5efcad08fd7ee629ceedc56c5b6854544025aa9345ecce581ea0dd"
+    },
+    {
+      "file": "fast-4workers-2threads-512k-code-doc.supervisor.json",
+      "bytes": 9860,
+      "sha256": "cb44ef5711cfc4a1ec1d3811b74660f110d8a1fd30eabd95a7825b36465b0059"
+    },
+    {
+      "file": "fast-4workers-2threads-all.json",
+      "bytes": 139425,
+      "sha256": "166c3e9dc2a6f43ac93c005b87c1df798fa25a947e1cd768d4fc941e64e55b96"
+    },
+    {
+      "file": "fast-4workers-2threads-all.supervisor.json",
+      "bytes": 86691,
+      "sha256": "9915f8d0149b117bf721884f0bcd1ef16b56e60fef7956f2c7844e6382ac52f2"
+    },
+    {
+      "file": "fast-8workers-1threads-all.json",
+      "bytes": 139443,
+      "sha256": "adc050e0097bafaa76633af75acb458fae3d858adb5a5502a5dd2cf89ce1e9d9"
+    },
+    {
+      "file": "fast-8workers-1threads-all.supervisor.json",
+      "bytes": 86691,
+      "sha256": "a060f175f0dbf6fdb3f80fcdd950d227b69244d59cc06b11e00eed1aafc37bf5"
+    },
+    {
+      "file": "fast-8workers-2threads-16cpu-scaling.json",
+      "bytes": 262078,
+      "sha256": "ba952f4c365cdcd8c315d1fd0e93fa2bc726919454a78cb30de617a4c3550d6c"
+    },
+    {
+      "file": "fast-8workers-2threads-16cpu-scaling.supervisor.json",
+      "bytes": 22131,
+      "sha256": "5b9aba8f79586c2e36efcee98da0ec4187c45899a74a794ae961d5c13d166820"
+    },
+    {
+      "file": "large-document-manifest.json",
+      "bytes": 2417,
+      "sha256": "4aa56a8cbb949de2806fe5a223e75f0a3bed9969de2cd92730a5787986281a74"
+    },
+    {
+      "file": "memory-300mib-fits.json",
+      "bytes": 3572,
+      "sha256": "22ff03e40a1b0ca2b363de96cbcff02c18df702e03a4575e2c8f7fd8af6b9242"
+    },
+    {
+      "file": "memory-300mib-fits.supervisor.json",
+      "bytes": 6517,
+      "sha256": "5e51a209dd8fbb09a56cd8df00cbe46293bb017c04a21b94864808ebda1c2a18"
+    },
+    {
+      "file": "memory-300mib-rejects.json",
+      "bytes": 1205,
+      "sha256": "2cc4f85fe57c0aed9c90072219620dd2562b07e3c3d755c7e6293637bcc3d988"
+    },
+    {
+      "file": "memory-300mib-rejects.supervisor.json",
+      "bytes": 3532,
+      "sha256": "a0692e2870585ca06317f4008575ca02cf66cfb1652bec625b62504dad64220e"
+    },
+    {
+      "file": "parallel-experiment/Package.resolved",
+      "bytes": 391,
+      "sha256": "2f009b5914724b36dea840dddbe8d51d93c8e4cb5c8da148fb78b2bdee52e85d"
+    },
+    {
+      "file": "parallel-experiment/benchmark-parallel.patch",
+      "bytes": 9618,
+      "sha256": "2b697a6358c47074d9854a5400ca2d4536493e43b9002c917ebb8c76ed7f8e24"
+    },
+    {
+      "file": "parallel-experiment/receipt.json",
+      "bytes": 5934,
+      "sha256": "1d9692f7dbac1cc8f23c0b5ff32c518c33ea099a0ae0a714cbf12f72de97942a"
+    },
+    {
+      "file": "parallel-fast-gaps/Package.resolved",
+      "bytes": 391,
+      "sha256": "2f009b5914724b36dea840dddbe8d51d93c8e4cb5c8da148fb78b2bdee52e85d"
+    },
+    {
+      "file": "parallel-fast-gaps/benchmark-parallel.patch",
+      "bytes": 12228,
+      "sha256": "26442d00db572b1e1dd34dd47e574edc40fa18f654fdea2d0241eaa7163e4bb5"
+    },
+    {
+      "file": "parallel-fast-gaps/build-scratch-cleanup.json",
+      "bytes": 757316,
+      "sha256": "0517faa43bca7f0701bb46c69237142056f90311857dde735965239c8ab57237"
+    },
+    {
+      "file": "parallel-fast-gaps/gap-predicate-proof.log.txt",
+      "bytes": 182,
+      "sha256": "67a45b40050c45c5c970e0747119ef22b2920782e76bbd3ff4050042bbf2444b"
+    },
+    {
+      "file": "parallel-fast-gaps/gap-predicate-proof.swift",
+      "bytes": 5259,
+      "sha256": "3d1cd2a7295e8b1d83e212cd5b82abd1c33d5807cb410dd168060b5c73ecf2ef"
+    },
+    {
+      "file": "parallel-fast-gaps/receipt.json",
+      "bytes": 6699,
+      "sha256": "9cd8476a489b298eaf38e59d151e19ad877f8f96a18b7a4bb30a8f5a68a75f58"
+    },
+    {
+      "file": "published-1worker-8threads-all.json",
+      "bytes": 78778,
+      "sha256": "42e479f87f2d61384766b147a3e13c4a8003042767e8bcc7ee61aad4abb93404"
+    },
+    {
+      "file": "published-1worker-8threads-all.supervisor.json",
+      "bytes": 30187,
+      "sha256": "01e28e0ccbd060c3be51a97fa8fd629f9fce2b5751f2486f70c68c24a6a9cd61"
+    },
+    {
+      "file": "resource-policy-validation.json",
+      "bytes": 6399,
+      "sha256": "7167af688c545198f2a7ef031d1ec0b6a1bf65411ddbb433378b7b843eb1e55d"
+    },
+    {
+      "file": "supervisor-history/case-filter-supervisor.py.txt",
+      "bytes": 15255,
+      "sha256": "d34ebb6cc2bf6b55266c58e85851b65862b6539e02bf7f2b3e053975a2e9398a"
+    },
+    {
+      "file": "supervisor-history/fast-support-supervisor.py.txt",
+      "bytes": 14725,
+      "sha256": "784a4cde23d8b531c64c5c281a94b63bbc6eb0cdd61c8db11ed1da22f7e1ed52"
+    },
+    {
+      "file": "supervisor-history/published-control-supervisor.py.txt",
+      "bytes": 13041,
+      "sha256": "168dd56037c6d1578ddb2987a4ed50360ad1560dcd8c747b2726a3102d27afb9"
+    },
+    {
+      "file": "supervisor-history/sixteen-cpu-supervisor.py.txt",
+      "bytes": 15256,
+      "sha256": "7a8d1c5b74b4571985fb3900fcfaef663afabb5bbe46ad59ca8eb5eb76387ded"
+    },
+    {
+      "file": "validator-attribution/measure-validation.py.txt",
+      "bytes": 7925,
+      "sha256": "1afccaf72a4e87bfd37359775b2ee52e7cbc1cc1358c7f9c0fb042c54cfec09d"
+    },
+    {
+      "file": "validator-attribution/validation-only.rs.txt",
+      "bytes": 56941,
+      "sha256": "5b88319b2525a4bcc3b03bd04eb2303cd5ece317ce66d9d1f72abbbe41c22b4d"
+    },
+    {
+      "file": "validator-attribution/validation-proof.json",
+      "bytes": 1783,
+      "sha256": "506cead37d1746e63167b6eb91dc37f4441cefb31b1295123e95986f611ab8a4"
+    },
+    {
+      "file": "validator-attribution/validation-result.json",
+      "bytes": 1762,
+      "sha256": "ab8e6a544c348de84d55d474fcd268f2032ff309a25fa562c855f3b7d4e023f5"
+    }
+  ],
+  "source_files": [
+    {
+      "file": "scripts/redact_parallel_evaluation.py",
+      "sha256": "633c06bc18076f625872dc65307df8a4c553fefba75fd778d192cc4de176f1fe"
+    },
+    {
+      "file": "scripts/redact_parallel_evaluation_test.py",
+      "sha256": "e13c23631f1e42352330ab592437525f8ec7212ff5242391f4f8a5404920316c"
+    },
+    {
+      "file": "scripts/redact_large_document_fixtures.py",
+      "sha256": "203a2e6de56b20ac8c61250fb24d2cca60176fbeb87783499888500e0e70cafe"
+    },
+    {
+      "file": "scripts/redact_large_document_fixtures_test.py",
+      "sha256": "54eaf9d9a3a2b03509c1c1b2bf5db1406700bfbb5045f1a8d1370b4d0002369b"
+    },
+    {
+      "file": "scripts/redact_native_chunk_experiment.py",
+      "sha256": "578af7b6967e3cb07902d5964eb1c2856e26eef1b3b548af7662fa7359be8e1d"
+    },
+    {
+      "file": "scripts/redact_native_resource_policy.rs",
+      "sha256": "61b3465a54804184b1c8a62125c4d714c444c22ee44e74df5b9938034f20218d"
+    },
+    {
+      "file": "scripts/redact_dynamic_shape_probe.rs",
+      "sha256": "c30b038feb4fdfbe39a0012929aa4240424c94e81d6daceee78238fa70445d76"
+    },
+    {
+      "file": "scripts/redact_dynamic_shape_probe.py",
+      "sha256": "41500ac9e41a17d01104092b8bdff5ad8b38404a40ad92101c5ab4fca071c5a3"
+    },
+    {
+      "file": "scripts/redact_rust_evaluation.rs",
+      "sha256": "ac13d4e104e138b06ce79ae5ef02336a8ff7a9df9e883035d7fe59877aaf15a5"
+    }
+  ],
+  "vendor_artifacts": "No weights/nativebinaries/SDKarchives/toolchain included",
+  "timing_scope": "One scan per case; CPU8 controlled matrix vs separately-labelled CPU16 scaling; published full profile failed after600seconds and only completed122case checkpoints admit parity",
+  "log_file_aliases": [
+    {
+      "recorded_private_name": "dynamic-shape/public-header-abi-check.log",
+      "retained_file": "dynamic-shape/public-header-abi-check.log.txt",
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "recorded_private_name": "parallel-fast-gaps/gap-predicate-proof.log",
+      "retained_file": "parallel-fast-gaps/gap-predicate-proof.log.txt",
+      "content_sha256": "67a45b40050c45c5c970e0747119ef22b2920782e76bbd3ff4050042bbf2444b"
+    }
+  ]
+}

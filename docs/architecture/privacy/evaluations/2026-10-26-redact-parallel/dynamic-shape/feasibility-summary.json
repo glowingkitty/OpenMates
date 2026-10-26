@@ -1,0 +1,61 @@
+{
+  "feasibility": "rejected-by-fixed-first-reshape",
+  "model_sha256": "ee36727f07e3237569e71427bfe661463a82e526f7e97e92b0fa583cad16ed27",
+  "target_shape": [
+    1,
+    64
+  ],
+  "original_output_shape": [
+    1,
+    256,
+    89
+  ],
+  "inference_executed": false,
+  "input_read": false,
+  "runtimes": {
+    "2.2": {
+      "license_verifier_calls": 1,
+      "license_verifier_successes": 1,
+      "normal_flush_and_network_seal": true,
+      "failed_operations": [
+        {
+          "operation": "LiteRtGetCompiledModelOutputTensorLayouts(update_allocation=true)",
+          "status": 3
+        }
+      ],
+      "native_errors": [
+        "ERROR: ./tflite/kernels/internal/reshape_utils.h num_input_elements != num_output_elements (64 != 256)",
+        "ERROR: Node number 0 (RESHAPE) failed to prepare."
+      ],
+      "wall_seconds": 0.4083847003057599,
+      "peak_rss_bytes": 74539008,
+      "evidence_sha256": {
+        "allocation-result.json": "0bae047e7e215788d7ffc846ceb3b4bdd234750ad98d62250c968bc4216dacf8",
+        "native-stderr.log": "0cca6b01988b164a9b2ae19b27ab64e47c9787b2f10e91df9143ea8e77abc18a",
+        "supervisor-result.json": "2d6372236b188160253b7bd5305f715aca8509b2a882a98d93730ace8685e37a"
+      }
+    },
+    "2.3.1": {
+      "license_verifier_calls": 1,
+      "license_verifier_successes": 1,
+      "normal_flush_and_network_seal": true,
+      "failed_operations": [
+        {
+          "operation": "LiteRtGetCompiledModelOutputTensorLayouts(update_allocation=true)",
+          "status": 3
+        }
+      ],
+      "native_errors": [
+        "ERROR: third_party/tensorflow/lite/kernels/internal/reshape_utils.h num_input_elements != num_output_elements (64 != 256)",
+        "ERROR: Node number 0 (RESHAPE) failed to prepare."
+      ],
+      "wall_seconds": 0.40863409638404846,
+      "peak_rss_bytes": 64684032,
+      "evidence_sha256": {
+        "allocation-result.json": "7a218f15e0179077f4c0722548c063dd908c0e25b851be3e5c30ad8d45417709",
+        "native-stderr.log": "1231845ec371d160c63f1d775dcd5bb8519a84d604a43a030a97ee84776724cd",
+        "supervisor-result.json": "17f884dcd14eac1c7a4a9900995082299f7ff5febde9222d1f7366f97f3f54e8"
+      }
+    }
+  }
+}
