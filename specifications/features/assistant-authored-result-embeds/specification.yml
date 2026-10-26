@@ -1,0 +1,270 @@
+schema_version: 1
+id: feature.assistant-authored-result-embeds
+version: 1
+status: draft
+title: Assistant-Authored Rich Result Embeds
+summary: >
+  Turn researched, supplied, or explicitly requested draft information into
+  all suitable existing rich result embeds, including events, home listings,
+  health appointments, and travel connections, individually or in groups with
+  maps, independently of discovery providers. Explicitly requested drafts are
+  visibly labelled.
+
+related_contracts:
+  - specification: feature.chats@7
+    relationship: Reuse authored placement, stable streaming identity, encrypted persistence, synchronization, and shared embed controls.
+  - specification: feature.calendar-event-embeds@1
+    relationship: Reuse date/time and explicit local calendar-export semantics; rich event cards retain their own image and venue presentation.
+  - specification: feature.app-skill.events-search@1
+    relationship: Retain saved event presentation; its conference-only discovery contract does not own assistant-authored content.
+  - specification: feature.app-skill.home-search@1
+    relationship: Reuse listing galleries, price components, unknown values, and location precision without restoring discovery providers.
+  - specification: feature.app-skill.health-search-appointments@1
+    relationship: Reuse doctor, service, slot, and location presentation without restoring appointment discovery or claiming booking authority.
+  - specification: feature.app-skill.travel-search@1
+    relationship: Reuse connection and segment presentation with source-labelled fares and realtime observations, independently of provider execution.
+  - specification: feature.public-example-chats@4
+    relationship: Reuse public-example admission, sanitization, and static rendering after real creation is verified.
+
+scope:
+  includes:
+    - All suitable existing result types in the eligibility inventory below, in the first release.
+    - Relevance-gated assistant instructions, independent of an app's available search skills.
+    - Existing app results, permitted general web research, user messages, and accessible uploads as inputs.
+    - Single items, same-response groups, and reuse in shared results views and maps.
+    - Existing rich previews, fullscreen details, sources, images, and applicable explicit actions.
+    - A subsequent landing event animation and a real conference example chat after creation is verified.
+  excludes:
+    - Re-enabling removed discovery providers or adding an unauthorized collection route.
+    - Booking, purchasing, RSVP, calendar writes, task creation, or workflow execution through card authoring.
+    - Arbitrary internal embed types, invented tool results, generated-media success, or upload ownership claims.
+    - Automatic provider enrichment or a new map engine.
+    - New generic editing/version-history features or migration of historical embeds.
+    - Apple implementation in the first stage; it follows verified web behavior and user review.
+
+eligibility:
+  informational_records:
+    - events.event
+    - home.listing
+    - health.appointment
+    - travel.connection
+    - travel.stay
+    - maps.place
+    - fitness.location
+    - fitness.class
+    - shopping.product
+    - jobs.job_result
+    - nutrition.recipe
+    - code.repo
+    - web.website
+    - news.website
+    - electronics.component
+    - business.company_financial_result
+    - weather.weather_day
+    - hosting.hosting_domain
+    - social_media.social_post
+  real_asset_records: [design.icon_result, images.image_result, videos.video, models3d.model_result]
+  existing_authoring_formats: Preserve code, documents, sheets, email drafts, calendar events, and other supported authored artifacts.
+  operation_owned_records: Reuse real task, workflow, focus activation, tool execution, upload, and generated-media records; do not manufacture their authoritative state.
+
+models:
+  AuthoredResult:
+    kind: {type: registered_result_kind, required: true, constraints: {explicit_eligibility: true}}
+    title: {type: string, required: true, constraints: {nonblank: true}}
+    origin: {type: enum, required: true, values: [researched, user_provided, draft]}
+    sources: {type: array, items: source_reference, required: false, constraints: {references_real_context: true}}
+    observed_at: {type: offset_datetime, required: false}
+    details: {type: kind_specific_record, required: true}
+    images: {type: array, items: image_url_or_accessible_embed_reference, required: false}
+  EventDetails:
+    schedule: {type: dates_or_offset_datetimes_with_optional_iana_timezone, required: false}
+    venue: {type: venue_or_online_location, required: false}
+    description: {type: string, required: false}
+    organizer: {type: string, required: false}
+    price: {type: amount_currency_and_basis, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+  HomeListingDetails:
+    location: {type: address_or_approximate_area_with_precision, required: false}
+    price: {type: amount_currency_and_rent_components, required: false}
+    attributes: {type: property_type_rooms_area_amenities_and_availability, required: false}
+    description: {type: string, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+  HealthAppointmentDetails:
+    clinician_or_practice: {type: string, required: true, constraints: {nonblank: true}}
+    service: {type: speciality_service_and_visit_motive, required: false}
+    slot: {type: offset_datetime_with_optional_timezone, required: false}
+    location: {type: practice_address_or_telehealth, required: false}
+    availability: {type: sourced_observation_or_proposal, required: false}
+    price_and_insurance: {type: sourced_price_currency_and_coverage, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+  TravelConnectionDetails:
+    origin: {type: named_endpoint, required: true}
+    destination: {type: named_endpoint, required: true}
+    transport: {type: transport_mode_and_carriers, required: false}
+    schedule: {type: departure_arrival_and_segments, required: false}
+    fare: {type: sourced_amount_currency_and_fare_basis, required: false}
+    realtime: {type: sourced_observation_with_observation_time, required: false}
+    source_url: {type: absolute_http_or_https_url, required: false}
+
+assertions:
+  - id: authored-results.creation.relevant-and-independent
+    type: behavior
+    must: >
+      Create eligible registered types from information already supplied
+      or obtained through available permitted skills when a rich card helps the
+      answer or the user asks for one. Creation guidance is available without
+      selecting the corresponding discovery skill or connecting a provider.
+      Preserve normal prose and existing authorable content formats.
+    depends_on: [examples.creation]
+  - id: authored-results.eligibility.all-suitable-results
+    type: invariant
+    must: >
+      The first release supports every informational and real-asset result kind
+      in the eligibility inventory through registered validated schemas and the
+      existing rich renderers. Reuse one implementation where apps share a kind.
+      Media-resource cards require a real accessible resource, not an invented
+      upload, generated asset, or successful generation record. Time-sensitive
+      weather, financial, domain, price, and availability information retains its
+      source and observation context instead of becoming a live verified claim.
+      Social drafts do not imply publication or invented engagement. Internal
+      task, workflow, focus, execution, and asset lifecycle state remains owned
+      by real operations. Later kinds require explicit admission; there is no
+      unrestricted raw-embed creation escape hatch.
+    depends_on: [examples.eligibility]
+  - id: authored-results.facts.provenance-and-drafts
+    type: invariant
+    must: >
+      Retain real supporting sources or accessible user-upload references and
+      distinguish researched information, user-provided information, and an
+      explicitly requested draft. Supplied facts require no invented web source.
+      Fictional or proposed records are visibly labelled in preview and details.
+      Missing or conflicting facts remain unknown or qualified. Never infer a
+      new conference date from an earlier edition or silently supply a currency,
+      transport mode, price, rating, engagement count, insurance coverage, or availability.
+      Source reading follows existing access and source-use boundaries; card
+      creation does not authorize a removed provider or hidden endpoint.
+    depends_on: [examples.provenance]
+  - id: authored-results.content.typed-and-useful
+    type: validation
+    must: >
+      Validate the common record and each type's distinguishing fields. Events
+      support an image URL, title, date/time, timezone, venue or online location,
+      description, organizer, source link, and known price. Listings support
+      ordered images, location precision, rent components, rooms, area, amenities,
+      description, and source link. Health supports clinician/practice, service,
+      supplied slot, address or telehealth, price/insurance, and source link.
+      Travel supports endpoints, modes, carriers, timed segments, fares, and
+      source links. All other admitted kinds preserve their supported details
+      through type-specific schemas and existing rich layouts, including stay
+      dates, place details, product specifications, job terms, recipe ingredients
+      and steps, repository metadata, classes, and sourced observation fields.
+      Optional facts may be omitted without fabricating values.
+      Preserve all-day dates, offsets, unknown times, and per-segment timezones;
+      reject impossible supplied dates, invalid coordinates, and malformed
+      required values with a readable validation outcome.
+    depends_on: [examples.content]
+  - id: authored-results.media.safe-and-attributed
+    type: security
+    must: >
+      Accept supported public image URLs and accessible existing image embeds,
+      with supplied captions, attribution, and ordering. Use existing safe media
+      delivery and encrypted-asset access paths; enforce URL/fetch restrictions,
+      ownership, and applicable image-use conditions. Never invent an uploaded
+      image identity or fetch a private network resource. Missing, disallowed,
+      or failed images leave a readable card with a fallback, without requiring
+      an image-generation skill or exposing private source URLs in diagnostics.
+    depends_on: [examples.media]
+  - id: authored-results.lifecycle.encrypted-and-stable
+    type: privacy
+    must: >
+      Author content at its intended message position using the established
+      embed lifecycle, shared controls, and encrypted chat storage. Preserve
+      each item's identity, details, provenance, and group membership across
+      streaming, finalization, reload, history reuse, and synchronization.
+      Preserve existing incognito and sharing policy. Incomplete, cancelled, or
+      invalid content never presents itself as a completed valid item, exposes
+      a working action requiring missing facts, or leaks raw structured payloads
+      into the finished visible answer.
+    depends_on: [examples.lifecycle]
+  - id: authored-results.groups.same-response-and-reuse
+    type: behavior
+    must: >
+      Support a standalone card and ordered groups, including compatible mixed
+      kinds and existing authorized embeds. Newly authored items can join a
+      group or results view in the same response without the model guessing
+      server embed IDs or tool-returned references. Resolve authored item labels
+      to real embed identities; reject duplicate or unresolved labels and
+      inaccessible references. Bound input sizes and item counts, show clear
+      limit or per-item validation outcomes, and preserve valid independent
+      items and their order when another item fails. Opening a member shows
+      that member's existing rich fullscreen view.
+    depends_on: [examples.groups]
+  - id: authored-results.maps.source-faithful-geometry
+    type: invariant
+    must: >
+      Use the shared results view for individually authored or grouped items
+      with usable spatial data. Keep card selection, markers, and fullscreen
+      identity consistent. Items lacking usable coordinates remain in the list;
+      online-only events and telehealth do not acquire invented map pins.
+      Preserve approximate listing areas as approximate. Coordinates and route
+      geometry must come from supplied facts or an explicit permitted research
+      operation; presentation never silently geocodes or dispatches enrichment.
+      Endpoint-only connections must not appear to have a verified street route
+      or actual flight track.
+    depends_on: [examples.maps]
+  - id: authored-results.actions.truthful-and-explicit
+    type: behavior
+    must: >
+      A card represents content, not an executed app skill, booking, purchase,
+      RSVP, sent invitation, or calendar write. Preserve the source and age of
+      supplied availability, fare, rating, or realtime claims without labelling
+      them live verified results. Links may open a known source or booking page;
+      their presence does not prove bookability. Enable existing explicit local
+      calendar export only with valid sufficient event facts, reusing the calendar
+      contract. Proposed appointments stay unbooked unless an actual booking
+      confirmation supplied by an authorized source supports another state.
+    depends_on: [examples.actions]
+  - id: authored-results.surfaces.shared-semantics
+    type: parity
+    must: >
+      Existing API transport, native Rust CLI/TUI, and Rust, npm, and Python SDKs
+      expose the same typed content, sources, group references, validation, and
+      unknown states. Reusable headless client operations belong in shared Rust
+      with thin platform adapters. Web previews and fullscreen views reuse the
+      registered rich-result components on phone and laptop and in both themes.
+      Prove deterministic integration through isolated CI and real assistant
+      authoring on dev with default automatic routing. Verify web before any
+      later Apple implementation; do not represent deferred Apple support as
+      completed parity.
+    depends_on: [examples.surfaces]
+  - id: authored-results.demonstrations.proven-capability
+    type: behavior
+    must: >
+      After actual event-card generation and opening are verified, the landing
+      animation may show a request, acknowledgement, event preview, pointer
+      click, and event details using the supported authored-card behavior.
+      A conference example such as FOSDEM comes from a real successful research
+      chat with sources and a working event fullscreen, then passes existing
+      public-example admission before publication. A static transcript retains
+      its researched edition and date; it does not keep calling an old edition
+      upcoming or imply unsupported live discovery, booking, or RSVP capability.
+    depends_on: [examples.demonstrations]
+
+applies_to:
+  rest_api: {required: true, role: Existing chat and embed transport.}
+  cli: {required: true, parity: semantic, implementation: native_rust}
+  sdks:
+    required: true
+    implementations:
+      rust: {required: true}
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Follow-up after verified web behavior and user review.}
+
+examples:
+  file: examples.yml
+  required_groups: [creation, eligibility, provenance, content, media, lifecycle, groups, maps, actions, surfaces, demonstrations]

@@ -1,0 +1,118 @@
+schema_version: 2
+profile: concise
+id: assistant-authored-result-embeds
+title: Assistant-authored rich embeds from flexible information sources
+status: approved
+goal: >
+  Allow the assistant to create all suitable existing embed types from existing
+  app results, permitted web research, user-provided information, and uploads;
+  show them individually, in groups, and on maps. Give the assistant only the
+  relevant embed instructions when relevant, keeping context small. Preserve
+  shareability and each type's existing explicit actions, including adding an
+  event to a calendar. After verified creation, restore the event landing
+  animation and introduce a real sourced FOSDEM example chat.
+
+specification: feature.assistant-authored-result-embeds@1
+approved_fingerprint: 357f1fc43c04948d41da770abed8dd9d67ecb7a4048d726ab4b9f11954115fc8
+approval_source: Explicit user approval in the linked Codex chat on 2026-10-26.
+scope:
+  in:
+    - Every informational and real-asset result registration in the approved Specification's eligibility inventory, in the first release.
+    - Explicitly requested fictional/proposed records labelled as drafts in both previews and details.
+    - Shared authoring, encrypted lifecycle, same-response groups, existing rich UI, sources, images, maps, sharing, and applicable explicit actions.
+    - API, native Rust CLI/TUI and Rust/npm/Python SDK semantics, followed by verified web behavior.
+    - Verified landing animation and admitted public example after the real event flow works.
+  out:
+    - Restoring removed providers, collecting through unauthorized endpoints, or widening provider discovery contracts.
+    - Implying bookings, purchases, publication, calendar writes, successful tool execution, uploads, or generated assets from authored content alone.
+    - Automatic paid enrichment, silent geocoding, a new map engine, historical-data migration, or unrelated editing features.
+    - Apple implementation before verified web behavior and the separately reviewed Apple stage.
+
+design:
+  registry_and_instructions:
+    - Extend existing app embed metadata with explicit authoring eligibility and type schemas; use app-qualified identities to avoid event/calendar and other name collisions.
+    - Reuse the current for_embed_types instruction mechanism and relevant_embedded_previews routing; expose only compact discovery hints before selection.
+    - Inject detailed format/schema guidance only for selected relevant kinds. Deduplicate shared schemas/instructions such as web/news; do not inject the complete catalog into every main-model prompt.
+    - Authoring eligibility is independent of whether the corresponding search skill/provider is enabled. Keep skill dispatch and authored content separate.
+    - Keep existing code, calendar, document, sheet, email and other authoring formats working; do not create a second competing syntax for them.
+  creation_and_identity:
+    - Extend the explicit structured-content fence path with one versioned authoring envelope for a single item or batch; keep type-specific adapters behind this common dispatch.
+    - Scope temporary item labels to the authored block. Resolve them to backend-assigned embed identities before emitting stored references or shared results views.
+    - Preserve message position and stable identities across streaming, finalization, reload and sync. Bound record count/size, isolate independent item failures, and expose honest cancellation/validation states.
+    - Persist ordinary typed records and existing presentation references; never fabricate an app_skill_use parent or a discovery provider result.
+    - Carry sources, draft state, observation context and missing values explicitly. Media-resource cards require actual accessible resources and existing safe/encrypted delivery paths.
+  presentation_and_actions:
+    - Register direct authored records with existing preview/fullscreen resolvers. Adapt their inputs where they currently assume a search parent or provider response.
+    - Reuse normal card grouping and the shared results view for compatible mixed types; use real resolved item IDs for selection, opening and follow-up reuse.
+    - Derive maps from known coordinates/geometry and preserve approximate listing areas. Keep unmappable items in the list and label endpoint-only route connectors as schematic.
+    - Pass each record's actual embed ID and asset dependencies through existing sharing controls; use existing permissions and encrypted share transport, with no automatic publication.
+    - Reuse valid event calendar export and each type's existing explicit actions. Do not show working actions when their required facts or resources are missing.
+  client_integration:
+    - Keep reusable headless operations in the shared Rust core, with thin web/platform adapters and synchronized Rust/npm/Python SDK protocol fixtures.
+    - Coordinate with the active native-client migration rather than borrowing its workspace or building a second client core. This baseline contains the Rust prototype but not the completed native core; resolve the current owning crate before client implementation.
+    - The server-side authoring and contract fixtures can progress while that coordination is resolved; no client parity is claimed from generic JSON passthrough or mocks alone.
+
+source_surfaces:
+  - backend/shared/python_schemas/app_metadata_schemas.py
+  - backend/apps/*/app.yml
+  - backend/apps/ai/base_instructions.yml
+  - backend/apps/ai/processing/main_processor.py
+  - backend/apps/ai/utils/json_content_fences.py
+  - backend/apps/ai/utils/embeds_map_view.py
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/core/api/app/services/embed_service.py
+  - frontend/packages/ui/scripts/generate-embed-registry.js
+  - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+  - frontend/packages/ui/src/message_parsing/
+  - frontend/packages/ui/src/components/embeds/
+  - frontend/packages/public-site/src/components/landing/
+  - frontend/packages/ui/src/demo_chats/
+
+delivery:
+  tracking: OpenMates Tasks owns execution status and dependencies; this Plan does not duplicate that ledger.
+  planning_task: TASK-4587
+  tasks:
+    - task: TASK-2197
+      outcome: Shared authoring for the full eligible inventory, API/native CLI/SDK content semantics, relevant-only instructions, and stable encrypted records.
+      assertion_groups: [creation, eligibility, facts, content, media, lifecycle, groups, surfaces]
+    - task: TASK-7380
+      outcome: All eligible records render, group, map, open, share, and support their applicable explicit web actions.
+      assertion_groups: [content, media, lifecycle, groups, maps, actions, surfaces]
+    - task: TASK-9309
+      outcome: The landing request, acknowledgement, event preview, pointer click and details animation reflects the verified capability.
+      assertion_groups: [demonstrations]
+    - task: TASK-5964
+      outcome: A real sourced FOSDEM research chat with a working event card is admitted, sanitized, published and verified as an example.
+      assertion_groups: [demonstrations]
+  implementation_order:
+    - Establish an event vertical slice internally, then complete every eligible type before the first release; the release scope is not limited to the four originally named types.
+    - Prove API/native CLI/SDK semantics, then integrate and verify web presentation and actions.
+    - Start the landing-animation and public-example outcomes only after the real authored event flow is verified.
+
+required_checks:
+  - id: authoring-contracts
+    method: Focused local backend/schema/prompt unit checks plus immutable protocol fixtures.
+    proves: Every eligible registration has a validated adapter; relevant prompts receive the required guidance, unrelated prompts receive none, and unsupported internal/asset claims fail safely.
+  - id: client-integration
+    method: Existing isolated GitHub API/WebSocket, native CLI and cross-SDK conformance infrastructure; update affected capability/protocol coverage.
+    proves: Real transport, identity, typed content, sources, unknown states, cancellation and persistence are consistent across required clients.
+  - id: web-components-and-flows
+    method: Bare component previews followed by focused application Playwright specs in isolated GitHub CI, with assertion metadata.
+    proves: Full eligible-type fixture matrix, phone/laptop and light/dark states, mixed same-response groups, map selection/precision, validation failures, reload and history reuse.
+    existing_coverage: [embed-showcase.spec.ts, embeds-map-view.spec.ts, embed-canonical-replay.spec.ts, calendar-event-embed.spec.ts]
+  - id: sharing-and-explicit-actions
+    method: Extend existing isolated share-embed-flow/shared-chat-embed-assets coverage and event export coverage.
+    proves: An intended recipient can open the explicitly shared authored record and authorized assets; draft/source context survives; valid event .ics export works without an implicit calendar write or booking.
+  - id: real-assistant-authoring
+    method: After scoped candidate deployment, run isolated real-inference OpenMates chats on dev for research, uploads, explicit drafts and mixed groups; verify the actual resulting embeds.
+    proves: Natural requests create useful rich content through relevant-only instructions without relying on unavailable discovery skills or invented facts/references.
+    routing: Use default automatic routing throughout, with no model/provider mentions, selection flags, account-default changes or per-chat overrides, as explicitly required by the user.
+  - id: demonstrations
+    method: Existing landing component/application CI and public-example admission/deployed rendering workflow after real event authoring passes.
+    proves: The animation matches working behavior and the example retains its actual researched edition, sources and working preview/fullscreen/actions.
+
+verification_notes:
+  - Product REST/WebSocket, CLI/SDK and browser integration run in isolated GitHub CI; only checks strictly requiring real AI run on isolated dev state.
+  - Reuse the repository CI coordinator, immutable candidate artifacts and runtime leases. Deliver selected recordings under the existing testing rules; no additional edited proof video is required by this Plan.
+  - Update relevant E2E coverage with the implementation. Keep current instruction/context inclusion checks and all eligible-type rendering fixtures meaningful rather than mirroring implementation details.
+  - Planning validation and approved Specification receipt are not product-test passes. Record actual source-bound verification during each delivery Task.

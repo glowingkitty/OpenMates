@@ -430,6 +430,18 @@ specifications:
     - cli
     - gui.web
     - gui.apple
+  feature.assistant-authored-result-embeds:
+    version: 1
+    status: draft
+    path: features/assistant-authored-result-embeds
+    fingerprint: 357f1fc43c04948d41da770abed8dd9d67ecb7a4048d726ab4b9f11954115fc8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.assistant-response-speech:
     version: 10
     status: approved
@@ -5175,6 +5187,138 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  authored-results.creation.relevant-and-independent:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: d0e1d2deaf95cc5959c4af339d306b6f34f23166000ababba12dd400f38480fd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.eligibility.all-suitable-results:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: invariant
+    fingerprint: d9c7a0df04a6a7e598b30947ebf299c4ff0dc40bdef3466dfe7e3bb31f907471
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.facts.provenance-and-drafts:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: invariant
+    fingerprint: 2d49bc540716b70a7393e9442440cf21a53fc6c8ee30ebda4ca1d26e072f239d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.content.typed-and-useful:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: validation
+    fingerprint: 094e2d423440b9e83f4ef85b147968fd678594fb9d39dff50e4a500a50aabfbc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.media.safe-and-attributed:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: security
+    fingerprint: 228fe98995f9f84c508fb9423eab5fa236ab6256bdaa4de9e2f590486d6c51b3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.lifecycle.encrypted-and-stable:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: privacy
+    fingerprint: f0fa622e97a06daa55024b27622a4de534b0ddb787cb07a635cc2d72c120fc3f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.groups.same-response-and-reuse:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: c2a2c57313ab1628aa951a1772aabddca01c44754330af9fb5074969a599b389
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.maps.source-faithful-geometry:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: invariant
+    fingerprint: 41f71fbd6497368f6acd1d3f8728fb1c40a486c7c5e0e8f4d1783df5ed0bbab9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.actions.truthful-and-explicit:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: 9b9826d53a7d948013b9192412a4090a4d3b483b94937e5dcc7783d67b9e52c0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.surfaces.shared-semantics:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: parity
+    fingerprint: 814b0653f2ebc47b53de8da1bf64e7bab018888b6c20de2779c07dca59ec989c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  authored-results.demonstrations.proven-capability:
+    specification: feature.assistant-authored-result-embeds@1
+    specification_id: feature.assistant-authored-result-embeds
+    type: behavior
+    fingerprint: 7cecf8a454ca8bd1be844b78c478e023a1012ea84697853d7cb688f5f90644c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   assistant-speech.preference.chat-scoped-default-off:
     specification: feature.assistant-response-speech@10
     specification_id: feature.assistant-response-speech

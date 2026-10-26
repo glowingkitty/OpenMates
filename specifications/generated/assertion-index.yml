@@ -52557,6 +52557,94 @@ assertions:
     tests: []
     surfaces: {}
     current_direct_proof: false
+  authored-results.creation.relevant-and-independent:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: d0e1d2deaf95cc5959c4af339d306b6f34f23166000ababba12dd400f38480fd
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.eligibility.all-suitable-results:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: d9c7a0df04a6a7e598b30947ebf299c4ff0dc40bdef3466dfe7e3bb31f907471
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.facts.provenance-and-drafts:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 2d49bc540716b70a7393e9442440cf21a53fc6c8ee30ebda4ca1d26e072f239d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.content.typed-and-useful:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 094e2d423440b9e83f4ef85b147968fd678594fb9d39dff50e4a500a50aabfbc
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.media.safe-and-attributed:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 228fe98995f9f84c508fb9423eab5fa236ab6256bdaa4de9e2f590486d6c51b3
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.lifecycle.encrypted-and-stable:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: f0fa622e97a06daa55024b27622a4de534b0ddb787cb07a635cc2d72c120fc3f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.groups.same-response-and-reuse:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: c2a2c57313ab1628aa951a1772aabddca01c44754330af9fb5074969a599b389
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.maps.source-faithful-geometry:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 41f71fbd6497368f6acd1d3f8728fb1c40a486c7c5e0e8f4d1783df5ed0bbab9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.actions.truthful-and-explicit:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 9b9826d53a7d948013b9192412a4090a4d3b483b94937e5dcc7783d67b9e52c0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.surfaces.shared-semantics:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 814b0653f2ebc47b53de8da1bf64e7bab018888b6c20de2779c07dca59ec989c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  authored-results.demonstrations.proven-capability:
+    specification: feature.assistant-authored-result-embeds@1
+    fingerprint: 7cecf8a454ca8bd1be844b78c478e023a1012ea84697853d7cb688f5f90644c4
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   assistant-speech.preference.chat-scoped-default-off:
     specification: feature.assistant-response-speech@10
     fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
