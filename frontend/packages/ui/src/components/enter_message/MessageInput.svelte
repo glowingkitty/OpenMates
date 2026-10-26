@@ -149,6 +149,9 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { mergeWebPIIMatches } from './services/webPIIMatches';
+    import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
@@ -166,6 +169,7 @@
         getReadyPendingSend,
         removePendingSend,
         findPendingSendByEmbedId,
+        type PendingSendContext,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
     import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
@@ -632,13 +636,29 @@
     let locationSettingsState = $state({ impreciseByDefault: true });
     // Performance: Cache PII store reads to avoid calling get() on every detection run.
     // Updated via store subscriptions; detection reads from cache instead of stores.
-    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIISettings = $state<PIIDetectionSettings | null>(null);
     let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
+    let piiSettingsVersion = 0;
     personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
     // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
     // from cache instead of calling get() on every invocation.
-    personalDataStore.settings.subscribe((s) => { cachedPIISettings = s; });
-    personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
+    const unsubscribePIISettings = personalDataStore.settings.subscribe((s) => {
+        cachedPIISettings = s;
+        piiSettingsVersion += 1;
+        if (editor && !editor.isDestroyed) {
+            lastPIIText = '';
+            if (!s.masterEnabled) resetWebPIIDetector();
+            void runPIIDetectionImmediate(editor);
+        }
+    });
+    const unsubscribePIIEntries = personalDataStore.enabledEntries.subscribe((entries) => {
+        cachedPIIEnabledEntries = entries;
+        piiSettingsVersion += 1;
+        if (editor && !editor.isDestroyed) {
+            lastPIIText = '';
+            void runPIIDetectionImmediate(editor);
+        }
+    });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
 
@@ -1181,11 +1201,28 @@
     let currentPIIDecorations: Decoration[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
+    let lastPIISettingsVersion = -1;
+    let piiPreviewGeneration = 0;
+    let piiModelOwner: string | null = null;
+    let unsubscribePIIModelState = () => {};
+    $effect(() => {
+        const owner = `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}:${$activeTeamContext.epoch}`;
+        untrack(() => {
+            if (piiModelOwner !== null && piiModelOwner !== owner) {
+                piiPreviewGeneration += 1;
+                resetWebPIIDetector();
+                detectedPII = [];
+                currentPIIDecorations = [];
+                lastPIIText = '';
+            }
+            piiModelOwner = owner;
+        });
+    });
     // Debounce timer for PII detection - safety net fallback for edge cases
     let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
     // This catches edge cases like slow typing followed by an immediate send.
-    const PII_DEBOUNCE_MS = 800;
+    const PII_DEBOUNCE_MS = isWebPIIModelEnabled() ? 400 : 800;
     // Characters that trigger immediate PII detection (natural word/token boundaries).
     // PII patterns like emails, phone numbers, and API keys are only fully formed
     // after the user types a delimiter, so we detect at these boundaries instead of
@@ -2319,6 +2356,29 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        const stopModelState = webPIIDetectorState.subscribe((state) => {
+            if (state.status !== 'error' || !cachedPIISettings?.masterEnabled
+                || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
+            notificationStore.addNotificationWithOptions('info', {
+                message: get(text)('enter_message.pii.basic_detection_notice'),
+                duration: 8000,
+                dedupeKey: 'web-pii-basic-mode',
+                actionLabel: get(text)('enter_message.pii.model_retry'),
+                onAction: () => { if (!composerDestroyed) retryPIIModel(); },
+            });
+        });
+        const retryAfterReconnect = () => {
+            if (cachedPIISettings?.masterEnabled && get(webPIIDetectorState).status === 'error') retryPIIModel();
+        };
+        window.addEventListener('online', retryAfterReconnect);
+        unsubscribePIIModelState = () => {
+            stopModelState();
+            window.removeEventListener('online', retryAfterReconnect);
+        };
+        if (cachedPIISettings?.masterEnabled) {
+            // The worker publishes its loading/error state; no private input is logged.
+            void preloadWebPIIDetector().catch(() => {});
+        }
         lastAuthMethod = getLastAuthMethod();
         if ($authStore.isAuthenticated || $demoMode) {
             anonymousStatusChecked = true;
@@ -2817,6 +2877,10 @@
  
     onDestroy(() => {
         composerDestroyed = true;
+        piiPreviewGeneration += 1;
+        unsubscribePIISettings();
+        unsubscribePIIEntries();
+        unsubscribePIIModelState();
         for (const cancel of pendingVoiceCallDraftWaits) cancel();
         deferredContextDraftEdit?.cancel();
         invalidateRecordingContext('component-destroy');
@@ -3191,10 +3255,11 @@
         // Skip if text hasn't changed and matching decorations are already present.
         // Context resets can clear decorations while keeping lastPIIText unchanged;
         // in that state we must re-run detection so highlights become visible again.
-        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
+        if (text === lastPIIText && lastPIISettingsVersion === piiSettingsVersion && currentPIIDecorations.length > 0) return;
         
         // If text was cleared, update immediately (no need to debounce cleanup)
         if (!text || text.trim().length === 0) {
+            piiPreviewGeneration += 1;
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
             lastPIIText = text;
             detectedPII = [];
@@ -3232,15 +3297,17 @@
      * 
      * Optimization: skips re-detection if text hasn't changed since last run.
      */
-    function runPIIDetectionImmediate(editor: Editor) {
+    async function runPIIDetectionImmediate(editor: Editor) {
         if (!editor || editor.isDestroyed) return;
         
         const text = editor.getText();
         
         // Skip if text hasn't changed and matching decorations are already present.
         // If decorations were cleared by a chat/draft context reset, re-run detection.
-        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
+        if (text === lastPIIText && lastPIISettingsVersion === piiSettingsVersion && currentPIIDecorations.length > 0) return;
+        const generation = ++piiPreviewGeneration;
         lastPIIText = text;
+        lastPIISettingsVersion = piiSettingsVersion;
         
         if (!text || text.trim().length === 0) {
             detectedPII = [];
@@ -3288,26 +3355,57 @@
         
         // Build detection options with category filtering and personal data entries
         const detectionOptions: PIIDetectionOptions = {
-            excludedIds: piiExclusions,
+            excludedIds: new Set(piiExclusions),
             disabledCategories,
             personalDataEntries: personalDataForDetection,
         };
         
-        // Detect PII with full store-aware options
-        const matches = detectPII(text, detectionOptions);
-        detectedPII = matches;
-        
-        if (matches.length > 0) {
-            console.debug('[MessageInput] PII detected:', matches.length, 'matches');
-            buildPIIDecorations(editor, matches);
-        } else {
-            currentPIIDecorations = [];
+        const document = editor.state.doc;
+        const chatId = currentChatId;
+        const userId = get(userProfile).user_id;
+        const authenticated = get(authStore).isAuthenticated;
+        const team = getActiveTeamContextSnapshot();
+        const settingsVersion = piiSettingsVersion;
+        const stillCurrent = () => !composerDestroyed && !editor.isDestroyed
+            && generation === piiPreviewGeneration && editor.state.doc === document
+            && editor.getText() === text && currentChatId === chatId
+            && get(userProfile).user_id === userId
+            && get(authStore).isAuthenticated === authenticated
+            && isActiveTeamContext(team.teamId, team.epoch)
+            && settingsVersion === piiSettingsVersion;
+        const publish = (matches: PIIMatch[]) => {
+            if (!stillCurrent()) return;
+            detectedPII = matches;
+            if (matches.length > 0) buildPIIDecorations(editor, matches);
+            else currentPIIDecorations = [];
+            rebuildDecorationSet(editor);
+        };
+
+        // Keep known secrets responsive while the on-device model starts.
+        // Full basic protection stays immediate during download and on failure.
+        // The same hybrid adapter reserves exclusions before adding model spans.
+        publish(isWebPIIModelEnabled()
+            ? mergeWebPIIMatches(text, [], detectionOptions)
+            : detectPII(text, detectionOptions));
+        try {
+            publish(await detectPIIForWeb(text, detectionOptions, { purpose: 'preview' }));
+        } catch {
+            // Final send independently verifies this snapshot and blocks on model
+            // failure. A preview must never log the SDK exception or private text.
+            if (stillCurrent()) lastPIIText = '';
         }
-        
-        // Rebuild the full decoration set so PII highlights become visible.
-        // rebuildDecorationSet merges currentPIIDecorations into the view and
-        // dispatches a transaction to refresh the display.
-        rebuildDecorationSet(editor);
+    }
+
+    function retryPIIModel() {
+        resetWebPIIDetector();
+        lastPIIText = '';
+        if (editor && !editor.isDestroyed) void runPIIDetectionImmediate(editor);
+        else void preloadWebPIIDetector().catch(() => {});
+    }
+
+    async function executePendingSendWithPrivacyRetry(context: PendingSendContext, retry = false) {
+        const { dispatchPendingSendWithPrivacyRetry } = await import('./handlers/sendHandlers');
+        await dispatchPendingSendWithPrivacyRetry(context, { retryPrivacy: retry });
     }
     
     /**
@@ -3360,7 +3458,7 @@
             rebuildDecorationSet(editor);
         }
         
-        console.debug('[MessageInput] PII exclusion added:', matchId);
+        console.debug('[MessageInput] PII exclusion added');
     }
     
     /**
@@ -3368,6 +3466,7 @@
      * Excludes all detected PII so nothing gets replaced on send.
      */
     function handlePIIUndoAll() {
+        piiPreviewGeneration += 1;
         // Mark all current detections as excluded
         const newExclusions = new Set(piiExclusions);
         for (const match of detectedPII) {
@@ -5538,6 +5637,11 @@
         console.info(
             `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
         );
+
+        if (isWebPIIModelEnabled()) {
+            await executePendingSendWithPrivacyRetry(readyCtx);
+            return;
+        }
 
         // Remove from store before firing to prevent double-dispatch
         removePendingSend(chatId, readyCtx.pendingId);

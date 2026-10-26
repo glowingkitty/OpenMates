@@ -120,6 +120,8 @@
     "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs"
   },
   "dependencies": {
+    "@desert-ant-labs/redact": "4.1.0",
+    "@litertjs/core": "2.6.0",
     "hash-wasm": "4.12.0",
     "@repo/pairing-crypto": "workspace:*",
     "@fontsource-variable/figtree": "^5.2.10",

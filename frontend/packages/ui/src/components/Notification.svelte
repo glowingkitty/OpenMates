@@ -52,6 +52,7 @@
      * The shared stack keeps the keyed item mounted for its exit transition.
      */
     function handleDismiss(): void {
+        if (notification.dismissible === false) return;
         notificationStore.removeNotification(notification.id);
     }
 
@@ -66,6 +67,7 @@
      * Handle touch/mouse start for swipe gesture
      */
     function handlePointerDown(event: PointerEvent): void {
+        if (notification.dismissible === false) return;
         // Only track vertical swipes
         isDragging = true;
         startY = event.clientY;
@@ -103,6 +105,12 @@
         if (!isDragging) return;
         
         isDragging = false;
+        if (notification.dismissible === false) {
+            dragOffset = 0;
+            const target = event.target as HTMLElement;
+            if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+            return;
+        }
         
         // Calculate swipe velocity
         const swipeTime = Date.now() - swipeStartTime;
@@ -174,6 +182,7 @@
         <span class="notification-bell-icon"></span>
         <span class="notification-title">{notification.title || ''}</span>
         <NotificationRepeatCount count={notification.count} />
+        {#if notification.dismissible !== false}
         <button
             class="notification-dismiss"
             data-testid="notification-dismiss"
@@ -182,6 +191,7 @@
         >
             <span class="notification-close-icon"></span>
         </button>
+        {/if}
     </div>
     
     <!-- Content row with type icon and message -->

@@ -157,6 +157,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.1
         version: 7.3.1(svelte@5.56.10(@typescript-eslint/types@8.61.0))(vite@8.3.4(@types/node@24.5.2)(esbuild@0.28.1)(terser@5.44.0)(yaml@2.9.0))
+      esbuild:
+        specifier: 0.28.1
+        version: 0.28.1
       eslint:
         specifier: ^9.35.0
         version: 9.35.0
@@ -394,6 +397,9 @@ importers:
 
   frontend/packages/ui:
     dependencies:
+      '@desert-ant-labs/redact':
+        specifier: 4.1.0
+        version: 4.1.0(@litertjs/core@2.6.0)
       '@fontsource-variable/figtree':
         specifier: ^5.2.10
         version: 5.2.10
@@ -424,6 +430,9 @@ importers:
       '@fontsource/ibm-plex-sans':
         specifier: ^5.2.8
         version: 5.2.8
+      '@litertjs/core':
+        specifier: 2.6.0
+        version: 2.6.0
       '@lucide/svelte':
         specifier: ^0.545.0
         version: 0.545.0(svelte@5.56.10(@typescript-eslint/types@8.61.0))
@@ -727,6 +736,9 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
+  '@bjorn3/browser_wasi_shim@0.3.0':
+    resolution: {integrity: sha512-FlRBYttPRLcWORzBe6g8nmYTafBkOEFeOqMYM4tAHJzFsQy4+xJA94z85a9BCs8S+Uzfh9LrkpII7DXr2iUVFg==}
+
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
 
@@ -760,6 +772,25 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@desert-ant-labs/core@4.1.0':
+    resolution: {integrity: sha512-o5QUCmKKyM+HWaiv5FhuknsNEON2/x7z3gp8c8gybR5eKPWvTVzAibb8fln0j1wrZFFDeINL/CRHc+6xm+MHSw==}
+    peerDependencies:
+      '@litertjs/core': '>=2.1.0'
+      koffi: '>=2.16.3 <3 || >=3.1.2'
+    peerDependenciesMeta:
+      '@litertjs/core':
+        optional: true
+      koffi:
+        optional: true
+
+  '@desert-ant-labs/redact@4.1.0':
+    resolution: {integrity: sha512-6OoLYmVpWiCscvlr45e6mqafgaG6ueCUAEcnXFLnNrJwugye/+rUgso4OQy8JtJXDkqe2a3pAe9BubXIb4yQ2w==}
+    peerDependencies:
+      '@litertjs/core': '>=2.1.0'
+    peerDependenciesMeta:
+      '@litertjs/core':
+        optional: true
 
   '@emnapi/core@1.11.3':
     resolution: {integrity: sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg==}
@@ -1236,6 +1267,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@litertjs/core@2.6.0':
+    resolution: {integrity: sha512-TH6/5zLq57YzyZH6q+vO8be1SvTH76uDFe+CiL0wWtRNTUDhc2GAWm2YCohhnyt4fPvefSNztg5PKFZGAYL0cw==}
+
+  '@litertjs/wasm-utils@2.6.0':
+    resolution: {integrity: sha512-rxARtl8owf+aPV2TsMiAClYDBaEDemML3PjrzBxIpGCvv6POswR7068Kt0sIkrK5XvKkY2Z+JLcm3a9CHmvuUg==}
 
   '@lucide/svelte@0.545.0':
     resolution: {integrity: sha512-RlAtWefx9MdpXaOMbx3Qv3/NqpeZKOIPxN2D0RBN2+op0opKly8VgYEEWZTT6Ow/zf7UwyTg6/0ExJlsVLK+8g==}
@@ -3644,6 +3681,9 @@ packages:
   known-css-properties@0.35.0:
     resolution: {integrity: sha512-a/RAk2BfKk+WFGhhOCAYqSiFLc34k8Mt/6NWRI4joER0EYUzXIcFivjjnoD3+XU1DggLn/tZc3DOAgke7l8a4A==}
 
+  koffi@2.16.3:
+    resolution: {integrity: sha512-E9y1AsgYGlaxMhcZzHr8y96QF2U5XzA12GGVAfbWqIubTwPNMXQarfBzePNXHe0xtIEtNd6ifAv3GAKYGUeBAQ==}
+
   layout-base@1.0.2:
     resolution: {integrity: sha512-8h2oVEZNktL4BH2JCOI90iD1yXwL6iNW7KcCKT2QZgQJR2vbqDsldCTPRU9NifTCqHZci57XvQQ15YTu+sTYPg==}
 
@@ -4942,6 +4982,8 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
+  '@bjorn3/browser_wasi_shim@0.3.0': {}
+
   '@braintree/sanitize-url@7.1.2': {}
 
   '@chevrotain/types@11.1.2': {}
@@ -4965,6 +5007,19 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@desert-ant-labs/core@4.1.0(@litertjs/core@2.6.0)(koffi@2.16.3)':
+    optionalDependencies:
+      '@litertjs/core': 2.6.0
+      koffi: 2.16.3
+
+  '@desert-ant-labs/redact@4.1.0(@litertjs/core@2.6.0)':
+    dependencies:
+      '@bjorn3/browser_wasi_shim': 0.3.0
+      '@desert-ant-labs/core': 4.1.0(@litertjs/core@2.6.0)(koffi@2.16.3)
+    optionalDependencies:
+      '@litertjs/core': 2.6.0
+      koffi: 2.16.3
 
   '@emnapi/core@1.11.3':
     dependencies:
@@ -5318,6 +5373,12 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@litertjs/core@2.6.0':
+    dependencies:
+      '@litertjs/wasm-utils': 2.6.0
+
+  '@litertjs/wasm-utils@2.6.0': {}
 
   '@lucide/svelte@0.545.0(svelte@5.56.10(@typescript-eslint/types@8.61.0))':
     dependencies:
@@ -7778,6 +7839,9 @@ snapshots:
   kleur@4.1.5: {}
 
   known-css-properties@0.35.0: {}
+
+  koffi@2.16.3:
+    optional: true
 
   layout-base@1.0.2: {}
 

@@ -143,6 +143,8 @@ export interface PendingSendContext {
   piiRewriteMappings: PIIMapping[];
   /** Exact chat model preference captured after restoration for this send. */
   modelSelection?: string;
+  /** In-memory claim/recovery state for an upload-delayed privacy scan. */
+  privacyScanState?: "scanning" | "failed";
   /** Original PII-anonymized markdown text (partial — may be updated when embeds finish) */
   partialMarkdown: string;
 }
@@ -330,10 +332,33 @@ export function getReadyPendingSend(
 
   // The head must be ready first (FIFO order — don't skip ahead)
   const head = queue[0];
-  if (head.blockingEmbedIds.size === 0) {
+  if (head.blockingEmbedIds.size === 0 && !head.privacyScanState) {
     return head;
   }
   return undefined;
+}
+
+/** Claim the ready FIFO head without discarding the user's recovery snapshot. */
+export function claimPendingSendPrivacy(context: PendingSendContext, retry = false): boolean {
+  let claimed = false;
+  _store.update((state) => {
+    const head = state.get(context.chatId)?.[0];
+    if (head !== context || head.blockingEmbedIds.size > 0 ||
+        head.privacyScanState === "scanning" || (head.privacyScanState === "failed" && !retry)) return state;
+    head.privacyScanState = "scanning";
+    claimed = true;
+    return new Map(state);
+  });
+  return claimed;
+}
+
+/** Keep a failed scan recoverable; only an explicit retry can claim it again. */
+export function markPendingSendPrivacyFailure(context: PendingSendContext): void {
+  _store.update((state) => {
+    if (state.get(context.chatId)?.[0] !== context || context.privacyScanState !== "scanning") return state;
+    context.privacyScanState = "failed";
+    return new Map(state);
+  });
 }
 
 /**

@@ -1,0 +1,235 @@
+{
+  "status": "complete-native-evaluation-with-retained-watchdog-failures",
+  "date": "2026-10-26",
+  "task": "TASK-906",
+  "depends_on": "TASK-6119",
+  "session": "678f",
+  "inference_runs": 4,
+  "sdk_source_revision": "86b9b55fe8c61ec1c27c5b6383f545c6df1d6ceb",
+  "npm_integrities": {
+    "@desert-ant-labs/redact@4.1.0": "sha512-6OoLYmVpWiCscvlr45e6mqafgaG6ueCUAEcnXFLnNrJwugye/+rUgso4OQy8JtJXDkqe2a3pAe9BubXIb4yQ2w==",
+    "@desert-ant-labs/core@4.1.0": "sha512-o5QUCmKKyM+HWaiv5FhuknsNEON2/x7z3gp8c8gybR5eKPWvTVzAibb8fln0j1wrZFFDeINL/CRHc+6xm+MHSw==",
+    "koffi@2.16.3": "sha512-E9y1AsgYGlaxMhcZzHr8y96QF2U5XzA12GGVAfbWqIubTwPNMXQarfBzePNXHe0xtIEtNd6ifAv3GAKYGUeBAQ=="
+  },
+  "model": {
+    "repository": "desert-ant-labs/redact",
+    "tag": "v0.4.0",
+    "revision": "3ed5033aeb544f454ebde77dc76fd7b7e76cc572",
+    "bytes": 24924730
+  },
+  "static_host_native_files": [
+    {
+      "file": "libLiteRt.so",
+      "bytes": 5831880,
+      "sha256": "fb21752e51cb9def7e154ccc65c7a12460d2c3c3116a50b4bb42e24dbc96128c"
+    },
+    {
+      "file": "libRedactNode.so",
+      "bytes": 56377136,
+      "sha256": "513aa6212cdcffcd767ee2b066df155986563471518c1a1ca87ae249373031fe"
+    },
+    {
+      "file": "libdalcpushim.so",
+      "bytes": 67504,
+      "sha256": "b14e75056c68bc2380b00a60d4c97419d85fc578bf1c4861dc8a12d5fa80e5f7"
+    }
+  ],
+  "static_host_native_total_bytes": 62276520,
+  "prepared_host": {
+    "architecture": "aarch64",
+    "kernel": "6.8.0-137-generic",
+    "python": "3.12.3",
+    "node": "v24.22.1",
+    "logical_cpus": 16,
+    "memory_total_bytes": 32789000192
+  },
+  "fixture_source": {
+    "path": "scripts/fixtures/privacy-filter-synthetic.json",
+    "sha256": "128bc8e6ded2237e457fad56ea79c86c1dca2006433fb3f0d1fd0a7e9073e5f5",
+    "cases": 56,
+    "expected_values": 50,
+    "negative_cases": 12
+  },
+  "checks": {
+    "node_tooling_tests": {
+      "passed": 6,
+      "sdk_import": false,
+      "inference": false
+    },
+    "python_supervisor_tests": {
+      "passed": 4,
+      "sdk_import": false,
+      "inference": false
+    }
+  },
+  "planned_profiles": {
+    "cores": [
+      1,
+      2
+    ],
+    "niceness_increment": 10,
+    "rss_limit_mib": 1536,
+    "timeout_seconds": 300,
+    "repetitions_per_length": 7,
+    "whitespace_units": [
+      32,
+      256,
+      1024,
+      4096
+    ],
+    "tokenizer": "not exposed; whitespace units are not native model tokens",
+    "note": "Original 7-repetition attempts exceeded wall budget; successful sample counts are in actual_profiles, not this initial plan."
+  },
+  "historical_comparison": "../2026-10-03/manifest.json",
+  "results": [
+    {
+      "file": "linux-arm64-1core-bounded.json",
+      "sha256": "8a54e4762b637066408ef7f880baf0f7b582404c8b547dbc90e1c6a7747d187c",
+      "bytes": 547674
+    },
+    {
+      "file": "linux-arm64-1core-bounded.partial.json",
+      "sha256": "0b98f6e9ea7b9f172f1ec7d531f787e61d149e9b8dc2a5fa13030dc0c85b5082",
+      "bytes": 535683
+    },
+    {
+      "file": "linux-arm64-1core-bounded.progress.json",
+      "sha256": "6fc37c5f54482bf6ea633607915c4b6ce02e1d8ab9df9c4037aca8234ad4f8f4",
+      "bytes": 11398
+    },
+    {
+      "file": "linux-arm64-1core-bounded.supervisor.json",
+      "sha256": "46b8e3d54a1766d3825d258ade62d0e4bc58a96e62c47d52cdd6c76c1d6d8a68",
+      "bytes": 474
+    },
+    {
+      "file": "linux-arm64-1core.supervisor.json",
+      "sha256": "d28b9379aeb71c42a32306b937369b61b9545596de1524f958a7fed762b89100",
+      "bytes": 477
+    },
+    {
+      "file": "linux-arm64-2core-tail.json",
+      "sha256": "6785e124f9a397acd7d0b0159f2a20611d3ee7d5a63eb68d4c3d2c868595e370",
+      "bytes": 5294
+    },
+    {
+      "file": "linux-arm64-2core-tail.progress.json",
+      "sha256": "28b6b831573927c6147fbe73fa13b479c0ed538ff92bdf414c282e017ea007df",
+      "bytes": 1463
+    },
+    {
+      "file": "linux-arm64-2core-tail.supervisor.json",
+      "sha256": "9e0d55f6f7ba26d3e139fa9c4d20ded3e9f2730318ffe234a676a2fd42996d36",
+      "bytes": 479
+    },
+    {
+      "file": "linux-arm64-2core.progress.json",
+      "sha256": "ba6b71ac47bae86e0ae15d4bcfc5233e4ec7a48b9e444f0411168fb8b9513cd3",
+      "bytes": 11195
+    },
+    {
+      "file": "linux-arm64-2core.supervisor.json",
+      "sha256": "61aef95957c015b3e4d29860b174603cbf4cff170a57be9beb8bfe582910bf88",
+      "bytes": 486
+    },
+    {
+      "file": "quality-rescore.json",
+      "sha256": "8a3ec27e4152ec105f48aefa6ad359f8771704775d7811f497b951ec1d81c7c9",
+      "bytes": 609461
+    },
+    {
+      "file": "quality-summary.json",
+      "sha256": "ac24c9db6d9efddd5e82852f9456a371b4148c62cf676f9de3f5d94a4134950f",
+      "bytes": 226779
+    }
+  ],
+  "harness_revisions": {
+    "linux-arm64-2core": {
+      "scripts/redact_linux_evaluation.mjs": "70040bcd6ad06b17027085b6f138278a73abd484b9a4e0414c01aa020f9f91ec",
+      "scripts/redact_linux_evaluation.py": "a88785cfcdcfe1658ab1b2dff4031996284335b83982fb4a78cbdd39a3c70087"
+    }
+  },
+  "web_gate": {
+    "source": "09380d118c38b313d9e6d5c1fd80331163a0d946",
+    "ci_request": "04aa3589",
+    "github_run": 40302932513,
+    "passed_cases": 2
+  },
+  "native_profile_attempts": {
+    "successful": 2,
+    "watchdog_terminated": 2
+  },
+  "actual_profiles": [
+    {
+      "name": "1core-initial",
+      "status": "watchdog-terminated",
+      "wall_limit_seconds": 300,
+      "final_model_results_retained": false
+    },
+    {
+      "name": "2core-initial",
+      "status": "watchdog-terminated",
+      "wall_limit_seconds": 300,
+      "completed_quality_cases": 59,
+      "quality_predictions_retained": false,
+      "completed_latency_units": [
+        32,
+        256,
+        1024
+      ],
+      "repeats": 7
+    },
+    {
+      "name": "1core-bounded",
+      "status": "complete",
+      "wall_limit_seconds": 600,
+      "completed_quality_cases": 59,
+      "completed_latency_units": [
+        32,
+        256,
+        1024,
+        4096
+      ],
+      "repeats": 3
+    },
+    {
+      "name": "2core-tail",
+      "status": "complete",
+      "wall_limit_seconds": 300,
+      "completed_quality_cases": 0,
+      "completed_latency_units": [
+        4096
+      ],
+      "repeats": 3
+    }
+  ],
+  "quality_final": {
+    "source": "quality-rescore.json",
+    "summary": "quality-summary.json",
+    "inference_repeated_for_adapter_fix": false,
+    "base_cases": 56,
+    "base_expected_values": 50,
+    "extra_long_tail_cases": 3,
+    "metrics": [
+      "strict_all_annotated_characters",
+      "all_letters_digits_combining_marks"
+    ],
+    "negative_cases": 12
+  },
+  "offline_proof": {
+    "normal_sdk_license_flush_before_seal": true,
+    "sdk_telemetry_modified": false,
+    "content_loaded_after_seal": true,
+    "mechanism": "libseccomp TSYNC on all existing/future threads",
+    "socket_self_check": "EPERM",
+    "existing_internet_sockets": 0,
+    "native_https_bodies_intercepted": false,
+    "license_schema_basis": "pinned source and separate browser audit"
+  },
+  "tooling_source_sha256": {
+    "scripts/redact_linux_evaluation.mjs": "2dee21e532d909793d4beb0174d298195442a7c617b1e5be163edce2f55698d8",
+    "scripts/redact_linux_evaluation.py": "0986eac80c17c118a2892aefe40e600522d4daf89459e9010028e58a6482dfaf",
+    "scripts/redact_linux_evaluation.test.mjs": "992f4dfbfb6b38a8458ef09ccff87af929c619d9cbb86db63fdd30a3893a3ace",
+    "scripts/redact_linux_evaluation_test.py": "4b87163aa5ca0e8765d0f7980255124b5d63cdc8989ae07e50ff60ca632afc4a"
+  }
+}

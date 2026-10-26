@@ -1,0 +1,33 @@
+schema_version: 2
+profile: concise
+id: web-redact-dev-trial
+title: Browser Redact development trial
+status: implementing
+goal: >
+  Implement the new way of detecting and replacing personal information in the
+  message input, including transcripts, so the user can test it on development
+  before deciding on production usage telemetry and attribution terms.
+scope:
+  in:
+    - Pin the published Redact browser SDK and LiteRT runtime; run classification in a shared local worker.
+    - Download public model assets in the background, cache only versioned assets, and classify without sending text to a service.
+    - Keep full basic pattern detection immediate and use it as fallback when model loading or inference fails; preserve configured entries, exclusions, encrypted mappings and local restoration.
+    - Use current immutable composer snapshots for preview and send; stop sends if both detectors fail or ownership/settings change during verification.
+    - Cover editable dictation and text fields in existing audio recording embeds before chat-model send.
+    - Use one standard notification per browser session if enhanced detection is unavailable; add no composer status row. Keep linked attribution in the existing Privacy description.
+  out:
+    - Production activation, production license acceptance decisions and permanent production privacy-policy changes.
+    - Apple, CLI or SDK model activation; server-side classification; changes to speech transcription/correction providers.
+    - A promise of complete anonymization or cold-starting the entire application offline.
+decisions:
+  - The user explicitly requested implementing the dev trial before deciding production telemetry and attribution terms.
+  - The model is enabled only on app.dev.openmates.org, localhost and 127.0.0.1, and is disabled for production builds.
+  - The SDK's mandatory content-free licensing telemetry stays intact; no model input, output or detected values enter application diagnostics or detector caches.
+  - The user explicitly requested full regex fallback and a follow-up Linux memory, performance and reliability benchmark. TASK-906 owns that benchmark after this web trial; CLI model activation remains deferred.
+  - Existing feature.pii-protection@2 placeholder, exclusion and owner-only restoration assertions remain the privacy boundary. A permanent browser-model contract is deferred to the production decision.
+  - Existing public URL handling remains supported; Redact's blanket URL and organization labels are excluded from the trial.
+verification:
+  - Focused local model-adapter and send-lifecycle unit tests, component compilation, translation build and scoped lint.
+  - Isolated GitHub bare component checks for normal notifications/retry and real browser inference, current-draft ownership, exclusions and mounted-page offline classification.
+  - Inspect pinned SDK network call sites and audit actual browser requests for synthetic input leakage; document mandatory licensing metadata separately from content.
+  - Scoped development deployment after the candidate checks succeed.

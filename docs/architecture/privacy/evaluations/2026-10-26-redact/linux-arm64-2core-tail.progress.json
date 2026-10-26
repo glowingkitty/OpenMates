@@ -1,0 +1,50 @@
+{
+  "status": "complete",
+  "stage": "bounded-latency",
+  "completed_quality_cases": 0,
+  "quality_timings": [],
+  "latency": [
+    {
+      "whitespace_units": 4096,
+      "characters_utf16": 27135,
+      "tokenizer": "not measured: whitespace units are NOT model tokens",
+      "milliseconds": [
+        23538.537296000002,
+        23079.631600000008,
+        23403.833375000002
+      ],
+      "median_ms": 23403.833375000002,
+      "p95_ms": 23538.537296000002,
+      "before_repetitions_rss_bytes": 173285376,
+      "after_repetitions_rss_bytes": 173416448
+    }
+  ],
+  "load": {
+    "first_new_process_ms": 25.939193999999986,
+    "warm_same_process_reload_ms": 0.15752099999997426
+  },
+  "environment": {
+    "platform": "linux",
+    "architecture": "arm64",
+    "node": "v24.22.1",
+    "os": "6.8.0-137-generic",
+    "cpu": "Neoverse-N1",
+    "affinity": "0-1",
+    "native_thread_setting": "SDK default; no supported public thread option; all threads affinity-bounded by supervisor",
+    "native_threads_after_load": 13
+  },
+  "offline": {
+    "mechanism": "libseccomp TSYNC, EPERM",
+    "all_threads": true,
+    "socket_creation_denied": true,
+    "existing_internet_sockets": 0,
+    "required_telemetry": "normal SDK load and flush before seal; SDK unmodified"
+  },
+  "current_latency_whitespace_units": 4096,
+  "active_latency_samples_ms": [
+    23538.537296000002,
+    23079.631600000008,
+    23403.833375000002
+  ],
+  "current_rss_bytes": 160559104
+}

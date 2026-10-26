@@ -1,6 +1,42 @@
 # PII (Personally Identifiable Information) detection and anonymization translations
 # Used by PIIWarningBanner and PII highlighting in the message input
 
+basic_detection_notice:
+  context: One-time standard notification per browser tab/session when the enhanced local model is unavailable; full basic detection continues
+  en: Enhanced detection is unavailable. Basic checks still detect emails, phone numbers, API keys and other recognized patterns.
+  de: Die erweiterte Erkennung ist nicht verfügbar. Die grundlegende Prüfung erkennt weiterhin E-Mails, Telefonnummern, API-Schlüssel und andere bekannte Muster.
+  verified_by_human: []
+model_retry:
+  context: Button to retry loading the on-device personal data detector
+  en: Retry enhanced detection
+  de: Erweiterte Erkennung erneut starten
+  verified_by_human: []
+model_pending_error:
+  context: Dev trial status after an uploaded message's local privacy scan failed; the original submission is retained for explicit retry
+  en: Your queued message was not sent. Retry its personal data check and send.
+  de: Deine wartende Nachricht wurde nicht gesendet. Prüfe ihre persönlichen Daten erneut und sende sie.
+  verified_by_human: []
+model_retry_message:
+  context: Explicit action to rerun the privacy scan and send a retained queued message
+  en: Retry message
+  de: Nachricht erneut senden
+  verified_by_human: []
+model_credit:
+  context: Linked attribution required for the dev trial of Desert Ant Labs Redact
+  en: Redact by Desert Ant Labs
+  de: Redact von Desert Ant Labs
+  verified_by_human: []
+model_usage_disclosure:
+  context: Attribution tooltip disclosing SDK usage reporting during the dev-only personal data detection trial
+  en: Text is processed on this device. Desert Ant Labs receives a random installation ID, app identifier, platform and model/SDK versions for usage licensing; no input text or detected values.
+  de: Text wird auf diesem Gerät verarbeitet. Desert Ant Labs erhält für die Nutzungslizenz eine zufällige Installations-ID, die App-Kennung, Plattform und Modell-/SDK-Versionen; keinen Eingabetext und keine erkannten Werte.
+  verified_by_human: []
+enhanced_scan_failed:
+  context: Send error when neither the enhanced detector nor its basic fallback can finish; the draft remains available for retry
+  en: Personal data checks could not finish. Your message was not sent. Retry the checks and send again.
+  de: Die Erkennung persönlicher Daten konnte nicht abgeschlossen werden. Deine Nachricht wurde nicht gesendet. Starte die Prüfung neu und sende erneut.
+  verified_by_human: []
+
 banner_title:
   context: Title shown in the PII warning banner when sensitive data is detected
   en: Sensitive data detected

@@ -89,6 +89,50 @@ for (const selected of profiles) {
 			);
 		}
 
+
+		// contract-test: supporting surface=gui.web assertions=notifications.web.stacked-deck,pii.composer.detect-redact-exclude
+		test('a persistent recovery notification keeps its retry action through upward swipes', async ({ page }) => {
+			await openStack(page);
+			const cards = page.getByTestId('notification-stack-item');
+			await inject(page, [{
+				...error, title: 'Message needs privacy retry', dismissible: false,
+				actionLabel: 'Retry message', actionEventName: ACTION_EVENT,
+			}]);
+			const recovery = cards.first();
+			await expect(recovery).toContainText('Message needs privacy retry');
+			await expect(recovery.getByTestId('notification-dismiss')).toHaveCount(0);
+			await expect(recovery.getByTestId('notification-action')).toBeVisible();
+			const swipeUp = async () => {
+				await cards.first().evaluate(async (element) => {
+					await Promise.allSettled(element.getAnimations().map((animation) => animation.finished));
+				});
+				const bounds = await cards.first().getByTestId('notification').boundingBox();
+				expect(bounds).not.toBeNull();
+				const x = bounds!.x + bounds!.width / 2;
+				const y = bounds!.y + 25;
+				await page.mouse.move(x, y);
+				await page.mouse.down();
+				await page.mouse.move(x, y - 90, { steps: 5 });
+				await page.mouse.up();
+			};
+			await test.step('Recovery remains available after a dismissal gesture', async () => {
+				await swipeUp();
+				await expect(cards).toHaveCount(1);
+				await expect(recovery).toHaveAttribute('data-motion-state', 'entered');
+				await expect(recovery.getByTestId('notification-action')).toBeVisible();
+			});
+			await test.step('Ordinary notifications retain their default swipe dismissal', async () => {
+				await inject(page, [{ type: 'info', title: 'Ordinary notification', message: 'Can be dismissed', duration: 0 }]);
+				await expect(cards).toHaveCount(2);
+				await expect(cards.first()).toContainText('Ordinary notification');
+				await expect(cards.first().getByTestId('notification-dismiss')).toBeVisible();
+				await swipeUp();
+				await expect(cards).toHaveCount(1);
+				await expect(cards.first()).toContainText('Message needs privacy retry');
+				await expect(cards.first().getByTestId('notification-action')).toBeVisible();
+			});
+		});
+
 		// contract-test: direct surface=gui.web assertions=notifications.web.duplicate-grouping,notifications.web.duplicate-lifecycle,notifications.web.stacked-deck
 		test('repeated errors update one card, retain its place, and dismiss once', async ({
 			page

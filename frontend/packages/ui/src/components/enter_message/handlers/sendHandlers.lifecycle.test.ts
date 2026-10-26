@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
   return {
     store,
     authState,
+    profileState: { username: 'Alice', user_id: 'alice-id' },
     wsStatus,
     teamContext,
     draftState,
@@ -50,9 +51,17 @@ const mocks = vi.hoisted(() => {
     hasActualContent: vi.fn(() => true),
     sendTextMessage: vi.fn(),
     markAnonymousFreeUsageExhausted: vi.fn(),
-    notify: vi.fn(),
+    notify: vi.fn((_type?: unknown, _options?: unknown) => 'pending-notification-id'),
+    notifyError: vi.fn((_message?: string) => 'privacy-error-notification-id'),
+    updateNotification: vi.fn(),
+    cancelNotificationAutoDismiss: vi.fn(),
+    removeNotification: vi.fn(),
+    resetWebPIIDetector: vi.fn(),
+    scanGate: vi.fn(async () => undefined),
+    webPIIEnabled: vi.fn(() => false),
     clearCurrentDraft: vi.fn(async () => undefined),
-    embedStorePut: vi.fn(async () => undefined),
+    embedStorePut: vi.fn(async (_key: string, _value: unknown, _type?: string) => undefined),
+    embedStoreGet: vi.fn(async (_key?: string): Promise<Record<string, unknown> | undefined> => undefined),
     refreshAnonymousFreeUsageStatus: vi.fn(async () => ({ active: true, can_send_text: true })),
     tipTapToCanonicalMarkdown: vi.fn((_content: unknown) => 'Send these attachments'),
     createEmbedFromUrl: vi.fn(),
@@ -89,7 +98,7 @@ vi.mock('../../../stores/websocketStatusStore', () => ({ websocketStatus: mocks.
 vi.mock('../utils', () => ({ hasActualContent: mocks.hasActualContent, vibrateMessageField: vi.fn() }));
 vi.mock('../../../services/drafts/draftState', () => ({ draftEditorUIState: { subscribe(run: (state: typeof mocks.draftState) => void) { run(mocks.draftState); return () => undefined; }, update: vi.fn() } }));
 vi.mock('../../../services/drafts/draftSave', () => ({ clearCurrentDraft: mocks.clearCurrentDraft, saveDraftDebounced: { cancel: vi.fn() } }));
-vi.mock('../../../services/embedStore', () => ({ embedStore: { put: mocks.embedStorePut, registerEmbedRef: vi.fn() } }));
+vi.mock('../../../services/embedStore', () => ({ embedStore: { put: mocks.embedStorePut, get: mocks.embedStoreGet, registerEmbedRef: vi.fn() } }));
 vi.mock('../../../message_parsing/serializers', () => ({ tipTapToCanonicalMarkdown: mocks.tipTapToCanonicalMarkdown }));
 vi.mock('../../../services/anonymousChatStorage', () => ({
   AnonymousFreeUsageExhaustedError: class AnonymousFreeUsageExhaustedError extends Error {},
@@ -97,15 +106,25 @@ vi.mock('../../../services/anonymousChatStorage', () => ({
 }));
 vi.mock('../../../stores/serverStatusStore', () => ({ refreshAnonymousFreeUsageStatus: mocks.refreshAnonymousFreeUsageStatus, markAnonymousFreeUsageExhausted: mocks.markAnonymousFreeUsageExhausted }));
 vi.mock('../../../stores/authStore', () => ({ authStore: { subscribe(run: (state: typeof mocks.authState) => void) { run(mocks.authState); return () => undefined; } } }));
-vi.mock('../../../stores/userProfile', () => ({ userProfile: mocks.store({ username: 'Alice', user_id: 'alice-id' }) }));
+vi.mock('../../../stores/userProfile', () => ({ userProfile: mocks.store(mocks.profileState) }));
 vi.mock('../../../stores/signupState', () => ({ forcedLogoutInProgress: mocks.store(false) }));
 vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettingsMemoriesPermissionStore: { getCurrentRequestId: vi.fn(() => null), getCurrentChatId: vi.fn(() => null) } }));
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
-vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: vi.fn(), addNotificationWithOptions: mocks.notify } }));
+vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: mocks.notifyError, addNotificationWithOptions: mocks.notify, updateNotification: mocks.updateNotification, cancelAutoDismiss: mocks.cancelNotificationAutoDismiss, removeNotification: mocks.removeNotification } }));
 vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store(mocks.privacySettings), enabledEntries: mocks.store([]) } }));
 vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
-vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn() }));
+vi.mock('../services/webPIIDetectionService', () => ({
+  isWebPIIModelEnabled: mocks.webPIIEnabled,
+  resetWebPIIDetector: mocks.resetWebPIIDetector,
+  detectPIIForWeb: vi.fn(async (value: string, options: unknown) => {
+    // A rejection represents a facade failure after both model and regex protection fail.
+    await mocks.scanGate();
+    const { detectPII } = await import('../services/piiDetectionService');
+    return detectPII(value, options as never);
+  }),
+}));
+vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn((markdown: string) => ({ markdown, appliedMappings: [] })) }));
 vi.mock('../../../stores/embedPIIStore', () => ({ getActivePIIMappingsForRewrite: vi.fn(() => []) }));
 vi.mock('../../../stores/teamStore', () => ({
   activeTeamContext: mocks.store({ teamId: null, epoch: 0 }),
@@ -124,8 +143,13 @@ vi.mock('../../../services/projectFocusSendPreflight', () => ({
   ProjectFocusSendPreflightError: class ProjectFocusSendPreflightError extends Error {},
 }));
 
-import { executeDeferredSend, handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './sendHandlers';
-import { pendingUploadStore, removePendingSend } from '../../../stores/pendingUploadStore';
+import { dispatchPendingSendWithPrivacyRetry, executeDeferredSend, handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './sendHandlers';
+import { addPendingSend, claimPendingSendPrivacy, getReadyPendingSend, markPendingSendPrivacyFailure, pendingUploadStore, removePendingSend } from '../../../stores/pendingUploadStore';
+
+beforeEach(() => {
+  mocks.webPIIEnabled.mockReturnValue(false);
+  mocks.scanGate.mockImplementation(async () => undefined);
+});
 
 function makeEditor(includeEmbeds = true) {
   const document = {
@@ -780,4 +804,358 @@ describe('literal Apps result URL data', () => {
       expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(expect.objectContaining({ content: literal }), undefined, undefined, undefined, expect.anything());
     } finally { removePendingSend(context.chatId, context.pendingId); }
   });
+});
+
+
+describe('on-device send privacy preparation', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mocks.webPIIEnabled.mockReturnValue(true);
+    mocks.privacySettings.masterEnabled = true;
+    mocks.authState.isAuthenticated = true;
+    mocks.teamContext.teamId = null;
+    mocks.teamContext.epoch = 0;
+    mocks.chatRecord.team_id = null;
+    mocks.profileState.user_id = 'alice-id';
+    mocks.draftState.currentChatId = 'chat-auth';
+    mocks.chatDB.ensureReadyForSend.mockResolvedValue(undefined);
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+    mocks.embedStoreGet.mockResolvedValue(undefined);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue('Send these attachments');
+    const pii = await import('../services/piiDetectionService');
+    const rewrite = await import('../services/placeholderRewriteService');
+    vi.mocked(pii.detectPII).mockReturnValue([]);
+    vi.mocked(rewrite.rewriteKnownPIIPlaceholders).mockImplementation((markdown) => ({ markdown, appliedMappings: [] }));
+  });
+  afterEach(() => { mocks.privacySettings.masterEnabled = false; });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it('sends a regex-protected payload when the model is unavailable and the facade returns its baseline', async () => {
+    const facade = await import('../services/webPIIDetectionService');
+    const pii = await import('../services/piiDetectionService');
+    const basic = await vi.importActual<typeof import('../services/piiDetectionService')>('../services/piiDetectionService');
+    const original = 'Please email person@example.test';
+    const fallbackMatches = basic.detectPII(original);
+    expect(fallbackMatches).toContainEqual(expect.objectContaining({ type: 'EMAIL', match: 'person@example.test' }));
+    // The facade owns model-error recovery; the send path receives the complete regex baseline.
+    vi.mocked(facade.detectPIIForWeb).mockResolvedValueOnce(fallbackMatches);
+    vi.mocked(pii.replacePIIWithPlaceholders).mockImplementation(basic.replacePIIWithPlaceholders);
+    vi.mocked(pii.createPIIMappingsForStorage).mockImplementation(basic.createPIIMappingsForStorage);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(original);
+    const { editor, setContent } = makeEditor(false);
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(1);
+    const sent = mocks.chatSyncService.sendNewMessage.mock.calls[0][0] as { content: string; pii_mappings: Array<{ original: string; placeholder: string }> };
+    expect(sent.content).not.toContain('person@example.test');
+    expect(sent.content).toBe(basic.replacePIIWithPlaceholders(original, fallbackMatches));
+    expect(sent.pii_mappings).toContainEqual(expect.objectContaining({ original: 'person@example.test' }));
+    expect(mocks.notifyError).not.toHaveBeenCalled();
+    expect(setContent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context,message-input.send.ownership
+  it('rejects when both privacy detectors fail before transport and restores the submitted draft', async () => {
+    mocks.scanGate.mockRejectedValueOnce(new Error('Both detectors failed containing private input'));
+    const { editor, document, setContent } = makeEditor(false);
+    const original = structuredClone(document);
+    const dispatch = vi.fn();
+    expect(await handleSend(editor, dispatch, vi.fn(), 'chat-auth')).toBe(false);
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    expect(mocks.sendTextMessage).not.toHaveBeenCalled();
+    expect(setContent).toHaveBeenCalledWith(original);
+    expect(mocks.notifyError).toHaveBeenCalledWith('enter_message.pii.enhanced_scan_failed');
+    expect(dispatch).toHaveBeenCalledWith('sendMessageRejected', expect.anything());
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context,message-input.send.ownership
+  it('preserves newer typing when both pending privacy detectors fail', async () => {
+    let rejectScan!: (error: Error) => void;
+    mocks.scanGate.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectScan = reject; }));
+    const { editor, setContent } = makeEditor(false);
+    const sending = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
+    await vi.waitFor(() => expect(mocks.scanGate).toHaveBeenCalled());
+    const nextDraft = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New thought' }] }] };
+    editor.commands.setContent(nextDraft);
+    rejectScan(new Error('private combined detector error'));
+    expect(await sending).toBe(false);
+    expect(setContent).toHaveBeenCalledTimes(1);
+    expect(editor.getJSON()).toEqual(nextDraft);
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
+  it.each(['settings', 'team', 'account'] as const)('does not send a scan result after %s change', async (change) => {
+    let finishScan!: () => void;
+    mocks.scanGate.mockImplementationOnce(() => new Promise<void>((resolve) => { finishScan = resolve; }));
+    const { editor } = makeEditor(false);
+    const sending = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth');
+    await vi.waitFor(() => expect(mocks.scanGate).toHaveBeenCalled());
+    if (change === 'settings') mocks.privacySettings.masterEnabled = false;
+    else if (change === 'team') mocks.teamContext.epoch++;
+    else mocks.profileState.user_id = 'other-account';
+    finishScan();
+    expect(await sending).toBe(false);
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
+  it('rejects queued revisions and deferred sends when both privacy detectors fail', async () => {
+    mocks.scanGate.mockRejectedValue(new Error('model and basic detector unavailable'));
+    await expect(prepareQueuedMessageRevision({}, new Set())).rejects.toThrow('On-device privacy scan failed');
+    await expect(executeDeferredSend({
+      pendingId: 'pending-privacy', messageId: 'message-privacy', chatId: 'chat-auth',
+      editorSnapshot: { type: 'doc', content: [{ type: 'paragraph' }] },
+      embedSnapshots: new Map(), piiExclusions: new Set(), piiRewriteMappings: [],
+    } as never)).rejects.toThrow('On-device privacy scan failed');
+    expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
+  it('redacts recording text in TOON while preserving opaque upload metadata and encrypted mappings', async () => {
+    const pii = await import('../services/piiDetectionService');
+    vi.mocked(pii.detectPII).mockImplementation((value) => value.includes('person@example.test') ? [{
+      id: 'email', type: 'EMAIL', match: 'person@example.test', placeholder: '[EMAIL_1]',
+      startIndex: value.indexOf('person@example.test'), endIndex: value.indexOf('person@example.test') + 19,
+    }] : []);
+    vi.mocked(pii.replacePIIWithPlaceholders).mockImplementation((value) => value.replaceAll('person@example.test', '[EMAIL_1]'));
+    vi.mocked(pii.createPIIMappingsForStorage).mockImplementation((matches) => matches.map((match) => ({
+      type: match.type, original: match.match, placeholder: match.placeholder,
+    })));
+    const { editor, document } = makeEditor();
+    Object.assign((document.content[2] as { attrs: Record<string, unknown> }).attrs, {
+      uploadEmbedId: 'audio-1', title: 'From person@example.test', filename: 'person@example.test.wav',
+      transcript: 'Email person@example.test', transcriptOriginal: 'Original person@example.test',
+      transcriptCorrected: 'Corrected person@example.test', aesKey: 'opaque-person@example.test',
+      s3Files: { audio: 'opaque-s3-key' },
+    });
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    const recording = mocks.embedStorePut.mock.calls.find(([key]) => key === 'embed:audio-1')?.[1] as unknown as { content: string; text_preview: string };
+    const { decode } = await import('@toon-format/toon');
+    const content = decode(recording.content) as Record<string, unknown>;
+    for (const field of ['title', 'filename', 'transcript', 'transcript_original', 'transcript_corrected']) {
+      expect(content[field]).toContain('[EMAIL_1]');
+      expect(content[field]).not.toContain('person@example.test');
+    }
+    expect(content.aes_key).toBe('opaque-person@example.test');
+    expect(content.files).toEqual({ audio: 'opaque-s3-key' });
+    expect(recording.text_preview).not.toContain('person@example.test');
+    expect(mocks.chatSyncService.sendNewMessage.mock.calls[0][0].pii_mappings).toContainEqual({
+      type: 'EMAIL', original: 'person@example.test', placeholder: '[EMAIL_1]',
+    });
+    expect(pii.detectPII).not.toHaveBeenCalledWith('opaque-person@example.test', expect.anything());
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
+  it('redacts cached recording TOON for a queued revision and keeps originals in owner-only mapping storage', async () => {
+    const pii = await import('../services/piiDetectionService');
+    vi.mocked(pii.detectPII).mockImplementation((value) => value.includes('person@example.test') ? [{
+      id: 'email', type: 'EMAIL', match: 'person@example.test', placeholder: '[EMAIL_1]',
+      startIndex: value.indexOf('person@example.test'), endIndex: value.indexOf('person@example.test') + 19,
+    }] : []);
+    vi.mocked(pii.replacePIIWithPlaceholders).mockImplementation((value) => value.replaceAll('person@example.test', '[EMAIL_1]'));
+    vi.mocked(pii.createPIIMappingsForStorage).mockImplementation((matches) => matches.map((match) => ({
+      type: match.type, original: match.match, placeholder: match.placeholder,
+    })));
+    const { encode, decode } = await import('@toon-format/toon');
+    mocks.embedStoreGet.mockImplementation(async (key?: string) => key === 'embed:audio-cached' ? {
+      content: encode({ transcript: 'Email person@example.test', aes_key: 'opaque-key', files: { audio: 's3-object' } }),
+      text_preview: 'person@example.test',
+    } : undefined);
+    const revision = await prepareQueuedMessageRevision({ type: 'doc', content: [
+      { type: 'embed', attrs: { type: 'recording', contentRef: 'embed:audio-cached' } },
+    ] }, new Set());
+    const mapping = { type: 'EMAIL', original: 'person@example.test', placeholder: '[EMAIL_1]' };
+    expect(revision.piiMappings).toContainEqual(mapping);
+    expect(mocks.embedStorePut).toHaveBeenCalledWith('embed_pii:audio-cached', expect.objectContaining({ pii_mappings: [mapping] }), 'audio-recording');
+    const cached = mocks.embedStorePut.mock.calls.find(([key]) => key === 'embed:audio-cached')?.[1] as { content: string };
+    expect(decode(cached.content)).toEqual({ transcript: 'Email [EMAIL_1]', aes_key: 'opaque-key', files: { audio: 's3-object' } });
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.privacy-context
+  it('keeps different originals unambiguous across independently scanned recording fields and markdown', async () => {
+    const pii = await import('../services/piiDetectionService');
+    vi.mocked(pii.detectPII).mockImplementation((value) => ['Alice', 'Bob', 'Carol'].filter((name) => value.includes(name)).map((name) => ({
+      id: `person-${name}`, type: 'PERSON_NAME', match: name, placeholder: '[PERSON_NAME_1]',
+      startIndex: value.indexOf(name), endIndex: value.indexOf(name) + name.length,
+    })));
+    vi.mocked(pii.replacePIIWithPlaceholders).mockImplementation((value, matches) => matches.reduce((result, match) => result.replaceAll(match.match, match.placeholder), value));
+    vi.mocked(pii.createPIIMappingsForStorage).mockImplementation((matches) => matches.map((match) => ({
+      type: match.type, original: match.match, placeholder: match.placeholder,
+    })));
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue('Carol');
+    const { editor, document } = makeEditor();
+    Object.assign((document.content[2] as { attrs: Record<string, unknown> }).attrs, {
+      uploadEmbedId: 'audio-1', title: 'Alice', transcript: 'Bob',
+    });
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    const sent = mocks.chatSyncService.sendNewMessage.mock.calls[0][0] as { content: string; pii_mappings: Array<{ original: string; placeholder: string }> };
+    expect(new Set(sent.pii_mappings.map((mapping) => mapping.placeholder)).size).toBe(3);
+    expect(sent.pii_mappings.map((mapping) => mapping.original)).toEqual(['Alice', 'Bob', 'Carol']);
+    expect(sent.content).toBe(sent.pii_mappings.find((mapping) => mapping.original === 'Carol')?.placeholder);
+  });
+
+
+  async function queueTrialUpload() {
+    const { editor, document } = makeEditor();
+    document.content.splice(2); // Keep one upload, without an unrelated recording.
+    const image = (document.content[1] as { attrs: Record<string, unknown> }).attrs;
+    image.status = 'uploading';
+    image.contentRef = null;
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    const context = [...get(pendingUploadStore).values()].flat().at(-1)!;
+    context.blockingEmbedIds.clear();
+    return context;
+  }
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it('keeps a failed deferred scan recoverable and adopts fresh settings only on explicit retry', async () => {
+    const context = await queueTrialUpload();
+    try {
+      expect(claimPendingSendPrivacy(context)).toBe(true);
+      mocks.scanGate.mockRejectedValueOnce(new Error('model and basic detector unavailable'));
+      await expect(executeDeferredSend(context)).rejects.toThrow('On-device privacy scan failed');
+      markPendingSendPrivacyFailure(context);
+      expect(get(pendingUploadStore).get(context.chatId)?.[0]).toBe(context);
+      expect(getReadyPendingSend(context.chatId)).toBeUndefined();
+      expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+      expect(claimPendingSendPrivacy(context, true)).toBe(true);
+      mocks.scanGate.mockRejectedValueOnce(new Error('model and basic detector retry unavailable'));
+      await expect(executeDeferredSend(context, { retryPrivacy: true })).rejects.toThrow('On-device privacy scan failed');
+      markPendingSendPrivacyFailure(context);
+      expect(context.privacyScanState).toBe('failed');
+      expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+      mocks.privacySettings.masterEnabled = false;
+      expect(claimPendingSendPrivacy(context)).toBe(false);
+      await expect(executeDeferredSend(context)).rejects.toThrow('Send context changed');
+      expect(claimPendingSendPrivacy(context, true)).toBe(true);
+      await executeDeferredSend(context, { retryPrivacy: true });
+      expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(1);
+      expect(get(pendingUploadStore).get(context.chatId)?.[0]).toBe(context);
+    } finally { removePendingSend(context.chatId, context.pendingId); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+  it.each(['account', 'team'] as const)('rejects deferred privacy retry after its original %s authority changes', async (change) => {
+    const context = await queueTrialUpload();
+    try {
+      expect(claimPendingSendPrivacy(context)).toBe(true);
+      mocks.scanGate.mockRejectedValueOnce(new Error('model and basic detector unavailable'));
+      await expect(executeDeferredSend(context)).rejects.toThrow('On-device privacy scan failed');
+      markPendingSendPrivacyFailure(context);
+      if (change === 'account') mocks.profileState.user_id = 'different-account';
+      else mocks.teamContext.epoch++;
+      mocks.scanGate.mockClear();
+      expect(claimPendingSendPrivacy(context, true)).toBe(true);
+      await expect(executeDeferredSend(context, { retryPrivacy: true })).rejects.toThrow('Send context changed');
+      markPendingSendPrivacyFailure(context);
+      expect(context.privacyScanState).toBe('failed');
+      expect(mocks.scanGate).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+    } finally { removePendingSend(context.chatId, context.pendingId); }
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it('continues the ready FIFO after the immediate upload-completion head finishes scanning', async () => {
+    let finishScan!: () => void;
+    mocks.scanGate.mockImplementationOnce(() => new Promise<void>((resolve) => { finishScan = resolve; }));
+    const { editor, document } = makeEditor();
+    document.content.splice(2);
+    // The upload reference became available before its status update arrived.
+    (document.content[1] as { attrs: Record<string, unknown> }).attrs.status = 'uploading';
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    await vi.waitFor(() => expect(mocks.scanGate).toHaveBeenCalled());
+    const first = get(pendingUploadStore).get('chat-auth')![0];
+    const second = {
+      pendingId: 'next-ready-pending', messageId: 'next-ready-message', chatId: 'chat-auth',
+      editorSnapshot: { type: 'doc', content: [{ type: 'paragraph' }] },
+      embedSnapshots: new Map(), blockingEmbedIds: new Set(['next-upload']), embedProgress: new Map(),
+      createdAt: Date.now(), piiExclusions: new Set<string>(), piiRewriteMappings: [], partialMarkdown: '',
+    };
+    addPendingSend(second);
+    second.blockingEmbedIds.clear();
+    try {
+      expect(first.privacyScanState).toBe('scanning');
+      expect(getReadyPendingSend('chat-auth')).toBeUndefined();
+      finishScan();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(2));
+      expect(mocks.chatSyncService.sendNewMessage.mock.calls.map(([message]) => message.message_id)).toEqual([first.messageId, second.messageId]);
+      await vi.waitFor(() => expect(get(pendingUploadStore).has('chat-auth')).toBe(false));
+    } finally {
+      removePendingSend(first.chatId, first.pendingId);
+      removePendingSend(second.chatId, second.pendingId);
+    }
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it('converts the failed scan toast into one persistent retry action and preserves original account authority', async () => {
+    const context = await queueTrialUpload();
+    try {
+      mocks.scanGate.mockRejectedValueOnce(new Error('both privacy detectors failed'));
+      await dispatchPendingSendWithPrivacyRetry(context);
+      expect(context.privacyScanState).toBe('failed');
+      expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+      expect(mocks.notifyError).toHaveBeenCalledTimes(1);
+      expect(mocks.notify).not.toHaveBeenCalled();
+      expect(mocks.cancelNotificationAutoDismiss).toHaveBeenCalledWith('privacy-error-notification-id');
+      const toast = mocks.updateNotification.mock.calls.at(-1)![1] as { duration: number; message: string; actionLabel: string; onAction: () => void };
+      expect(toast).toMatchObject({ duration: 0, dismissible: false, message: 'enter_message.pii.model_pending_error', actionLabel: 'enter_message.pii.model_retry_message' });
+      await dispatchPendingSendWithPrivacyRetry(context);
+      expect(mocks.notifyError).toHaveBeenCalledTimes(1);
+      mocks.profileState.user_id = 'different-account';
+      toast.onAction();
+      await vi.waitFor(() => expect(mocks.resetWebPIIDetector).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(mocks.updateNotification).toHaveBeenCalledTimes(3));
+      expect(context.privacyScanState).toBe('failed');
+      expect(get(pendingUploadStore).get(context.chatId)?.[0]).toBe(context);
+      expect(mocks.chatSyncService.sendNewMessage).not.toHaveBeenCalled();
+      expect(mocks.notifyError).toHaveBeenCalledTimes(1);
+      expect(mocks.notify).not.toHaveBeenCalled();
+    } finally { removePendingSend(context.chatId, context.pendingId); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it('retries the retained submission through the notification action and removes its toast after acceptance', async () => {
+    const context = await queueTrialUpload();
+    try {
+      mocks.scanGate.mockRejectedValueOnce(new Error('both privacy detectors failed'));
+      await dispatchPendingSendWithPrivacyRetry(context);
+      const toast = mocks.updateNotification.mock.calls.at(-1)![1] as { onAction: () => void };
+      toast.onAction();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(get(pendingUploadStore).has(context.chatId)).toBe(false));
+      expect(mocks.resetWebPIIDetector).toHaveBeenCalledTimes(1);
+      expect(mocks.removeNotification).toHaveBeenCalledWith('privacy-error-notification-id');
+      expect(mocks.clearCurrentDraft).toHaveBeenCalledWith(expect.objectContaining({ chatId: context.chatId, document: expect.anything() }));
+      expect(mocks.notifyError).toHaveBeenCalledTimes(1);
+    } finally { removePendingSend(context.chatId, context.pendingId); }
+  });
+
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,message-input.send.ownership
+  it.each(['other chat', 'newer document'] as const)('preserves a draft owned by %s when a queued privacy retry succeeds', async (change) => {
+    const { editor, document } = makeEditor();
+    document.content.splice(2);
+    Object.assign((document.content[1] as { attrs: Record<string, unknown> }).attrs, { status: 'uploading', contentRef: null });
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth')).toBe(true);
+    const context = get(pendingUploadStore).get('chat-auth')![0];
+    context.blockingEmbedIds.clear();
+    try {
+      mocks.scanGate.mockRejectedValueOnce(new Error('both privacy detectors failed'));
+      await dispatchPendingSendWithPrivacyRetry(context);
+      const retryToast = mocks.updateNotification.mock.calls.at(-1)![1] as { onAction: () => void };
+      const nextDraft = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Keep this new draft' }] }] };
+      editor.commands.setContent(nextDraft);
+      if (change === 'other chat') mocks.draftState.currentChatId = 'chat-other';
+      mocks.clearCurrentDraft.mockClear();
+      retryToast.onAction();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(get(pendingUploadStore).has(context.chatId)).toBe(false));
+      expect(mocks.clearCurrentDraft).not.toHaveBeenCalled();
+      expect(editor.getJSON()).toEqual(nextDraft);
+    } finally { removePendingSend(context.chatId, context.pendingId); }
+  });
+
 });
