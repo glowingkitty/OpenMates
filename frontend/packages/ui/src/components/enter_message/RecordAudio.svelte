@@ -942,6 +942,8 @@
         flex: 1;
         padding: 0;
         gap: 1px;
+        -webkit-mask-image: linear-gradient(to right, transparent, currentColor var(--spacing-4));
+        mask-image: linear-gradient(to right, transparent, currentColor var(--spacing-4));
     }
 
     .record-overlay:focus,

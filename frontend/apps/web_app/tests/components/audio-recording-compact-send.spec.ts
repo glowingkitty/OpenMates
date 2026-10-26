@@ -106,6 +106,13 @@ for (const { width, variant, compactHeight, phase } of [
     const waveform = overlay.getByTestId('recording-waveform');
     const preview = width < 400 ? waveform : transcript;
     await expect(width < 400 ? transcript : waveform).toBeHidden();
+    if (width < 400) {
+      await expect(waveform).toHaveCSS('mask-image', /linear-gradient\(to right,\s*rgba\([^)]*,\s*0\),\s*rgb\(/);
+      await expect(cancel).toHaveCSS('mask-image', 'none');
+      await test.info().attach('compact-waveform-left-fade', {
+        body: await overlay.screenshot(), contentType: 'image/png',
+      });
+    }
     await expect(overlay.getByTestId('release-text')).toHaveCSS('text-align', 'center');
     await expectCentered(overlay, preview);
     await expectContained(overlay, [cancel, preview, finish, send]);

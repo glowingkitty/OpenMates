@@ -110906,7 +110906,7 @@ assertions:
       surface: gui.web
     - &id14341
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 154
+      line: 161
       name: Finish expands the ${width}px editor only after corrected text is ready
       surface: gui.web
     - &id14342
@@ -113680,7 +113680,7 @@ assertions:
       surface: gui.web
     - &id14656
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 154
+      line: 161
       name: Finish expands the ${width}px editor only after corrected text is ready
       surface: gui.web
     - &id14657
@@ -114162,7 +114162,7 @@ assertions:
       surface: gui.web
     - &id14691
       path: frontend/apps/web_app/tests/components/audio-recording-compact-send.spec.ts
-      line: 154
+      line: 161
       name: Finish expands the ${width}px editor only after corrected text is ready
       surface: gui.web
     - &id14692
