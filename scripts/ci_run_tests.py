@@ -2714,6 +2714,15 @@ def main():
         and all(r["exit_code"] == 0 for r in results),
     }
     (RESULTS / "ci-results.json").write_text(json.dumps(payload, indent=2))
+    # Optional closed observation follows the authoritative report write. A log
+    # failure must never replace the original report, raw error or exit status.
+    try:
+        from ci_closed_failure_summary import failure_summary
+        summary = failure_summary(results)
+        if summary is not None:
+            print(summary)
+    except Exception:
+        pass  # Best-effort observation only; preserve the original result below.
     if error:
         print(error, file=sys.stderr)
     return 0 if payload["success"] else 1
