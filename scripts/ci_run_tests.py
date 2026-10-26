@@ -1767,7 +1767,12 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
         raise RuntimeError("Recovery API diagnostics require the runner-private directory")
     private.chmod(0o700)
     summaries: list[dict[str, object]] = []
-    for suite in report.get("suites", []):
+    def nested_suites(suites):
+        for suite in suites:
+            yield suite
+            yield from nested_suites(suite.get("suites", []))
+
+    for suite in nested_suites(report.get("suites", [])):
         for spec in suite.get("specs", []):
             if spec.get("title") not in titles:
                 continue

@@ -142,10 +142,10 @@ def test_voice_cleanup_retains_only_its_private_failure_window(tmp_path, monkeyp
         return SimpleNamespace(stdout="private-voice-cleanup-sentinel")
     monkeypatch.setattr(runner, "compose", compose)
     failure = {"status": "failed", "startTime": "2026-10-26T12:00:00Z", "duration": 1000}
-    report = {"suites": [{"specs": [
+    report = {"suites": [{"title": "voice-call.spec.ts", "suites": [{"specs": [
         {"title": runner.VOICE_CLEANUP_CASE_TITLE, "tests": [{"results": [failure]}]},
         {"title": "unrelated voice failure", "tests": [{"results": [failure]}]},
-    ]}]}
+    ]}]}]}
     summaries = runner.capture_recovery_receipt_api_diagnostics(report, 0)
     assert len(calls) == 1
     assert calls[0][0] == ("logs", "--no-color", "--since", "2026-10-26T11:59:58+00:00",
