@@ -391,16 +391,36 @@ class _SpeechTurn:
     classifier_text: str = ""
     verdict: str = "uncertain"
     interrupted: bool = False
+    completion: asyncio.Task[str] | None = None
+    completion_text: str = ""
+    separate_next_delta: bool = False
+    assistant_speaking: bool = False
 
 
-async def _classify(text: str, assistant_text: str, websocket: WebSocket, language: str) -> str:
+async def _classify(text: str, assistant_text: str, websocket: WebSocket, language: str,
+                    assistant_speaking: bool = False) -> str:
     from backend.shared.python_utils.voice_call_intent import classify_voice_interruption
     try:
         return await asyncio.wait_for(classify_voice_interruption(
             text, assistant_text, websocket.app.state.secrets_manager, language=language,
+            assistant_speaking=assistant_speaking,
         ), timeout=2)
     except Exception as exc:
         logger.warning("Voice intent unavailable category=%s", type(exc).__name__)
+        return "uncertain"
+
+
+async def _complete(text: str, websocket: WebSocket) -> str:
+    """Separate, bounded completion gate; never run ordinary preprocessing here."""
+    try:
+        if isolated_voice_fixture_enabled():
+            from backend.shared.testing.voice_call_fixture import isolated_voice_completion_fixture
+            return isolated_voice_completion_fixture(text) or "uncertain"
+        from backend.shared.python_utils.voice_turn_completion import classify_voice_turn_completion
+        return await asyncio.wait_for(classify_voice_turn_completion(
+            text, websocket.app.state.secrets_manager), timeout=1.25)
+    except Exception as exc:
+        logger.warning("Voice completion unavailable category=%s", type(exc).__name__)
         return "uncertain"
 
 
@@ -466,6 +486,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     ledger = SpeechUsageLedger()
     visuals = VoiceCallVisuals()
     turns: dict[str, _SpeechTurn] = {}
+    completion_tasks: set[asyncio.Task[str]] = set()
     current: _SpeechTurn | None = None
     seen_text_ids: dict[str, tuple[str, int]] = {}
     interrupted_ids: set[str] = set()
@@ -514,11 +535,12 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         message_id, last_order = _ordered_message_id(last_order)
         turn = _SpeechTurn(message_id, _timestamp(), assistant["assistant_message_id"],
                            assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
-                           assistant_task_id=assistant["assistant_task_id"])
+                           assistant_task_id=assistant["assistant_task_id"],
+                           assistant_speaking=bool(assistant["speaking"]))
         turns[message_id] = turn
         return turn
 
-    async def interrupt(turn: _SpeechTurn) -> None:
+    async def interrupt(turn: _SpeechTurn, reason: str = "completed_turn") -> None:
         if turn.interrupted or not turn.assistant_active:
             return
         if turn.assistant_task_id is not None and assistant["assistant_task_id"] != turn.assistant_task_id:
@@ -532,6 +554,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             return
         if interruption_key:
             interrupted_ids.add(interruption_key)
+        logger.info("Voice interruption call_id=%s user_message_id=%s reason=%s", call_id, turn.message_id, reason)
         await send({"type": "audio.interrupted", "call_id": call_id,
                     "assistant_message_id": turn.assistant_id, "assistant_task_id": turn.assistant_task_id,
                     "user_message_id": turn.message_id})
@@ -556,7 +579,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         if not turn.assistant_active:
             return
         if is_explicit_voice_stop(turn.text):
-            await interrupt(turn)
+            await interrupt(turn, "explicit_stop")
             turn.verdict = "interrupt"
             if turn.classifier is not None:
                 turn.classifier.cancel()
@@ -568,7 +591,23 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 await asyncio.gather(turn.classifier, return_exceptions=True)
             turn.verdict = "uncertain"
             turn.classifier_text = turn.text
-            turn.classifier = asyncio.create_task(_classify(turn.text, turn.assistant_text, websocket, language))
+            turn.classifier = asyncio.create_task(_classify(
+                turn.text, turn.assistant_text, websocket, language, turn.assistant_speaking))
+
+    def invalidate_completion(turn: _SpeechTurn) -> None:
+        # Cancel without waiting on network work: resumed speech must continue
+        # to arrive. Retired checks remain tracked until they settle or hangup.
+        if turn.completion is not None:
+            turn.completion.cancel()
+            turn.completion = None
+            # A cancelled decision never settled this text revision. A later
+            # stable endpoint may retry it even when STT added no new words.
+            turn.completion_text = ""
+
+    def completion_finished(task: asyncio.Task[str]) -> None:
+        completion_tasks.discard(task)
+        if not task.cancelled():
+            task.exception()
 
     async def finish_ready_turns(now: float) -> None:
         nonlocal current
@@ -580,7 +619,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 turn.verdict = turn.classifier.result()
                 turn.classifier = None
                 if turn.verdict == "interrupt":
-                    await interrupt(turn)
+                    await interrupt(turn, "intent")
             if turn.deadline is None or now < turn.deadline:
                 continue
             text = turn.text.strip()
@@ -588,20 +627,45 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             if not text:
                 reason = "empty"
             elif turn.assistant_active and is_explicit_voice_stop(text):
-                await interrupt(turn)
+                await interrupt(turn, "explicit_stop")
                 reason = "stop"
+            elif (turn.verdict == "echo" and turn.assistant_speaking and assistant["speaking"]
+                    and turn.assistant_id is not None and turn.assistant_id == assistant["assistant_message_id"]
+                    and turn.assistant_task_id == assistant["assistant_task_id"]):
+                # A model-supported echo verdict is tied to playback of this
+                # exact answer. Never let late results suppress real new speech.
+                reason = "echo"
             elif turn.assistant_active and (turn.verdict == "backchannel" or (turn.verdict == "uncertain" and is_listener_acknowledgement(text)
                     and not assistant_question_pending(turn.assistant_text))):
                 reason = "backchannel"
             else:
-                # A complete substantive request must survive model uncertainty.
-                # Only a complete turn can authorize ordinary chat/tools.
+                # Native endpointing only schedules this small text decision.
+                # No chat admission, skill selection or ordinary inference runs
+                # until this exact text revision is confirmed complete.
+                if turn.completion is None:
+                    if turn.completion_text != text:
+                        turn.completion_text = text
+                        turn.completion = asyncio.create_task(_complete(text, websocket))
+                        completion_tasks.add(turn.completion)
+                        turn.completion.add_done_callback(completion_finished)
+                    continue
+                if not turn.completion.done():
+                    continue
+                verdict = turn.completion.result()
+                turn.completion = None
+                if verdict != "complete":
+                    turn.deadline = None
+                    await send({"type": "transcript.pending", "call_id": call_id,
+                                "message_id": turn.message_id,
+                                "reason": "incomplete" if verdict == "incomplete" else "uncertain"})
+                    continue
                 await interrupt(turn)
                 turn.text = text
                 await transcript(turn, final=True)
             if reason is not None:
                 await send({"type": "transcript.discarded", "call_id": call_id,
                             "message_id": turn.message_id, "reason": reason})
+            invalidate_completion(turn)
             turns.pop(turn.message_id)
             if current is turn:
                 current = None
@@ -667,6 +731,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 last_auth_check = now
             waiters = {client_receive, provider_receive, lease_task, registry_task}
             waiters.update(turn.classifier for turn in turns.values() if turn.classifier is not None)
+            waiters.update(turn.completion for turn in turns.values() if turn.completion is not None)
             deadlines = [turn.deadline for turn in turns.values() if turn.deadline is not None and turn.deadline > now]
             timeout = min(1.0, max(0, min(deadlines) - now)) if deadlines else 1.0
             done, _ = await asyncio.wait(waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
@@ -727,7 +792,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 turn = _SpeechTurn(identity, created, assistant["assistant_message_id"],
                                     assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
                                     assistant_task_id=assistant["assistant_task_id"], text=text)
-                                await interrupt(turn)
+                                await interrupt(turn, "text_input")
                                 await transcript(turn, final=True)
                                 seen_text_ids[identity] = (text, created)
                             await send({"type": "text_input.accepted", "call_id": call_id, "message_id": identity})
@@ -752,8 +817,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 kind = event.get("type")
                 if kind == "turn.start":
                     if current is not None:
-                        current.deadline = time.monotonic()
-                    current = await new_turn()
+                        # A provider can split a thinking pause into multiple
+                        # turns. Retain the unfinished request and its identity.
+                        invalidate_completion(current)
+                        current.deadline = None
+                        current.separate_next_delta = bool(current.text)
+                    else:
+                        current = await new_turn()
                 elif kind == "transcription.text.delta":
                     delta = event.get("text")
                     if not isinstance(delta, str):
@@ -761,7 +831,11 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     if delta:
                         if current is None:
                             current = await new_turn()
-                        current.text = _bounded_transcript(current.text + delta)
+                        invalidate_completion(current)
+                        separator = " " if (current.separate_next_delta and current.text
+                            and not current.text[-1].isspace() and not delta[0].isspace()) else ""
+                        current.separate_next_delta = False
+                        current.text = _bounded_transcript(current.text + separator + delta)
                         language = event.get("language") if isinstance(event.get("language"), str) and len(event["language"]) <= 32 else language
                         await transcript(current, final=False)
                         await classify_latest(current)
@@ -771,6 +845,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 elif kind in {"turn.resume", "turn.eager_end"}:
                     # Eager endpointing never authorizes chat or tools.
                     if kind == "turn.resume" and current is not None:
+                        invalidate_completion(current)
                         current.deadline = None
                 elif kind == "transcription.done":
                     # input_audio.end is never sent for mute. An unexpected
@@ -802,7 +877,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     finally:
         visuals.close()
         tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task,
-                 *(turn.classifier for turn in turns.values())) if task is not None]
+                 *(turn.classifier for turn in turns.values()), *completion_tasks) if task is not None]
         for task in tasks:
             task.cancel()
         if tasks:

@@ -20,7 +20,7 @@ import { storageArchiveFetch } from "../config/api";
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
-  import { fade } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
   import type { QuickTipDefinition } from '../data/quickTips';
 
@@ -2083,8 +2083,24 @@ import { storageArchiveFetch } from "../config/api";
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
+    !isDraftOnly &&
+    // An active call already owns its initial header surface. Reveal the chat
+    // banner only after real decrypted metadata replaces the empty title shell.
+    // Category/icon remain optional for existing partial-metadata chats.
+    (!voiceCallBridge || (!!chatTitle?.trim() && !isNewChatGeneratingTitle)) &&
+    (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
   );
+
+  function revealVoiceCallHeader(node: HTMLElement) {
+    if (!voiceCallBridge || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return { duration: 0 };
+    }
+    const token = getComputedStyle(node).getPropertyValue('--duration-normal').trim();
+    const duration = Number.parseFloat(token) * (token.endsWith('ms') ? 1 : 1000);
+    // slide measures the actual banner height, including responsive metadata,
+    // so the following call strip moves with the expansion in normal flow.
+    return slide(node, { duration: Number.isFinite(duration) ? duration : 200 });
+  }
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
     if (!currentChatId || !chatHeaderWritable) throw new Error('Chat title is read-only');
@@ -3219,7 +3235,7 @@ import { storageArchiveFetch } from "../config/api";
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
-        <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
+        <div class="chat-header-wrapper" data-testid="chat-header-wrapper" bind:this={headerWrapperEl} in:revealVoiceCallHeader>
             {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}

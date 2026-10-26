@@ -25,6 +25,39 @@ AUDIO_CHUNK_BYTES = 32 * 1024
 SAFE_ERROR = "Speech is temporarily unavailable."
 logger = logging.getLogger(__name__)
 
+# Diagnostic values are fixed categories, never exception bodies or provider text.
+_PROVIDER_FAILURE_CODES = frozenset({
+    "audio_limit", "cancelled", "concurrent_receive", "credentials_unavailable",
+    "handshake_failed", "input_limit", "invalid_alignment", "invalid_audio",
+    "invalid_configuration", "invalid_event", "invalid_input", "invalid_state",
+    "keepalive_failed", "provider_error", "receive_timeout", "send_failed",
+    "session_timeout", "transport_failed", "truncated_stream", "unexpected_final",
+})
+_SPEECH_FAILURE_CODES = {
+    "Speech safeguard denied": "safeguard_denied",
+    "Speech audio bound exceeded": "audio_limit",
+    "Speech provider did not complete": "incomplete_stream",
+    "Speech delivery unavailable": "publication_failed",
+    "Speech track lease unavailable": "lease_unavailable",
+    "Speech track lease renewal unavailable": "lease_renewal_failed",
+}
+
+
+def _failure_diagnostic(error: BaseException) -> tuple[str, str]:
+    """Allowlist classifications; even an unexpected provider code stays private."""
+    if isinstance(error, asyncio.CancelledError):
+        return "cancelled", "none"
+    if isinstance(error, TimeoutError):
+        return "timeout", "none"
+    provider_code = getattr(error, "code", None)
+    if isinstance(provider_code, str):
+        return "provider", provider_code if provider_code in _PROVIDER_FAILURE_CODES else "unknown"
+    if isinstance(error, RealtimeTurnUnavailable):
+        return "speech", _SPEECH_FAILURE_CODES.get(str(error), "unavailable")
+    if isinstance(error, PermissionError):
+        return "authority", "denied"
+    return "unexpected", "none"
+
 
 class RealtimeTurnUnavailable(RuntimeError):
     """A content-free terminal delivery failure; paid input is never retried."""
@@ -69,6 +102,7 @@ class RealtimeSpeechTurn:
         self.is_mock = False
         self._on_first_audio = on_first_audio
         self._finalized = False
+        self._cancelled_for_timeout = False
 
     async def prepare(self) -> None:
         """Publish/claim track metadata before any semantic status or paid work."""
@@ -122,7 +156,9 @@ class RealtimeSpeechTurn:
             )
             if result is False:
                 raise RealtimeTurnUnavailable("Speech delivery unavailable")
-        except (Exception, asyncio.CancelledError):
+        except asyncio.CancelledError:
+            raise
+        except Exception:
             raise RealtimeTurnUnavailable("Speech delivery unavailable") from None
 
     async def _write(self) -> None:
@@ -178,15 +214,19 @@ class RealtimeSpeechTurn:
     async def _run(self) -> None:
         success = False
         children: list[asyncio.Task[Any]] = []
+        stage = "authority"
         try:
             async with asyncio.timeout(self._max_seconds):
                 await self._ensure_active()
+                stage = "provider_setup"
                 self._provider = self._provider_factory()
                 authority = asyncio.create_task(self._watch_authority())
                 opening = asyncio.create_task(self._provider.open())
                 children = [opening, authority]
+                stage = "opening"
                 done, _ = await asyncio.wait(children, return_when=asyncio.FIRST_COMPLETED)
                 for child in done:
+                    stage = "authority" if child is authority else "opening"
                     child.result()
                 await opening
                 writer = asyncio.create_task(self._write())
@@ -195,13 +235,28 @@ class RealtimeSpeechTurn:
                 # Authority is intentionally infinite. Any child failure stops
                 # paid work immediately; successful writer waits for the reader.
                 pending = {writer, reader, authority}
+                stages = {writer: "writing", reader: "reading", authority: "authority"}
                 while reader in pending or writer in pending:
+                    stage = "streaming"
                     done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                     for child in done:
+                        stage = stages[child]
                         child.result()
                 success = True
-        except (Exception, asyncio.CancelledError):
+        except (Exception, asyncio.CancelledError) as error:
             self.failed = True
+            cause, code = _failure_diagnostic(error)
+            if cause == "cancelled" and self._cancelled_for_timeout:
+                cause = "timeout"
+            # Track identity is a server-issued hash; no chat/user text, settings,
+            # URLs, raw provider event shape or exception messages enter logs.
+            track = self.track_id if len(self.track_id) == 64 and all(
+                char in "0123456789abcdef" for char in self.track_id) else "unavailable"
+            logger.log(logging.INFO if cause == "cancelled" else logging.WARNING,
+                       "Realtime speech terminated track=%s stage=%s cause=%s code=%s "
+                       "audio_started=%s chunks=%d input_finished=%s",
+                       track, stage, cause, code, self._audio_started,
+                       self._chunk_index, self._input_finished)
             try:
                 await self._emit("error")
             except RealtimeTurnUnavailable:
@@ -229,9 +284,10 @@ class RealtimeSpeechTurn:
                 self.failed = True
                 logger.warning("Realtime speech completion metadata unavailable")
 
-    async def cancel(self) -> None:
+    async def cancel(self, *, timed_out: bool = False) -> None:
         """Stop the provider without draining or granting completion/heard state."""
         self._closed = True
+        self._cancelled_for_timeout = self._cancelled_for_timeout or timed_out
         if self._task is not None:
             self._task.cancel()
             await asyncio.gather(self._task, return_exceptions=True)
@@ -252,7 +308,7 @@ class RealtimeSpeechTurn:
             try:
                 await asyncio.wait_for(asyncio.shield(self._task), remaining)
             except TimeoutError:
-                await self.cancel()
+                await self.cancel(timed_out=True)
             except asyncio.CancelledError:
                 await self.cancel()
                 raise

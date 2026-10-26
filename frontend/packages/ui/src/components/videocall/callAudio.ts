@@ -112,6 +112,19 @@ export class CallAudio {
       return;
     }
     this.stream = stream;
+    // Requested processing is not proof that the browser applied it, especially
+    // with external speakers. Capture only known settings, never device IDs or labels.
+    let settings: MediaTrackSettings = {};
+    try { settings = stream.getAudioTracks?.()[0]?.getSettings?.() ?? {}; }
+    catch { /* Diagnostics must not interrupt otherwise working capture. */ }
+    const echoCancellation: unknown = settings.echoCancellation;
+    console.info('[VoiceCall] Microphone processing', {
+      echoCancellation: typeof echoCancellation === 'boolean'
+        || echoCancellation === 'all' || echoCancellation === 'remote-only'
+        ? echoCancellation : null,
+      noiseSuppression: typeof settings.noiseSuppression === 'boolean' ? settings.noiseSuppression : null,
+      autoGainControl: typeof settings.autoGainControl === 'boolean' ? settings.autoGainControl : null,
+    });
     const context = this.context!;
     // A native microphone permission prompt can suspend/interrupt the context
     // after the Start gesture already unlocked it. That earlier resume is not

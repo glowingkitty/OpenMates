@@ -140,3 +140,46 @@ def test_regular_message_playback_still_waits_for_paragraph_boundaries(monkeypat
         await tracker.wait_for_handoff()
     asyncio.run(exercise())
     assert [s['speakable_text'] for s in dispatched] == ['First sentence. More']
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+def test_hidden_delivery_cues_are_allowlisted_and_never_extracted_from_rich_literals():
+    from backend.apps.ai.assistant_speech.projection import project_final_voice_clauses
+    rich = ('<!-- voice:curious -->Read [the guide](https://example.org). '
+            '<!-- voice:short pause -->It is useful. '
+            '`<!-- voice:excited -->secret` '
+            '```text\n<!-- voice:laughs -->private\n``` '
+            '<!-- voice:gunshot -->Continue.')
+    assert project_streaming_speech_segment(rich, voice_mode=True) == (
+        'prose_paragraph', '[curious] Read the guide. [short pause] It is useful. Continue.')
+    assert project_streaming_speech_segment('<!-- voice:laughs -->', voice_mode=True) is None
+    assert project_streaming_speech_segment('<!-- voice:cur', voice_mode=True) is None
+    assert project_streaming_speech_segment('Plain. <!-- voice:curious -->') == ('prose_paragraph', 'Plain.')
+    assert project_streaming_speech_segment(
+        'Read [<!-- voice:excited -->the guide](https://example.org).', voice_mode=True
+    ) == ('prose_paragraph', 'Read the guide.')
+    assert project_streaming_speech_segment(
+        '````text\n```\n<!-- voice:excited -->private\n````', voice_mode=True
+    ) is None
+    # A cue on its own line must remain attached to the following clause.
+    assert project_final_voice_clauses('<!-- voice:thoughtful -->\nUseful answer.') == ['[thoughtful] Useful answer.']
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+def test_split_delivery_cue_keeps_source_offsets_and_replay_identity(monkeypatch):
+    from backend.apps.ai.assistant_speech.projection import project_final_voice_clauses
+    from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
+    dispatched = []
+    final = '<!-- voice:curious -->First answer. <!-- voice:short pause -->Next answer.'
+    async def exercise():
+        tracker = tracker_for(dispatched, monkeypatch)
+        for snapshot in ('<!-- voice:cur', '<!-- voice:curious -->First answer. ', final):
+            tracker.observe(snapshot)
+            await tracker.wait_for_handoff()
+        tracker.observe(final, is_final=True)
+        await tracker.wait_for_handoff()
+    asyncio.run(exercise())
+    clauses = project_final_voice_clauses(final)
+    assert [s['speakable_text'] for s in dispatched] == clauses == [
+        '[curious] First answer.', '[short pause] Next answer.']
+    assert [s['source_hash'] for s in dispatched] == [_speech_source_identity(part) for part in clauses]

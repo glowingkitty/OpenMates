@@ -245,3 +245,34 @@ describe('call audio lifecycle', () => {
     audio.stop();
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.experiment.privacy
+describe('microphone processing diagnostics', () => {
+  it.each([
+    [true, true], [false, false], ['all', 'all'], ['remote-only', 'remote-only'],
+    ['PRIVATE_UNRECOGNIZED_MODE', null], [undefined, null],
+  ])('records only known actual processing settings (%s), never device metadata', async (echoCancellation, expected) => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const context = new FakeContext();
+    const stop = vi.fn();
+    const track = { stop, getSettings: vi.fn(() => ({ echoCancellation,
+      noiseSuppression: true, autoGainControl: false, deviceId: 'PRIVATE_DEVICE', groupId: 'PRIVATE_GROUP' })) };
+    vi.stubGlobal('AudioContext', class { constructor() { return context; } });
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: vi.fn(async () => ({
+      getTracks: () => [track], getAudioTracks: () => [track],
+    })) } });
+    const audio = new CallAudio(vi.fn(), vi.fn());
+    try {
+      await audio.start();
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false,
+      });
+      expect(info).toHaveBeenCalledWith('[VoiceCall] Microphone processing', {
+        echoCancellation: expected, noiseSuppression: true, autoGainControl: false,
+      });
+      expect(JSON.stringify(info.mock.calls)).not.toContain('PRIVATE');
+    } finally {
+      audio.stop(); info.mockRestore(); vi.unstubAllGlobals();
+    }
+  });
+});

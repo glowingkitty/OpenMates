@@ -88,3 +88,15 @@ async def test_unknown_voice_source_version_cannot_fall_back_to_historical_gener
     with pytest.raises(ValueError):
         await resolve_registered_voice_segments(directus, user_id='owner', chat_id='chat', assistant_message_id='message',
             segments=[dict(sequence=0, source_version=2, kind='prose_paragraph')], source_markdown='Safe answer.', action='request')
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+def test_heard_context_keeps_words_without_delivery_directions():
+    from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
+    boundary = SimpleNamespace(assistant_message_id='message', completed_sequences=[0],
+                               active_sequence=1, active_offset_ms=120)
+    source = '<!-- voice:curious -->First answer. <!-- voice:excited -->Next answer.'
+    context = build_voice_heard_context(boundary, [dict(role='assistant', message_id='message', content=source)])
+    assert 'First answer.' in context and 'Next answer.' in context
+    assert '[curious]' not in context and '[excited]' not in context and 'voice:' not in context
+    assert 'not a word timestamp' in context

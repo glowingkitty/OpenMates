@@ -79,6 +79,16 @@ if (typeof document !== 'undefined') {
 export default defaultProps;
 
 export const variants = {
+  voiceDeliveryCues: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: '<!-- voice:curious -->Read [the guide](https://example.org/guide). <!-- voice:short pause -->Then continue.\n\nThe literal `<!-- voice:excited -->` stays in this example.',
+  },
+  pendingVoiceDeliveryCue: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: 'A useful spoken answer. <!-- voice:cur',
+  },
   calendarEventReply: {
     ...defaultProps,
     role: 'assistant' as const,

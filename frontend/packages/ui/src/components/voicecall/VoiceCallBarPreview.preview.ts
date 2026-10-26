@@ -1,5 +1,6 @@
 export default {};
 export const variants = {
+  pendingHeader:{withinHistory:true,historyHeight:680,realAudio:false,pendingHeader:true},
   constrainedMedia:{withinHistory:true,historyHeight:400,realAudio:false,state:{
     mediaExpanded:true,displayedMedia:{embedId:'preview-generated-image',kind:'image',url:'/images/examples/group1.jpg'},
   }},

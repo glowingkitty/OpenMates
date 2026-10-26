@@ -49,6 +49,9 @@ async def test_semantic_context_and_confidence():
         client.return_value.evaluate = evaluate
         assert await classify_voice_interruption("Okay, show Berlin instead", "Here are images.", None) == "interrupt"
         assert evaluate.call_args.kwargs["state"]["user_speech"] == "Okay, show Berlin instead"
+        question = evaluate.call_args.kwargs["questions"]["intent"]
+        assert "choices" not in question
+        assert set(question["criteria"]) == {"backchannel", "interrupt", "echo", "uncertain"}
         assert client.call_args.kwargs["max_retries"] == 0
 
 
@@ -84,3 +87,44 @@ async def test_uncertain_or_failed_decision_never_invents_intent():
     with patch("backend.shared.python_utils.voice_call_intent.JevDecisionClient") as client:
         client.return_value.evaluate = AsyncMock(return_value=response)
         assert await classify_voice_interruption("Actually", "Here are images.", None) == "uncertain"
+
+
+@pytest.mark.parametrize('speaking,confidence,text,assistant,expected', [
+    (True, .95, 'the first step is to open the guide', 'Here, the first step is to open the guide.', 'echo'),
+    (False, .95, 'the first step is to open the guide', 'Here, the first step is to open the guide.', 'uncertain'),
+    (True, .89, 'the first step is to open the guide', 'Here, the first step is to open the guide.', 'uncertain'),
+    (True, .95, 'the first step', 'Here, the first step is to open the guide.', 'uncertain'),
+    (True, .95, 'please switch to another subject now', 'Here, the first step is to open the guide.', 'uncertain'),
+    (True, .95, 'the first step is to open the guide', '```text\nthe first step is to open the guide\n```', 'uncertain'),
+    (True, .95, 'the first step is to open the guide', '[the guide](https://the.first.step.is.to.open.the.guide)', 'uncertain'),
+])
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+async def test_echo_requires_semantic_confidence_playback_and_multiword_prose_support(
+        speaking, confidence, text, assistant, expected):
+    result = DecisionResponse(model='jev', answers={'intent': ChoiceAnswer(
+        type='choice', choice='echo', confidence=confidence, probabilities={'echo': confidence, 'uncertain': 1-confidence})})
+    with patch('backend.shared.python_utils.voice_call_intent.JevDecisionClient') as client:
+        client.return_value.evaluate = AsyncMock(return_value=result)
+        assert await classify_voice_interruption(text, assistant, None, assistant_speaking=speaking) == expected
+        request = client.return_value.evaluate.call_args.kwargs
+        assert request['state']['assistant_speaking'] is speaking
+        assert set(request['questions']['intent']) == {'type', 'instructions', 'criteria'}
+        assert 'echo' in request['questions']['intent']['criteria']
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+@pytest.mark.parametrize('text', [
+    'You said the first step is to open the guide. Why?',
+    'No, the first step is to open the guide, not the settings.',
+    'Repeat the first step is to open the guide.',
+])
+async def test_matching_words_never_override_semantic_deliberate_interruption(text):
+    result = DecisionResponse(model='jev', answers={'intent': ChoiceAnswer(
+        type='choice', choice='interrupt', confidence=.95, probabilities={'echo': .05, 'interrupt': .95})})
+    with patch('backend.shared.python_utils.voice_call_intent.JevDecisionClient') as client:
+        client.return_value.evaluate = AsyncMock(return_value=result)
+        assert await classify_voice_interruption(text, 'The first step is to open the guide.', None,
+                                                assistant_speaking=True) == 'interrupt'
+    with patch('backend.shared.python_utils.voice_call_intent.JevDecisionClient') as client:
+        assert await classify_voice_interruption('Stop!', 'You can say stop.', None, assistant_speaking=True) == 'interrupt'
+        client.assert_not_called()

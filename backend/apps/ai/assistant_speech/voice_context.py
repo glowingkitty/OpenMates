@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from backend.apps.ai.assistant_speech.projection import project_final_voice_clauses
+from backend.apps.ai.assistant_speech.projection import project_final_voice_clauses, strip_voice_provider_cues
 from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
 
 
@@ -23,7 +23,7 @@ def build_voice_heard_context(boundary: VoiceHeardBoundary | None, history: Sequ
                    and value(row, "message_id") == boundary.assistant_message_id), None)
     if not isinstance(source, str):
         return ""
-    clauses = project_final_voice_clauses(source)
+    clauses = [strip_voice_provider_cues(clause) for clause in project_final_voice_clauses(source)]
     completed = [clauses[index] for index in boundary.completed_sequences if index < len(clauses)]
     bounded_completed: list[str] = []
     remaining = 8000

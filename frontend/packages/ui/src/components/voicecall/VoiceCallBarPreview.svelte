@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { writable } from 'svelte/store';
+  import { get, writable } from 'svelte/store';
+  import { locale } from 'svelte-i18n';
   import VoiceCallBar from './VoiceCallBar.svelte';
   import ChatHistory from '../ChatHistory.svelte';
   import type { Message } from '../../types/chat';
@@ -8,10 +9,29 @@
   import { initialVoiceCallState, type VoiceCallState, type VoiceCallControllerLike } from '../../services/voiceCall';
   import { downsample, pcm16Base64 } from '../videocall/callAudio';
   import { voicePcmEnvelope } from '../../services/voiceCall';
-  let { state:initialState = {}, fixed = false, realAudio = true, withinHistory = false, historyHeight = 400 }: {
-    state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean; withinHistory?:boolean; historyHeight?:number;
+  let { state:initialState = {}, fixed = false, realAudio = true, withinHistory = false, historyHeight = 400, pendingHeader = false }: {
+    state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean; withinHistory?:boolean; historyHeight?:number; pendingHeader?:boolean;
   } = $props();
   const historyChatId = 'demo-preview-call-sizing';
+  let headerMetadata = $state({ title: '', category: null as string | null,
+    icon: null as string | null, summary: null as string | null, generating: true });
+  let showCall = $state(true);
+  onMount(() => {
+    const originalLocale = get(locale);
+    const updateHeader = (event: Event) => {
+      const { locale: nextLocale, ...metadata } = (event as CustomEvent<Partial<typeof headerMetadata> & { locale?: string }>).detail;
+      if (nextLocale) locale.set(nextLocale);
+      headerMetadata = { ...headerMetadata, ...metadata };
+    };
+    const endCallSurface = () => { showCall = false; };
+    window.addEventListener('preview:call-header-metadata', updateHeader);
+    window.addEventListener('preview:call-header-text-chat', endCallSurface);
+    return () => {
+      window.removeEventListener('preview:call-header-metadata', updateHeader);
+      window.removeEventListener('preview:call-header-text-chat', endCallSurface);
+      locale.set(originalLocale);
+    };
+  });
   const historyMessages = Array.from({length:8}, (_, index): Message => ({
     message_id:`preview-call-sizing-${index}`, chat_id:historyChatId, role:index % 2 ? 'assistant' : 'user',
     content:`Fictional call layout message ${index + 1}. The camera and generated result should stay within the available chat area while this conversation scrolls.`,
@@ -82,7 +102,10 @@
         <VoiceCallBar {controller} fixed={stuck} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
       {/snippet}
       <ChatHistory currentChatId={historyChatId} sourceMessages={historyMessages} isExampleChat={true}
-        chatTitle="Call sizing fixture" voiceCallBridge={{controls,onStickyChange:() => {}}} />
+        chatTitle={pendingHeader ? headerMetadata.title : 'Call sizing fixture'}
+        chatCategory={headerMetadata.category} chatIcon={headerMetadata.icon} chatSummary={headerMetadata.summary}
+        isNewChatGeneratingTitle={pendingHeader && headerMetadata.generating}
+        voiceCallBridge={showCall ? {controls,onStickyChange:() => {}} : undefined} />
     </div>
   {:else}
     <VoiceCallBar {controller} {fixed} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />

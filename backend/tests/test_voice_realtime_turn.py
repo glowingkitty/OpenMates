@@ -387,3 +387,79 @@ async def test_first_useful_audio_stops_waiting_preparation_before_playback_star
     owner.finish_input()
     await owner.wait()
     stopped.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.chat.ethics,video-call.privacy
+async def test_expressive_provider_input_safeguards_and_credits_bind_exact_tagged_text():
+    from backend.apps.ai.assistant_speech.projection import project_streaming_speech_segment
+    owner, provider, events, _first, finalize, credits = make_turn()
+    _, text = project_streaming_speech_segment(
+        '<!-- voice:curious -->A useful answer.', voice_mode=True)
+    await owner.enqueue(span(0, text))
+    owner.finish_input()
+    await owner.wait()
+    submitted = '[curious] A useful answer. '
+    assert provider.inputs == [submitted]
+    owner._safety_check.assert_awaited_once_with(submitted)
+    assert credits.await_args_list[-1].args == (len(submitted),)
+    finalize.assert_awaited_once_with(True, len(submitted))
+    assert 'curious' not in str(events) and 'A useful answer' not in str(events)
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+@pytest.mark.parametrize('failure,expected_cause,expected_code', [
+    ('provider', 'provider', 'invalid_alignment'),
+    ('unexpected', 'unexpected', 'none'),
+    ('unknown_provider_code', 'provider', 'unknown'),
+])
+async def test_failure_diagnostics_are_content_free_and_identify_reader_stage(caplog, failure, expected_cause, expected_code):
+    class ProviderError(RuntimeError):
+        def __init__(self, code):
+            self.code = code
+            super().__init__('PRIVATE provider body')
+    class FailingProvider(Provider):
+        async def audio_events(self):
+            if failure == 'unexpected':
+                raise RuntimeError('PRIVATE credentials https://private.example/token')
+            raise ProviderError('invalid_alignment' if failure == 'provider' else 'PRIVATE_TOKEN')
+            yield  # pragma: no cover: retain async-iterator protocol
+    owner, provider, _events, _first, finalize, _credits = make_turn(FailingProvider())
+    await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
+    owner.finish_input()
+    await owner.wait()
+    assert f'stage=reading cause={expected_cause} code={expected_code}' in caplog.text
+    assert 'PRIVATE' not in caplog.text and 'https://' not in caplog.text
+    finalize.assert_awaited_once_with(False, 0)
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+@pytest.mark.parametrize('timed_out,expected', [(False, 'cancelled'), (True, 'timeout')])
+async def test_cancellation_diagnostics_distinguish_timeout_without_draining(caplog, timed_out, expected):
+    import logging
+    caplog.set_level(logging.INFO, logger='backend.apps.audio.assistant_speech.realtime_turn')
+    owner, provider, _events, first, finalize, _credits = make_turn()
+    await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
+    await asyncio.wait_for(first.wait(), 1)
+    await owner.cancel(timed_out=timed_out)
+    assert f'cause={expected} code=none' in caplog.text
+    assert 'PRIVATE' not in caplog.text
+    assert not provider.finished and provider.cancel_count == 1
+    finalize.assert_awaited_once_with(False, 0)
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.spoken-rich-response,video-call.privacy
+async def test_cancel_during_audio_publication_is_not_misdiagnosed_as_transport_failure(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger='backend.apps.audio.assistant_speech.realtime_turn')
+    publishing = asyncio.Event()
+    async def blocked_publish(*_args):
+        publishing.set()
+        await asyncio.Event().wait()
+    owner, provider, _events, _first, finalize, _credits = make_turn(publish=blocked_publish)
+    await owner.enqueue(span(0, 'PRIVATE spoken prose.'))
+    await asyncio.wait_for(publishing.wait(), 1)
+    await owner.cancel()
+    assert 'cause=cancelled code=none' in caplog.text
+    assert 'publication_failed' not in caplog.text and 'PRIVATE' not in caplog.text
+    assert not provider.finished
+    finalize.assert_awaited_once_with(False, 0)

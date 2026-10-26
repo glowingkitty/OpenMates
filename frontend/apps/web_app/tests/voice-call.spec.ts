@@ -48,6 +48,19 @@ interface SocketObservation {
   speaking?: boolean;
   kind?: string;
   speechStatus?: string;
+  speechErrorCode?: string;
+  speechAction?: 'request'|'generate'|'retry'|'cancel'|'delete';
+  recoveryOperation?: string;
+  jobId?: string;
+  recordId?: string;
+  expectedMessagesV?: number;
+  committedMessagesV?: number;
+  recoveryMessagesV?: number;
+  persistenceState?: 'LEASED'|'TERMINAL'|'ACKNOWLEDGED';
+  windowStatus?: number;
+  windowOutcome?: 'response'|'failed'|'invalid';
+  windowPurpose?: 'version'|'assistant_row';
+  requestedAt?: number;
   segmentId?: string;
   streamPhase?: 'start'|'chunk'|'end'|'error'|'alignment';
   turnTrackId?: string;
@@ -105,6 +118,7 @@ interface SocketObservation {
   boundaryTimestamp?: number;
   createdAt?: number;
   final?: boolean;
+  pendingReason?: 'incomplete'|'uncertain';
   textLength?: number;
   expectedReply?: boolean;
   context?: Array<{ role: string; text: string; message_id?: string; created_at?: number }>;
@@ -187,9 +201,22 @@ test.afterEach(async ({page},testInfo)=>{
     const state=browser.__voiceCallEvidence;const native=browser.__nativeVoiceInput;
     const count=(frames:SocketObservation[]|undefined,type:string)=>frames?.filter(frame=>frame.type===type).length??0;
     const id=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
+    const speechErrorCodes=new Set(['authentication_required','invalid_segments','too_many_segments','forbidden',
+      'assistant_message_required','speech_source_no_longer_current','segment_text_too_long',
+      'canonical_segment_required','rate_limited','insufficient_budget','invalid_action']);
+    const speechActions=new Set(['request','generate','retry','cancel','delete']);
+    const recoveryOperations=new Set(['recovery_job_claim','recovery_job_persist','recovery_output_get',
+      'recovery_output_persist_message','recovery_output_persist_summary','recovery_output_ack_embed','recovery_output_ack_checkpoint']);
+    const safeVersion=(value:unknown)=>Number.isSafeInteger(value)&&(value as number)>=0?value as number:undefined;
     const ids=(frame:SocketObservation)=>({type:frame.type,callId:id(frame.callId),chatId:id(frame.chatId),
       messageId:id(frame.messageId),userMessageId:id(frame.userMessageId),assistantMessageId:id(frame.assistantMessageId),
-      taskId:id(frame.taskId),turnId:id(frame.turnId),preflightId:id(frame.preflightId),requestId:id(frame.requestId),observedAt:frame.observedAt});
+      taskId:id(frame.taskId),turnId:id(frame.turnId),preflightId:id(frame.preflightId),requestId:id(frame.requestId),observedAt:frame.observedAt,
+      speechAction:frame.speechAction&&speechActions.has(frame.speechAction)?frame.speechAction:undefined,
+      speechErrorCode:frame.speechErrorCode?(speechErrorCodes.has(frame.speechErrorCode)?frame.speechErrorCode:'unknown'):undefined,
+      recoveryOperation:frame.recoveryOperation&&recoveryOperations.has(frame.recoveryOperation)?frame.recoveryOperation:undefined,
+      jobId:id(frame.jobId),recordId:id(frame.recordId),expectedMessagesV:safeVersion(frame.expectedMessagesV),
+      committedMessagesV:safeVersion(frame.committedMessagesV),recoveryMessagesV:safeVersion(frame.recoveryMessagesV),
+      persistenceState:['LEASED','TERMINAL','ACKNOWLEDGED'].includes(frame.persistenceState??'')?frame.persistenceState:undefined});
     const serverCodes=new Set(['client_update_required','durable_preflight_failed','immutable_chat_key_mismatch',
       'preflight_expired','preflight_mismatch','preflight_required','recovery_key_mismatch','message_identity_mismatch',
       'team_chat_scope_mismatch','version_conflict','existing_chat_metadata_forbidden','invalid_chat_turn_admission',
@@ -206,7 +233,24 @@ test.afterEach(async ({page},testInfo)=>{
       microphoneFrames:count(state?.sent,'mic_audio'),canonicalSends:count(state?.sent,'chat_message_added'),
       finalUserTranscripts:state?.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final).length??0,
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
-      speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
+      speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({
+        ...ids(frame),kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
+      speechEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['assistant_speech','assistant_speech_status','ai_response_storage_confirmed','ai_response_storage_failed','hangup','ended'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({
+          ...ids(frame),direction:frame.direction,status:frame.speechStatus,segmentId:id(frame.segmentId)})),
+      persistenceEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>frame.recoveryOperation||['ai_response_completed','ai_response_storage_confirmed',
+          'ai_response_storage_failed','assistant_speech','assistant_speech_status','hangup','ended','recovery_version_refresh'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-96).map(frame=>({
+          ...ids(frame),direction:frame.direction,status:frame.speechStatus,
+          code:frame.code?(serverCodes.has(frame.code)?frame.code:'unknown'):undefined,
+          windowStatus:Number.isInteger(frame.windowStatus)&&frame.windowStatus!>=100&&frame.windowStatus!<=599?frame.windowStatus:undefined,
+          windowOutcome:['response','failed','invalid'].includes(frame.windowOutcome??'')?frame.windowOutcome:undefined,
+          windowPurpose:frame.windowPurpose==='version'||frame.windowPurpose==='assistant_row'?frame.windowPurpose:undefined,
+          requestedAt:typeof frame.requestedAt==='number'&&Number.isFinite(frame.requestedAt)?frame.requestedAt:undefined})),
       historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
       speechMediaProof:(window as unknown as {__voiceSpeechMediaProof?:Record<string,number>}).__voiceSpeechMediaProof,
       manualSpeechNative:(window as unknown as {__voiceManualSpeechPlayback?:{native:unknown[]}}).__voiceManualSpeechPlayback?.native.slice(-64),
@@ -272,6 +316,41 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         { name: 'AES-GCM', iv: encrypted.slice(header, header + 12) }, key, encrypted.slice(header + 12)));
     };
     Object.assign(window,{__voiceCallEvidence:evidence});
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(...args:Parameters<typeof fetch>)=>{
+      let observation:SocketObservation|undefined;
+      try {
+        const input=args[0];
+        const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);
+        const match=/^\/v1\/chats\/([A-Za-z0-9_-]{1,128})\/messages\/window$/.exec(url.pathname);
+        if(match&&url.searchParams.get('limit')==='1'&&url.searchParams.get('respect_compression_boundary')==='false'){
+          observation={type:'recovery_version_refresh',path:'/v1/chats/messages/window',chatId:match[1],
+            requestedAt:performance.now(),observedAt:performance.now(),
+            windowPurpose:url.searchParams.has('anchor_message_id')?'assistant_row':'version'};
+        }
+      } catch { /* Unrelated or unparsable requests remain entirely native. */ }
+      try {
+        const response=await nativeFetch(...args);
+        if(observation){
+          observation.observedAt=performance.now();observation.windowStatus=response.status;observation.windowOutcome='response';
+          evidence.received.push(observation);
+          // Read a clone asynchronously: expose only the bounded revision, never
+          // the response body, message content, headers, or complete URL.
+          const recorded=observation;
+          try {
+            void response.clone().json().then(body=>{
+              recorded.recoveryMessagesV=Number.isSafeInteger(body?.messages_v)&&body.messages_v>=0?body.messages_v:undefined;
+              if(recorded.recoveryMessagesV===undefined)recorded.windowOutcome='invalid';
+            }).catch(()=>{recorded.windowOutcome='invalid';});
+          } catch { recorded.windowOutcome='invalid'; }
+        }
+        return response;
+      } catch(error){
+        if(observation){observation.observedAt=performance.now();observation.windowOutcome='failed';evidence.received.push(observation);}
+        throw error;
+      }
+    };
+
     window.addEventListener('appSettingsMemoriesSyncReady',event=>{
       const replay=evidence.privacyNoopReplay;
       const detail=(event as CustomEvent).detail;
@@ -341,6 +420,13 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
     const NativeWebSocket=window.WebSocket;
     const snapshotPurposes=new Map<string,'prepare'|'send'>();
     const snapshotCodes=new Set(['invalid_request','already_used','receipt_capacity','unauthorized','unavailable','rate_limited']);
+    const speechErrorCodes=new Set(['authentication_required','invalid_segments','too_many_segments','forbidden',
+      'assistant_message_required','speech_source_no_longer_current','segment_text_too_long',
+      'canonical_segment_required','rate_limited','insufficient_budget','invalid_action']);
+    const speechActions=new Set(['request','generate','retry','cancel','delete']);
+    const recoveryOperations=new Set(['recovery_job_claim','recovery_job_persist','recovery_output_get',
+      'recovery_output_persist_message','recovery_output_persist_summary','recovery_output_ack_embed','recovery_output_ack_checkpoint']);
+    const safeVersion=(value:unknown)=>Number.isSafeInteger(value)&&(value as number)>=0?value as number:undefined;
     let nextSocketId=0;
     window.WebSocket=new Proxy(NativeWebSocket,{construct(Target,args){
       const socket:WebSocket=Reflect.construct(Target,args);
@@ -349,6 +435,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
       if(path==='/v1/voice-call')evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;
       let privacyHoldRequestId:string|null=null;
+      const recoveryRequests=new Map<string,{operation:string;jobId?:string;recordId?:string}>();
       const observe=(data:unknown,sent:boolean)=>{
         if(typeof data!=='string')return;
         let event;try{event=JSON.parse(data);}catch{return;}
@@ -378,12 +465,17 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
           ...(event.type==='billing_activity'?{inputListening:payload.input_listening,processing:payload.processing}:{}),
           ...(event.type==='usage'?{creditsCharged:payload.credits_charged}:{}),
           ...(event.type==='transcript'?{final:payload.final===true,createdAt:payload.created_at}:{}),
+          ...(event.type==='transcript.pending'?{pendingReason:payload.reason==='incomplete'||payload.reason==='uncertain'?payload.reason:undefined}:{}),
           ...(event.type==='ai_message_update'?{userMessageId:payload.user_message_id,
             final:payload.is_final_chunk===true&&!payload.awaiting_async_skill_continuation,
             finalChunk:payload.is_final_chunk===true,awaitingContinuation:payload.awaiting_async_skill_continuation===true,
             interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
           ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
+          ...(sent&&event.type==='assistant_speech'?{
+            speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
           ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
+            speechErrorCode:payload.error!==undefined||payload.status==='error'
+              ?speechErrorCodes.has(payload.error)?payload.error:'unknown':undefined,
             segmentId:payload.segment_id,turnTrackId:safeId(payload.turn_track_id),generatedAssetPresent:!!payload.generated_asset_id,
             generatedAssetId:safeId(payload.generated_asset_id)}:{}),
           ...(['native_client_lifecycle_ack','recovery_jobs_available','recovery_outputs_discovery_complete'].includes(event.type)?{
@@ -399,6 +491,20 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             sourceVersion:Number.isSafeInteger(payload.source_version)?payload.source_version:undefined,
             executionVersion:Number.isSafeInteger(payload.execution_version)?payload.execution_version:undefined}:{}),
         };
+        if(sent&&frame.requestId&&recoveryOperations.has(event.type)){
+          recoveryRequests.set(frame.requestId,{operation:event.type,jobId:safeId(payload.job_id),recordId:safeId(payload.record_id)});
+          if(recoveryRequests.size>256)recoveryRequests.delete(recoveryRequests.keys().next().value!);
+        }
+        const recoveryRequest=frame.requestId?recoveryRequests.get(frame.requestId):undefined;
+        if(recoveryRequest){
+          frame.recoveryOperation=recoveryRequest.operation;
+          frame.jobId=safeId(payload.job_id)??recoveryRequest.jobId;
+          frame.recordId=safeId(payload.record_id)??recoveryRequest.recordId;
+          frame.expectedMessagesV=safeVersion(payload.expected_messages_v);
+          frame.committedMessagesV=safeVersion(payload.committed_messages_v);
+          frame.recoveryMessagesV=safeVersion(payload.messages_v);
+          frame.persistenceState=['LEASED','TERMINAL','ACKNOWLEDGED'].includes(payload.state)?payload.state:undefined;
+        }
         if(['personal_send_context_snapshot','personal_send_context_snapshot_result'].includes(event.type)){
           const purpose=payload.purpose==='prepare'||payload.purpose==='send'?payload.purpose:undefined;
           if(sent&&frame.requestId&&purpose){
@@ -412,7 +518,10 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         }
         if(event.type==='assistant_speech_status'&&Array.isArray(payload.segments)){
           for(const segment of payload.segments)(sent?evidence.sent:evidence.received).push({...frame,
-            segmentId:safeId(segment.segment_id),speechStatus:frame.speechStatus==='sealed'?'sealed':taskStatuses.has(segment.status)?segment.status:
+            segmentId:safeId(segment.segment_id),
+            speechErrorCode:segment.error!==undefined||segment.status==='error'
+              ?speechErrorCodes.has(segment.error)?segment.error:'unknown':frame.speechErrorCode,
+            speechStatus:frame.speechStatus==='sealed'?'sealed':taskStatuses.has(segment.status)?segment.status:
               ['registered','generating','cancelled','deleted','invalidated'].includes(segment.status)?segment.status:undefined,
             kind:typeof segment.kind==='string'&&/^[a-z_]{1,64}$/.test(segment.kind)?segment.kind:undefined,
             sequence:Number.isSafeInteger(segment.sequence)?segment.sequence:undefined,
@@ -720,7 +829,11 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
         player.connect(output);
         state.playing = true;
         player.onended = () => { player?.disconnect(); player = null; state.playing = false; };
-        player.start(0, short ? 0.75 : 0, short ? 0.35 : speech.duration);
+        // Both excerpts contain genuine voiced input. The ordinary two-second
+        // slice exceeds the split-STT continuation threshold while completing
+        // within existing five-second playback assertions; the short slice
+        // deliberately remains below that threshold for the pending-pause case.
+        player.start(0, 0.75, short ? 0.35 : 2);
       };
       void fetch('/store-examples/transcription-demo-voice-note.wav')
         .then((response) => { if (!response.ok) throw new Error('Fixture unavailable'); return response.arrayBuffer(); })
@@ -891,7 +1004,7 @@ async function nativeVoiceInput(page: Page) {
   });
 }
 
-async function playNativeVoiceFixture(page: Page, short = true): Promise<void> {
+async function playNativeVoiceFixture(page: Page, short = false): Promise<void> {
   await expect.poll(async () => (await nativeVoiceInput(page)).speechReady).toBe(true);
   await page.evaluate((short) => (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.play(short), short);
 }
@@ -2142,9 +2255,40 @@ test.describe('Voice mode through ordinary chat', () => {
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
+    // The first genuine microphone slice ends mid-request. Native STT turn.end
+    // must remain provisional through silence and resume under one identity.
+    await playNativeVoiceFixture(page,true);
+    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>
+      frame.path==='/v1/voice-call'&&frame.type==='transcript.pending'),
+    {message:'An incomplete native speech boundary must remain pending'}).toHaveLength(1);
+    await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+    const quietStart=await nativeVoiceInput(page);
+    await expect.poll(async()=>(await nativeVoiceInput(page)).samples,
+      {message:'Real microphone capture must continue through the incomplete pause'})
+      .toBeGreaterThan(quietStart.samples+quietStart.sampleRate);
+    const held=await evidence(page);
+    const pending=held.received.find(frame=>frame.type==='transcript.pending')!;
+    expect(pending.pendingReason).toBe('incomplete');expect(pending.messageId).toBeTruthy();
+    expect(held.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final)).toHaveLength(0);
+    expect(held.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
+    expect(held.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
+    await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
+    await expect(page.getByTestId('message-user')).toHaveCount(0);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+    const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
     await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    const resumedSpeech=await evidence(page);
+    const completed=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final);
+    expect(completed).toHaveLength(1);expect(completed[0].messageId).toBe(pending.messageId);
+    expect(completed[0].observedAt!).toBeGreaterThan(resumedAt);
+    const voiceSends=resumedSpeech.sent.filter(frame=>frame.type==='chat_message_added');
+    expect(voiceSends).toHaveLength(1);expect(voiceSends[0].messageId).toBe(pending.messageId);
+    expect(voiceSends[0].observedAt!).toBeGreaterThan(completed[0].observedAt!);
+    await expect(page.getByTestId('chat-header-wrapper')).toBeVisible();
+    await expect(page.getByTestId('chat-header-title')).not.toBeEmpty();
     const first=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
     await expect(first).toHaveCount(1);await expect(first.getByTestId('generated-by')).not.toContainText('Live');
     await assertSlimCallSurface(page);

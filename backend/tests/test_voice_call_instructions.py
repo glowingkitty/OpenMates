@@ -59,6 +59,7 @@ def test_voice_main_source_handles_old_instruction_cache_and_preserves_rich_deli
         "numbered lists", "Explicit requests", "inline embeds", "large embeds", "image groups",
         "nearby prose", "exact normal embed syntax", "ethics", "privacy", "tool permissions",
         "model routing", "thinking rules", "Do not claim work has completed",
+        "Stay silent", "thinking pause", "unsolicited listening cues", "Are you still listening?",
     ):
         assert required in source
     # Shared source remains authoritative; the voice file does not copy ethics.

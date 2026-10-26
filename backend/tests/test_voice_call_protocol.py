@@ -144,6 +144,11 @@ class Provider:
 @pytest.fixture
 async def runtime(monkeypatch):
     sockets, tasks, providers, issued, finalized = [], [], [], [], []
+    completion_texts = []
+
+    async def complete(text, _socket):
+        completion_texts.append(text)
+        return "complete"
 
     async def yes(*args, **kwargs):
         return True
@@ -174,6 +179,7 @@ async def runtime(monkeypatch):
     monkeypatch.setattr(route, "renew_active_call", noop)
     monkeypatch.setattr(route, "issue_message_id", issue)
     monkeypatch.setattr(route, "finalize_active_call", finalize)
+    monkeypatch.setattr(route, "_complete", complete)
 
     async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT):
         socket, provider = Socket(), Provider()
@@ -201,7 +207,7 @@ async def runtime(monkeypatch):
             await socket.event("ready")
         return socket, provider, task
 
-    yield SimpleNamespace(start=start, issued=issued, finalized=finalized)
+    yield SimpleNamespace(start=start, issued=issued, finalized=finalized, completion_texts=completion_texts)
     for socket, task in zip(sockets, tasks):
         if not task.done():
             socket.push({"type": "hangup"})
@@ -337,7 +343,7 @@ async def test_final_waits_for_trailing_negation_and_duplicate_end_never_resubmi
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
-async def test_resume_cancels_endpoint_and_next_turn_start_closes_prior_complete_turn(runtime):
+async def test_resume_and_new_provider_start_retain_one_unsubmitted_request(runtime):
     socket, provider, _ = await runtime.start()
     for kind, kwargs in [("turn.start", {}), ("transcription.text.delta", {"text": "First"}),
                          ("turn.end", {}), ("turn.resume", {}), ("transcription.text.delta", {"text": " request"})]:
@@ -347,7 +353,133 @@ async def test_resume_cancels_endpoint_and_next_turn_start_closes_prior_complete
     provider.push("turn.start")
     provider.push("transcription.text.delta", text="Second request")
     provider.push("turn.end")
-    await socket.until(lambda _: len(socket.finals()) == 2)
+    await socket.until(lambda _: len(socket.finals()) == 1)
+    assert [event["text"] for event in socket.finals()] == ["First request Second request"]
+    assert runtime.completion_texts == ["First request Second request"]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+@pytest.mark.parametrize("verdict", ["incomplete", "uncertain"])
+async def test_thinking_pause_never_issues_chat_authority_and_continuation_submits_once(runtime, monkeypatch, verdict):
+    checks = []
+
+    async def complete(text, _socket):
+        checks.append(text)
+        return verdict if text == "Could you help me with" else "complete"
+
+    monkeypatch.setattr(route, "_complete", complete)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Could you help me with")
+    provider.push("turn.end", end_reason="timeout")
+    pending = await socket.event("transcript.pending")
+    assert pending["reason"] == verdict and not socket.finals() and not runtime.issued
+    provider.push("turn.end", end_reason="timeout")
+    socket.push({"type": "audio_stream_end"})
+    await socket.until(lambda events: any(event["type"] == "billing_activity" and not event["input_listening"] for event in events))
+    assert checks == ["Could you help me with"]
+    assert not socket.finals() and not runtime.issued
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="the train booking?")
+    provider.push("turn.end")
+    await socket.until(lambda _: socket.finals())
+    assert checks == ["Could you help me with", "Could you help me with the train booking?"]
+    assert len(socket.finals()) == len(runtime.issued) == 1
+    assert socket.finals()[0]["message_id"] == pending["message_id"]
+    assert socket.finals()[0]["text"] == checks[-1]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+async def test_resumed_speech_rejects_even_a_late_success_from_cancelled_check(runtime, monkeypatch):
+    checking, release, stale_done = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    checks = []
+
+    async def complete(text, _socket):
+        checks.append(text)
+        if len(checks) == 1:
+            checking.set()
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                await release.wait()
+            stale_done.set()
+            return "complete"
+        return "complete"
+
+    monkeypatch.setattr(route, "_complete", complete)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Book the expensive option")
+    provider.push("turn.end")
+    await asyncio.wait_for(checking.wait(), 2)
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="actually do not book it.")
+    await socket.until(lambda events: any("actually" in event.get("text", "") for event in events))
+    release.set()
+    await asyncio.wait_for(stale_done.wait(), 2)
+    assert not socket.finals() and not runtime.issued
+    provider.push("turn.end")
+    await socket.until(lambda _: socket.finals())
+    assert checks == ["Book the expensive option", "Book the expensive option actually do not book it."]
+    assert len(socket.finals()) == len(runtime.issued) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+@pytest.mark.parametrize("resume_event", ["turn.resume", "turn.start"])
+async def test_cancelled_check_is_retried_after_resume_without_new_transcript_words(runtime, monkeypatch, resume_event):
+    checking = asyncio.Event()
+    checks = []
+
+    async def complete(text, _socket):
+        checks.append(text)
+        if len(checks) == 1:
+            checking.set()
+            await asyncio.Future()
+        return "complete"
+
+    monkeypatch.setattr(route, "_complete", complete)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="How do I make ramen?")
+    provider.push("turn.end")
+    await asyncio.wait_for(checking.wait(), 2)
+    provider.push(resume_event)
+    provider.push("turn.end")
+    await socket.until(lambda _: socket.finals())
+    assert checks == ["How do I make ramen?", "How do I make ramen?"]
+    assert len(socket.finals()) == len(runtime.issued) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+async def test_hangup_cancels_pending_completion_without_chat_submission(runtime, monkeypatch):
+    checking, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def complete(_text, _socket):
+        checking.set()
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(route, "_complete", complete)
+    socket, provider, task = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="I am wondering whether")
+    provider.push("turn.end")
+    await asyncio.wait_for(checking.wait(), 2)
+    socket.push({"type": "hangup"})
+    await asyncio.wait_for(task, 2)
+    assert cancelled.is_set() and not socket.finals() and not runtime.issued
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+async def test_each_confirmed_request_keeps_its_own_identity(runtime):
+    socket, provider, _ = await runtime.start()
+    for text in ("First request", "Second request"):
+        provider.push("turn.start")
+        provider.push("transcription.text.delta", text=text)
+        provider.push("turn.end")
+        await socket.until(lambda _: len(socket.finals()) == len(runtime.completion_texts) and any(event["text"] == text for event in socket.finals()))
     assert [event["text"] for event in socket.finals()] == ["First request", "Second request"]
     assert socket.finals()[0]["message_id"] < socket.finals()[1]["message_id"]
 
@@ -369,6 +501,51 @@ async def test_listener_acknowledgement_preserves_playback_and_creates_no_reques
     provider.push("turn.end")
     assert (await socket.event("transcript.discarded"))["reason"] == "backchannel"
     assert not socket.finals() and not runtime.issued and not any(event["type"] == "audio.interrupted" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_supported_echo_of_current_playback_neither_cancels_nor_enters_processing(runtime, monkeypatch):
+    async def echo(*args):
+        assert args[-1] is True
+        return "echo"
+
+    monkeypatch.setattr(route, "_classify", echo)
+    socket, provider, _ = await runtime.start()
+    assistant(socket, text="Here is the complete explanation of your question.")
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Here is the complete explanation of your question.")
+    provider.push("turn.end")
+    assert (await socket.event("transcript.discarded"))["reason"] == "echo"
+    assert not socket.finals() and not runtime.issued and not runtime.completion_texts
+    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.chat.assistant-identity
+@pytest.mark.parametrize("replacement", ["finished", "new-answer"])
+async def test_late_echo_verdict_cannot_discard_speech_after_its_playback_context_changes(runtime, monkeypatch, replacement):
+    gate = asyncio.Event()
+
+    async def echo(*args):
+        await gate.wait()
+        return "echo"
+
+    monkeypatch.setattr(route, "_classify", echo)
+    socket, provider, _ = await runtime.start()
+    assistant(socket, identity="old-answer")
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Please explain that last part again")
+    await socket.event("transcript")
+    socket.push({"type": "assistant_state", "speaking": replacement != "finished", "text": "A different context.",
+                 "assistant_message_id": "old-answer" if replacement == "finished" else replacement})
+    socket.push({"type": "audio_stream_end"})
+    await socket.until(lambda events: any(event.get("input_listening") is False for event in events))
+    provider.push("turn.end")
+    gate.set()
+    await socket.until(lambda _: socket.finals())
+    assert not any(event.get("reason") == "echo" for event in socket.sent)
+    assert socket.finals()[0]["text"] == "Please explain that last part again"
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.complete-turn-admission

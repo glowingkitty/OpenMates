@@ -24,6 +24,16 @@ def isolated_voice_fixture_enabled() -> bool:
     )
 
 
+def isolated_voice_completion_fixture(text: str) -> str | None:
+    """Classify only known CI microphone transcripts, behind every CI guard."""
+    if not isolated_voice_fixture_enabled():
+        return None
+    return {
+        "How do I make": "incomplete",
+        "How do I make ramen?": "complete",
+    }.get(text)
+
+
 VOICE_RICH_SOURCE_URL = "https://app.dev.openmates.org/store-examples/generate-1.webp"
 
 
@@ -80,6 +90,7 @@ class IsolatedVoxtralVoiceFixture:
             raise RuntimeError("Isolated voice fixture is unavailable")
         self._events: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._audio_bytes = 0
+        self._mic_started = False
         self._mic_answered = False
 
     async def open(self) -> None:
@@ -88,13 +99,22 @@ class IsolatedVoxtralVoiceFixture:
     async def send_audio(self, encoded_pcm: str) -> None:
         pcm = base64.b64decode(encoded_pcm, validate=True)
         # Silent fixture microphone chunks must never invent a user request.
-        if any(abs(sample) >= 128 for (sample,) in struct.iter_unpack("<h", pcm[:len(pcm) // 2 * 2])):
+        voiced = any(abs(sample) >= 128 for (sample,) in struct.iter_unpack("<h", pcm[:len(pcm) // 2 * 2]))
+        if voiced:
             self._audio_bytes += len(pcm)
-        if self._audio_bytes >= 3200 and not self._mic_answered:
-            self._mic_answered = True
+        if self._audio_bytes >= 3200 and not self._mic_started:
+            self._mic_started = True
             await self._events.put({"type": "turn.start", "time_s": 0})
-            await self._events.put({"type": "transcription.text.delta", "text": "How do I make ramen?"})
+            await self._events.put({"type": "transcription.text.delta", "text": "How do I make"})
             await self._events.put({"type": "turn.end", "time_s": 0.1, "end_reason": "threshold"})
+        # The continuation requires later voiced microphone input. A short
+        # initial clip followed by silence therefore holds indefinitely, while
+        # ordinary fixture playback resumes across a native provider boundary.
+        elif voiced and self._audio_bytes >= 32000 and not self._mic_answered:
+            self._mic_answered = True
+            await self._events.put({"type": "turn.start", "time_s": 1})
+            await self._events.put({"type": "transcription.text.delta", "text": "ramen?"})
+            await self._events.put({"type": "turn.end", "time_s": 1.1, "end_reason": "threshold"})
 
     async def receive(self) -> dict[str, Any]:
         return await self._events.get()

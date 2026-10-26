@@ -1,0 +1,39 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: voice-pause-completion
+title: Preserve thinking pauses and improve voice conversation delivery
+goal: >-
+  Have a separate Jev check that checks whether the user has finished a sentence,
+  and only then go through regular preprocessing and main processing, without
+  selecting app skills while the user is still talking. Improve natural speech,
+  investigate the unexpectedly cut-off audio in SMZGJ, and reveal the chat header
+  smoothly only once its title and metadata are ready.
+authorization: >-
+  The user explicitly requested implementation on 2026-10-26, then added the
+  SMZGJ investigation and animated header readiness behavior in the same chat.
+task: 644f7a70-5af4-4ad0-89ec-939b94558274
+specification_refs:
+  - id: feature.video-call
+    version: 12
+scope:
+  - Keep native pause detection and add one separate bounded Jev completion question before canonical message admission.
+  - Retain unfinished or uncertain speech across provider turns; cancel stale checks on resumed speech and never retry unchanged text on a silence loop.
+  - Preserve explicit stop, listener-cue handling, submitted text, normal routing, encryption, skill permissions and shared pre/main/post processing.
+  - Use documented Eleven v4 Turbo expressive controls with clean readable chat and exact submitted-text safety and billing.
+  - Investigate SMZGJ using existing issue evidence, including possible external-speaker echo, and fix an established scoped cause.
+  - Hide the titleless header during an active call and reveal it smoothly when real metadata is ready, preserving existing titled chats and reduced motion.
+decisions:
+  - The completion request contains only the pending transcript and one typed completion decision, without skill catalogues or ordinary preprocessing.
+  - Incomplete or uncertain text grants no chat/tool authority; provider failure does not silently submit it.
+  - A complete short answer or command remains valid; automatic transcript punctuation alone does not establish completion.
+  - No OpenMates inference model/provider defaults or automatic routing are overridden.
+  - Pronunciation dictionary support does not imply a configured dictionary; do not create provider resources for this change.
+  - The user explicitly requires silence during speech and thinking pauses, without mm/mhm/yeah listening cues. A direct are-you-still-listening question receives a normal reply.
+required_checks:
+  - Focused completion/protocol checks for pauses, resumed speech, late results, hangup, duplicates and existing interruption controls.
+  - Focused speech projection, prompt, exact-text accounting and readable rendering checks.
+  - Isolated browser proof of an incomplete pause with no canonical dispatch followed by one completed request.
+  - Isolated component/browser proof of expressive cue rendering and animated header readiness.
+  - Evidence-grounded SMZGJ diagnosis with regression coverage for any scoped fix.
+  - Scoped managed deployment after relevant checks; real-provider checks run only on dev with existing automatic routing.

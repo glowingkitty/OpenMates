@@ -4,6 +4,7 @@
 
 import type { ParseMessageOptions } from "./types";
 import { resolveExampleChatEmbedRef } from "../demo_chats/publicExampleEmbedRefs";
+import { stripVoiceDeliveryCues } from "./voiceDeliveryCues";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
 import { handleStreamingSemantics } from "./streamingSemantics";
@@ -1241,6 +1242,9 @@ export function parse_message(
   mode: "write" | "read",
   opts: ParseMessageOptions = {},
 ): any {
+  if (mode === "read" && opts.role === "assistant") {
+    markdown = stripVoiceDeliveryCues(markdown);
+  }
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
     const doc = markdownToTipTap(markdown, mode === "read" && opts.role === "user");
