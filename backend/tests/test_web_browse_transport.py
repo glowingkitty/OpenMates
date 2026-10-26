@@ -54,6 +54,9 @@ async def test_provider_admission_preserves_known_rejection_without_allocating_o
         )
     create.assert_called_once()
     assert create.call_args.kwargs["retries"] == 0
+    assert create.call_args.kwargs["envs"] == {
+        "PLAYWRIGHT_BROWSERS_PATH": "/opt/openmates-browser/browsers"
+    }
     created.assert_not_awaited()
 
 

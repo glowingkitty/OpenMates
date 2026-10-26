@@ -89,6 +89,8 @@ class E2BBrowser:
                 api_key=self.api_key,
                 request_timeout=20,
                 retries=0,
+                # Template.set_envs configures build steps only, not runtime commands.
+                envs={"PLAYWRIGHT_BROWSERS_PATH": "/opt/openmates-browser/browsers"},
                 timeout=120,
                 lifecycle={"on_timeout": "pause", "auto_resume": False},
                 network={"deny_out": PRIVATE_NETWORKS, "allow_public_traffic": False},

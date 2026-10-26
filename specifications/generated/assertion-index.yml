@@ -38902,17 +38902,17 @@ assertions:
       surface: rest_api
     - &id4847
       path: backend/tests/test_web_browse_transport.py
-      line: 75
+      line: 78
       name: test_mixed_or_private_dns_never_reaches_a_socket
       surface: rest_api
     - &id4848
       path: backend/tests/test_web_browse_transport.py
-      line: 96
+      line: 99
       name: test_connect_dials_the_validated_ip_once_and_relays_bytes_without_resolving_again
       surface: rest_api
     - &id4849
       path: backend/tests/test_web_browse_transport.py
-      line: 134
+      line: 137
       name: test_proxy_rejects_non_https_and_credentialed_requests_before_dns
       surface: rest_api
     tests:
