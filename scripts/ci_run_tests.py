@@ -1635,7 +1635,8 @@ def run_e2e(
                                     "failure": accountability_retention_error})
                 # Playwright may exit successfully after a retry. Retain the first
                 # failed receipt attempt's bounded API window in that case too.
-                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"} or (name == "voice-call.spec.ts" and case_title == VOICE_CLEANUP_CASE_TITLE):
+                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts",
+                            "cli-authored-results.spec.ts"} or (name == "voice-call.spec.ts" and case_title == VOICE_CLEANUP_CASE_TITLE):
                     try:
                         spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
                             report, index
@@ -1755,10 +1756,12 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
 
 def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
     """Retain bounded API logs for only allowlisted receipt and cache cases."""
+    authored_title = "saved authored results preserve all admitted typed records through fresh CLI reads"
     titles = {
         "legacy connection preserves typed rows while completing the existing v1 final job",
         "saved code embed and version diff replay with canonical ciphertext acknowledgements",
         "native cache keeps selected math tools and settled billing across five chat turns",
+        authored_title,
         VOICE_CLEANUP_CASE_TITLE,
     }
     private = RESULTS / "ci-private"
@@ -1776,6 +1779,7 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
         for spec in suite.get("specs", []):
             if spec.get("title") not in titles:
                 continue
+            tail_lines = 8000 if spec.get("title") == authored_title else 2000
             for test in spec.get("tests", []):
                 for result in test.get("results", []):
                     if result.get("status") not in {"failed", "timedOut"}:
@@ -1795,16 +1799,20 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                     until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
                     completed = compose(
                         "logs", "--no-color", "--since", since, "--until", until,
-                        "--tail", "2000", "api", capture=True, timeout=90,
+                        "--tail", str(tail_lines), "api", capture=True, timeout=90,
                     )
                     output = completed.stdout if isinstance(completed.stdout, str) else ""
-                    bounded = "\n".join(output.splitlines()[-2000:]).encode("utf-8")[-200_000:]
+                    diagnostic_lines = output.splitlines()[-tail_lines:]
+                    diagnostic_text = "\n".join(diagnostic_lines)
+                    bounded = diagnostic_text.encode("utf-8")[-tail_lines * 100:]
                     filename = private / f"recovery-api-spec-{index}-result-{len(summaries)}.log"
                     descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
                     with os.fdopen(descriptor, "wb") as retained:
                         os.fchmod(retained.fileno(), 0o600)
                         retained.write(bounded)
-                    safe_text = bounded.decode("utf-8", "replace")
+                    # Extract the fixed public fields before the private byte cap
+                    # trims an early failure out of a noisy failed-case window.
+                    safe_text = diagnostic_text
                     frames = re.findall(
                         r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
                         safe_text,
@@ -1818,6 +1826,44 @@ def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[d
                         "exception_class": classes[-1] if classes else "none",
                         "function": function, "line": int(line),
                     }
+                    if spec.get("title") == authored_title:
+                        structured = None
+                        recovery_failure = None
+                        for row in diagnostic_lines:
+                            # Container JSON rows escape traceback newlines/quotes.
+                            # Decode only bounded rows; never return their messages.
+                            json_start = row.find("{")
+                            if json_start < 0 or len(row) > 65_536:
+                                continue
+                            try:
+                                record = json.loads(row[json_start:])
+                            except (ValueError, TypeError):
+                                continue
+                            if not isinstance(record, dict) or not isinstance(record.get("exc_info"), str):
+                                continue
+                            trace = record["exc_info"]
+                            trace_frames = re.findall(
+                                r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})', trace,
+                            )
+                            trace_classes = re.findall(
+                                r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)', trace,
+                            )
+                            if not trace_frames or not trace_classes:
+                                continue
+                            trace_line, trace_function = trace_frames[-1]
+                            structured = {"exception_class": trace_classes[-1],
+                                          "function": trace_function, "line": int(trace_line)}
+                            logger_name, message = record.get("name"), record.get("message")
+                            if (logger_name in {
+                                "backend.core.api.app.services.chat_recovery_service",
+                                "backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers",
+                            } or (logger_name == "backend.core.api.app.routes.websockets"
+                                  and isinstance(message, str)
+                                  and message.startswith(("AI Stream Listener:", "Foreground recovery")))):
+                                recovery_failure = structured
+                        # Recovery/listener failures take precedence over later
+                        # unrelated exporter/DNS errors in the same bounded tail.
+                        summary = recovery_failure or structured or summary
                     # Raw windows stay runner-private. Boolean cache failures
                     # have no traceback, so deliver only fixed stage names.
                     cache_stages = []

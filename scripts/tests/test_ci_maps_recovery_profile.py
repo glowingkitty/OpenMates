@@ -13,6 +13,115 @@ import pytest
 from scripts import ci_environment
 
 
+AUTHORED_CASE_TITLE = "saved authored results preserve all admitted typed records through fresh CLI reads"
+
+
+def test_failed_authored_case_extracts_listener_cause_before_private_byte_cap(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    target = json.dumps({
+        "name": "backend.core.api.app.routes.websockets", "level": "ERROR",
+        "message": "AI Stream Listener: Error processing message: private-diagnostic-sentinel",
+        "exc_info": 'Traceback (most recent call last):\n'
+                    '  File "/app/backend/core/api/app/routes/websockets.py", line 1579, in listen_for_ai_chat_streams\n'
+                    '  File "/app/backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py", line 590, in send_available_recovery_outputs\n'
+                    'ValueError: private-query-and-owner-11111111-1111-4111-8111-111111111111',
+        "private_unknown_field": "private-raw-body",
+    })
+    noise = json.dumps({
+        "name": "backend.core.api.app.services.openobserve_push_service", "level": "ERROR",
+        "message": "private-unrelated-exporter-error",
+        "exc_info": 'Traceback (most recent call last):\n'
+                    '  File "/usr/local/lib/python3.13/site-packages/aiohttp/connector.py", line 1598, in _create_direct_connection\n'
+                    'ClientConnectorDNSError: private-hostname',
+    })
+    # The target is within the 8,000-line window but deliberately outside its
+    # 800 KB raw retention cap, followed by unrelated structured DNS noise.
+    output = "outside-line-window\napi-1 | " + target + "\n" + "\n".join(["api-1 | " + noise] * 7999)
+    calls = []
+
+    def compose(*args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(stdout=output)
+
+    monkeypatch.setattr(runner, "compose", compose)
+    failed = {"status": "timedOut", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000}
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE,
+                                    "tests": [{"results": [failed, {**failed, "status": "passed"}]}]}]}]}
+    summaries = runner.capture_recovery_receipt_api_diagnostics(report, 2)
+    assert summaries == [{"exception_class": "ValueError", "function": "send_available_recovery_outputs", "line": 590}]
+    assert calls == [(("logs", "--no-color", "--since", "2026-10-26T11:44:58+00:00",
+                       "--until", "2026-10-26T11:47:05+00:00", "--tail", "8000", "api"),
+                      {"capture": True, "timeout": 90})]
+    private = tmp_path / "ci-private"
+    retained = private / "recovery-api-spec-2-result-0.log"
+    raw = retained.read_bytes()
+    assert len(raw) <= 800_000 and len(raw.splitlines()) <= 8000
+    assert b"private-diagnostic-sentinel" not in raw and b"outside-line-window" not in raw
+    assert b"private-unrelated-exporter-error" in raw
+    assert retained.stat().st_mode & 0o777 == 0o600
+    assert private.stat().st_mode & 0o777 == 0o700
+    public = json.dumps(summaries)
+    assert "private-" not in public and "11111111-1111-4111-8111-111111111111" not in public
+    assert "connector" not in public
+
+
+@pytest.mark.parametrize("title", [
+    AUTHORED_CASE_TITLE + " ", AUTHORED_CASE_TITLE + " extended", "prefix " + AUTHORED_CASE_TITLE,
+    AUTHORED_CASE_TITLE.upper(), "unrelated failed case",
+])
+def test_authored_diagnostics_reject_near_names_and_unrelated_cases(tmp_path, monkeypatch, title):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Unadmitted case reached Docker"))
+    report = {"suites": [{"specs": [{"title": title, "tests": [{"results": [
+        {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000},
+    ]}]}]}]}
+    assert runner.capture_recovery_receipt_api_diagnostics(report, 0) == []
+    assert list((tmp_path / "ci-private").iterdir()) == []
+
+
+@pytest.mark.parametrize("start,duration", [
+    ("2026-10-26T11:45:00", 120_000), ("2026-10-26T12:45:00+01:00", 120_000),
+    ("2026-10-26T11:45:00Z", 600_001), ("2026-10-26T11:45:00Z", True),
+])
+def test_authored_diagnostics_reject_unbounded_or_non_utc_windows(tmp_path, monkeypatch, start, duration):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Invalid window reached Docker"))
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE, "tests": [{"results": [
+        {"status": "failed", "startTime": start, "duration": duration},
+    ]}]}]}]}
+    assert runner.capture_recovery_receipt_api_diagnostics(report, 0) == [
+        {"exception_class": "ValueError", "function": "none", "line": 0},
+    ]
+
+
+def test_authored_diagnostics_retain_at_most_four_failed_attempts(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    calls = []
+
+    def compose(*args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(stdout="bounded-private-log")
+
+    monkeypatch.setattr(runner, "compose", compose)
+    failed = {"status": "failed", "startTime": "2026-10-26T11:45:00Z", "duration": 120_000}
+    report = {"suites": [{"specs": [{"title": AUTHORED_CASE_TITLE,
+                                    "tests": [{"results": [failed] * 5}]}]}]}
+    assert len(runner.capture_recovery_receipt_api_diagnostics(report, 0)) == len(calls) == 4
+    assert len(list((tmp_path / "ci-private").iterdir())) == 4
+
+
 def test_failed_native_cache_retains_only_bounded_private_api_window(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -255,6 +364,7 @@ def test_capacity_epoch_profile_guard_remains_separate(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("specs", [
+    ["cli-authored-results.spec.ts"],
     ["stop-new-chat-draft.spec.ts"],
     ["skill-web-search.spec.ts", "connection-resilience.spec.ts"],
     ["cli-rust-core-essential.spec.ts"],
@@ -280,6 +390,9 @@ def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, 
         "OPENMATES_TEST_ACCOUNT_EMAIL": f"fixture-{identity_index}@example.com",
     })
     calls = []
+    diagnostic_calls = []
+    monkeypatch.setattr(runner, "capture_recovery_receipt_api_diagnostics",
+                        lambda report, index: diagnostic_calls.append(index) or [])
     receipt = {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}
 
     def activate(spec):
@@ -314,6 +427,7 @@ def test_send_and_reconnect_batch_activates_epoch_once_before_browser(tmp_path, 
     assert calls == [("activate", specs[0]), *(('browser', 'tests/' + spec) for spec in specs)]
     assert all(result["exit_code"] == 0 for result in outcomes)
     assert all(result["accounts"]["recovery_protocol_epoch"] == 1 for result in outcomes)
+    assert diagnostic_calls == ([0] if specs == ["cli-authored-results.spec.ts"] else [])
 
 
 @pytest.mark.parametrize("spec_name", [
