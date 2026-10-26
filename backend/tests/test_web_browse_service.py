@@ -119,9 +119,11 @@ class Browser:
     async def pause(self, provider):
         self.calls.append("pause")
 
-    async def resume(self, provider):
+    async def resume(self, provider, *, on_resumed=None):
         self.calls.append("resume")
         provider.update(running_since=time.time(), provider_deadline=time.time() + 120)
+        if on_resumed:
+            await on_resumed(provider)
 
     async def kill(self, provider):
         self.calls.append("kill")
@@ -420,6 +422,56 @@ async def test_missing_native_usage_cannot_be_free_success_or_release_hold(servi
     assert record["status"] == "paused"
     assert record["reservation"] and record["accounting_pending"]
     assert record["pending_calls"]
+    service.app.charge_user_credits.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle
+@pytest.mark.asyncio
+async def test_known_resume_is_persisted_before_ingress_failure_and_can_be_settled(
+    service,
+):
+    from backend.shared.providers.e2b_browser import BrowserRpcUnavailable
+
+    result = await run(service)
+    await service.control(result.session_id, "owner", BrowseControl(operation="stop"))
+    native_resume = service.driver.resume
+
+    async def unavailable_ingress(provider, **kwargs):
+        await native_resume(provider, **kwargs)
+        raise BrowserRpcUnavailable(retryable=True, status_code=502)
+
+    service.driver.resume = unavailable_ingress
+    failed = await run(
+        service,
+        arguments(session_id=result.session_id),
+        message_id="resume-ingress-failure",
+    )
+    record = service.store.records[result.session_id]
+    assert failed.status == "failed" and not failed.metrics["accounting_pending"]
+    assert not record.get("runtime_intent") and record["reservation"] is None
+    assert record["provider"]["running_since"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.lifecycle,web-browse.private-storage-and-api
+@pytest.mark.asyncio
+async def test_close_preserves_only_resource_billing_evidence_for_an_unknown_hold(
+    service,
+):
+    result = await run(service)
+    service.store.records[result.session_id]["accounting_pending"] = True
+    service.store.records[result.session_id]["runtime_intent"] = {"kind": "resume"}
+    await service.control(result.session_id, "owner", BrowseControl(operation="close"))
+    record = service.store.records[result.session_id]
+    assert record["provider"] is None and record["reservation"]
+    receipt = record["unresolved_resource_receipt"]
+    assert receipt["sandbox_id"] == "private-provider-id"
+    assert not {
+        "token",
+        "traffic_access_token",
+        "rpc_url",
+        "latest_observation",
+    }.intersection(receipt)
+    assert "latest_observation" not in record
     service.app.charge_user_credits.assert_not_awaited()
 
 

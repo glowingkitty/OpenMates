@@ -346,9 +346,13 @@ class BrowseService:
             "deadline": time.time() + 120,
         }
         await self.store.save(record)
-        await (await self.browser()).resume(record["provider"])
-        record.pop("runtime_intent", None)
-        await self.store.save(record)
+
+        async def resumed(provider: dict[str, Any]) -> None:
+            record["provider"] = provider
+            record.pop("runtime_intent", None)
+            await self.store.save(record)
+
+        await (await self.browser()).resume(record["provider"], on_resumed=resumed)
 
     async def settle(self, record: dict[str, Any]) -> None:
         reservation = record.get("reservation")
@@ -436,6 +440,24 @@ class BrowseService:
 
     async def expire(self, record: dict[str, Any], status: str = "expired") -> None:
         if record.get("provider"):
+            if (
+                record.get("accounting_pending")
+                or record.get("runtime_intent")
+                or record.get("pending_calls")
+            ):
+                # Closing removes credentials and live state, but must not erase
+                # the content-free resource identity needed to reconcile a hold.
+                record["unresolved_resource_receipt"] = {
+                    key: record["provider"].get(key)
+                    for key in (
+                        "sandbox_id",
+                        "cpu_count",
+                        "memory_mb",
+                        "created_at",
+                        "running_since",
+                        "provider_deadline",
+                    )
+                }
             if not record["provider"].get("deleted"):
                 await (await self.browser()).kill(record["provider"])
             record["runtime_cost_usd"] = str(self.runtime_cost(record))

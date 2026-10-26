@@ -24,7 +24,7 @@ from backend.shared.python_utils.private_inference_logging import (
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.network-and-content,web-browse.exclusive-takeover
-async def test_live_browser_runtime() -> dict:
+async def test_live_browser_runtime(*, idle_before_pause: bool = False) -> dict:
     secrets = SecretsManager()
     await secrets.initialize()
     provider = None
@@ -75,6 +75,15 @@ async def test_live_browser_runtime() -> dict:
                 report["manual_observation_denied"] = True
             else:
                 raise AssertionError("AI observed a manually controlled browser")
+            if idle_before_pause:
+                # Prove both controller survival beyond the default SDK command
+                # lifetime and real native auto-pause, not just a quick resume.
+                await asyncio.sleep(125)
+                idle_info = await browser.info(provider)
+                report["native_idle_state"] = str(
+                    getattr(idle_info.state, "value", idle_info.state)
+                )
+                assert report["native_idle_state"] == "paused"
             pause_started = time.monotonic()
             await browser.pause(provider)
             report["pause_seconds"] = round(time.monotonic() - pause_started, 3)
@@ -113,10 +122,17 @@ async def test_live_browser_runtime() -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--idle-before-pause", action="store_true")
     args = parser.parse_args()
     if not args.execute:
         parser.error("--execute is required for a paid E2B smoke probe")
-    print(json.dumps(asyncio.run(test_live_browser_runtime())))
+    print(
+        json.dumps(
+            asyncio.run(
+                test_live_browser_runtime(idle_before_pause=args.idle_before_pause)
+            )
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -62,6 +62,58 @@ def transport(monkeypatch, handler):
     )
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "ready,expected", [(0.97, "done"), (0.16, "click"), (0.54, "click")]
+)
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.truthful-completion
+async def test_ready_information_avoids_unnecessary_navigation_but_required_actions_continue(
+    models, ready, expected
+):
+    models.decision = AsyncMock(
+        side_effect=[
+            SimpleNamespace(
+                answers={
+                    "information_ready": SimpleNamespace(noul=ready),
+                    "injection": SimpleNamespace(noul=0.01),
+                    "operation": SimpleNamespace(choice="click"),
+                }
+            ),
+            SimpleNamespace(answers={"safe": SimpleNamespace(noul=0.99)}),
+        ]
+    )
+    result = await models.choose(
+        {
+            "url": "https://example.com/",
+            "controls": [
+                {"id": "0", "kind": "click", "label": "Learn more", "role": "link"}
+            ],
+        },
+        "Read the page purpose",
+        [],
+    )
+    assert result["kind"] == expected
+    assert models.decision.await_count == (1 if expected == "done" else 2)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.network-and-content
+@pytest.mark.asyncio
+async def test_information_readiness_cannot_override_a_page_injection_block(models):
+    models.decision = AsyncMock(
+        return_value=SimpleNamespace(
+            answers={
+                "information_ready": SimpleNamespace(noul=0.99),
+                "injection": SimpleNamespace(noul=0.9),
+                "operation": SimpleNamespace(choice="done"),
+            }
+        )
+    )
+    assert (await models.choose({"controls": []}, "Read the page", []))[
+        "kind"
+    ] == "blocked"
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.text-helper
 @pytest.mark.asyncio
 async def test_jev_native_usage_has_exact_two_times_browse_price_and_no_public_skill_markup(

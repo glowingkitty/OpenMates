@@ -157,6 +157,9 @@ class E2BBrowser:
                 sandbox.commands.run,
                 f"{RUNTIME_PYTHON} {RUNTIME_DIR}/server.py",
                 background=True,
+                # The controller must survive the SDK's default 60-second
+                # command connection lifetime. The sandbox lifecycle bounds it.
+                timeout=0,
             )
             for _ in range(30):
                 try:
@@ -200,7 +203,12 @@ class E2BBrowser:
             )
             provider["provider_deadline"] = time.time() + seconds
 
-    async def resume(self, provider: dict[str, Any]) -> None:
+    async def resume(
+        self,
+        provider: dict[str, Any],
+        *,
+        on_resumed: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
+    ) -> None:
         from e2b import Sandbox
 
         sandbox = await asyncio.to_thread(
@@ -211,8 +219,12 @@ class E2BBrowser:
             retries=0,
         )
         provider["traffic_access_token"] = sandbox.traffic_access_token
+        provider["rpc_url"] = "https://" + sandbox.get_host(8765)
         provider["running_since"] = time.time()
         provider["provider_deadline"] = time.time() + 120
+        if on_resumed:
+            # Persist known paid compute before a later transport check can fail.
+            await on_resumed(provider)
         # A successful native resume precedes ingress readiness. In particular,
         # an auto-paused sandbox can still return 502 briefly after connect.
         # Read metadata only: readiness neither changes the controller nor acts.

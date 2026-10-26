@@ -62,7 +62,12 @@ async def test_native_resume_waits_for_ingress_using_metadata_without_repeating_
     monkeypatch.setattr(
         Sandbox,
         "connect",
-        Mock(return_value=SimpleNamespace(traffic_access_token="private-ingress")),
+        Mock(
+            return_value=SimpleNamespace(
+                traffic_access_token="private-ingress",
+                get_host=Mock(return_value="resumed-sandbox.invalid"),
+            )
+        ),
     )
     monkeypatch.setattr(asyncio, "sleep", AsyncMock())
     browser = E2BBrowser("placeholder")
@@ -73,8 +78,11 @@ async def test_native_resume_waits_for_ingress_using_metadata_without_repeating_
         ]
     )
     provider = {"sandbox_id": "private-sandbox"}
-    await browser.resume(provider)
+    resumed = AsyncMock()
+    await browser.resume(provider, on_resumed=resumed)
     assert provider["running_since"] is not None
+    resumed.assert_awaited_once_with(provider)
+    assert provider["rpc_url"] == "https://resumed-sandbox.invalid"
     assert browser.rpc.await_count == 2
     assert all(
         c.args[1] == {"operation": "metadata"} for c in browser.rpc.await_args_list
@@ -90,7 +98,12 @@ async def test_resume_does_not_retry_a_rejected_runtime_credential(monkeypatch):
     monkeypatch.setattr(
         Sandbox,
         "connect",
-        Mock(return_value=SimpleNamespace(traffic_access_token="private-ingress")),
+        Mock(
+            return_value=SimpleNamespace(
+                traffic_access_token="private-ingress",
+                get_host=Mock(return_value="resumed-sandbox.invalid"),
+            )
+        ),
     )
     browser = E2BBrowser("placeholder")
     browser.rpc = AsyncMock(side_effect=BrowserRpcUnavailable(status_code=401))
@@ -173,6 +186,39 @@ class Writer:
 
     async def wait_closed(self):
         pass
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.session-and-run
+@pytest.mark.asyncio
+async def test_controller_is_not_limited_to_the_sdk_default_command_lifetime(
+    monkeypatch,
+):
+    from datetime import datetime, timezone
+    from e2b import Sandbox
+    from backend.shared.providers.e2b_browser import E2BBrowser
+
+    sandbox = SimpleNamespace(
+        sandbox_id="private-sandbox",
+        traffic_access_token="private-ingress",
+        get_host=Mock(return_value="private-sandbox.invalid"),
+        get_info=Mock(
+            return_value=SimpleNamespace(
+                cpu_count=2, memory_mb=4096, started_at=datetime.now(timezone.utc)
+            )
+        ),
+        commands=SimpleNamespace(run=Mock()),
+        files=SimpleNamespace(write=Mock()),
+        kill=Mock(),
+    )
+    monkeypatch.setattr(Sandbox, "create", Mock(return_value=sandbox))
+    monkeypatch.setenv("E2B_BROWSE_TEMPLATE", "prepared-template")
+    browser = E2BBrowser("placeholder")
+    browser.rpc = AsyncMock(return_value={})
+    await browser.create(session_id="session", owner="owner", on_created=AsyncMock())
+    server = [
+        c for c in sandbox.commands.run.call_args_list if c.kwargs.get("background")
+    ]
+    assert len(server) == 1 and server[0].kwargs["timeout"] == 0
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.budgets-and-stop

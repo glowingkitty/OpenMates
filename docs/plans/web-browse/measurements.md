@@ -75,6 +75,13 @@ at the user multiplier before rounding.
 - A 125-second native idle probe confirmed auto-pause, then reproduced HTTP 502 on
   the first browser RPC after successful resume. The current candidate waits on
   bounded metadata-only readiness checks and never retries an input action.
+  The readiness wait alone did not restore an older controller.
+- A subsequent 75-second A/B probe isolated the controller lifetime: both VMs
+  were still running at the same ingress addresses, but the default command had
+  zero controller processes and returned 502; `timeout=0` retained one responding
+  controller. The next candidate explicitly disables the SDK's default 60-second
+  command connection timeout. The sandbox's idle/expiry lifecycle still bounds
+  the controller. The native regression probe now supports `--idle-before-pause`.
 - Mouse-driven navigation can invalidate an observation's execution context.
   The current candidate retries that read at most three times after document
   readiness; access denials and a closed original page are not retried.
@@ -83,17 +90,33 @@ at the user multiplier before rounding.
   statement retaining the page's relevant caveat scored 0.95 and an invented
   banking claim scored 0.0. Extraction now preserves relevant qualifications,
   and controller instructions distinguish answer formatting from website actions.
+- A separate information-readiness question scored visible information 0.97,
+  required navigation 0.16 and an absent heading 0.54. The next candidate uses
+  that head to avoid unnecessary navigation, with independent final verification
+  still required at 0.95. It never overrides a page-injection block.
+- Successful native resume is now persisted before ingress checks. A later
+  transport failure can settle its known compute window rather than treating the
+  entire resume as unknown. Closing an unresolved session retains only the private
+  resource identity/counters needed for billing review while removing credentials.
 
 The retained real session recovered its interrupted settlement and reported 12
 charged credits. Its subsequent browser resume still failed before readiness;
 it is not a successful reuse case. The CLI's next run dispatched Browse, returned
 a failed Browse result and recovered through `web.read`. That is a Browse failure
 despite the CLI process exiting successfully.
+The next CLI attempt successfully navigated to IANA and reused the active browser,
+but completion scores of 0.63 and 0.49 led to `needs_user`; the assistant again used
+`web.read`. This remains a failed Browse fulfillment check. An older SDK session's
+failed resume has a reconciliation hold; its last confirmed settled charge is 13
+credits. That hold is not a new settled charge and must not be silently forgiven.
 
 The deployed dispatch, settlement and pause-recovery change passed 32 focused
 tests locally and in isolated CI (run 40336127998). The preceding broader backend
 and Google SDK check passed 88 tests. The readiness/observation candidate passed
 61 focused local tests before five additional transport cases, which also passed.
+The deployed readiness candidate subsequently passed 67 isolated cases (run
+40342501601). The controller-lifetime/native-receipt/information-readiness candidate
+passes 74 focused local cases; its isolated verification is next.
 Native provider probes are additional evidence;
 they do not replace CLI, SDK or web acceptance.
 
