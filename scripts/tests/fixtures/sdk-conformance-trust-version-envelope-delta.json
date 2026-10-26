@@ -1,0 +1,31 @@
+{
+  "afterCounts": {
+    "contracts": 73,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 283
+  },
+  "afterSha256": "4cdca0c090d528e1fb13417c7c98f95b89edee6dc52c21b73e50976703dcc8fe",
+  "beforeCounts": {
+    "contracts": 73,
+    "gaps": 177,
+    "plan": 90,
+    "programs": 283
+  },
+  "beforeSha256": "28de5b31194c45e8e4f29f35ac92ac0767395927f252f4e65e0a20712b649a10",
+  "contractsUnchanged": true,
+  "gapsUnchanged": true,
+  "nativeExecutions": 0,
+  "plansUnchanged": true,
+  "programPinDeltas": {
+    "scripts/tests/test_sdk_session_embed_version_gate.py": {
+      "after": "c9edc5419eab7313ee635a880e24a85e4715c7fd30b3db2d5cc07d91f8ababb0",
+      "before": "2c7d07dbd019d6ae92bc595b6add95ea42956587a993ae5f190612e89cf2cd47"
+    },
+    "tests/sdk-conformance/runners/session-embed-version-content.py": {
+      "after": "6feba5e19b96a2ce8511fb92adf49c8fe709d7f6dfa87033a372441fe7a0f430",
+      "before": "03cbb14e06476a6b2aa42c86ff713e6836173481188553e91a7fb6afdf743b85"
+    }
+  },
+  "releaseEligible": false
+}
