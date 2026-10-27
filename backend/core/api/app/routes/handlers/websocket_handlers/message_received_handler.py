@@ -1742,7 +1742,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     )
 
                     if embed_cached:
-                        await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
                         logger.debug("Embed cache registration acknowledged")
                     else:
                         # Durable upload persistence is independent of this cache.
@@ -1883,14 +1882,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
                     
-                    await cache_service.set_embed_in_cache(
+                    # Content is already encrypted; the cache also owns chat indexing.
+                    embed_cached = await cache_service.set_embed_in_cache(
                         embed_id=embed_data["embed_id"],
                         embed_data=embed_cache_data,
-                        user_vault_key_id=user_vault_key_id
+                        chat_id=chat_id
                     )
-                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_data["embed_id"])
-                    
-                    logger.debug(f"Cached code embed {embed_data['embed_id']} for AI processing")
+                    if embed_cached:
+                        logger.debug(f"Cached code embed {embed_data['embed_id']} for AI processing")
+                    else:
+                        logger.warning("Code embed cache registration was not acknowledged")
                     
                 except Exception as e_embed_send:
                     logger.error(f"Error sending/caching code embed {embed_data.get('embed_id')}: {e_embed_send}", exc_info=True)

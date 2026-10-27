@@ -11,6 +11,7 @@ import time
 import math
 import asyncio
 import secrets
+import hmac
 import json
 from dataclasses import dataclass, field
 from typing import Callable, Collection, Protocol
@@ -280,6 +281,7 @@ class _ContextHandoff:
     vault_key_id: str = field(repr=False)
     project_binding: tuple[str, str] | None = None
     protected_same_turn: bool = False
+    fingerprint: bytes = field(default=b"", repr=False)
 
 
 class TransientContextHandoffStore:
@@ -288,6 +290,7 @@ class TransientContextHandoffStore:
     def __init__(self, *, clock: Callable[[], float] = time.time):
         self._clock = clock
         self._entries: dict[str, _ContextHandoff] = {}
+        self._fingerprint_key = secrets.token_bytes(32)
         self._timers: dict[str, asyncio.TimerHandle] = {}
         self._revocation_generation = 0
 
@@ -297,18 +300,40 @@ class TransientContextHandoffStore:
         if timer:
             timer.cancel()
 
+    def _live_reference(self, fingerprint: bytes) -> str | None:
+        """Reuse live context without renewing its original expiry or authority."""
+        for reference, entry in list(self._entries.items()):
+            if entry.expires_at <= self._clock():
+                self._remove(reference)
+            elif hmac.compare_digest(entry.fingerprint, fingerprint):
+                return reference
+        return None
+
     async def seal(self, *, owner_id: str, chat_id: str, turn_id: str, request_id: str,
                    fields: dict, encryption: SummaryEncryption, vault_key_id: str,
                    project_binding: tuple[str, str] | None = None) -> str | None:
         if set(fields) - PRIVATE_CONTEXT_FIELDS:
             return None
-        text = json.dumps(fields, ensure_ascii=False)
+        text = json.dumps(fields, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
         if len(text.encode()) > 200_000:
             return None
+        # The keyed fingerprint stays in API memory. Queue/broker identity uses
+        # the existing random reference, never a public digest of private data.
+        fingerprint = hmac.digest(self._fingerprint_key, json.dumps([
+            owner_id, chat_id, turn_id, request_id, vault_key_id, project_binding, text,
+        ], ensure_ascii=False, separators=(",", ":")).encode(), "sha256")
+        existing = self._live_reference(fingerprint)
+        if existing is not None:
+            return existing
         generation = self._revocation_generation
         ciphertext, _ = await encryption.encrypt_with_user_key(text, vault_key_id)
         if not ciphertext.startswith("vault:v") or generation != self._revocation_generation:
             return None
+        # Vault encryption yields control. Identical concurrent admissions must
+        # converge on the reference inserted by the first completed seal.
+        existing = self._live_reference(fingerprint)
+        if existing is not None:
+            return existing
         marker = fields.get("same_turn_checkpoint")
         requested_ttl = marker.get("handoff_ttl_seconds") if isinstance(marker, dict) else None
         handoff_ttl = (
@@ -325,7 +350,7 @@ class TransientContextHandoffStore:
         reference = secrets.token_urlsafe(32)
         self._entries[reference] = _ContextHandoff(owner_id, chat_id, turn_id, request_id,
             self._clock() + handoff_ttl, ciphertext, vault_key_id, project_binding,
-            protected_same_turn=handoff_ttl > 1200)
+            protected_same_turn=handoff_ttl > 1200, fingerprint=fingerprint)
         self._timers[reference] = asyncio.get_running_loop().call_later(handoff_ttl, self._remove, reference)
         return reference
 

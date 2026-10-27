@@ -497,10 +497,10 @@ def _assert_usage(
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 @pytest.mark.parametrize("alternate_succeeds", [True, False])
+@pytest.mark.parametrize("safe_prefix", ["", "A verified opening paragraph.\n\n"])
 async def test_fabricated_protocol_uses_clean_context_and_one_configured_alternate(
-    answer_recovery_runner, alternate_succeeds: bool,
+    answer_recovery_runner, alternate_succeeds: bool, safe_prefix: str,
 ) -> None:
-    safe_prefix = "A verified opening paragraph.\n\n"
     protocol = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
     output, calls, _original_history = await answer_recovery_runner(
         [[safe_prefix + protocol + "\nInvented evidence."], [protocol],
@@ -531,7 +531,8 @@ async def test_fabricated_protocol_uses_clean_context_and_one_configured_alterna
     assert failures == ([] if alternate_succeeds else [
         {"__main_processing_failure__": True, "reason": "protocol_guard"},
     ])
-    _assert_usage(output, calls=3, successful_model=ALTERNATE_MODEL if alternate_succeeds else PRIMARY_MODEL)
+    _assert_usage(output, calls=3, successful_model=ALTERNATE_MODEL if alternate_succeeds
+                  else PRIMARY_MODEL if safe_prefix else None)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

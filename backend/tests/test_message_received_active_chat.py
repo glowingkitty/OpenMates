@@ -16,7 +16,7 @@ import sys
 
 import pytest
 from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from backend.core.api.app.services.directus.team_methods import hash_id
 
@@ -530,11 +530,30 @@ def test_existing_legacy_result_replay_requires_successful_matching_completion(m
         assert replay == {"content": "answer", "fired_at": int(result.date_done.timestamp())}
 
 
-def test_message_send_forwards_client_embed_ref_index(monkeypatch):
+@pytest.mark.parametrize("server_code,cache_ack", [(False, True), (True, True), (True, False)])
+def test_message_send_forwards_client_embed_ref_index(monkeypatch, server_code, cache_ack):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
+    warning = Mock(wraps=message_received_handler.logger.warning)
+    error = Mock(wraps=message_received_handler.logger.error)
+    monkeypatch.setattr(message_received_handler.logger, "warning", warning)
+    monkeypatch.setattr(message_received_handler.logger, "error", error)
     manager = FakeManager()
     captured: dict[str, object] = {}
+    cached_embeds = []
+
+    async def cache_embed(*, embed_id, embed_data, chat_id, ttl=86400):
+        # Enforce the real cache contract rather than accepting arbitrary kwargs.
+        cached_embeds.append((embed_id, embed_data, chat_id, ttl))
+        return cache_ack
+
+    class CodeEmbedService(FakeEmbedService):
+        async def extract_code_blocks_from_user_message(self, **kwargs):
+            return "Review [!](embed:sample.py)", [{
+                "embed_id": "extracted-code-1", "type": "code", "status": "finished",
+                "content": "type: code\ncode: print('synthetic code sentinel')",
+                "filename": "sample.py",
+            }]
 
     class CapturingSkillRegistry:
         async def dispatch_skill(self, app_name, skill_name, request_payload):
@@ -556,7 +575,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
         ),
         increment_and_tombstone_user_draft=AsyncMock(return_value=1),
-        set_embed_in_cache=AsyncMock(),
+        set_embed_in_cache=AsyncMock(side_effect=cache_embed),
         add_embed_id_to_chat_index=AsyncMock(),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
@@ -601,11 +620,14 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
             }
         ],
     }
+    if server_code:
+        payload["message"]["content"] = "Review this code:\n```python\nprint('synthetic code sentinel')\n```"
+        payload["embeds"] = []
 
     monkeypatch.setitem(
         sys.modules,
         "backend.core.api.app.services.embed_service",
-        SimpleNamespace(EmbedService=FakeEmbedService),
+        SimpleNamespace(EmbedService=CodeEmbedService),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -631,8 +653,18 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         )
     )
 
-    assert captured["embed_file_path_index"] == {"mockup-png-abc123": "embed-image-1"}
-    assert captured["has_image_upload_embed"] is True
+    assert captured["embed_file_path_index"] == (None if server_code else {"mockup-png-abc123": "embed-image-1"})
+    assert captured["has_image_upload_embed"] is (not server_code)
+    assert len(cached_embeds) == 1
+    embed_id, embed_data, indexed_chat, ttl = cached_embeds[0]
+    assert embed_id == ("extracted-code-1" if server_code else "embed-image-1")
+    assert indexed_chat == "chat-123" and ttl == 86400
+    assert embed_data["encrypted_content"] == embed_data["encrypted_type"] == "encrypted"
+    assert "synthetic code sentinel" not in json.dumps(embed_data)
+    cache_service.add_embed_id_to_chat_index.assert_not_awaited()
+    if not cache_ack:
+        warning.assert_any_call("Code embed cache registration was not acknowledged")
+    error.assert_not_called()
     cache_service.try_claim_active_ai_task.assert_awaited_once_with("chat-123", hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest())
     cache_service.set_active_ai_task.assert_not_awaited()
 

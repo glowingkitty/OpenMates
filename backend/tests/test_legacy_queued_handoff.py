@@ -1042,14 +1042,28 @@ async def test_claimed_batch_reconciles_lost_prefix_ack_without_broker_replay(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("private_context", [False, True])
 # contract-test: infrastructure
-async def test_ordinary_exact_broker_retry_reuses_binding_and_changed_config_holds(monkeypatch):
+async def test_ordinary_exact_broker_retry_reuses_binding_and_changed_config_holds(monkeypatch, private_context):
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
     import backend.core.api.app.services.chat_recovery_service as recovery_module
     import backend.core.api.app.services.directus as directus_module
 
     task_id = hashlib.sha256(b"owner:chat:first").hexdigest()
     request = AskSkillRequest(**_member("first", "first"), legacy_cutover_task_id=task_id)
+    from backend.shared.python_utils import recent_work_summary_client as private_module
+    from backend.shared.python_utils.recent_work_summary_cache import TransientContextHandoffStore
+
+    handoffs = TransientContextHandoffStore()
+    encryption = SimpleNamespace(encrypt_with_user_key=AsyncMock(
+        return_value=("vault:v1:private-context", "v1")))
+
+    async def seal_context(**binding):
+        return await handoffs.seal(**binding, encryption=encryption, vault_key_id="owner-key")
+
+    monkeypatch.setattr(private_module, "RecentWorkSummaryClient", lambda: SimpleNamespace(seal_context=seal_context))
+    if private_context:
+        request.custom_rule_documents = [{"content": "private retry sentinel"}]
     skill = AskSkill.__new__(AskSkill)
     skill.parsed_default_config = None
     skill.celery_producer = object()
@@ -1094,10 +1108,19 @@ async def test_ordinary_exact_broker_retry_reuses_binding_and_changed_config_hol
     assert response.task_id == task_id
     assert len(bindings) == 2 and bindings[0] == bindings[1]
     assert broker_ids == [task_id, task_id]
+    if private_context:
+        original_ref = request.agentic_context_ref
+        request.custom_rule_documents = [{"content": "changed private retry sentinel"}]
+        with pytest.raises(ChatRecoveryProtocolError):
+            await skill._handle_internal_request(request)
+        assert request.agentic_context_ref != original_ref
+        assert broker_ids == [task_id, task_id]
+        request.custom_rule_documents = [{"content": "private retry sentinel"}]
     skill.parsed_default_config = SimpleNamespace(model_dump=lambda: {"changed": True})
     with pytest.raises(ChatRecoveryProtocolError):
         await skill._handle_internal_request(request)
     assert broker_ids == [task_id, task_id]
+    handoffs.revoke(owner_id=request.user_id)
 
 
 @pytest.mark.anyio

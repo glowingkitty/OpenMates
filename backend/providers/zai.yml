@@ -1,6 +1,6 @@
 # backend/providers/zai.yml
 # Z.ai provider config (GLM models).
-# GLM models use Mistral, OpenRouter, or Cerebras according to their version.
+# GLM models use Mistral, OpenRouter, or AWS Bedrock according to their version.
 ---
 provider_id: "zai"
 name: "Z.ai"
@@ -13,10 +13,6 @@ optional_keys:
     vault_path: "kv/data/providers/mistral_ai"
     vault_key: "api_key"
     description: "Mistral API key for the default GLM 5.3 host."
-  - env_key: "SECRET__CEREBRAS__API_KEY"
-    vault_path: "kv/data/providers/cerebras"
-    vault_key: "api_key"
-    description: "Optional Cerebras gateway key for GLM model hosting."
   - env_key: "SECRET__OPENROUTER__API_KEY"
     vault_path: "kv/data/providers/openrouter"
     vault_key: "api_key"
@@ -132,9 +128,7 @@ models:
 
   - id: "zai-glm-4.7"
     name: "GLM 4.7"
-    # Z.ai GLM 4.7 with 355B params and ultra-fast inference (~1000 tok/s).
-    # Served via Cerebras API. Strong reasoning and general performance.
-    description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
+    description: "Z.ai GLM 4.7 - reasoning and general-purpose text generation."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-01-06" # Cerebras public preview availability date
@@ -147,12 +141,10 @@ models:
       - text
     output_types:
       - text
-    default_server: "cerebras"
+    # Cerebras retired this route on 2026-08-17; production received archived-model 404s.
+    # https://inference-docs.cerebras.ai/support/deprecation
+    default_server: "aws_bedrock"
     servers:
-      - id: "cerebras"
-        name: "Cerebras"
-        model_id: "zai-glm-4.7" # Direct Cerebras model identifier
-        region: "US" # Server region for UI display
       - id: "aws_bedrock"
         name: "AWS Bedrock"
         model_id: "zai.glm-4.7-flash" # Bedrock model ID

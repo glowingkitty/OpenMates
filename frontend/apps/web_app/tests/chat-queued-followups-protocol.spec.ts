@@ -105,12 +105,13 @@ asyncio.run(main())
 
 function validateQueuedWorkerScope(chatId: string): void {
   const program = `
-import asyncio,json,logging,os,sys
+import asyncio,contextlib,json,logging,os,sys
 logging.disable(logging.CRITICAL)
 assert os.environ.get('OPENMATES_CI_ISOLATED') == '1'
-from backend.core.api.app.services.cache import CacheService
-from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.tasks.ask_skill_task import _validated_queued_messages, _validated_recovery_queued_member
+with contextlib.redirect_stdout(sys.stderr):
+    from backend.core.api.app.services.cache import CacheService
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.tasks.ask_skill_task import _validated_queued_messages, _validated_recovery_queued_member
 async def main():
     chat_id=json.load(sys.stdin)['chat_id']; cache=CacheService()
     try:
@@ -168,6 +169,48 @@ async function requestQueueEvent(page: any, url: string, type: string,
   }, { url, type, payload, responseType });
 }
 
+function validateCodeContextCache(chatId: string): void {
+  const program = `
+import asyncio,json,logging,os,sys
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED') == '1'
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+async def main():
+    chat_id=json.load(sys.stdin)['chat_id']; cache=CacheService()
+    encryption=EncryptionService(cache_service=cache)
+    try:
+        client=await cache.client
+        found=False
+        for embed_id in await cache.get_chat_embed_ids(chat_id):
+            data=await cache.get_embed_from_cache(embed_id)
+            if not data: continue
+            # The accepted queue member provides the authenticated owner identity.
+            members=await client.lrange(f'chat:{chat_id}:message_queue',0,19)
+            owner=json.loads(members[0])['user_id']
+            key=await cache.get_user_vault_key_id(owner)
+            kind=await encryption.decrypt_with_user_key(data['encrypted_type'],key)
+            if kind != 'code': continue
+            content=await encryption.decrypt_with_user_key(data['encrypted_content'],key)
+            if 'queued_cache_sentinel' not in content: continue
+            assert data['encrypted_content'].startswith('vault:v')
+            assert 'queued_cache_sentinel' not in json.dumps(data)
+            assert await client.ttl(cache._get_embed_cache_key(embed_id)) > 23*3600
+            assert await client.ttl(cache._get_chat_embed_ids_key(chat_id)) > 23*3600
+            found=True
+        assert found, 'Submitted code must remain encrypted, indexed and readable for AI context'
+        print('code context cache validated')
+    finally:
+        await cache.close()
+asyncio.run(main())
+`;
+  const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', '-e',
+    'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
+    cwd: root, input: JSON.stringify({ chat_id: chatId }), encoding: 'utf8', timeout: 60_000
+  });
+  expect(output.trim()).toBe('code context cache validated');
+}
+
 test.describe('Queued follow-up authenticated protocol', () => {
   test.setTimeout(300_000);
   test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -175,8 +218,8 @@ test.describe('Queued follow-up authenticated protocol', () => {
   'Requires isolated GitHub product stack and deterministic mock inference');
   skipWithoutCredentials(test, email, password, otpKey);
 
-  // contract-test: direct surface=gui.web assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped
-  // contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped
+  // contract-test: direct surface=gui.web assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped,chats.message.identity-idempotent
+  // contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped,chats.message.identity-idempotent
   // contract-test: direct surface=cli assertions=chat-queued-followups.admission.synced
   test('server queues one encrypted turn, fences revisions and shares its state across connections', async ({ page, browser }: { page: any; browser: any }, testInfo: any) => {
     const frames: ProtocolFrame[] = [];
@@ -190,6 +233,28 @@ test.describe('Queued follow-up authenticated protocol', () => {
     const peerConsoleErrors: Array<RendererErrorDiagnostic & { phase: string; component: string | null }> = [];
     const peerConsoleCaptures: Promise<void>[] = [];
     try {
+      await page.addInitScript(() => {
+        const sent = new Map<string, { socket: WebSocket; data: string }>();
+        const send = WebSocket.prototype.send;
+        WebSocket.prototype.send = function (data) {
+          if (typeof data === 'string') {
+            try {
+              const frame = JSON.parse(data);
+              const id = frame.payload?.message?.message_id;
+              if (frame.type === 'chat_message_added' && typeof id === 'string') {
+                sent.set(id, { socket: this, data });
+              }
+            } catch { /* Control frames need no replay. */ }
+          }
+          send.call(this, data);
+        };
+        (window as unknown as { __queuedProtocolRetry: (id: string) => void }).__queuedProtocolRetry = (id) => {
+          const frame = sent.get(id);
+          if (!frame || frame.socket.readyState !== WebSocket.OPEN) throw new Error('Queued retry connection unavailable');
+          // Replay the exact bytes on the original authenticated connection.
+          send.call(frame.socket, frame.data);
+        };
+      });
       await loginToTestAccount(page);
       await waitForChatReady(page);
       // A new-chat seed needs the initial personal-context snapshot to finish.
@@ -341,6 +406,17 @@ test.describe('Queued follow-up authenticated protocol', () => {
       expect(queuedFrame.payload.queue_revision).toBe(1);
       expect(queuedFrame.payload.queue_mode).toBe('follow_up');
       validateQueuedWorkerScope(chatId);
+      const queuedAcks = () => frames.filter((frame) => frame.direction === 'received'
+        && frame.type === 'message_queued' && frame.payload.user_message_id === messageId);
+      const acknowledgementsBeforeRetry = queuedAcks().length;
+      await page.evaluate((id: string) => {
+        (window as unknown as { __queuedProtocolRetry: (id: string) => void }).__queuedProtocolRetry(id);
+      }, messageId);
+      await expect.poll(() => queuedAcks().length, {
+        timeout: 30_000, message: 'An exact queued retry must be acknowledged without changing its identity'
+      }).toBe(acknowledgementsBeforeRetry + 1);
+      expect(queuedAcks().at(-1)?.payload.queue_revision).toBe(1);
+      validateQueuedWorkerScope(chatId); // Still exactly one real queue member.
       await expect.poll(() => otherFrames.some((frame) => frame.type === 'queued_message_status'
         && frame.payload.user_message_id === messageId)).toBe(true);
 
@@ -540,6 +616,14 @@ test.describe('Queued follow-up authenticated protocol', () => {
           });
         } finally { removeWorkflowCliHome(cliHome); }
       }
+
+      const acknowledgementsBeforeCode = frames.filter((frame) => frame.direction === 'received'
+        && frame.type === 'message_queued').length;
+      await sendMessage(page, "Review this code while it waits.\n\n```python\nprint('queued_cache_sentinel')\n```");
+      await expect.poll(() => frames.filter((frame) => frame.direction === 'received'
+        && frame.type === 'message_queued').length, { timeout: 30_000 })
+        .toBe(acknowledgementsBeforeCode + 1);
+      validateCodeContextCache(chatId!);
     } finally {
       // Retain this witness for every outcome, including failures after the
       // count assertions. DOM counts can update before row construction fails.
